@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: Contributing guide
-    url: https://github.com/YOUR_ORG/abofa-pms/blob/main/CONTRIBUTING.md
+    url: https://github.com/McCaesar-Technology-Solutions/mcs-pms/blob/main/CONTRIBUTING.md
     about: Branch naming, PR workflow, and Phase 1 issue breakdown
   - name: README roadmap
-    url: https://github.com/YOUR_ORG/abofa-pms/blob/main/README.md
+    url: https://github.com/McCaesar-Technology-Solutions/mcs-pms/blob/main/README.md
     about: Phases 0–5 and definition of done

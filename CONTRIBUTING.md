@@ -231,7 +231,7 @@ Do not close the milestone until this story works on staging:
 ## Local setup
 
 ```bash
-git clone https://github.com/YOUR_ORG/abofa-pms.git
+git clone https://github.com/McCaesar-Technology-Solutions/mcs-pms.git
 cd abofa-pms
 npm install
 cp .env.example .env.local   # after Phase 1.1 lands
