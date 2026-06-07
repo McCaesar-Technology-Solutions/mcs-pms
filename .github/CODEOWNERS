@@ -1,0 +1,11 @@
+# Default reviewers for all pull requests.
+# Replace @YOUR_GITHUB_USERNAME with the team lead (and add others as the team grows).
+#
+# Docs: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+* @YOUR_GITHUB_USERNAME
+
+# Optional: route by area once you have specialists
+# /app/api/     @backend-dev
+# /components/  @frontend-dev
+# /drizzle/     @backend-dev

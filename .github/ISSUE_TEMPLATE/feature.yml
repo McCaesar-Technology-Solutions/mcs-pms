@@ -1,0 +1,71 @@
+name: Feature
+description: New feature or Phase roadmap task
+title: "[Phase N] "
+labels: ["enhancement"]
+body:
+  - type: dropdown
+    id: phase
+    attributes:
+      label: Phase
+      options:
+        - Phase 0 — UI prototype
+        - Phase 1 — Foundation
+        - Phase 2 — Daily operations
+        - Phase 3 — Ghana & payments
+        - Phase 4 — Channels & SaaS
+        - Phase 5 — Hardening & launch
+    validations:
+      required: true
+
+  - type: input
+    id: branch
+    attributes:
+      label: Suggested branch name
+      placeholder: feature/p1-api-guests
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What should this deliver?
+      description: User-visible outcome or API behavior
+      placeholder: Admin can create a guest and see them in the directory after refresh.
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Checklist that defines "done" for this issue
+      value: |
+        - [ ]
+        - [ ]
+    validations:
+      required: true
+
+  - type: input
+    id: depends
+    attributes:
+      label: Depends on (issue numbers)
+      placeholder: "#3, #6 — leave empty if none"
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - API
+        - UI
+        - Auth
+        - Database
+        - DevOps
+        - Docs
+        - Mobile
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Additional context
+      placeholder: Links, mockups, related README section

@@ -1,0 +1,72 @@
+'use client'
+
+import { reservations } from '@/lib/mock-data'
+import { ChevronRight } from 'lucide-react'
+
+export function BookingsList() {
+  const upcomingBookings = reservations
+    .filter((b) => b.status === 'confirmed' || b.status === 'checked_in')
+    .sort(
+      (a, b) =>
+        new Date(a.checkInDate).getTime() - new Date(b.checkInDate).getTime()
+    )
+    .slice(0, 5)
+
+  const getStatusBadgeColor = (status: string) => {
+    switch (status) {
+      case 'checked_in':
+        return 'bg-emerald-100 text-emerald-700'
+      case 'confirmed':
+        return 'bg-blue-100 text-blue-700'
+      default:
+        return 'bg-gray-100 text-gray-700'
+    }
+  }
+
+  return (
+    <div className="surface-card overflow-hidden">
+      <div className="surface-card-accent" />
+      <div className="surface-card-header">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-foreground">Upcoming Bookings</h3>
+            <p className="text-sm text-muted-foreground mt-1">Next 5 reservations</p>
+          </div>
+          <a href="/reservations" className="text-primary hover:text-primary/80 text-sm font-semibold flex items-center gap-2 transition-colors">
+            View All <ChevronRight className="h-4 w-4" />
+          </a>
+        </div>
+      </div>
+
+      <div className="p-4">
+        <div className="card-list-tray space-y-3">
+          {upcomingBookings.map((booking) => (
+            <div
+              key={booking.id}
+              className="elevated-list-item cursor-pointer p-4 transition-colors"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="mb-2 flex flex-wrap items-center gap-2">
+                    <p className="font-semibold text-[#111827]">{booking.guestName}</p>
+                    <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${getStatusBadgeColor(booking.status)}`}>
+                      {booking.status === 'checked_in' ? 'Checked In' : 'Confirmed'}
+                    </span>
+                  </div>
+                  <p className="text-sm text-[#5f6b78]">
+                    Room {booking.roomNumber} • {new Date(booking.checkInDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} →{' '}
+                    {new Date(booking.checkOutDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className="font-semibold text-[#111827]">₵{booking.totalPrice}</p>
+                  <p className="text-xs text-[#5f6b78]">{booking.numberOfNights} nights</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}

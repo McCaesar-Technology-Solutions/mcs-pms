@@ -1,0 +1,68 @@
+name: Bug report
+description: Something broken in the app or build
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: dropdown
+    id: phase
+    attributes:
+      label: Phase (if known)
+      options:
+        - Phase 0 — UI prototype
+        - Phase 1 — Foundation
+        - Phase 2 — Daily operations
+        - Unknown / not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: input
+    id: branch
+    attributes:
+      label: Branch / PR (if applicable)
+      placeholder: feature/p1-api-guests or PR #24
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options:
+        - Blocker — cannot work / deploy
+        - Major — feature broken, workaround exists
+        - Minor — cosmetic or edge case
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      value: |
+        - OS:
+        - Browser:
+        - Node version:
+        - Commit or branch:
