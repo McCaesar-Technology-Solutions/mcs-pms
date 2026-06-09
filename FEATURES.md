@@ -1,4 +1,4 @@
-# Feature Guide - Abɔfa PMS
+# Feature Guide - MOJO APARTMENTS
 
 ## Dashboard
 

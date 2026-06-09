@@ -1,4 +1,4 @@
-# Abɔfa PMS - Architecture & Decisions
+# MOJO APARTMENTS - Architecture & Decisions
 
 ## System Architecture
 
@@ -42,10 +42,10 @@
         │                  │                  │
         ▼                  ▼                  ▼
 ┌──────────────┐  ┌──────────────┐  ┌──────────────┐
-│   Database   │  │    Auth      │  │  External    │
-│   (Neon)     │  │  (Better     │  │  Services    │
-│ PostgreSQL   │  │   Auth)      │  │ (Stripe,OTA) │
-│              │  │              │  │              │
+│   Supabase   │  │  Supabase    │  │  External    │
+│  PostgreSQL  │  │  Auth +      │  │  Services    │
+│  + Storage   │  │  Storage     │  │ (Paystack,   │
+│  + RLS       │  │              │  │  OTA, etc.)  │
 └──────────────┘  └──────────────┘  └──────────────┘
 ```
 
@@ -86,29 +86,20 @@
 
 ### Backend Layer (To Be Implemented)
 
-**Database:** PostgreSQL (Neon recommended)
-- Relational data model
-- ACID compliance
-- Advanced query capabilities
-- Connection pooling
+**Platform:** [Supabase](https://supabase.com)
+- PostgreSQL database with SQL migrations (`supabase/migrations/`)
+- Supabase Auth — staff, admin, and guest portal users
+- Supabase Storage — guest documents, property photos, invoice PDFs
+- Row Level Security (RLS) — multi-tenant isolation by `organization_id` / `property_id`
 
-**ORM:** Drizzle ORM (recommended)
-- Type-safe SQL queries
-- Migration management
-- Great TypeScript support
-- Lightweight and performant
+**Client libraries:**
+- `@supabase/supabase-js` — database, auth, storage
+- `@supabase/ssr` — cookie-based sessions in Next.js App Router
 
-**Authentication:** Better Auth
-- Email + password authentication
-- OAuth provider support (future)
-- Session management
-- Built-in database schema
-
-**API Framework:** Next.js API Routes
-- File-based API structure
-- TypeScript support
-- Built-in CORS handling
-- Middleware support
+**API Framework:** Next.js Route Handlers
+- Server-side Supabase client for privileged operations
+- Zod validation on request bodies
+- RLS as the primary tenant boundary; API routes enforce role checks for staff actions
 
 ### Deployment
 
@@ -209,10 +200,12 @@ Page Component (route handler)
 
 **Variables:**
 ```css
---primary: #1d9e75
---background: #fafaf9
+--primary: #6d28d9
+--accent: #d4a62e
+--background: #faf8fc
 --card: #ffffff
---shadow-elevation-2: 0 4px 12px rgba(0,0,0,0.08)
+--sidebar: #2e1065
+--shadow-elevation-2: 0 4px 12px rgba(26, 11, 46, 0.08)
 ```
 
 ### 6. Responsive Mobile-First
@@ -339,9 +332,8 @@ interface Invoice {
 - Static site generation
 
 ### Phase 2: Basic Backend
-- Add Neon PostgreSQL
-- Implement 5 API routes
-- Add Better Auth
+- Add Supabase (PostgreSQL + Auth + Storage)
+- Implement core API routes with RLS
 - Deploy to production
 
 ### Phase 3: Enhanced Features
@@ -389,27 +381,28 @@ interface Invoice {
 - TLS 1.3 minimum
 
 **At Rest:**
-- Database encryption at Neon
+- Database and Storage encryption at Supabase
 - API key encryption
-- Secure session cookies
+- Secure session cookies (Supabase Auth)
 
 **Authentication:**
-- Better Auth with hashing
-- Two-factor authentication
-- Session timeout (15 min)
+- Supabase Auth with secure password hashing
+- Two-factor authentication (optional, via Supabase)
+- Session timeout and refresh token rotation
 
 **Authorization:**
-- Role-based access control
-- Row-level security on database
-- API endpoint verification
+- Role-based access control (`profiles.role`)
+- Row Level Security policies on all tenant tables
+- Storage bucket policies scoped by organization
+- API route verification for staff-only actions
 
 ## Migration Strategy
 
 ### From Mock Data to Real Data
 
-1. **Week 1:** Set up Neon database, define schema
+1. **Week 1:** Set up Supabase project, schema, RLS, Storage buckets
 2. **Week 2:** Implement 5 core API routes (/api/guests, /bookings, etc.)
-3. **Week 3:** Add authentication with Better Auth
+3. **Week 3:** Add Supabase Auth + middleware for dashboard routes
 4. **Week 4:** Migrate components to use API instead of mock data
 5. **Week 5:** Testing and bug fixes
 6. **Week 6:** Deploy to production
@@ -426,9 +419,8 @@ interface Invoice {
 | Next.js | Remix, Nuxt | Best React ecosystem, Vercel integration |
 | Tailwind | CSS Modules, styled-components | Utility-first, rapid development |
 | TypeScript | JavaScript | Type safety, better IDE support |
-| Neon | Firebase, MongoDB | PostgreSQL power, serverless |
-| Drizzle | Prisma, Sequelize | Type-safe, lightweight |
-| Better Auth | NextAuth, Clerk | Simpler, self-hosted option |
+| Supabase | Neon + separate auth/storage | All-in-one Postgres, Auth, Storage, RLS for multi-tenant SaaS |
+| @supabase/ssr | NextAuth, Better Auth | Native Next.js App Router session handling |
 | Vercel | AWS, Digital Ocean | Developer experience, auto-scaling |
 
 ## Future Architecture Improvements

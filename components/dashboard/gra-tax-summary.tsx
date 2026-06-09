@@ -7,7 +7,7 @@ export function GRATaxSummary() {
   const statusConfig = {
     pending: { icon: AlertCircle, color: 'text-orange-600', label: 'Pending', bg: 'bg-orange-50' },
     submitted: { icon: CheckCircle, color: 'text-blue-600', label: 'Submitted', bg: 'bg-blue-50' },
-    approved: { icon: CheckCircle, color: 'text-emerald-600', label: 'Approved', bg: 'bg-emerald-50' },
+    approved: { icon: CheckCircle, color: 'text-amber-600', label: 'Approved', bg: 'bg-amber-50' },
   }
 
   const config = statusConfig[graTaxSummary.status]
@@ -48,7 +48,7 @@ export function GRATaxSummary() {
           </div>
           <div className="info-block info-block-emerald p-5 shadow-elevation-1">
             <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider mb-3">Invoices Paid</p>
-            <p className="text-3xl font-bold text-emerald-600">{graTaxSummary.invoicesPaid}</p>
+            <p className="text-3xl font-bold text-amber-600">{graTaxSummary.invoicesPaid}</p>
           </div>
         </div>
 

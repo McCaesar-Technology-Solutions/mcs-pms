@@ -15,7 +15,7 @@ const mockData = {
       id: 1,
       roomName: 'Suite A',
       taskType: 'Clean',
-      taskColor: 'teal',
+      taskColor: 'purple',
       priority: 'Urgent',
       priorityColor: 'coral',
       triggeredBy: 'Checkout — Ama Owusu, due by 2pm',
@@ -51,7 +51,7 @@ const mockData = {
       id: 4,
       roomName: 'Suite B',
       taskType: 'Clean',
-      taskColor: 'teal',
+      taskColor: 'purple',
       priority: 'Urgent',
       priorityColor: 'coral',
       triggeredBy: 'Guest request — reported 08:42am',
@@ -63,9 +63,9 @@ const mockData = {
 }
 
 const taskBadgeColors: Record<string, string> = {
-  teal: 'bg-[#1D9E75] text-white',
+  purple: 'bg-[#4c1d95] text-white',
+  gold: 'bg-[#D4A62E] text-[#22124C]',
   blue: 'bg-blue-500 text-white',
-  purple: 'bg-purple-500 text-white',
 }
 
 const priorityBadgeColors: Record<string, string> = {
@@ -75,7 +75,7 @@ const priorityBadgeColors: Record<string, string> = {
 
 const buttonColors: Record<string, string> = {
   'Mark in progress': 'bg-amber-400 text-gray-900 hover:bg-amber-500',
-  'Mark done': 'bg-[#1D9E75] text-white hover:bg-teal-700',
+  'Mark done': 'bg-[#4c1d95] text-white hover:bg-[#4c1d95]',
 }
 
 export default function MobileHousekeepingPage() {
@@ -144,7 +144,7 @@ export default function MobileHousekeepingPage() {
             {/* Progress Bar */}
             <div className="mt-4 bg-gray-200 rounded-full h-2 overflow-hidden">
               <div
-                className="bg-[#1D9E75] h-full transition-all duration-300"
+                className="bg-[#4c1d95] h-full transition-all duration-300"
                 style={{ width: `${(completedCount / tasks.length) * 100}%` }}
               />
             </div>
@@ -214,7 +214,7 @@ export default function MobileHousekeepingPage() {
                         ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                         : task.status === 'todo'
                           ? 'bg-amber-400 text-gray-900 hover:bg-amber-500'
-                          : 'bg-[#1D9E75] text-white hover:bg-teal-700'
+                          : 'bg-[#3C216C] text-white hover:bg-[#2D215B]'
                     }`}
                   >
                     {getButtonLabel(task.status)}
@@ -226,7 +226,7 @@ export default function MobileHousekeepingPage() {
                   <div className="bg-gray-50 px-4 py-4 border-t border-gray-200 space-y-4">
                     {task.managerNote && (
                       <div className="flex gap-3">
-                        <AlertCircle className="w-5 h-5 text-[#1D9E75] flex-shrink-0 mt-1" />
+                        <AlertCircle className="w-5 h-5 text-[#4c1d95] flex-shrink-0 mt-1" />
                         <div>
                           <p className="text-xs font-semibold text-gray-600 mb-1">Manager Note</p>
                           <p className="text-sm text-gray-700">{task.managerNote}</p>
@@ -264,10 +264,10 @@ export default function MobileHousekeepingPage() {
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={`flex-1 flex flex-col items-center justify-center gap-1 relative transition-colors ${
-                activeTab === tab.id ? 'text-[#1D9E75]' : 'text-gray-500'
+                activeTab === tab.id ? 'text-[#4c1d95]' : 'text-gray-500'
               }`}
               style={{
-                borderTop: activeTab === tab.id ? '3px solid #1D9E75' : 'none',
+                borderTop: activeTab === tab.id ? '3px solid #4c1d95' : 'none',
                 paddingTop: activeTab === tab.id ? '8px' : '11px',
               }}
             >

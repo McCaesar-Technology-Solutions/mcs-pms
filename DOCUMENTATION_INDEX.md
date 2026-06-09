@@ -1,8 +1,8 @@
-# Abɔfa PMS - Documentation Index
+# MOJO APARTMENTS - Documentation Index
 
 ## Quick Navigation
 
-Welcome to Abɔfa PMS documentation. Here's where to find what you need.
+Welcome to MOJO APARTMENTS documentation. Here's where to find what you need.
 
 ## 📚 Documentation Files
 
@@ -161,7 +161,7 @@ Welcome to Abɔfa PMS documentation. Here's where to find what you need.
 ### Frequently Asked Questions
 
 **General**
-- What is Abɔfa PMS? → [README.md](README.md)
+- What is MOJO APARTMENTS? → [README.md](README.md)
 - How much does it cost? → [TROUBLESHOOTING.md#technical](TROUBLESHOOTING.md#technical)
 
 **Technical**

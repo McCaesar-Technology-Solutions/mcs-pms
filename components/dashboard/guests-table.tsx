@@ -110,11 +110,11 @@ export function GuestsTable() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'vip':
-        return 'bg-purple-600 text-purple-50'
+        return 'bg-[#3C216C] text-white'
       case 'returning':
         return 'bg-blue-600 text-blue-50'
       case 'active':
-        return 'bg-emerald-600 text-emerald-50'
+        return 'bg-amber-600 text-amber-50'
       default:
         return 'bg-gray-600 text-gray-50'
     }
@@ -259,7 +259,7 @@ export function GuestsTable() {
             <button
               type="button"
               aria-label="Close guest details"
-              className="absolute inset-0 bg-[#0f1f1a]/40 backdrop-blur-sm"
+              className="absolute inset-0 bg-[#22124C]/40 backdrop-blur-sm"
               onClick={() => setSelectedGuest(null)}
             />
             <div className="modal-panel surface-card relative z-10 w-full max-w-md max-h-[90vh] overflow-y-auto shadow-elevation-4">
@@ -286,7 +286,7 @@ export function GuestsTable() {
                     <p className="modal-panel-subtle text-xs font-semibold uppercase tracking-wider">
                       Total Spent
                     </p>
-                    <p className="text-2xl font-bold text-emerald-600 mt-2">
+                    <p className="text-2xl font-bold text-amber-600 mt-2">
                       ₵{selectedGuest.totalSpent}
                     </p>
                   </div>
@@ -338,10 +338,10 @@ export function GuestsTable() {
                 </div>
               </div>
 
-              <div className="border-t border-emerald-900/8 bg-[#f4f8f6]/80 px-6 py-4">
+              <div className="border-t border-[#E9ECEF] bg-[#FAFDFF]/80 px-6 py-4">
                 <button
                   type="button"
-                  className="gradient-primary w-full rounded-xl py-3 text-sm font-semibold text-white shadow-elevation-2 ring-1 ring-[#0f766e]/25 transition-all hover:-translate-y-0.5 hover:shadow-elevation-3"
+                  className="gradient-primary w-full rounded-xl py-3 text-sm font-semibold text-white shadow-elevation-2 ring-1 ring-[#3C216C]/25 transition-all hover:-translate-y-0.5 hover:shadow-elevation-3"
                 >
                   Edit Guest Profile
                 </button>

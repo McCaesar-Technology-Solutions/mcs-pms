@@ -146,14 +146,14 @@ export function SettingsPanel() {
                 <p className="font-semibold text-foreground">Kofi Mensah</p>
                 <p className="text-xs text-muted-foreground">Admin</p>
               </div>
-              <CheckCircle className="h-5 w-5 text-emerald-600" />
+              <CheckCircle className="h-5 w-5 text-amber-600" />
             </div>
             <div className="surface-inset p-3 rounded-xl flex items-center justify-between">
               <div>
                 <p className="font-semibold text-foreground">Ama Osei</p>
                 <p className="text-xs text-muted-foreground">Manager</p>
               </div>
-              <CheckCircle className="h-5 w-5 text-emerald-600" />
+              <CheckCircle className="h-5 w-5 text-amber-600" />
             </div>
           </div>
 
@@ -200,9 +200,9 @@ export function SettingsPanel() {
             <div className="surface-inset p-3 rounded-xl flex items-center justify-between">
               <div>
                 <p className="text-sm font-semibold text-foreground">Two-Factor Authentication</p>
-                <p className="text-xs text-emerald-600">Enabled</p>
+                <p className="text-xs text-amber-600">Enabled</p>
               </div>
-              <CheckCircle className="h-5 w-5 text-emerald-600" />
+              <CheckCircle className="h-5 w-5 text-amber-600" />
             </div>
 
             <button className="w-full py-2.5 bg-secondary text-foreground rounded-lg font-semibold hover:bg-secondary/80 transition-all text-sm">

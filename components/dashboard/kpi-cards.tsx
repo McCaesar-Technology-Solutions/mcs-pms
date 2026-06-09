@@ -11,8 +11,8 @@ export function KPICards() {
       value: `₵${kpiMetrics.totalRevenue.toLocaleString()}`,
       subtext: '+12% from last month',
       trend: 'up',
-      accent: 'from-emerald-500/15 to-emerald-500/5',
-      iconBg: 'bg-emerald-500/15 text-emerald-700 ring-emerald-500/20',
+      tint: 'bg-[#3C216C]/10',
+      iconBg: 'bg-[#3C216C]/15 text-[#3C216C] ring-[#3C216C]/20',
     },
     {
       icon: Percent,
@@ -20,7 +20,7 @@ export function KPICards() {
       value: `${(kpiMetrics.occupancyRate * 100).toFixed(0)}%`,
       subtext: '+5% improvement',
       trend: 'up',
-      accent: 'from-blue-500/15 to-blue-500/5',
+      tint: 'bg-blue-500/10',
       iconBg: 'bg-blue-500/15 text-blue-700 ring-blue-500/20',
     },
     {
@@ -29,8 +29,8 @@ export function KPICards() {
       value: `₵${kpiMetrics.averageNightlyRate}`,
       subtext: 'Per available room',
       trend: 'neutral',
-      accent: 'from-violet-500/15 to-violet-500/5',
-      iconBg: 'bg-violet-500/15 text-violet-700 ring-violet-500/20',
+      tint: 'bg-[#3C216C]/10',
+      iconBg: 'bg-[#3C216C]/15 text-[#3C216C] ring-[#3C216C]/20',
     },
     {
       icon: Users,
@@ -38,8 +38,8 @@ export function KPICards() {
       value: kpiMetrics.totalBookings.toString(),
       subtext: `${kpiMetrics.totalGuests} guests`,
       trend: 'up',
-      accent: 'from-amber-500/15 to-amber-500/5',
-      iconBg: 'bg-amber-500/15 text-amber-700 ring-amber-500/20',
+      tint: 'bg-[#D4A62E]/10',
+      iconBg: 'bg-[#D4A62E]/15 text-[#B88D24] ring-[#D4A62E]/25',
     },
   ]
 
@@ -49,7 +49,7 @@ export function KPICards() {
         const Icon = card.icon
         return (
           <div key={idx} className="kpi-card group">
-            <div className={`absolute inset-0 bg-gradient-to-br ${card.accent} opacity-80`} />
+            <div className={`absolute inset-0 ${card.tint}`} />
 
             <div className="relative z-10 p-6">
               <div className="mb-5 flex items-start justify-between">
@@ -67,7 +67,7 @@ export function KPICards() {
               </div>
               <div className="flex items-center gap-2">
                 {card.trend === 'up' && (
-                  <TrendingUp className="h-3.5 w-3.5 text-emerald-600" />
+                  <TrendingUp className="h-3.5 w-3.5 text-[#D4A62E]" />
                 )}
                 <p className="text-sm font-medium text-muted-foreground">{card.subtext}</p>
               </div>

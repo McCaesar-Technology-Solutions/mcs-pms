@@ -40,8 +40,8 @@ export function PropertySwitcher({ collapsed = false }: PropertySwitcherProps) {
             collapsed ? 'justify-center' : ''
           } ${open ? 'ring-1 ring-white/20' : ''}`}
         >
-          <div className="gradient-primary flex h-9 w-9 shrink-0 items-center justify-center rounded-lg shadow-elevation-2">
-            <Building2 className="h-4 w-4 text-white" />
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10 shadow-elevation-2">
+            <Building2 className="h-4 w-4 text-[var(--accent)]" />
           </div>
           {!collapsed && (
             <>
@@ -64,7 +64,7 @@ export function PropertySwitcher({ collapsed = false }: PropertySwitcherProps) {
           <div
             role="listbox"
             aria-label="Select property"
-            className={`sidebar-property-menu absolute z-50 overflow-hidden rounded-xl border border-white/10 bg-[#0f1f1b]/95 shadow-elevation-3 backdrop-blur-xl ${
+            className={`sidebar-property-menu absolute z-50 overflow-hidden rounded-xl border border-[rgba(212,166,46,0.22)] bg-[#2D215B]/95 shadow-elevation-3 backdrop-blur-xl ${
               collapsed ? 'left-full top-0 ml-2 w-64' : 'left-0 right-0 top-[calc(100%+0.5rem)]'
             }`}
           >
@@ -96,7 +96,7 @@ export function PropertySwitcher({ collapsed = false }: PropertySwitcherProps) {
                         {property.city} · {property.totalRooms} rooms
                       </p>
                     </div>
-                    {isActive && <Check className="h-4 w-4 shrink-0 text-emerald-300" />}
+                    {isActive && <Check className="h-4 w-4 shrink-0 text-amber-300" />}
                   </button>
                 )
               })}
@@ -110,7 +110,7 @@ export function PropertySwitcher({ collapsed = false }: PropertySwitcherProps) {
                     setOpen(false)
                     setAddOpen(true)
                   }}
-                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-emerald-200 transition-colors hover:bg-white/8 hover:text-white"
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-amber-200 transition-colors hover:bg-white/8 hover:text-white"
                 >
                   <Plus className="h-4 w-4" />
                   Add property

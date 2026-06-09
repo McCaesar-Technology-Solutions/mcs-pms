@@ -44,7 +44,7 @@ export function GRAReportsView() {
       case 'submitted':
         return 'bg-blue-600 text-blue-50'
       case 'approved':
-        return 'bg-emerald-600 text-emerald-50'
+        return 'bg-amber-600 text-amber-50'
       case 'pending':
         return 'bg-amber-600 text-amber-50'
       default:
@@ -80,7 +80,7 @@ export function GRAReportsView() {
 
           <div className="info-block info-block-emerald p-4">
             <p className="text-xs text-muted-foreground font-semibold uppercase">Compliance Status</p>
-            <p className="text-2xl font-bold text-emerald-600 mt-2">100%</p>
+            <p className="text-2xl font-bold text-amber-600 mt-2">100%</p>
             <p className="text-xs text-muted-foreground mt-2">All filings current</p>
           </div>
 

@@ -15,7 +15,7 @@ export function BookingsList() {
   const getStatusBadgeColor = (status: string) => {
     switch (status) {
       case 'checked_in':
-        return 'bg-emerald-100 text-emerald-700'
+        return 'bg-amber-100 text-amber-700'
       case 'confirmed':
         return 'bg-blue-100 text-blue-700'
       default:
@@ -53,14 +53,14 @@ export function BookingsList() {
                       {booking.status === 'checked_in' ? 'Checked In' : 'Confirmed'}
                     </span>
                   </div>
-                  <p className="text-sm text-[#5f6b78]">
+                  <p className="text-sm text-muted-foreground">
                     Room {booking.roomNumber} • {new Date(booking.checkInDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} →{' '}
                     {new Date(booking.checkOutDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                   </p>
                 </div>
                 <div className="shrink-0 text-right">
                   <p className="font-semibold text-[#111827]">₵{booking.totalPrice}</p>
-                  <p className="text-xs text-[#5f6b78]">{booking.numberOfNights} nights</p>
+                  <p className="text-xs text-muted-foreground">{booking.numberOfNights} nights</p>
                 </div>
               </div>
             </div>

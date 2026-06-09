@@ -53,7 +53,7 @@ Closes #
 <!-- Delete section if not applicable -->
 
 - [ ] No database changes
-- [ ] Migration included (`drizzle-kit generate` / `migrate`)
+- [ ] Migration included (`supabase/migrations/` + `supabase db push`)
 - [ ] Seed data updated
 
 ## Environment variables

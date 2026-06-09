@@ -8,4 +8,4 @@
 # Optional: route by area once you have specialists
 # /app/api/     @backend-dev
 # /components/  @frontend-dev
-# /drizzle/     @backend-dev
+# /supabase/    @backend-dev

@@ -1,4 +1,4 @@
-# Abɔfa PMS
+# MOJO APARTMENTS
 
 Property Management System for Ghana hospitality — hotels, guest houses, and Airbnb-style rentals. Manage properties, reservations, housekeeping, billing, channel distribution, and GRA compliance from one dashboard.
 
@@ -36,7 +36,7 @@ npm start
 
 ## Vision — what “final product” means
 
-Abɔfa PMS as a **production SaaS** should let a Ghana-based operator:
+MOJO APARTMENTS as a **production SaaS** should let a Ghana-based operator:
 
 1. **Manage multiple properties** under one account (portfolio view + per-property operations).
 2. **Run daily operations** — bookings, check-in/out, room status, housekeeping, guest records.
@@ -72,19 +72,19 @@ Each phase has a **definition of done** below. Do not skip Phase 1 — everythin
 ### 1.1 Project hygiene
 
 - [ ] Initialize git repository and `.gitignore` (exclude `.env`, `.next`, `node_modules`).
-- [ ] Rename package in `package.json` to `abofa-pms` (optional but recommended).
+- [ ] Rename package in `package.json` to `mojo-apartments` (optional but recommended).
 - [ ] Add environment variables template: `.env.example`.
 - [ ] Deploy preview to Vercel (connect repo, verify build).
 
-### 1.2 Database
+### 1.2 Supabase (database + storage)
 
-- [ ] Create PostgreSQL database ([Neon](https://neon.tech) recommended).
-- [ ] Add ORM: [Drizzle](https://orm.drizzle.team/) + `drizzle-kit` for migrations.
-- [ ] Define core schema (minimum):
+- [ ] Create a [Supabase](https://supabase.com) project (Free tier is fine for dev).
+- [ ] Add `@supabase/supabase-js` + `@supabase/ssr` for Next.js App Router.
+- [ ] Define core schema via Supabase SQL migrations (minimum):
 
 ```text
 organizations
-users (+ role: admin | manager | staff)
+profiles (+ role: admin | manager | staff | guest)
 organization_members
 properties
 rooms
@@ -92,17 +92,19 @@ guests
 reservations
 housekeeping_tasks
 invoices (basic)
+files (metadata for Storage uploads)
 ```
 
+- [ ] Enable **Row Level Security (RLS)** on all tenant tables — scope by `organization_id` and optionally `property_id`.
+- [ ] Create Storage buckets: `guest-documents`, `property-assets`, `invoices` (private; access via RLS policies).
 - [ ] Seed script from current `lib/mock-data.ts` for dev/demo.
-- [ ] Row-level scoping: every query filtered by `organization_id` and optionally `property_id`.
 
 ### 1.3 Authentication & authorization
 
-- [ ] Add [Better Auth](https://www.better-auth.com/) (or Clerk if you prefer managed auth).
-- [ ] Login / logout / session middleware.
+- [ ] [Supabase Auth](https://supabase.com/docs/guides/auth) — email/password for staff; magic link optional for guest portal.
+- [ ] Login / logout / session via `@supabase/ssr` middleware.
 - [ ] Protect `(dashboard)/*` routes — redirect unauthenticated users.
-- [ ] Role checks: only `admin` can create properties; staff limited to assigned property.
+- [ ] Role checks via `profiles.role` + RLS: only `admin` can create properties; staff limited to assigned property; guests see only their bookings.
 
 ### 1.4 API layer
 
@@ -134,7 +136,7 @@ Checklist:
 - [ ] Housekeeping task auto-created on checkout or when room marked dirty.
 - [ ] Refreshing the page preserves all changes.
 
-**Estimated effort:** 3–6 weeks (solo developer), depending on auth/ORM familiarity.
+**Estimated effort:** 3–6 weeks (solo developer), depending on Supabase/RLS familiarity.
 
 ---
 
@@ -185,7 +187,7 @@ Checklist:
 - [ ] Rebuild `/mobile/housekeeping` to match current design system.
 - [ ] Same API as desktop kanban; touch-friendly task actions.
 
-**Definition of done:** A pilot property can operate for one week using only Abɔfa PMS (with manual payment recording).
+**Definition of done:** A pilot property can operate for one week using only MOJO APARTMENTS (with manual payment recording).
 
 **Estimated effort:** 4–8 weeks.
 
@@ -266,7 +268,7 @@ See [SECURITY.md](SECURITY.md) and [FEATURES.md](FEATURES.md) for compliance not
 
 - [ ] E2E tests (Playwright) for vertical slice flows.
 - [ ] API rate limiting and input sanitization.
-- [ ] Backups and restore procedure for Neon.
+- [ ] Backups and restore procedure for Supabase (daily backups on Pro; document restore steps).
 - [ ] Error monitoring ([Sentry](https://sentry.io)).
 - [ ] Performance: pagination on large tables, DB indexes on `property_id`, `check_in_date`, `status`.
 - [ ] Security review per [SECURITY.md](SECURITY.md) — RBAC, CSRF, session expiry, secrets management.
@@ -303,9 +305,9 @@ See [SECURITY.md](SECURITY.md) and [FEATURES.md](FEATURES.md) for compliance not
 | Frontend | Next.js 16, React 19, TypeScript | App Router, mostly client components today |
 | Styling | Tailwind CSS 4, custom tokens in `app/globals.css` | See [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) |
 | UI | shadcn/ui, Lucide icons | |
-| Database | PostgreSQL (Neon) | Planned |
-| ORM | Drizzle | Planned — see [ARCHITECTURE.md](ARCHITECTURE.md) |
-| Auth | Better Auth | Planned |
+| Backend | [Supabase](https://supabase.com) | PostgreSQL + Auth + Storage + RLS |
+| Auth | Supabase Auth | Staff, admin, guest portal roles |
+| File uploads | Supabase Storage | Guest IDs, property photos, invoice PDFs |
 | Hosting | Vercel | |
 | Payments | Paystack / Hubtel | Phase 3 |
 | Email | Resend / SendGrid | Phase 4 |

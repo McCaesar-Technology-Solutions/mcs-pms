@@ -1,5 +1,5 @@
 ╔════════════════════════════════════════════════════════════════════════════╗
-║                 ABƆFA PMS - DOCUMENTATION MANIFEST                         ║
+║                 MOJO APARTMENTS - DOCUMENTATION MANIFEST                         ║
 ║                         Version 1.0 - Complete                             ║
 ╚════════════════════════════════════════════════════════════════════════════╝
 
@@ -63,7 +63,7 @@ Total: 12 Documentation Files | 131+ KB | 4,500+ Lines | 150+ Sections
 │ DEPLOYMENT.md (8.7 KB)                                                     │
 │ → Production deployment to Vercel                                          │
 │ → Environment variables configuration                                      │
-│ → Database integration setup (Neon PostgreSQL)                             │
+│ → Supabase setup (PostgreSQL, Auth, Storage, RLS)                            │
 │ → Authentication implementation                                            │
 │ → Build optimization and caching                                           │
 │ → Domain configuration and SSL/TLS                                         │

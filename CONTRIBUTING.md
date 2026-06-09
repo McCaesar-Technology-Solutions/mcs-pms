@@ -1,4 +1,4 @@
-# Contributing to Abɔfa PMS
+# Contributing to MOJO APARTMENTS
 
 Thank you for building with us. This guide explains how our team uses Git, GitHub, and pull requests so multiple developers can work in parallel without stepping on each other.
 
@@ -172,7 +172,7 @@ Do not keep phase branches open across multiple months.
 
 ### One-time GitHub setup
 
-- [ ] Create repo `abofa-pms` under your organisation (private).
+- [ ] Create repo `mojo-apartments` under your organisation (private).
 - [ ] Push Phase 0 UI as initial commit on `main`.
 - [ ] Tag prototype: `v0.0.0-phase0-ui`.
 - [ ] Enable branch protection on `main`:
@@ -192,10 +192,10 @@ Copy each row into a GitHub issue under milestone **Phase 1 – Foundation**:
 | # | Title | Suggested branch | Depends on |
 |---|--------|------------------|------------|
 | 1 | Add `.env.example` and document env vars | `chore/p1-env-example` | — |
-| 2 | Set up Drizzle + Neon PostgreSQL connection | `feature/p1-database-setup` | — |
-| 3 | Define core DB schema + migrations | `feature/p1-database-schema` | #2 |
+| 2 | Set up Supabase project + Next.js client (`@supabase/ssr`) | `feature/p1-supabase-setup` | — |
+| 3 | Define core DB schema + RLS policies + Storage buckets | `feature/p1-database-schema` | #2 |
 | 4 | Seed script from mock data | `feature/p1-database-seed` | #3 |
-| 5 | Better Auth: login, logout, sessions | `feature/p1-auth` | #3 |
+| 5 | Supabase Auth: login, logout, sessions, profiles | `feature/p1-auth` | #3 |
 | 6 | Protect dashboard routes + role middleware | `feature/p1-auth-guards` | #5 |
 | 7 | API: properties CRUD | `feature/p1-api-properties` | #3, #6 |
 | 8 | API: rooms (by propertyId) | `feature/p1-api-rooms` | #3, #6 |
@@ -221,7 +221,8 @@ Do not close the milestone until this story works on staging:
 
 - **TypeScript** — no `any` unless commented why.
 - **Match existing patterns** — read [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md) before new components.
-- **API routes** — validate with Zod; scope by `organization_id` / `property_id`.
+- **API routes** — validate with Zod; scope by `organization_id` / `property_id`; prefer RLS as the enforcement layer.
+- **Supabase** — use server client for privileged ops; never expose `SUPABASE_SERVICE_ROLE_KEY` to the browser.
 - **UI** — use design tokens in `app/globals.css`; prefer explicit text colors where Tailwind semantic utilities fail (`#111827`, `#5f6b78`).
 - **Secrets** — never commit `.env`; use `.env.example` with placeholder keys only.
 - **Scope** — one issue per PR; no drive-by refactors.
@@ -232,7 +233,7 @@ Do not close the milestone until this story works on staging:
 
 ```bash
 git clone https://github.com/McCaesar-Technology-Solutions/mcs-pms.git
-cd abofa-pms
+cd mcs-pms
 npm install
 cp .env.example .env.local   # after Phase 1.1 lands
 npm run dev

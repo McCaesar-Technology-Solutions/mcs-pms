@@ -25,7 +25,7 @@ export const currentUser: User = {
 export const properties: Property[] = [
   {
     id: '1',
-    name: 'Abɔfa Premier Hotel',
+    name: 'MOJO Apartments Premier',
     code: 'APH',
     address: '123 Osu Avenue',
     city: 'Accra',
@@ -34,7 +34,7 @@ export const properties: Property[] = [
   },
   {
     id: '2',
-    name: 'Abɔfa Comfort Inn',
+    name: 'MOJO Apartments Comfort',
     code: 'ACI',
     address: '456 Tema Road',
     city: 'Tema',

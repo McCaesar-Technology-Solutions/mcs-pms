@@ -70,7 +70,7 @@ export function BillingOverview() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'paid':
-        return 'bg-emerald-600 text-emerald-50'
+        return 'bg-amber-600 text-amber-50'
       case 'pending':
         return 'bg-amber-600 text-amber-50'
       case 'overdue':
@@ -86,7 +86,7 @@ export function BillingOverview() {
         <div className="surface-card stat-tile stat-tile-emerald p-6">
           <p className="text-sm text-muted-foreground font-semibold uppercase tracking-wider">Total Revenue</p>
           <p className="text-3xl font-bold text-foreground mt-3">₵{totalRevenue.toLocaleString()}</p>
-          <div className="flex items-center gap-2 mt-4 text-emerald-600 text-sm font-medium">
+          <div className="flex items-center gap-2 mt-4 text-amber-600 text-sm font-medium">
             <TrendingUp className="h-4 w-4" />
             June 2026
           </div>
@@ -109,7 +109,7 @@ export function BillingOverview() {
           <p className="text-3xl font-bold text-foreground mt-3">{Math.round((paidAmount / totalRevenue) * 100)}%</p>
           <div className="w-full bg-secondary rounded-full h-2 mt-4">
             <div
-              className="bg-gradient-to-r from-emerald-500 to-emerald-400 h-2 rounded-full transition-all"
+              className="bg-primary h-2 rounded-full transition-all"
               style={{ width: `${(paidAmount / totalRevenue) * 100}%` }}
             ></div>
           </div>

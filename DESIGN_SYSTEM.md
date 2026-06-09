@@ -1,34 +1,51 @@
-# Design System - Abɔfa PMS
+# Design System - MOJO APARTMENTS
 
 ## Philosophy
 
-Abɔfa PMS uses a professional, modern design system inspired by premium SaaS products (Stripe, Linear, Notion). The design emphasizes clarity, hierarchy, and usability while maintaining cultural appropriateness for Ghana's hospitality market.
+MOJO APARTMENTS uses a professional, modern design system inspired by premium SaaS products (Stripe, Linear, Notion). The design emphasizes clarity, hierarchy, and usability while maintaining cultural appropriateness for Ghana's hospitality market.
 
 ## Color Palette
 
-### Primary Colors
-- **Primary (Teal)**: #1D9E75
-  - Used for primary actions, links, and brand identity
-  - Strong enough to stand out but professional
-  - Chosen specifically for Ghana market relevance
+Brand theme: **deep royal purple, luxury gold, and white** — premium hospitality feel with strong contrast on the dark sidebar.
+
+### Brand Colors
+
+| Name | Hex | Usage |
+|------|-----|-------|
+| Deep Royal Purple | `#22124C` | Sidebar base, headings, icons on light surfaces |
+| Purple Gradient | `#2D215B` | Background variations, hover states, overlays |
+| Rich Purple | `#3C216C` | Secondary surfaces, buttons, active nav, charts |
+| Luxury Gold | `#D4A62E` | Highlights, accents, dividers, card top bars |
+| Dark Gold | `#B88D24` | Gold shadows, darker accent states |
+| White | `#FFFFFF` | Cards, main text on dark backgrounds |
+| Light Gray | `#FAFDFF` | Panel surfaces, card headers, inputs |
+| Soft Gray | `#E9ECEF` | Page background, subtle borders |
+
+### Solid utilities (no gradients)
+- `gradient-primary` — solid `#3C216C` (CTAs, avatars, icons)
+- `gradient-accent` — solid gold `#D4A62E`
+- `gradient-brand` — solid rich purple
+- Surfaces use flat `var(--card)`, `var(--secondary)`, `var(--background)`
 
 ### Semantic Colors
-- **Success (Emerald)**: #10B981 - Completed tasks, positive states
-- **Warning (Amber)**: #F59E0B - Pending actions, cautions
-- **Danger (Red)**: #DC2626 - Urgent actions, errors
-- **Info (Blue)**: #3B82F6 - Informational content
+- **Success (Gold)**: `#D4A62E` — completed tasks, positive KPIs (brand-aligned)
+- **Warning (Amber)**: `#F59E0B` — pending actions, cautions
+- **Danger (Red)**: `#DC2626` — urgent actions, errors
+- **Info (Blue)**: `#3B82F6` — informational content (secondary only)
 
 ### Neutral Colors
-- **Foreground (Dark Gray)**: #1F2937 - Primary text
-- **Muted (Medium Gray)**: #6B7280 - Secondary text
-- **Border (Light Gray)**: #E5E7EB - Dividers and borders
-- **Background (Off-white)**: #FAFAF9 - Page background
-- **Card (White)**: #FFFFFF - Component backgrounds
+- **Foreground**: `#22124C` — headings and primary text on light surfaces
+- **Muted**: `#5E5872` — secondary text
+- **Background**: `#E9ECEF` — page background (soft gray)
+- **Secondary surface**: `#FAFDFF` — trays, inset panels, amenities-style panels
+- **Card**: `#FFFFFF` — component backgrounds
 
 ### Sidebar Colors
-- **Sidebar Background**: #FAFAFA (slightly darker than page background)
-- **Sidebar Primary**: #1D9E75 (same as primary)
-- **Sidebar Accent**: #F3F4F6 (light gray for hover states)
+- **Sidebar Background**: `#22124C` (deep royal purple)
+- **Sidebar Active**: rich purple (`#3C216C`)
+- **Sidebar Dividers**: luxury gold at low opacity (`#D4A62E`)
+- **Sidebar Text**: `#FFFFFF`
+- **Sidebar Muted text**: white at 68% opacity
 
 ## Typography
 
@@ -110,7 +127,7 @@ Based on 4px grid:
 - **Border**: 0.5px solid #E5E7EB
 - **Shadow**: elevation-2, hover → elevation-3
 - **Hover**: Lift 4px (-translate-y-1), subtle gradient overlay
-- **Icon Container**: Colored background matching metric (emerald, blue, orange, purple)
+- **Icon Container**: Colored background matching metric (purple, gold, blue, amber)
 
 ### Tables
 - **Header**: Gradient background (secondary/50 to secondary/25)
@@ -126,7 +143,7 @@ Based on 4px grid:
 - **Font Weight**: 600
 - **Shadow**: elevation-1
 - **States**:
-  - Success: bg-emerald-600 text-white
+  - Success: bg-amber-500 text-[#1A1025] or bg-primary text-white
   - Warning: bg-amber-600 text-white
   - Danger: bg-red-600 text-white
   - Info: bg-blue-600 text-white
@@ -220,11 +237,12 @@ Based on 4px grid:
 ## Dark Mode
 
 The system includes a dark mode theme (defined in globals.css) with adjusted colors:
-- **Background**: #0F172A (dark navy)
-- **Foreground**: #F1F5F9 (off-white)
-- **Card**: #1E293B (slightly lighter navy)
-- **Primary**: #1D9E75 (maintained for consistency)
-- **Sidebar**: #1E293B
+- **Background**: `#1A0E3A` (deep royal purple)
+- **Foreground**: `#FFFFFF`
+- **Card**: `#2D215B` (purple gradient)
+- **Primary**: `#3C216C` (rich purple)
+- **Accent**: `#D4A62E` (luxury gold)
+- **Sidebar**: `#22124C` (deep royal purple)
 
 ## Icons
 

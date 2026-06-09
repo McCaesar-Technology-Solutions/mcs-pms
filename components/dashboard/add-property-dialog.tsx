@@ -82,11 +82,11 @@ export function AddPropertyDialog({ open, onClose }: AddPropertyDialogProps) {
       <button
         type="button"
         aria-label="Close dialog"
-        className="absolute inset-0 bg-[#0f1f1a]/40 backdrop-blur-sm"
+        className="absolute inset-0 bg-[#22124C]/40 backdrop-blur-sm"
         onClick={onClose}
       />
       <div className="modal-panel surface-card relative z-10 w-full max-w-lg overflow-hidden shadow-elevation-3">
-        <div className="flex items-start justify-between gap-4 border-b border-emerald-900/5 px-6 py-5">
+        <div className="flex items-start justify-between gap-4 border-b border-[#E9ECEF] px-6 py-5">
           <div className="flex items-center gap-3">
             <div className="gradient-primary flex h-10 w-10 items-center justify-center rounded-xl shadow-elevation-2">
               <Building2 className="h-5 w-5 text-white" />
@@ -115,7 +115,7 @@ export function AddPropertyDialog({ open, onClose }: AddPropertyDialogProps) {
               required
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder="e.g. Abɔfa Beach Resort"
+              placeholder="e.g. MOJO Apartments Osu"
               className="input-soft mt-2"
             />
           </div>

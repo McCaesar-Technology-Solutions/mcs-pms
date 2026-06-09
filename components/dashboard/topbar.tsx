@@ -47,12 +47,12 @@ export default function Topbar() {
     <header className={`main-header glass-header h-16 ${scrolled ? 'glass-header--scrolled' : ''}`}>
       <div className="relative flex h-16 items-center px-4 md:px-6">
         <div className="absolute left-1/2 hidden w-full max-w-xl -translate-x-1/2 px-4 md:block">
-          <div className="relative">
-            <Search className="main-header-icon absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" />
+          <div className="header-search-glass relative h-10 w-full rounded-xl">
+            <Search className="header-search-icon pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" />
             <input
               type="search"
               placeholder="Search guests, bookings, rooms..."
-              className="search-soft main-header-input h-10 w-full rounded-xl pl-10 pr-4 text-sm outline-none transition-all"
+              className="header-search-glass__input h-full w-full rounded-xl pl-10 pr-4 text-sm outline-none focus:outline-none focus:ring-0"
             />
           </div>
         </div>

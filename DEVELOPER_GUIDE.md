@@ -1,8 +1,8 @@
-# Abɔfa PMS - Developer Guide
+# MOJO APARTMENTS - Developer Guide
 
 ## Overview
 
-This guide covers the technical architecture, component system, data patterns, and extending the Abɔfa PMS application for developers.
+This guide covers the technical architecture, component system, data patterns, and extending the MOJO APARTMENTS application for developers.
 
 ## Project Structure
 
@@ -131,13 +131,14 @@ const filtered = data.filter(item =>
 Colors defined in `globals.css`:
 ```css
 :root {
-  --background: #fafaf9;
-  --foreground: #1f2937;
-  --primary: #1d9e75;
+  --background: #faf8fc;
+  --foreground: #1a1025;
+  --primary: #6d28d9;
   --primary-foreground: #ffffff;
-  --secondary: #f3f4f6;
-  --muted: #e5e7eb;
-  --muted-foreground: #6b7280;
+  --accent: #d4a853;
+  --secondary: #f3eef9;
+  --muted: #ede8f4;
+  --muted-foreground: #6b6280;
 }
 ```
 
@@ -188,7 +189,7 @@ Colors defined in `globals.css`:
         <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Revenue</p>
         <p className="text-4xl font-bold text-foreground mt-2">₵17,600</p>
       </div>
-      <div className="p-3 rounded-lg bg-emerald-50 text-emerald-600">
+      <div className="p-3 rounded-lg bg-violet-50 text-violet-600">
         <DollarSign className="h-6 w-6" />
       </div>
     </div>
@@ -225,9 +226,9 @@ Colors defined in `globals.css`:
 ### Status Badges
 ```tsx
 const statusColors = {
-  confirmed: 'bg-teal-600 text-teal-50',
+  confirmed: 'bg-violet-600 text-violet-50',
   pending: 'bg-amber-600 text-amber-50',
-  completed: 'bg-emerald-600 text-emerald-50',
+  completed: 'bg-amber-500 text-[#1A1025]',
   cancelled: 'bg-destructive text-destructive-foreground',
 }
 
@@ -322,9 +323,9 @@ Check logs in browser DevTools or `/user_read_only_context/v0_debug_logs.log`
 
 ## Next Steps
 
-1. **Add Database**: Connect Neon/Supabase for real data persistence
-2. **Add Authentication**: Implement Better Auth or Supabase Auth
-3. **Build API Routes**: Create REST endpoints for CRUD operations
+1. **Add Supabase**: PostgreSQL + Auth + Storage — see [DEPLOYMENT.md](DEPLOYMENT.md)
+2. **Add Authentication**: Supabase Auth with `@supabase/ssr` middleware
+3. **Build API Routes**: CRUD endpoints with RLS-backed queries
 4. **Add Validation**: Use Zod for input validation
 5. **Error Handling**: Add error boundaries and logging
 6. **Monitoring**: Set up Sentry for production monitoring

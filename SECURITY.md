@@ -1,8 +1,8 @@
-# Abɔfa PMS - Security Guide
+# MOJO APARTMENTS - Security Guide
 
 ## Security Overview
 
-Abɔfa PMS follows security best practices to protect guest data, property information, and financial records.
+MOJO APARTMENTS follows security best practices to protect guest data, property information, and financial records.
 
 ## Current Security Measures
 
@@ -49,8 +49,9 @@ Enforce strong passwords:
 - Password history (can't reuse last 5)
 - Expiration every 90 days
 
-**Implementation with Better Auth:**
+**Implementation with Supabase Auth:**
 ```typescript
+// Enforce via Supabase Auth settings + signUp validation
 const passwordPolicy = {
   minLength: 12,
   requireNumbers: true,
@@ -71,18 +72,11 @@ const passwordPolicy = {
 
 **Code:**
 ```typescript
-// app/api/auth/[...all]/route.ts
-const auth = betterAuth({
-  session: {
-    updateAge: 15 * 60 * 1000, // 15 minutes
-    absoluteLifeTime: 7 * 24 * 60 * 60 * 1000, // 7 days
-  },
-  cookies: {
-    secure: true,
-    httpOnly: true,
-    sameSite: 'strict',
-  },
-})
+// middleware.ts — refresh session on each request
+import { createServerClient } from '@supabase/ssr'
+
+// Supabase Auth uses HttpOnly cookies by default with @supabase/ssr
+// Configure session expiry in Supabase Dashboard → Authentication → Settings
 ```
 
 ### Two-Factor Authentication
@@ -92,37 +86,32 @@ Recommended for:
 - Users accessing billing
 - GRA report submissions
 
-**Setup with Better Auth:**
-```typescript
-const auth = betterAuth({
-  plugins: [
-    twoFactor({
-      otpOptions: {
-        window: 1, // Allow 30s time window
-        step: 30,
-      },
-    }),
-  ],
-})
-```
+**Setup with Supabase Auth:**
+Enable MFA in Supabase Dashboard → Authentication → Providers, or use a custom TOTP flow for admin accounts.
 
 ## Data Security
 
 ### Database Encryption
 
-**Neon PostgreSQL:**
+**Supabase PostgreSQL + Storage:**
 - Automatic encryption at rest
-- Automated backups with encryption
+- Automated backups (daily on paid plans)
 - SSL connections required
-- Row-level security (RLS) policies
+- Row Level Security (RLS) policies on all tenant tables
+- Storage bucket policies scoped by organization
 
-**Enable RLS:**
+**Enable RLS (multi-tenant example):**
 ```sql
--- Only users can view their own data
 ALTER TABLE reservations ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY user_reservations ON reservations
-  USING (user_id = current_user_id());
+CREATE POLICY org_reservations ON reservations
+  FOR ALL
+  USING (
+    organization_id IN (
+      SELECT organization_id FROM organization_members
+      WHERE user_id = auth.uid()
+    )
+  );
 ```
 
 ### Sensitive Data Handling
@@ -192,24 +181,18 @@ export async function POST(request: Request) {
 
 ### CSRF Protection
 
-Built into Better Auth:
-```typescript
-// CSRF tokens automatically included
-// Verified on all POST/PUT/DELETE requests
-```
+Supabase Auth with `@supabase/ssr` uses cookie-based sessions with SameSite protection. For custom API routes, validate the session server-side on every mutating request.
 
 ### SQL Injection Prevention
 
-Use parameterized queries:
+Use Supabase client or parameterized SQL — never string-concatenate user input:
 ```typescript
-// ❌ UNSAFE - Never do this
-const sql = `SELECT * FROM guests WHERE email = '${email}'`
-
-// ✅ SAFE - Use parameterized queries
-const guests = await db.query(
-  'SELECT * FROM guests WHERE email = $1',
-  [email]
-)
+// ✅ SAFE — Supabase client
+const { data } = await supabase
+  .from('guests')
+  .select('*')
+  .eq('email', email)
+  .eq('organization_id', orgId)
 ```
 
 ## Access Control
@@ -388,7 +371,7 @@ Before Production Deployment:
 
 - [ ] HTTPS enabled and certificate valid
 - [ ] Security headers configured
-- [ ] Authentication implemented (Better Auth)
+- [ ] Authentication implemented (Supabase Auth)
 - [ ] Password policy enforced
 - [ ] Session timeout configured
 - [ ] Rate limiting on API endpoints
@@ -435,9 +418,9 @@ Step 8: File report with GRA if required
 
 **Daily Backups:**
 ```bash
-# Automatic with Neon
-# View backups in Neon console
-# One-click restore to any point in time
+# Automatic with Supabase (paid plans include PITR)
+# View backups in Supabase dashboard → Database → Backups
+# Storage files are versioned per bucket settings
 ```
 
 **Recovery Testing:**
@@ -453,7 +436,8 @@ Step 8: File report with GRA if required
 
 - OWASP Top 10: https://owasp.org/Top10/
 - Next.js Security: https://nextjs.org/docs/app/building-your-application/configuring/environment-variables
-- Better Auth Docs: https://www.better-auth.com
+- Supabase Security: https://supabase.com/docs/guides/platform/going-into-prod
+- Supabase RLS: https://supabase.com/docs/guides/database/postgres/row-level-security
 - PostgreSQL Security: https://www.postgresql.org/docs/current/sql-syntax.html
 - Stripe Security: https://stripe.com/docs/security
 

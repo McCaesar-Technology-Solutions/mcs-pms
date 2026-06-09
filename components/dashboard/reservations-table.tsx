@@ -16,9 +16,9 @@ export function ReservationsTable() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'checked_in':
-        return 'bg-emerald-600 text-emerald-50'
+        return 'bg-amber-600 text-amber-50'
       case 'confirmed':
-        return 'bg-teal-600 text-teal-50'
+        return 'bg-[#3C216C] text-white'
       case 'pending':
         return 'bg-amber-600 text-amber-50'
       case 'checked_out':
@@ -30,9 +30,9 @@ export function ReservationsTable() {
 
   const getSourceBadge = (source: string) => {
     const colors: Record<string, string> = {
-      website: 'bg-teal-50 text-teal-700',
+      website: 'bg-[#FAFDFF] text-[#3C216C]',
       airbnb: 'bg-blue-50 text-blue-700',
-      booking: 'bg-purple-50 text-purple-700',
+      booking: 'bg-[#FAFDFF] text-[#3C216C]',
       walk_in: 'bg-orange-50 text-orange-700',
       other: 'bg-gray-50 text-gray-700',
     }

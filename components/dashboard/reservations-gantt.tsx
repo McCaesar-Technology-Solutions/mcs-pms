@@ -17,7 +17,7 @@ export function ReservationsGantt() {
       case 'airbnb':
         return 'bg-blue-500'
       case 'booking':
-        return 'bg-purple-500'
+        return 'bg-[#FAFDFF]0'
       case 'walk_in':
         return 'bg-orange-500'
       default:
@@ -73,7 +73,7 @@ export function ReservationsGantt() {
             <div className={`w-3 h-3 rounded ${
               source === 'website' ? 'bg-primary' :
               source === 'airbnb' ? 'bg-blue-500' :
-              source === 'booking' ? 'bg-purple-500' :
+              source === 'booking' ? 'bg-[#FAFDFF]0' :
               'bg-orange-500'
             }`}></div>
             <span className="text-sm text-muted-foreground capitalize">{source.replace('_', ' ')}</span>

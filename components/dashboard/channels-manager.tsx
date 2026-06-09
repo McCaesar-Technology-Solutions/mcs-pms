@@ -48,7 +48,7 @@ const CHANNELS = [
 export function ChannelsManager() {
   const getStatusBadge = (status: string) => {
     if (status === 'connected') {
-      return 'bg-emerald-100 text-emerald-700'
+      return 'bg-amber-100 text-amber-700'
     }
     return 'bg-gray-100 text-gray-700'
   }
@@ -76,7 +76,7 @@ export function ChannelsManager() {
         <div className="surface-card stat-tile stat-tile-orange p-6">
           <p className="text-sm text-muted-foreground font-semibold uppercase tracking-wider">Sync Status</p>
           <div className="flex items-center gap-2 mt-3">
-            <CheckCircle className="h-6 w-6 text-emerald-600" />
+            <CheckCircle className="h-6 w-6 text-amber-600" />
             <span className="font-semibold text-foreground">All channels live</span>
           </div>
           <p className="text-xs text-muted-foreground mt-2">Last sync: 2 minutes ago</p>
@@ -86,7 +86,7 @@ export function ChannelsManager() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {CHANNELS.map((channel) => (
           <div key={channel.id} className="surface-card overflow-hidden">
-            <div className={`surface-card-header ${channel.status === 'connected' ? 'bg-gradient-to-r from-emerald-50/30 to-emerald-50/10' : 'bg-secondary/20'}`}>
+            <div className={`surface-card-header ${channel.status === 'connected' ? 'bg-[#FAFDFF]/80' : 'bg-secondary/20'}`}>
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-4">
                   <span className="text-4xl">{channel.icon}</span>

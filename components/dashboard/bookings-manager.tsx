@@ -42,7 +42,7 @@ export function BookingsManager() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'confirmed':
-        return 'bg-emerald-600 text-emerald-50'
+        return 'bg-amber-600 text-amber-50'
       case 'pending':
         return 'bg-amber-600 text-amber-50'
       case 'cancelled':

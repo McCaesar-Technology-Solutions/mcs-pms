@@ -1,14 +1,14 @@
-# Abɔfa PMS - User Guide
+# MOJO APARTMENTS - User Guide
 
 ## Getting Started
 
-Welcome to Abɔfa PMS - your complete property management solution for Ghana hospitality businesses. This guide walks you through using each feature.
+Welcome to MOJO APARTMENTS - your complete property management solution for Ghana hospitality businesses. This guide walks you through using each feature.
 
 ## Navigating the Interface
 
 ### Topbar
 The top navigation bar shows:
-- **Abɔfa PMS logo** - Click to return to dashboard
+- **MOJO APARTMENTS logo** - Click to return to dashboard
 - **Search** - Find guests, bookings, or rooms
 - **Notifications** - Alerts and messages
 - **Profile** - Your account settings

@@ -9,7 +9,7 @@ export function RoomStatusGrid() {
 
   const statusConfig = {
     occupied: { label: 'Occupied', color: 'bg-primary text-primary-foreground' },
-    vacant: { label: 'Vacant', color: 'bg-emerald-100 text-emerald-700' },
+    vacant: { label: 'Vacant', color: 'bg-amber-100 text-amber-700' },
     reserved: { label: 'Reserved', color: 'bg-blue-100 text-blue-700' },
     dirty: { label: 'Dirty', color: 'bg-orange-100 text-orange-700' },
     maintenance: { label: 'Maintenance', color: 'bg-red-100 text-red-700' },

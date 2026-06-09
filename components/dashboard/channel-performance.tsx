@@ -31,16 +31,16 @@ export function ChannelPerformanceWidget() {
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-bold text-foreground">₵{channel.revenue}</span>
                   {channel.averageRating && (
-                    <span className="text-xs bg-gradient-to-r from-yellow-100 to-yellow-50 text-yellow-700 px-3 py-1.5 rounded-full font-semibold shadow-elevation-1">
+                    <span className="text-xs bg-yellow-100 text-yellow-700 px-3 py-1.5 rounded-full font-semibold shadow-elevation-1">
                       {channel.averageRating}★
                     </span>
                   )}
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <div className="flex-1 bg-gradient-to-r from-secondary to-secondary/50 rounded-full h-2.5 overflow-hidden shadow-elevation-1">
+                <div className="flex-1 bg-secondary rounded-full h-2.5 overflow-hidden shadow-elevation-1">
                   <div
-                    className="bg-gradient-to-r from-primary to-primary/80 h-full transition-all duration-500"
+                    className="bg-primary h-full transition-all duration-500"
                     style={{ width: `${revenuePercent}%` }}
                   ></div>
                 </div>
@@ -51,7 +51,7 @@ export function ChannelPerformanceWidget() {
         })}
       </div>
 
-      <div className="p-4 mx-6 mb-6 rounded-xl bg-gradient-to-r from-primary/10 to-primary/5 shadow-elevation-1">
+      <div className="p-4 mx-6 mb-6 rounded-xl bg-primary/10 shadow-elevation-1">
         <div className="flex items-center gap-2 mb-2">
           <TrendingUp className="h-5 w-5 text-primary" />
           <p className="text-sm font-semibold text-foreground">Revenue Breakdown</p>

@@ -10,7 +10,7 @@ const SEGMENTS = [
   { key: 'occupied' as const, label: 'Occupied', color: 'bg-primary', text: 'text-primary' },
   { key: 'reserved' as const, label: 'Reserved', color: 'bg-sky-500', text: 'text-sky-600' },
   { key: 'maintenance' as const, label: 'Maintenance', color: 'bg-amber-500', text: 'text-amber-600' },
-  { key: 'available' as const, label: 'Available', color: 'bg-emerald-400/70', text: 'text-emerald-700' },
+  { key: 'available' as const, label: 'Available', color: 'bg-amber-400/70', text: 'text-amber-700' },
 ]
 
 function getTotal(day: Availability) {
@@ -28,7 +28,7 @@ function getOccupancyPercent(day: Availability) {
 
 function getAvailabilityTone(available: number, totalRooms: number) {
   const ratio = totalRooms > 0 ? available / totalRooms : 0
-  if (ratio >= 0.33) return { label: 'Good availability', className: 'text-emerald-700 bg-emerald-500/10' }
+  if (ratio >= 0.33) return { label: 'Good availability', className: 'text-amber-700 bg-amber-500/10' }
   if (ratio >= 0.18) return { label: 'Limited availability', className: 'text-amber-700 bg-amber-500/10' }
   return { label: 'Nearly full', className: 'text-red-700 bg-red-500/10' }
 }
@@ -77,7 +77,7 @@ export function AvailabilityStrip() {
 
       {/* Today at a glance */}
       {today && (
-        <div className="grid grid-cols-2 gap-3 border-b border-emerald-900/5 px-6 py-4 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 border-b border-[#E9ECEF] px-6 py-4 sm:grid-cols-4">
           {SEGMENTS.map(({ key, label, color, text }) => (
             <div key={key} className="surface-inset rounded-xl p-3">
               <div className="flex items-center gap-2">
@@ -97,8 +97,8 @@ export function AvailabilityStrip() {
           <p className="text-xs leading-relaxed text-muted-foreground">
             Each bar shows all {totalRooms} rooms.{' '}
             <span className="font-semibold text-foreground">Tap a day</span> to see the breakdown.{' '}
-            <span className="inline-flex items-center gap-1 font-medium text-emerald-700">
-              <span className="inline-block h-2 w-2 rounded-full bg-emerald-400" />
+            <span className="inline-flex items-center gap-1 font-medium text-amber-700">
+              <span className="inline-block h-2 w-2 rounded-full bg-amber-400" />
               Green = rooms you can still sell
             </span>
           </p>
@@ -133,13 +133,13 @@ export function AvailabilityStrip() {
                   <p className="text-sm font-semibold text-foreground">{date}</p>
 
                   <div
-                    className="mt-4 flex h-4 w-full overflow-hidden rounded-md border border-emerald-950/8 bg-emerald-50/50"
+                    className="mt-4 flex h-4 w-full overflow-hidden rounded-md border border-[#E9ECEF] bg-amber-50/50"
                     title={`${day.available} available, ${day.occupied} occupied, ${day.reserved} reserved, ${day.maintenance} maintenance`}
                   >
                     <div className="bg-primary" style={{ width: `${(day.occupied / totalRooms) * 100}%` }} />
                     <div className="bg-sky-500" style={{ width: `${(day.reserved / totalRooms) * 100}%` }} />
                     <div className="bg-amber-500" style={{ width: `${(day.maintenance / totalRooms) * 100}%` }} />
-                    <div className="min-w-0 flex-1 bg-emerald-400" />
+                    <div className="min-w-0 flex-1 bg-amber-400" />
                   </div>
 
                   <div className="mt-4">
@@ -192,7 +192,7 @@ export function AvailabilityStrip() {
               )}
               {selected.available > 0 && (
                 <div
-                  className="flex flex-1 items-center justify-center bg-emerald-400/80 text-[10px] font-bold text-emerald-900"
+                  className="flex flex-1 items-center justify-center bg-amber-400/80 text-[10px] font-bold text-amber-900"
                   style={{ minWidth: `${(selected.available / totalRooms) * 100}%` }}
                 >
                   {selected.available}

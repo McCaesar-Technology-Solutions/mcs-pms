@@ -1,14 +1,14 @@
-# Abɔfa PMS - Deployment Guide
+# MOJO APARTMENTS - Deployment Guide
 
 ## Overview
 
-This guide covers deploying Abɔfa PMS to production on Vercel, configuring environments, and managing deployments.
+This guide covers deploying MOJO APARTMENTS to production on Vercel, configuring environments, and managing deployments.
 
 ## Deployment Platforms
 
 ### Vercel (Recommended)
 
-Abɔfa PMS is optimized for Vercel deployment with automatic:
+MOJO APARTMENTS is optimized for Vercel deployment with automatic:
 - Static site generation for all 11 routes
 - Edge caching for optimal performance
 - Environment variable management
@@ -49,91 +49,123 @@ vercel deploy --prod
 Create `.env.local` in project root:
 
 ```env
-# Database (when connecting)
-DATABASE_URL=postgresql://user:password@host:port/dbname
-DIRECT_URL=postgresql://user:password@host:port/dbname
+# Supabase (Project Settings → API)
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 
-# Authentication (when implementing)
-NEXTAUTH_URL=https://yourdomain.com
-NEXTAUTH_SECRET=openssl rand -base64 32
+# App
+NEXT_PUBLIC_APP_URL=https://yourdomain.com
 
-# API Keys (if using external services)
-STRIPE_PUBLIC_KEY=pk_live_...
-STRIPE_SECRET_KEY=sk_live_...
-
-# Vercel Project ID
-VERCEL_PROJECT_ID=your-project-id
-VERCEL_TEAM_ID=team_id
+# API Keys (external services — Phase 3+)
+PAYSTACK_SECRET_KEY=sk_live_...
 ```
 
 ### Setting Environment Variables in Vercel
 
 1. Go to Vercel Dashboard → Project Settings → Environment Variables
-2. Add each variable:
-   - Key: `DATABASE_URL`
-   - Value: `postgresql://...`
+2. Add each Supabase variable from your project dashboard:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY` (server-only — never prefix with `NEXT_PUBLIC_`)
 3. Select which environments: Production, Preview, Development
 4. Click "Save"
 5. Redeploy to apply changes
 
-## Database Integration
+## Supabase Setup
 
-### Neon PostgreSQL Setup
+### 1. Create project
 
-1. Create account at neon.tech
-2. Create new project (select PostgreSQL)
-3. Copy connection string: `postgresql://user:password@host/dbname`
-4. Set `DATABASE_URL` in Vercel environment variables
-5. Create `DIRECT_URL` for migrations
+1. Create account at [supabase.com](https://supabase.com)
+2. New project — e.g. **`mcs-pms-dev`** (Free tier is fine for development)
+3. Copy from **Project Settings → API**:
+   - Project URL → `NEXT_PUBLIC_SUPABASE_URL`
+   - `anon` public key → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `service_role` key → `SUPABASE_SERVICE_ROLE_KEY` (server only)
 
-### Vercel Postgres (Built-in)
+### 2. Schema and migrations
 
-```env
-POSTGRES_PRISMA_URL=
-POSTGRES_URL_NON_POOLING=
+Use the Supabase CLI or SQL Editor:
+
+```bash
+npm install -g supabase
+supabase login
+supabase link --project-ref your-project-ref
+supabase db push
 ```
+
+Migrations live in `supabase/migrations/`. Every tenant table must have RLS enabled.
+
+### 3. Storage buckets
+
+Create private buckets in the Supabase dashboard (or via migration):
+
+| Bucket | Purpose |
+|--------|---------|
+| `guest-documents` | ID scans, registration forms |
+| `property-assets` | Property photos, logos |
+| `invoices` | Generated invoice PDFs |
+
+Access via Storage RLS policies tied to `organization_id`.
+
+### 4. Auth redirect URLs
+
+In **Authentication → URL Configuration**, add:
+
+- Site URL: `https://yourdomain.com` (production)
+- Redirect URLs: `http://localhost:3000/**`, `https://yourdomain.com/**`, Vercel preview URLs
 
 ## Authentication Setup
 
-### Better Auth + Neon (Recommended)
+### Supabase Auth + Next.js (Recommended)
 
-1. Install Better Auth:
+1. Install Supabase client libraries:
+
 ```bash
-pnpm add better-auth
+npm install @supabase/supabase-js @supabase/ssr
 ```
 
-2. Create auth configuration:
+2. Create browser and server clients:
+
 ```typescript
-// lib/auth.ts
-import { betterAuth } from "better-auth"
-import { drizzleAdapter } from "better-auth/adapters/drizzle"
-import { db } from "@/lib/db"
+// lib/supabase/client.ts
+import { createBrowserClient } from '@supabase/ssr'
 
-export const auth = betterAuth({
-  database: drizzleAdapter(db),
-  emailAndPassword: { enabled: true },
-})
+export function createClient() {
+  return createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+}
 ```
 
-3. Create auth routes:
 ```typescript
-// app/api/auth/[...all]/route.ts
-import { auth } from "@/lib/auth"
+// lib/supabase/server.ts
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
 
-export const { GET, POST } = auth.toNextApiHandler()
+export async function createClient() {
+  const cookieStore = await cookies()
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { cookies: { /* getAll / setAll */ } }
+  )
+}
 ```
 
-4. Migrate database:
-```bash
-pnpm run db:push
+3. Protect dashboard routes in `middleware.ts`:
+
+```typescript
+import { createServerClient } from '@supabase/ssr'
+import { NextResponse, type NextRequest } from 'next/server'
+
+export async function middleware(request: NextRequest) {
+  // Refresh session; redirect unauthenticated users from /dashboard
+}
 ```
 
-### Environment Variables for Auth
-
-```env
-BETTER_AUTH_SECRET=your-secret-key
-BETTER_AUTH_URL=https://yourdomain.com
-```
+4. Staff roles live in `profiles` (linked to `auth.users` via trigger). Guest portal users get `role = 'guest'` with RLS limiting access to their reservations.
 
 ## Build Configuration
 
@@ -378,14 +410,13 @@ pnpm run build
 ### Database Connection Issues
 
 ```bash
-# Verify connection string
-echo $DATABASE_URL
+# Verify Supabase env vars are set (do not echo service role key in shared logs)
+echo $NEXT_PUBLIC_SUPABASE_URL
 
-# Test connection
-psql $DATABASE_URL -c "SELECT 1"
-
-# Check Neon dashboard for connection limits
+# Test API reachability from Supabase dashboard → Project Settings → Database
 ```
+
+Check the Supabase dashboard for connection limits and paused projects (Free tier may pause after inactivity).
 
 ## Monitoring Production
 
@@ -417,15 +448,16 @@ With mock data:
 
 ### When Adding Database
 
-1. **Connection pooling**: Use Neon connection pooling
-2. **Query optimization**: Add database indexes
-3. **Caching**: Implement Redis for frequent queries
-4. **CDN**: Vercel automatically serves static assets globally
-5. **Database replication**: Multi-region backup
+1. **Connection pooling**: Enabled by default on Supabase; use server client in Route Handlers
+2. **Query optimization**: Add database indexes; use RLS-friendly query patterns
+3. **Caching**: Implement Redis for frequent queries if needed (Phase 4+)
+4. **CDN**: Vercel serves static assets; Supabase Storage serves uploaded files
+5. **Backups**: Enable point-in-time recovery on Supabase Pro for production
 
 ## Support Resources
 
 - Vercel Docs: https://vercel.com/docs
 - Next.js Docs: https://nextjs.org/docs
-- Neon Docs: https://neon.tech/docs
-- Better Auth Docs: https://www.better-auth.com
+- Supabase Docs: https://supabase.com/docs
+- Supabase Auth (Next.js): https://supabase.com/docs/guides/auth/server-side/nextjs
+- Supabase Storage: https://supabase.com/docs/guides/storage

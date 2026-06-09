@@ -13,7 +13,7 @@ function getInitials(name: string) {
 
 export function StaffAvailability() {
   const statusConfig = {
-    available: { label: 'Available', pill: 'bg-emerald-100 text-emerald-800', dot: 'bg-emerald-500' },
+    available: { label: 'Available', pill: 'bg-amber-100 text-amber-800', dot: 'bg-amber-500' },
     busy: { label: 'Busy', pill: 'bg-orange-100 text-orange-800', dot: 'bg-orange-500' },
     off: { label: 'Off', pill: 'bg-gray-100 text-gray-700', dot: 'bg-gray-400' },
   }
@@ -23,7 +23,7 @@ export function StaffAvailability() {
       <div className="surface-card-accent" />
       <div className="surface-card-header">
         <h3 className="text-lg font-semibold text-[#111827]">Staff Availability</h3>
-        <p className="mt-1 text-sm text-[#5f6b78]">{staffMembers.length} team members on shift</p>
+        <p className="mt-1 text-sm text-muted-foreground">{staffMembers.length} team members on shift</p>
       </div>
 
       <div className="p-4">
@@ -42,12 +42,12 @@ export function StaffAvailability() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold text-[#111827]">{staff.name}</p>
-                    <p className="truncate text-xs text-[#5f6b78]">{staff.role}</p>
+                    <p className="truncate text-xs text-muted-foreground">{staff.role}</p>
                   </div>
                 </div>
 
                 <div className="flex shrink-0 flex-col items-end gap-1.5 sm:flex-row sm:items-center sm:gap-2">
-                  <span className="rounded-full bg-[#f4f8f6] px-2.5 py-1 text-[11px] font-semibold text-[#374151]">
+                  <span className="rounded-full bg-[#faf8fc] px-2.5 py-1 text-[11px] font-semibold text-[#374151]">
                     {staff.shift}
                   </span>
                   <div

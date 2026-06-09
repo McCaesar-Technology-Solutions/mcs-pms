@@ -13,8 +13,8 @@ import { properties as seedProperties } from '@/lib/mock-data'
 import { currentUser } from '@/lib/mock-data'
 import type { Property } from '@/types'
 
-const PROPERTIES_KEY = 'abofa-pms-properties'
-const ACTIVE_PROPERTY_KEY = 'abofa-pms-active-property'
+const PROPERTIES_KEY = 'mojo-apartments-properties'
+const ACTIVE_PROPERTY_KEY = 'mojo-apartments-active-property'
 
 export type NewPropertyInput = Omit<Property, 'id' | 'code'> & { code?: string }
 

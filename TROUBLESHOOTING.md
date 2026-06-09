@@ -1,4 +1,4 @@
-# Abɔfa PMS - Troubleshooting & FAQ
+# MOJO APARTMENTS - Troubleshooting & FAQ
 
 ## Common Issues
 
@@ -36,9 +36,9 @@
 5. Verify variables in Vercel Dashboard → Settings → Environment Variables
 
 ```bash
-# Debug environment variables
-echo "DATABASE_URL: $DATABASE_URL"
-echo "API_KEY: $API_KEY"
+# Debug environment variables (never log service role key in shared channels)
+echo "NEXT_PUBLIC_SUPABASE_URL: $NEXT_PUBLIC_SUPABASE_URL"
+echo "NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY:0:8}..."
 ```
 
 ### Development Server
@@ -305,11 +305,11 @@ className="px-2 md:px-4 lg:px-6"
 
 ### General
 
-**Q: What is Abɔfa PMS?**
-A: Abɔfa PMS is a property management system designed for Ghana hospitality businesses. It manages bookings, guests, housekeeping, billing, and GRA tax compliance.
+**Q: What is MOJO APARTMENTS?**
+A: MOJO APARTMENTS is a property management system designed for Ghana hospitality businesses. It manages bookings, guests, housekeeping, billing, and GRA tax compliance.
 
 **Q: Is the data real or mock?**
-A: Currently all data is mock (demo). Connect a database like Neon to use real data.
+A: Currently all data is mock (demo). Connect Supabase to use real data.
 
 **Q: Can I use this for my property?**
 A: The system is production-ready. Customize colors, add your property info in Settings, and deploy to Vercel.
@@ -322,7 +322,7 @@ A: Currently optimized for 1-2 properties. Multi-property version coming soon.
 **Q: What's the cost to run this?**
 A: 
 - Vercel: Free tier (4GB/month bandwidth) or $20+/month hobby tier
-- Database (Neon): Free tier or $15+/month paid
+- Database (Supabase): Free tier or ~$25+/month Pro for production
 - Custom domain: $10-15/year
 - Total: $0-40/month depending on usage
 
@@ -336,7 +336,7 @@ A: Create new component files and import them. See DEVELOPER_GUIDE.md for patter
 A: Currently using mock data. See ARCHITECTURE.md for planned schema.
 
 **Q: Can I use a different database?**
-A: Yes, but Neon PostgreSQL is recommended. Adjust API layer as needed.
+A: Supabase PostgreSQL is the chosen backend. See [ARCHITECTURE.md](ARCHITECTURE.md) and [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ### Deployment
 
@@ -355,7 +355,7 @@ A: Create `.env.local` file locally, or use Vercel Dashboard for production.
 ### Data & Security
 
 **Q: Where is my data stored?**
-A: With Neon PostgreSQL, data stored in secure European servers with automatic backups.
+A: With Supabase, data is stored in PostgreSQL with encryption at rest. Storage buckets hold uploaded files (guest IDs, property photos).
 
 **Q: Is it secure?**
 A: Yes. Implements HTTPS, input validation, RBAC, and audit logging. See SECURITY.md.
@@ -364,7 +364,7 @@ A: Yes. Implements HTTPS, input validation, RBAC, and audit logging. See SECURIT
 A: Yes. Implement export-to-CSV features. Data is yours - no vendor lock-in.
 
 **Q: How do I back up data?**
-A: Neon handles daily automatic backups. One-click restore from Neon dashboard.
+A: Supabase handles daily automatic backups on paid plans. One-click restore from Supabase dashboard.
 
 ### Features
 
@@ -394,7 +394,7 @@ A: Yes. Analytics screen has metrics. GRA Reports screen handles tax compliance.
 
 ### For Admins
 
-1. **Monitor database** size with Neon dashboard
+1. **Monitor database** size with Supabase dashboard
 2. **Archive old data** to keep queries fast
 3. **Index frequently queried** fields
 4. **Review API logs** for slow endpoints

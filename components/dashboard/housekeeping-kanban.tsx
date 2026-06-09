@@ -50,21 +50,21 @@ export function HousekeepingKanban() {
       title: 'To Do',
       icon: AlertCircle,
       iconClass: 'text-red-600',
-      headerTint: 'from-red-500/8 to-transparent',
+      headerTint: 'bg-red-500/8',
     },
     {
       id: 'in_progress',
       title: 'In Progress',
       icon: Clock,
       iconClass: 'text-amber-600',
-      headerTint: 'from-amber-500/8 to-transparent',
+      headerTint: 'bg-amber-500/8',
     },
     {
       id: 'done',
       title: 'Done',
       icon: CheckCircle,
-      iconClass: 'text-emerald-600',
-      headerTint: 'from-emerald-500/8 to-transparent',
+      iconClass: 'text-amber-600',
+      headerTint: 'bg-[#3C216C]/8',
     },
   ] as const
 
@@ -77,7 +77,7 @@ export function HousekeepingKanban() {
         return (
           <div key={column.id} className="surface-card overflow-hidden">
             <div
-              className={`relative flex items-center gap-2 border-b border-emerald-900/5 bg-gradient-to-r ${column.headerTint} px-5 py-4`}
+              className={`relative flex items-center gap-2 border-b border-[#E9ECEF] ${column.headerTint} px-5 py-4`}
             >
               <ColumnIcon className={`h-5 w-5 ${column.iconClass}`} />
               <h3 className="text-lg font-semibold text-[#111827]">{column.title}</h3>
@@ -104,8 +104,8 @@ export function HousekeepingKanban() {
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="text-base font-bold text-[#111827]">Room {task.roomNumber}</p>
-                          <div className="mt-1.5 inline-flex items-center gap-1.5 rounded-lg bg-[#f4f8f6] px-2 py-1">
-                            <TaskIcon className="h-3.5 w-3.5 text-[#1d9e75]" />
+                          <div className="mt-1.5 inline-flex items-center gap-1.5 rounded-lg bg-[#faf8fc] px-2 py-1">
+                            <TaskIcon className="h-3.5 w-3.5 text-[#4c1d95]" />
                             <span className="text-xs font-medium capitalize text-[#374151]">
                               {typeConfig.label}
                             </span>
@@ -116,7 +116,7 @@ export function HousekeepingKanban() {
                         </span>
                       </div>
 
-                      <div className="mt-4 flex items-center justify-between gap-3 border-t border-emerald-900/6 pt-3">
+                      <div className="mt-4 flex items-center justify-between gap-3 border-t border-[#E9ECEF] pt-3">
                         <div className="flex min-w-0 items-center gap-2">
                           <div className="gradient-primary flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white">
                             {getInitials(task.assignedToName)}
@@ -135,7 +135,7 @@ export function HousekeepingKanban() {
                 })}
 
                 {tasks.length === 0 && (
-                  <div className="flex h-40 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-emerald-900/10 bg-white/40 text-[#5f6b78]">
+                  <div className="flex h-40 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-[#E9ECEF] bg-white/40 text-muted-foreground">
                     <ClipboardList className="h-6 w-6 opacity-40" />
                     <p className="text-sm font-medium">No tasks</p>
                   </div>
