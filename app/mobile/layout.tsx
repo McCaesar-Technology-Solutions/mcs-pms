@@ -1,7 +1,9 @@
 export default function MobileLayout({
   children,
-}: {
+}: Readonly<{
   children: React.ReactNode
-}) {
-  return <>{children}</>
+}>) {
+  return (
+    <div className="min-h-dvh bg-background text-foreground antialiased">{children}</div>
+  )
 }

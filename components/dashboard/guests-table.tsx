@@ -188,7 +188,38 @@ export function GuestsTable() {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="space-y-3 p-4 md:hidden">
+          {filteredGuests.map((guest) => (
+            <button
+              key={guest.id}
+              type="button"
+              onClick={() => setSelectedGuest(guest)}
+              className="elevated-list-item w-full p-4 text-left"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-semibold text-foreground">{guest.name}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{guest.city}</p>
+                </div>
+                <span className={`shrink-0 text-xs px-2.5 py-1 rounded-full font-semibold ${getStatusColor(guest.status)}`}>
+                  {guest.status.charAt(0).toUpperCase() + guest.status.slice(1)}
+                </span>
+              </div>
+              <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
+                <Mail className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">{guest.email}</span>
+              </div>
+              <div className="mt-3 flex items-center justify-between gap-2 text-sm">
+                <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${getSourceColor(guest.source)}`}>
+                  {guest.source.charAt(0).toUpperCase() + guest.source.slice(1)}
+                </span>
+                <span className="font-bold text-foreground">₵{guest.totalSpent}</span>
+              </div>
+            </button>
+          ))}
+        </div>
+
+        <div className="hidden overflow-x-auto md:block">
           <table className="data-table w-full text-sm">
             <thead>
               <tr>

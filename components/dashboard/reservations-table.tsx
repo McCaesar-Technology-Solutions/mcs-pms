@@ -42,6 +42,42 @@ export function ReservationsTable() {
   return (
     <>
       <div className="surface-card overflow-hidden">
+        <div className="space-y-3 p-4 md:hidden">
+          {propertyReservations.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              No reservations for this property yet.
+            </p>
+          ) : (
+            propertyReservations.map((res) => (
+              <button
+                key={res.id}
+                type="button"
+                onClick={() => setSelectedReservation(res.id)}
+                className="elevated-list-item w-full p-4 text-left"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-foreground">{res.guestName}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">Room {res.roomNumber}</p>
+                  </div>
+                  <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                </div>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {new Date(res.checkInDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} →{' '}
+                  {new Date(res.checkOutDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                </p>
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                  <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${getStatusBadge(res.status)}`}>
+                    {res.status === 'checked_in' ? 'Checked In' : res.status.charAt(0).toUpperCase() + res.status.slice(1)}
+                  </span>
+                  <span className="font-semibold text-foreground">₵{res.totalPrice}</span>
+                </div>
+              </button>
+            ))
+          )}
+        </div>
+
+        <div className="hidden md:block">
         <table className="data-table w-full text-sm">
           <thead>
             <tr>
@@ -98,6 +134,7 @@ export function ReservationsTable() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       {selectedReservation && (

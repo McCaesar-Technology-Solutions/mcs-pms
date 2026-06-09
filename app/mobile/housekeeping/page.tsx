@@ -115,26 +115,8 @@ export default function MobileHousekeepingPage() {
   })
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-      {/* Phone Frame Mockup */}
-      <div className="w-full max-w-[375px] bg-black rounded-3xl shadow-2xl overflow-hidden" style={{ aspectRatio: '9 / 19' }}>
-        {/* Status Bar */}
-        <div className="bg-black text-white px-4 py-2 text-xs flex justify-between items-center border-b border-gray-800">
-          <div className="flex gap-1">
-            {[1, 2, 3, 4, 5].map(i => (
-              <div key={i} className="w-1 h-3 bg-white rounded-sm" />
-            ))}
-          </div>
-          <span className="font-medium">09:14</span>
-          <div className="flex gap-1">
-            <div className="w-4 h-3 border border-white rounded-sm flex items-center justify-center">
-              <div className="w-3 h-2 bg-white" />
-            </div>
-          </div>
-        </div>
-
-        {/* Mobile App Content */}
-        <div className="bg-white h-full overflow-y-auto pb-20 scrollbar-hide" style={{ height: 'calc(100% - 40px)' }}>
+    <div className="flex min-h-dvh flex-col bg-white">
+        <div className="flex-1 overflow-y-auto pb-20">
           {/* Header Section */}
           <div className="px-5 pt-6 pb-4 bg-white">
             <h1 className="text-2xl font-bold text-gray-900">Good morning, Adjoa</h1>
@@ -252,8 +234,7 @@ export default function MobileHousekeepingPage() {
           </div>
         </div>
 
-        {/* Bottom Tab Bar */}
-        <div className="bg-white border-t border-gray-300 flex justify-around items-center" style={{ height: '64px' }}>
+        <div className="fixed bottom-0 left-0 right-0 z-10 flex h-16 items-center justify-around border-t border-gray-300 bg-white">
           {[
             { id: 'tasks', icon: '🧹', label: 'Tasks' },
             { id: 'rooms', icon: '🚪', label: 'Rooms' },
@@ -281,7 +262,6 @@ export default function MobileHousekeepingPage() {
             </button>
           ))}
         </div>
-      </div>
     </div>
   )
 }

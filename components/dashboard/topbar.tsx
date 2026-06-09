@@ -1,10 +1,15 @@
 'use client'
 
-import { Bell, ChevronDown, LogOut, Search, Settings } from 'lucide-react'
+import { Bell, ChevronDown, LogOut, Menu, Settings } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import { HeaderSearch } from '@/components/dashboard/header-search'
 import { currentUser } from '@/lib/mock-data'
 
-export default function Topbar() {
+interface TopbarProps {
+  onMenuOpen?: () => void
+}
+
+export default function Topbar({ onMenuOpen }: TopbarProps) {
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [scrolled, setScrolled] = useState(false)
   const userMenuRef = useRef<HTMLDivElement>(null)
@@ -44,20 +49,26 @@ export default function Topbar() {
   }, [showUserMenu])
 
   return (
-    <header className={`main-header glass-header h-16 ${scrolled ? 'glass-header--scrolled' : ''}`}>
-      <div className="relative flex h-16 items-center px-4 md:px-6">
+    <header className={`main-header glass-header ${scrolled ? 'glass-header--scrolled' : ''}`}>
+      <div className="relative flex h-14 items-center gap-2 px-3 sm:h-16 sm:gap-3 sm:px-4 md:px-6">
+        <button
+          type="button"
+          onClick={onMenuOpen}
+          aria-label="Open navigation menu"
+          className="main-header-icon shrink-0 rounded-xl p-2.5 transition-colors hover:bg-white/50 md:hidden"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+
         <div className="absolute left-1/2 hidden w-full max-w-xl -translate-x-1/2 px-4 md:block">
-          <div className="header-search-glass relative h-10 w-full rounded-xl">
-            <Search className="header-search-icon pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" />
-            <input
-              type="search"
-              placeholder="Search guests, bookings, rooms..."
-              className="header-search-glass__input h-full w-full rounded-xl pl-10 pr-4 text-sm outline-none focus:outline-none focus:ring-0"
-            />
-          </div>
+          <HeaderSearch />
         </div>
 
-        <div className="ml-auto flex items-center gap-2 md:gap-3">
+        <div className="min-w-0 flex-1 md:hidden">
+          <HeaderSearch />
+        </div>
+
+        <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2 md:gap-3">
           <button
             type="button"
             className="main-header-icon relative rounded-xl p-2.5 transition-colors hover:bg-white/50"
@@ -72,7 +83,7 @@ export default function Topbar() {
               onClick={() => setShowUserMenu(!showUserMenu)}
               aria-expanded={showUserMenu}
               aria-haspopup="menu"
-              className="main-header-user flex items-center gap-2 rounded-xl bg-white/50 px-2.5 py-1.5 shadow-elevation-1 backdrop-blur-sm transition-all hover:bg-white/70 hover:shadow-elevation-2 md:px-3 md:py-2"
+              className="main-header-user flex items-center gap-2 rounded-xl bg-white/50 px-2 py-1.5 shadow-elevation-1 backdrop-blur-sm transition-all hover:bg-white/70 hover:shadow-elevation-2 sm:px-2.5 md:px-3 md:py-2"
             >
               <div className="gradient-primary flex h-7 w-7 items-center justify-center rounded-lg text-xs font-bold text-white">
                 {currentUser.name.charAt(0)}
@@ -80,7 +91,7 @@ export default function Topbar() {
               <span className="main-header-user-name hidden text-sm font-medium sm:inline">
                 {currentUser.name}
               </span>
-              <ChevronDown className="main-header-icon h-4 w-4" />
+              <ChevronDown className="main-header-icon hidden h-4 w-4 sm:block" />
             </button>
 
             {showUserMenu && (

@@ -1,7 +1,5 @@
 import type { Metadata } from 'next'
 import { Cormorant_Garamond, DM_Sans, JetBrains_Mono } from 'next/font/google'
-import Sidebar from '@/components/dashboard/sidebar'
-import Topbar from '@/components/dashboard/topbar'
 import { AppProviders } from '@/components/providers/app-providers'
 import './globals.css'
 
@@ -30,15 +28,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${dmSans.variable} ${cormorant.variable} ${jetbrainsMono.variable}`}>
       <body className="font-sans antialiased text-foreground">
-        <AppProviders>
-          <div className="flex h-screen w-full">
-            <Sidebar />
-            <main className="app-main h-screen min-w-0 flex-1 overflow-y-auto">
-              <Topbar />
-              {children}
-            </main>
-          </div>
-        </AppProviders>
+        <AppProviders>{children}</AppProviders>
       </body>
     </html>
   )
