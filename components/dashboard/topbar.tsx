@@ -3,7 +3,6 @@
 import { Bell, ChevronDown, LogOut, Menu, Settings } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { HeaderSearch } from '@/components/dashboard/header-search'
-import { currentUser } from '@/lib/mock-data'
 import { signOut } from '@/app/actions/auth'
 import type { Profile } from '@/types'
 
@@ -15,7 +14,7 @@ interface TopbarProps {
 export default function Topbar({ onMenuOpen, profile }: TopbarProps) {
   const user = profile
     ? { name: profile.name, email: profile.email }
-    : { name: currentUser.name, email: currentUser.email }
+    : { name: 'User', email: '' }
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [scrolled, setScrolled] = useState(false)
   const userMenuRef = useRef<HTMLDivElement>(null)

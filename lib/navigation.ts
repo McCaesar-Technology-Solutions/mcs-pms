@@ -39,15 +39,3 @@ export const managerNavigation: NavItem[] = [
   { name: 'Housekeeping', href: '/manager/housekeeping', icon: 'briefcase' },
   { name: 'Staff', href: '/manager/staff', icon: 'user-cog' },
 ]
-
-export const legacyNavigation: NavItem[] = [
-  { name: 'Dashboard', href: '/dashboard', icon: 'layout-dashboard' },
-  { name: 'Housekeeping', href: '/housekeeping', icon: 'briefcase' },
-  { name: 'Reservations', href: '/reservations', icon: 'calendar' },
-  { name: 'Bookings', href: '/bookings', icon: 'users' },
-  { name: 'Guests', href: '/guests', icon: 'users' },
-  { name: 'Billing', href: '/billing', icon: 'banknote' },
-  { name: 'GRA Reports', href: '/gra-reports', icon: 'file-text' },
-  { name: 'Analytics', href: '/analytics', icon: 'bar-chart-3' },
-  { name: 'Settings', href: '/settings', icon: 'settings' },
-]

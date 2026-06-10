@@ -44,23 +44,15 @@ function mapInvoices(invoices: InvoiceWithRoom[]): BillingRow[] {
   })
 }
 
-const MOCK_INVOICES: BillingRow[] = [
-  { id: 'INV-001', guestName: 'Ama Mensah', roomNumber: 302, amount: 1200, status: 'paid', date: '2026-06-01', dueDate: '2026-06-05', paymentMethod: 'Credit Card' },
-  { id: 'INV-002', guestName: 'Kwame Asante', roomNumber: 215, amount: 850, status: 'pending', date: '2026-06-03', dueDate: '2026-06-08', paymentMethod: 'Bank Transfer' },
-  { id: 'INV-003', guestName: 'Abena Osei', roomNumber: 401, amount: 2100, status: 'paid', date: '2026-05-28', dueDate: '2026-06-02', paymentMethod: 'Cash' },
-  { id: 'INV-004', guestName: 'Kofi Boateng', roomNumber: 308, amount: 950, status: 'overdue', date: '2026-05-20', dueDate: '2026-05-25', paymentMethod: 'Pending' },
-  { id: 'INV-005', guestName: 'Nana Acheampong', roomNumber: 105, amount: 650, status: 'pending', date: '2026-06-04', dueDate: '2026-06-09', paymentMethod: 'Mobile Money' },
-]
-
 function money(value: number | null | undefined) {
   return `₵${(value ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
-export function BillingOverview({ invoices }: { invoices?: InvoiceWithRoom[] }) {
+export function BillingOverview({ invoices }: { invoices: InvoiceWithRoom[] }) {
   const [statusFilter, setStatusFilter] = useState<string | null>(null)
   const [detail, setDetail] = useState<InvoiceWithRoom | null>(null)
 
-  const rows: BillingRow[] = invoices ? mapInvoices(invoices) : MOCK_INVOICES
+  const rows: BillingRow[] = mapInvoices(invoices)
 
   const totalRevenue = rows.reduce((sum, inv) => sum + inv.amount, 0)
   const paidAmount = rows.filter((inv) => inv.status === 'paid').reduce((sum, inv) => sum + inv.amount, 0)

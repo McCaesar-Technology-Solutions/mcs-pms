@@ -6,12 +6,14 @@ import {
   roleRequiredPath,
   STAFF_ROLES,
 } from '@/lib/auth/roles'
+import { legacyPathForRole } from '@/lib/auth/legacy-redirect'
 import type { Database } from '@/lib/supabase/types'
 
 const PUBLIC_PATHS = ['/login', '/accept-invite', '/signup']
 const GUEST_PREFIX = '/guest'
 
 const LEGACY_STAFF_PATHS = [
+  '/dashboard',
   '/reservations',
   '/bookings',
   '/guests',
@@ -83,7 +85,19 @@ export async function updateSession(request: NextRequest) {
       loginUrl.searchParams.set('next', pathname)
       return NextResponse.redirect(loginUrl)
     }
-    return supabaseResponse
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role, is_active')
+      .eq('id', user.id)
+      .maybeSingle()
+
+    if (profile?.is_active !== false && profile?.role && isStaffRole(profile.role)) {
+      const target = legacyPathForRole(pathname, profile.role)
+      return NextResponse.redirect(new URL(target, request.url))
+    }
+
+    return NextResponse.redirect(new URL('/login', request.url))
   }
 
   if (required) {
@@ -109,10 +123,6 @@ export async function updateSession(request: NextRequest) {
     if (required === 'staff') {
       if (!STAFF_ROLES.includes(profile.role)) {
         return NextResponse.redirect(new URL('/login', request.url))
-      }
-      if (profile.role === 'owner' && pathname.startsWith('/dashboard')) {
-        const ownerPath = pathname.replace(/^\/dashboard/, '/owner/dashboard')
-        return NextResponse.redirect(new URL(ownerPath, request.url))
       }
       return supabaseResponse
     }

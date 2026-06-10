@@ -1,7 +1,7 @@
 'use client'
 
-import { graTaxSummary as mockSummary } from '@/lib/mock-data'
 import { AlertCircle, CheckCircle } from 'lucide-react'
+import { DataEmptyState } from '@/components/dashboard/data-empty-state'
 import type { GraSummary } from '@/lib/data/overview'
 
 const statusConfig = {
@@ -11,16 +11,13 @@ const statusConfig = {
 }
 
 export function GRATaxSummary({ summary }: { summary?: GraSummary }) {
-  const data: GraSummary = summary ?? {
-    period: mockSummary.period,
-    totalRevenue: mockSummary.totalRevenue,
-    totalTax: mockSummary.totalTax,
-    taxRate: mockSummary.taxRate,
-    invoicesIssued: mockSummary.invoicesIssued,
-    invoicesPaid: mockSummary.invoicesPaid,
-    status: mockSummary.status,
+  if (!summary) {
+    return (
+      <DataEmptyState message="Issue invoices to track GRA tax compliance here." />
+    )
   }
 
+  const data = summary
   const config = statusConfig[data.status]
   const Icon = config.icon
 

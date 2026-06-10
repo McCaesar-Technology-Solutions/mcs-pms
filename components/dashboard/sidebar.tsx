@@ -6,7 +6,7 @@ import { PanelLeftClose, PanelLeft, X } from 'lucide-react'
 import { useState } from 'react'
 import { SidebarLogo } from '@/components/brand/sidebar-logo'
 import { PropertySwitcher } from '@/components/dashboard/property-switcher'
-import { legacyNavigation, type NavItem } from '@/lib/navigation'
+import type { NavItem } from '@/lib/navigation'
 import { getNavIcon } from '@/components/dashboard/nav-icons'
 import type { OccupancyToday } from '@/lib/data/occupancy'
 
@@ -20,7 +20,7 @@ interface SidebarProps {
 export default function Sidebar({
   mobileOpen = false,
   onMobileClose,
-  navigation = legacyNavigation,
+  navigation = [],
   occupancyToday,
 }: SidebarProps) {
   const pathname = usePathname()

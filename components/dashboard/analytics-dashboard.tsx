@@ -1,29 +1,17 @@
 'use client'
 
 import { TrendingUp, BarChart3, Calendar } from 'lucide-react'
+import { DataEmptyState } from '@/components/dashboard/data-empty-state'
 import type { AnalyticsData } from '@/lib/data/analytics'
 
-const MOCK_DATA: AnalyticsData = {
-  totalBookings: 45,
-  occupancyRate: 0.73,
-  totalRevenue: 20500,
-  avgStayNights: 3.2,
-  repeatRatePct: 94,
-  revenueGrowthPct: 18,
-  peakDay: 'Friday',
-  weekly: [
-    { day: 'Mon', bookings: 6, revenue: 2400 },
-    { day: 'Tue', bookings: 8, revenue: 3200 },
-    { day: 'Wed', bookings: 5, revenue: 2100 },
-    { day: 'Thu', bookings: 9, revenue: 3600 },
-    { day: 'Fri', bookings: 12, revenue: 4800 },
-    { day: 'Sat', bookings: 7, revenue: 2800 },
-    { day: 'Sun', bookings: 4, revenue: 1600 },
-  ],
-}
+export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
+  const analytics = data
 
-export function AnalyticsDashboard({ data }: { data?: AnalyticsData }) {
-  const analytics = data ?? MOCK_DATA
+  if (analytics.totalBookings === 0 && analytics.totalRevenue === 0) {
+    return (
+      <DataEmptyState message="Add reservations and invoices to populate analytics." />
+    )
+  }
 
   const growthLabel =
     analytics.revenueGrowthPct === null

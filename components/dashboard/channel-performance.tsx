@@ -1,6 +1,5 @@
 'use client'
 
-import { channelPerformance as mockChannels } from '@/lib/mock-data'
 import { TrendingUp } from 'lucide-react'
 import type { ChannelPerf } from '@/lib/data/overview'
 import type { Reservation } from '@/types'
@@ -14,15 +13,11 @@ const CHANNEL_LABEL: Record<Reservation['source'], string> = {
 }
 
 interface ChannelPerformanceWidgetProps {
-  channels?: ChannelPerf[]
+  channels: ChannelPerf[]
 }
 
 export function ChannelPerformanceWidget({ channels }: ChannelPerformanceWidgetProps) {
-  const data: ChannelPerf[] = channels ?? mockChannels.map((c) => ({
-    channel: c.channel,
-    bookings: c.bookings,
-    revenue: c.revenue,
-  }))
+  const data = channels
 
   const totalBookings = data.reduce((sum, c) => sum + c.bookings, 0)
   const totalRevenue = data.reduce((sum, c) => sum + c.revenue, 0)

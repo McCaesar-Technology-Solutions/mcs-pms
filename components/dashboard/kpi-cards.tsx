@@ -1,11 +1,17 @@
 'use client'
 
 import { TrendingUp, Users, Percent, Banknote } from 'lucide-react'
-import { kpiMetrics as mockKpiMetrics } from '@/lib/mock-data'
+import { DataEmptyState } from '@/components/dashboard/data-empty-state'
 import type { KPIMetrics } from '@/types'
 
 export function KPICards({ metrics }: { metrics?: KPIMetrics }) {
-  const kpiMetrics = metrics ?? mockKpiMetrics
+  if (!metrics) {
+    return (
+      <DataEmptyState message="Sign in and add reservations to see key metrics." />
+    )
+  }
+
+  const kpiMetrics = metrics
   const cards = [
     {
       icon: Banknote,

@@ -1,17 +1,16 @@
 'use client'
 
-import { reservations as mockReservations } from '@/lib/mock-data'
 import { getUpcomingBookings } from '@/lib/data/overview'
 import { ChevronRight } from 'lucide-react'
 import type { Reservation } from '@/types'
 
 interface BookingsListProps {
-  reservations?: Reservation[]
+  reservations: Reservation[]
   viewAllHref?: string
 }
 
-export function BookingsList({ reservations, viewAllHref = '/reservations' }: BookingsListProps) {
-  const upcomingBookings = getUpcomingBookings(reservations ?? mockReservations)
+export function BookingsList({ reservations, viewAllHref = '/owner/reservations' }: BookingsListProps) {
+  const upcomingBookings = getUpcomingBookings(reservations)
 
   const getStatusBadgeColor = (status: string) => {
     switch (status) {

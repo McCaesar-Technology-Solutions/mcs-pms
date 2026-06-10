@@ -1,7 +1,7 @@
 'use client'
 
-import { housekeepingTasks } from '@/lib/mock-data'
 import { CheckCircle, AlertCircle, Clock } from 'lucide-react'
+import { DataEmptyState } from '@/components/dashboard/data-empty-state'
 import type { HousekeepingTaskView } from '@/lib/data/housekeeping'
 import type { TaskStatus } from '@/types'
 
@@ -39,18 +39,15 @@ function getPriorityColor(priority: string) {
   }
 }
 
-export function TasksList({ tasks }: { tasks?: HousekeepingTaskView[] }) {
-  if (tasks) return <DbTasksList tasks={tasks} />
-  return <MockTasksList />
-}
+export function TasksList({ tasks }: { tasks: HousekeepingTaskView[] }) {
+  const byStatus: Record<ColumnId, HousekeepingTaskView[]> = {
+    todo: tasks.filter((t) => t.status === 'todo'),
+    in_progress: tasks.filter((t) => t.status === 'in_progress'),
+    done: tasks.filter((t) => t.status === 'done'),
+  }
 
-function Shell({
-  counts,
-  renderColumn,
-}: {
-  counts: Record<ColumnId, number>
-  renderColumn: (status: ColumnId) => React.ReactNode
-}) {
+  const isEmpty = tasks.length === 0
+
   return (
     <div className="surface-card overflow-hidden">
       <div className="surface-card-accent" />
@@ -59,72 +56,39 @@ function Shell({
         <p className="mt-1 text-sm text-muted-foreground">Housekeeping and maintenance across your rooms</p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-3 sm:p-6">
-        {(['todo', 'in_progress', 'done'] as ColumnId[]).map((status) => (
-          <div key={status} className={`overflow-hidden rounded-xl ${columnMeta[status].tint}`}>
-            <div className="border-b border-[#E9ECEF] px-4 py-3">
-              <h4 className="text-sm font-semibold text-[#111827]">{columnMeta[status].label}</h4>
-              <p className="mt-1 text-3xl font-bold text-[#4c1d95]">{counts[status]}</p>
-            </div>
+      {isEmpty ? (
+        <div className="p-6">
+          <DataEmptyState message="No housekeeping tasks yet." className="border-0 shadow-none" />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-3 sm:p-6">
+          {(['todo', 'in_progress', 'done'] as ColumnId[]).map((status) => (
+            <div key={status} className={`overflow-hidden rounded-xl ${columnMeta[status].tint}`}>
+              <div className="border-b border-[#E9ECEF] px-4 py-3">
+                <h4 className="text-sm font-semibold text-[#111827]">{columnMeta[status].label}</h4>
+                <p className="mt-1 text-3xl font-bold text-[#4c1d95]">{byStatus[status].length}</p>
+              </div>
 
-            <div className="card-list-tray m-3 mt-0 space-y-2.5">{renderColumn(status)}</div>
-          </div>
-        ))}
-      </div>
+              <div className="card-list-tray m-3 mt-0 space-y-2.5">
+                {byStatus[status].slice(0, 3).map((task) => (
+                  <div key={task.id} className="elevated-list-item flex items-start gap-2.5 p-3">
+                    <div className="mt-0.5 shrink-0">{getTaskIcon(status)}</div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold text-[#111827]">
+                        {task.roomNumber ? `Room ${task.roomNumber}` : 'No room'}
+                      </p>
+                      <p className="mt-0.5 text-xs capitalize text-muted-foreground">{task.taskType}</p>
+                      <span className={`mt-2 inline-flex ${getPriorityColor(task.priority)}`}>
+                        {task.priority}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
-  )
-}
-
-function DbTasksList({ tasks }: { tasks: HousekeepingTaskView[] }) {
-  const byStatus: Record<ColumnId, HousekeepingTaskView[]> = {
-    todo: tasks.filter((t) => t.status === 'todo'),
-    in_progress: tasks.filter((t) => t.status === 'in_progress'),
-    done: tasks.filter((t) => t.status === 'done'),
-  }
-
-  return (
-    <Shell
-      counts={{ todo: byStatus.todo.length, in_progress: byStatus.in_progress.length, done: byStatus.done.length }}
-      renderColumn={(status) =>
-        byStatus[status].slice(0, 3).map((task) => (
-          <div key={task.id} className="elevated-list-item flex items-start gap-2.5 p-3">
-            <div className="mt-0.5 shrink-0">{getTaskIcon(status)}</div>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-bold text-[#111827]">
-                {task.roomNumber ? `Room ${task.roomNumber}` : 'No room'}
-              </p>
-              <p className="mt-0.5 text-xs capitalize text-muted-foreground">{task.taskType}</p>
-              <span className={`mt-2 inline-flex ${getPriorityColor(task.priority)}`}>{task.priority}</span>
-            </div>
-          </div>
-        ))
-      }
-    />
-  )
-}
-
-function MockTasksList() {
-  const byStatus = {
-    todo: housekeepingTasks.filter((t) => t.status === 'todo'),
-    in_progress: housekeepingTasks.filter((t) => t.status === 'in_progress'),
-    done: housekeepingTasks.filter((t) => t.status === 'done'),
-  }
-
-  return (
-    <Shell
-      counts={{ todo: byStatus.todo.length, in_progress: byStatus.in_progress.length, done: byStatus.done.length }}
-      renderColumn={(status) =>
-        byStatus[status].slice(0, 3).map((task) => (
-          <div key={task.id} className="elevated-list-item flex items-start gap-2.5 p-3">
-            <div className="mt-0.5 shrink-0">{getTaskIcon(status)}</div>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-bold text-[#111827]">Room {task.roomNumber}</p>
-              <p className="mt-0.5 text-xs capitalize text-muted-foreground">{task.taskType}</p>
-              <span className={`mt-2 inline-flex ${getPriorityColor(task.priority)}`}>{task.priority}</span>
-            </div>
-          </div>
-        ))
-      }
-    />
   )
 }

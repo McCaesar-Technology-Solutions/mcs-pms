@@ -9,8 +9,6 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { properties as seedProperties } from '@/lib/mock-data'
-import { currentUser } from '@/lib/mock-data'
 import {
   createProperty,
   fetchOwnerProperties,
@@ -106,9 +104,6 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
     const supabase = createClient()
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) {
-        // Legacy demo routes without auth still get mock portfolio data.
-        setPropertiesList(seedProperties)
-        setActivePropertyIdState(seedProperties[0]?.id ?? '')
         setLoading(false)
         return
       }
@@ -187,7 +182,7 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
       activePropertyId: activeProperty.id,
       switchProperty,
       addProperty,
-      isAdmin: profile ? profile.role === 'owner' : currentUser.role === 'admin',
+      isAdmin: profile?.role === 'owner',
       canSwitchProperty,
       userRole: profile?.role ?? null,
       assignedHotelId: profile?.hotel_id ?? null,

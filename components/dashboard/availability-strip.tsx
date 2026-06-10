@@ -1,8 +1,8 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { BedDouble, CalendarDays, Wrench } from 'lucide-react'
-import { generateAvailability } from '@/lib/mock-data'
+import { DataEmptyState } from '@/components/dashboard/data-empty-state'
 import { useProperty } from '@/lib/property-context'
 import type { Availability } from '@/types'
 
@@ -44,12 +44,18 @@ function formatDayLabel(dateStr: string, isToday: boolean) {
 
 export function AvailabilityStrip({ data }: { data?: Availability[] }) {
   const { activeProperty } = useProperty()
-  const fallbackTotal = activeProperty.totalRooms
-  const availability = useMemo(
-    () => (data && data.length > 0 ? data : generateAvailability(fallbackTotal).slice(0, 14)),
-    [data, fallbackTotal],
-  )
-  const totalRooms = availability[0] ? getTotal(availability[0]) : fallbackTotal
+
+  if (!data || data.length === 0) {
+    return (
+      <DataEmptyState
+        title="Room availability"
+        message="Add rooms and reservations to see the 14-day forecast."
+      />
+    )
+  }
+
+  const availability = data
+  const totalRooms = availability[0] ? getTotal(availability[0]) : activeProperty.totalRooms
   const todayStr = availability[0]?.date ?? ''
   const today = availability[0]
   const [selectedDate, setSelectedDate] = useState(todayStr)
