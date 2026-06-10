@@ -253,30 +253,27 @@ export async function enrollGuest(input: {
     return { success: false, error: 'Not authorized.' }
   }
 
-  if (parsed.data.checkOut <= parsed.data.checkIn) {
-    return { success: false, error: 'Check-out must be after check-in.' }
+  // Enrollment is for a guest who is physically here now: check-in is always
+  // today (server-authoritative). Anything future-dated must go through
+  // Reservations. This guarantees a room can only ever hold one active guest.
+  const checkIn = new Date().toISOString().split('T')[0]
+
+  if (parsed.data.checkOut <= checkIn) {
+    return { success: false, error: 'Check-out must be a future date.' }
   }
 
   const admin = createAdminClient()
 
-  if (
-    await roomHasClash(
-      admin,
-      profile.hotel_id,
-      parsed.data.roomId,
-      parsed.data.checkIn,
-      parsed.data.checkOut,
-    )
-  ) {
+  if (await roomHasClash(admin, profile.hotel_id, parsed.data.roomId, checkIn, parsed.data.checkOut)) {
     const suggestions = await findAvailableRooms(
       admin,
       profile.hotel_id,
-      parsed.data.checkIn,
+      checkIn,
       parsed.data.checkOut,
     )
     return {
       success: false,
-      error: 'That room is already booked or occupied for these dates.',
+      error: 'That room is already occupied. Pick a free room.',
       suggestions,
     }
   }
@@ -292,7 +289,7 @@ export async function enrollGuest(input: {
       name: parsed.data.name,
       phone: parsed.data.phone || null,
       email: parsed.data.email || null,
-      check_in: parsed.data.checkIn,
+      check_in: checkIn,
       check_out: parsed.data.checkOut,
       token_expires_at: checkOutDate.toISOString(),
       enrolled_by: user.id,

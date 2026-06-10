@@ -21,8 +21,12 @@ export function GuestEnrollment() {
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
   const [roomId, setRoomId] = useState('')
-  const [checkIn, setCheckIn] = useState('')
-  const [checkOut, setCheckOut] = useState('')
+  const today = useMemo(() => new Date().toISOString().split('T')[0], [])
+  const tomorrow = useMemo(
+    () => new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    [],
+  )
+  const [checkOut, setCheckOut] = useState(tomorrow)
   const [rooms, setRooms] = useState<{ id: string; number: string }[]>([])
   const [stays, setStays] = useState<Stay[]>([])
   const [loginUrl, setLoginUrl] = useState('')
@@ -30,7 +34,9 @@ export function GuestEnrollment() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const datesValid = !!checkIn && !!checkOut && checkOut > checkIn
+  // Enrollment always starts today; only the checkout date is adjustable.
+  const checkIn = today
+  const datesValid = !!checkOut && checkOut > today
 
   const occupiedRoomIds = useMemo(() => {
     const set = new Set<string>()
@@ -39,7 +45,7 @@ export function GuestEnrollment() {
       if (s.checkIn < checkOut && s.checkOut > checkIn) set.add(s.roomId)
     }
     return set
-  }, [stays, checkIn, checkOut, datesValid])
+  }, [stays, checkOut, checkIn, datesValid])
 
   const selectedRoomClashes = datesValid && !!roomId && occupiedRoomIds.has(roomId)
   const suggestions = useMemo(
@@ -121,13 +127,23 @@ export function GuestEnrollment() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>Check-in</Label>
-                <Input type="date" value={checkIn} onChange={(e) => setCheckIn(e.target.value)} />
+                <div className="flex h-10 items-center rounded-lg border border-border bg-muted/40 px-3 text-sm text-muted-foreground">
+                  Today
+                </div>
               </div>
               <div className="space-y-2">
                 <Label>Check-out</Label>
-                <Input type="date" value={checkOut} onChange={(e) => setCheckOut(e.target.value)} />
+                <Input
+                  type="date"
+                  value={checkOut}
+                  min={tomorrow}
+                  onChange={(e) => setCheckOut(e.target.value)}
+                />
               </div>
             </div>
+            <p className="text-xs text-muted-foreground">
+              Enrolling checks the guest in now. For future dates, create a reservation instead.
+            </p>
             <div className="space-y-2">
               <Label>Room</Label>
               <select
