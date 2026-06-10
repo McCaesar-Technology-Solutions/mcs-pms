@@ -42,8 +42,11 @@ export function GuestEnrollment() {
       return
     }
     if (!result.data) return
-    setLoginUrl(result.data.loginUrl)
-    const qr = await QRCode.toDataURL(result.data.loginUrl)
+    // Build the link from the actual origin the staff member is on, so it
+    // works regardless of NEXT_PUBLIC_APP_URL being set on the deployment.
+    const url = `${window.location.origin}/guest/enter?token=${result.data.token}`
+    setLoginUrl(url)
+    const qr = await QRCode.toDataURL(url)
     setQrDataUrl(qr)
     setStep(3)
   }

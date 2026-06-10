@@ -229,7 +229,14 @@ export async function enrollGuest(input: {
     return { success: false, error: 'Could not enroll guest.' }
   }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+  let appUrl = process.env.NEXT_PUBLIC_APP_URL
+  if (!appUrl) {
+    const { headers } = await import('next/headers')
+    const h = await headers()
+    const host = h.get('host')
+    const proto = h.get('x-forwarded-proto') ?? 'https'
+    appUrl = host ? `${proto}://${host}` : 'http://localhost:3000'
+  }
   const loginUrl = `${appUrl}/guest/enter?token=${guest.token}`
 
   return { success: true, data: { token: guest.token, loginUrl } }
