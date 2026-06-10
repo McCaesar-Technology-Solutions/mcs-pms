@@ -1,16 +1,19 @@
 import { SettingsPanel } from '@/components/dashboard/settings-panel'
 import { PageHeader } from '@/components/dashboard/page-header'
+import { getActiveHotelSettings } from '@/lib/data/settings'
 
-export default function SettingsPage() {
+export default async function SettingsPage() {
+  const hotelSettings = await getActiveHotelSettings()
+
   return (
     <div className="page-shell space-y-6">
       <PageHeader
         badge="Configuration"
         title="Settings"
-        description="Manage property information, team members, notifications, and integrations."
+        description="Manage property details, tax compliance, and your apartment portfolio."
       />
 
-      <SettingsPanel />
+      <SettingsPanel hotelSettings={hotelSettings} />
     </div>
   )
 }

@@ -34,6 +34,8 @@ interface PropertyContextValue {
   assignedHotelId: string | null
   profile: Profile | null
   loading: boolean
+  /** Re-fetch property list from the server (e.g. after settings save). */
+  reloadProperties: () => Promise<void>
 }
 
 const PropertyContext = createContext<PropertyContextValue | null>(null)
@@ -152,6 +154,10 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
     [canSwitchProperty, activePropertyId, refreshOwnerProperties],
   )
 
+  const reloadProperties = useCallback(async () => {
+    if (activePropertyId) await refreshOwnerProperties(activePropertyId)
+  }, [activePropertyId, refreshOwnerProperties])
+
   const addProperty = useCallback(
     async (input: NewPropertyInput): Promise<Property | null> => {
       if (!canSwitchProperty) return null
@@ -187,6 +193,7 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
       assignedHotelId: profile?.hotel_id ?? null,
       profile,
       loading,
+      reloadProperties,
     }),
     [
       propertiesList,
@@ -196,6 +203,7 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
       canSwitchProperty,
       profile,
       loading,
+      reloadProperties,
     ],
   )
 

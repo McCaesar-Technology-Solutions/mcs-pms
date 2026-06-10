@@ -57,6 +57,17 @@ export const acceptInviteSchema = z.object({
   password: z.string().min(8, 'Password must be at least 8 characters'),
 })
 
+export const updateHotelSettingsSchema = z.object({
+  hotelId: z.string().uuid(),
+  name: z.string().min(2, 'Property name is required'),
+  address: z.string().min(2, 'Address is required'),
+  city: z.string().min(2, 'City is required'),
+  region: z.string().min(2, 'Region is required'),
+  gta_license_number: z.string().max(80).optional().or(z.literal('')),
+  gta_license_expiry: z.string().optional().or(z.literal('')),
+  vat_registration_number: z.string().max(80).optional().or(z.literal('')),
+})
+
 export const createPropertySchema = z.object({
   name: z.string().min(2, 'Property name is required'),
   address: z.string().min(2, 'Address is required'),
