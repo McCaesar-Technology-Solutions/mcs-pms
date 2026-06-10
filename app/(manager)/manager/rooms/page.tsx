@@ -1,11 +1,14 @@
-import { RoomStatusGrid } from '@/components/dashboard/room-status-grid'
+import { RoomsManager } from '@/components/dashboard/rooms-manager'
 import { PageHeader } from '@/components/dashboard/page-header'
+import { getDashboardData } from '@/lib/data/dashboard'
 
-export default function ManagerRoomsPage() {
+export default async function ManagerRoomsPage() {
+  const { dbRooms } = await getDashboardData()
+
   return (
     <div className="page-shell space-y-6">
       <PageHeader badge="Rooms" title="Room Status" description="Update and monitor room availability." />
-      <RoomStatusGrid />
+      <RoomsManager rooms={dbRooms} />
     </div>
   )
 }

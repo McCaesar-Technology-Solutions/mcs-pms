@@ -1,7 +1,10 @@
 import { BillingOverview } from '@/components/dashboard/billing-overview'
 import { PageHeader } from '@/components/dashboard/page-header'
+import { getDashboardData } from '@/lib/data/dashboard'
 
-export default function BillingPage() {
+export default async function BillingPage() {
+  const { invoices } = await getDashboardData()
+
   return (
     <div className="page-shell space-y-6">
       <PageHeader
@@ -10,7 +13,7 @@ export default function BillingPage() {
         description="Manage invoices, track payments, and monitor revenue collection."
       />
 
-      <BillingOverview />
+      <BillingOverview invoices={invoices} />
     </div>
   )
 }

@@ -55,7 +55,7 @@ export async function getTechnicianComplaints(
 
   const { data, error } = await query
   if (error) return { success: false, error: error.message }
-  return { success: true, data: (data ?? []) as Complaint[] }
+  return { success: true, data: (data ?? []) as unknown as Complaint[] }
 }
 
 export async function assignComplaint(

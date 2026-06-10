@@ -4,9 +4,13 @@ import { SectionHeading } from '@/components/dashboard/section-heading'
 import { TasksList } from '@/components/dashboard/tasks-list'
 import { ComplaintsOverview } from '@/components/complaints/complaints-overview'
 import { fetchHotelComplaints } from '@/lib/data/complaints'
+import { getDashboardData } from '@/lib/data/dashboard'
 
 export default async function ManagerDashboardPage() {
-  const complaints = await fetchHotelComplaints()
+  const [complaints, { metrics }] = await Promise.all([
+    fetchHotelComplaints(),
+    getDashboardData(),
+  ])
 
   return (
     <div className="page-shell space-y-8">
@@ -18,7 +22,7 @@ export default async function ManagerDashboardPage() {
 
       <section className="space-y-4">
         <SectionHeading title="Key Metrics" description="Today's operational snapshot" />
-        <KPICards />
+        <KPICards metrics={metrics} />
       </section>
 
       <section className="space-y-4">

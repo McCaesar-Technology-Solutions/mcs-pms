@@ -42,13 +42,14 @@ function formatDayLabel(dateStr: string, isToday: boolean) {
   }
 }
 
-export function AvailabilityStrip() {
+export function AvailabilityStrip({ data }: { data?: Availability[] }) {
   const { activeProperty } = useProperty()
-  const totalRooms = activeProperty.totalRooms
+  const fallbackTotal = activeProperty.totalRooms
   const availability = useMemo(
-    () => generateAvailability(totalRooms).slice(0, 14),
-    [totalRooms],
+    () => (data && data.length > 0 ? data : generateAvailability(fallbackTotal).slice(0, 14)),
+    [data, fallbackTotal],
   )
+  const totalRooms = availability[0] ? getTotal(availability[0]) : fallbackTotal
   const todayStr = availability[0]?.date ?? ''
   const today = availability[0]
   const [selectedDate, setSelectedDate] = useState(todayStr)

@@ -279,6 +279,8 @@ export interface Complaint {
   room?: DbRoom | null
   guest?: Guest | null
   assignee?: Profile | null
+  rooms?: { number: string } | null
+  guests?: { name: string } | null
 }
 
 export interface ComplaintEvent {

@@ -5,9 +5,9 @@ export async function fetchHotelComplaints(): Promise<Complaint[]> {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('complaints')
-    .select('*')
+    .select('*, rooms(number), guests(name)')
     .order('submitted_at', { ascending: false })
 
   if (error) return []
-  return (data ?? []) as Complaint[]
+  return (data ?? []) as unknown as Complaint[]
 }

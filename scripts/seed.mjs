@@ -259,7 +259,7 @@ async function main() {
   console.log('\nStaff accounts (password: password123):')
   accounts.forEach((a) => console.log(`  ${a.email} → ${a.role}`))
   console.log('\nGuest portal URLs:')
-  seededGuests?.forEach((g) => console.log(`  ${appUrl}/guest?token=${g.token}  (${g.name})`))
+  seededGuests?.forEach((g) => console.log(`  ${appUrl}/guest/enter?token=${g.token}  (${g.name})`))
 }
 
 main().catch((err) => {

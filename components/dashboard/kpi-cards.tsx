@@ -1,15 +1,17 @@
 'use client'
 
 import { TrendingUp, Users, Percent, Banknote } from 'lucide-react'
-import { kpiMetrics } from '@/lib/mock-data'
+import { kpiMetrics as mockKpiMetrics } from '@/lib/mock-data'
+import type { KPIMetrics } from '@/types'
 
-export function KPICards() {
+export function KPICards({ metrics }: { metrics?: KPIMetrics }) {
+  const kpiMetrics = metrics ?? mockKpiMetrics
   const cards = [
     {
       icon: Banknote,
       label: 'Total Revenue',
       value: `₵${kpiMetrics.totalRevenue.toLocaleString()}`,
-      subtext: '+12% from last month',
+      subtext: `RevPAR ₵${kpiMetrics.reviParMetric.toLocaleString()}`,
       trend: 'up',
       tint: 'bg-[#3C216C]/10',
       iconBg: 'bg-[#3C216C]/15 text-[#3C216C] ring-[#3C216C]/20',
@@ -18,7 +20,7 @@ export function KPICards() {
       icon: Percent,
       label: 'Occupancy Rate',
       value: `${(kpiMetrics.occupancyRate * 100).toFixed(0)}%`,
-      subtext: '+5% improvement',
+      subtext: 'Rooms occupied now',
       trend: 'up',
       tint: 'bg-blue-500/10',
       iconBg: 'bg-blue-500/15 text-blue-700 ring-blue-500/20',

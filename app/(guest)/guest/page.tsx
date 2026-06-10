@@ -1,31 +1,32 @@
+import { redirect } from 'next/navigation'
 import { GuestPortal } from '@/components/guest/guest-portal'
-import { getGuestFromSession, validateGuestToken } from '@/app/actions/guest'
+import { getGuestFromSession } from '@/app/actions/guest'
 
 export default async function GuestPage({
   searchParams,
 }: {
-  searchParams: Promise<{ token?: string }>
+  searchParams: Promise<{ token?: string; error?: string }>
 }) {
   const params = await searchParams
 
+  // Legacy links (?token=) — hand off to the route handler that can set the session cookie.
   if (params.token) {
-    const result = await validateGuestToken(params.token)
-    if (!result.success) {
-      if (result.error === 'expired') {
-        return <GuestExpiredPage />
-      }
-      return <GuestExpiredPage message={result.error} />
-    }
+    redirect(`/guest/enter?token=${encodeURIComponent(params.token)}`)
   }
 
   const session = await getGuestFromSession()
   if (!session.success || !session.data) {
-    return <GuestExpiredPage message="Please use the link provided by the front desk." />
+    return <GuestExpiredPage message={messageForError(params.error)} />
   }
 
-  return (
-    <GuestPortal guest={session.data.guest} roomNumber={session.data.roomNumber} />
-  )
+  return <GuestPortal guest={session.data.guest} roomNumber={session.data.roomNumber} />
+}
+
+function messageForError(error?: string): string {
+  if (error === 'expired') {
+    return 'This link has expired. Please contact the front desk for a new one.'
+  }
+  return 'Please use the link provided by the front desk.'
 }
 
 function GuestExpiredPage({ message }: { message?: string }) {

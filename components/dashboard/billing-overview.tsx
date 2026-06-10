@@ -2,6 +2,43 @@
 
 import { useState } from 'react'
 import { Calendar, Download, Filter, Plus, TrendingUp, DollarSign, Clock, CheckCircle } from 'lucide-react'
+import type { DbInvoice } from '@/types'
+
+interface BillingRow {
+  id: string
+  guestName: string
+  roomNumber: string | number
+  amount: number
+  status: string
+  date: string
+  dueDate: string
+  paymentMethod: string
+}
+
+function formatMethod(method: string | null): string {
+  if (!method) return 'Unspecified'
+  return method.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
+function mapInvoices(invoices: DbInvoice[]): BillingRow[] {
+  const todayStr = new Date().toISOString().slice(0, 10)
+  return invoices.map((inv) => {
+    let status = inv.payment_status ?? 'pending'
+    if (status === 'pending' && inv.due_at && inv.due_at.slice(0, 10) < todayStr) {
+      status = 'overdue'
+    }
+    return {
+      id: `INV-${inv.id.slice(0, 6).toUpperCase()}`,
+      guestName: inv.guest_name,
+      roomNumber: '—',
+      amount: inv.total_amount ?? 0,
+      status,
+      date: (inv.issued_at ?? new Date().toISOString()).slice(0, 10),
+      dueDate: (inv.due_at ?? inv.issued_at ?? new Date().toISOString()).slice(0, 10),
+      paymentMethod: formatMethod(inv.payment_method),
+    }
+  })
+}
 
 const MOCK_INVOICES = [
   {
@@ -56,16 +93,20 @@ const MOCK_INVOICES = [
   },
 ]
 
-export function BillingOverview() {
+export function BillingOverview({ invoices }: { invoices?: DbInvoice[] }) {
   const [statusFilter, setStatusFilter] = useState<string | null>(null)
 
-  const totalRevenue = MOCK_INVOICES.reduce((sum, inv) => sum + inv.amount, 0)
-  const paidAmount = MOCK_INVOICES.filter((inv) => inv.status === 'paid').reduce((sum, inv) => sum + inv.amount, 0)
-  const pendingAmount = MOCK_INVOICES.filter((inv) => inv.status === 'pending' || inv.status === 'overdue').reduce((sum, inv) => sum + inv.amount, 0)
+  const rows: BillingRow[] = invoices ? mapInvoices(invoices) : MOCK_INVOICES
+
+  const totalRevenue = rows.reduce((sum, inv) => sum + inv.amount, 0)
+  const paidAmount = rows.filter((inv) => inv.status === 'paid').reduce((sum, inv) => sum + inv.amount, 0)
+  const pendingAmount = rows.filter((inv) => inv.status === 'pending' || inv.status === 'overdue').reduce((sum, inv) => sum + inv.amount, 0)
+
+  const collectionRate = totalRevenue > 0 ? (paidAmount / totalRevenue) * 100 : 0
 
   const filteredInvoices = statusFilter
-    ? MOCK_INVOICES.filter((inv) => inv.status === statusFilter)
-    : MOCK_INVOICES
+    ? rows.filter((inv) => inv.status === statusFilter)
+    : rows
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -95,22 +136,22 @@ export function BillingOverview() {
         <div className="surface-card stat-tile stat-tile-blue p-6">
           <p className="text-sm text-muted-foreground font-semibold uppercase tracking-wider">Paid Invoices</p>
           <p className="text-3xl font-bold text-foreground mt-3">₵{paidAmount.toLocaleString()}</p>
-          <p className="text-xs text-muted-foreground mt-2">{MOCK_INVOICES.filter((inv) => inv.status === 'paid').length} invoices</p>
+          <p className="text-xs text-muted-foreground mt-2">{rows.filter((inv) => inv.status === 'paid').length} invoices</p>
         </div>
 
         <div className="surface-card stat-tile stat-tile-amber p-6">
           <p className="text-sm text-muted-foreground font-semibold uppercase tracking-wider">Pending Invoices</p>
           <p className="text-3xl font-bold text-foreground mt-3">₵{pendingAmount.toLocaleString()}</p>
-          <p className="text-xs text-muted-foreground mt-2">{MOCK_INVOICES.filter((inv) => inv.status === 'pending' || inv.status === 'overdue').length} invoices</p>
+          <p className="text-xs text-muted-foreground mt-2">{rows.filter((inv) => inv.status === 'pending' || inv.status === 'overdue').length} invoices</p>
         </div>
 
         <div className="surface-card stat-tile stat-tile-purple p-6">
           <p className="text-sm text-muted-foreground font-semibold uppercase tracking-wider">Collection Rate</p>
-          <p className="text-3xl font-bold text-foreground mt-3">{Math.round((paidAmount / totalRevenue) * 100)}%</p>
+          <p className="text-3xl font-bold text-foreground mt-3">{Math.round(collectionRate)}%</p>
           <div className="w-full bg-secondary rounded-full h-2 mt-4">
             <div
               className="bg-primary h-2 rounded-full transition-all"
-              style={{ width: `${(paidAmount / totalRevenue) * 100}%` }}
+              style={{ width: `${collectionRate}%` }}
             ></div>
           </div>
         </div>

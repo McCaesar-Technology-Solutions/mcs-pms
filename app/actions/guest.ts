@@ -1,7 +1,7 @@
 'use server'
 
 import { createAdminClient } from '@/lib/supabase/admin'
-import { getGuestSessionId, setGuestSession } from '@/lib/guest-session'
+import { getGuestSessionId } from '@/lib/guest-session'
 import { submitComplaintSchema } from '@/lib/validations'
 import type { Complaint, Guest } from '@/types'
 
@@ -14,7 +14,7 @@ const MAX_PER_WINDOW = 3
 const MAX_PER_STAY = 10
 
 export async function validateGuestToken(token: string): Promise<
-  GuestActionResult<{ guest: Guest; roomNumber: string | null }>
+  GuestActionResult<{ guest: Guest; roomNumber: string | null; expiresAt: string }>
 > {
   if (!token) {
     return { success: false, error: 'Missing access token.' }
@@ -39,14 +39,15 @@ export async function validateGuestToken(token: string): Promise<
     ? new Date(guest.token_expires_at)
     : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
 
-  await setGuestSession(guest.id, expiresAt)
-
   const roomNumber =
     guest.rooms && typeof guest.rooms === 'object' && 'number' in guest.rooms
       ? (guest.rooms as { number: string }).number
       : null
 
-  return { success: true, data: { guest: guest as Guest, roomNumber } }
+  return {
+    success: true,
+    data: { guest: guest as Guest, roomNumber, expiresAt: expiresAt.toISOString() },
+  }
 }
 
 export async function getGuestFromSession(): Promise<
@@ -229,7 +230,7 @@ export async function enrollGuest(input: {
   }
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
-  const loginUrl = `${appUrl}/guest?token=${guest.token}`
+  const loginUrl = `${appUrl}/guest/enter?token=${guest.token}`
 
   return { success: true, data: { token: guest.token, loginUrl } }
 }

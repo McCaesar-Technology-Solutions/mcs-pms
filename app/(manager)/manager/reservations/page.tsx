@@ -1,8 +1,11 @@
 import { ReservationsGantt } from '@/components/dashboard/reservations-gantt'
-import { ReservationsTable } from '@/components/dashboard/reservations-table'
+import { ReservationsManager } from '@/components/dashboard/reservations-manager'
 import { PageHeader } from '@/components/dashboard/page-header'
+import { getDashboardData } from '@/lib/data/dashboard'
 
-export default function ReservationsPage() {
+export default async function ReservationsPage() {
+  const { reservations, roomOptions } = await getDashboardData()
+
   return (
     <div className="page-shell space-y-6">
       <PageHeader
@@ -11,9 +14,9 @@ export default function ReservationsPage() {
         description="View and manage all guest reservations across properties."
       />
 
-      <ReservationsGantt />
+      <ReservationsGantt data={reservations} />
 
-      <ReservationsTable />
+      <ReservationsManager reservations={reservations} roomOptions={roomOptions} />
     </div>
   )
 }

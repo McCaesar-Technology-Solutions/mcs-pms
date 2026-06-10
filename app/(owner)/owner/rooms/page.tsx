@@ -1,7 +1,10 @@
-import { RoomStatusGrid } from '@/components/dashboard/room-status-grid'
+import { RoomsManager } from '@/components/dashboard/rooms-manager'
 import { PageHeader } from '@/components/dashboard/page-header'
+import { getDashboardData } from '@/lib/data/dashboard'
 
-export default function OwnerRoomsPage() {
+export default async function OwnerRoomsPage() {
+  const { dbRooms } = await getDashboardData()
+
   return (
     <div className="page-shell space-y-6">
       <PageHeader
@@ -9,7 +12,7 @@ export default function OwnerRoomsPage() {
         title="Rooms"
         description="Live room status across your property."
       />
-      <RoomStatusGrid />
+      <RoomsManager rooms={dbRooms} canDelete />
     </div>
   )
 }

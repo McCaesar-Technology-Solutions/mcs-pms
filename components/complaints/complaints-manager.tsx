@@ -58,6 +58,14 @@ function formatLabel(value: string) {
   return value.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
+function roomNumberOf(c: Complaint): string | null {
+  return c.rooms?.number ?? c.room?.number ?? null
+}
+
+function guestNameOf(c: Complaint): string | null {
+  return c.guests?.name ?? c.guest?.name ?? null
+}
+
 function priorityBadge(priority: string | null | undefined) {
   switch (priority) {
     case 'urgent':
@@ -187,10 +195,19 @@ export function ComplaintsManager() {
                 key={c.id}
                 type="button"
                 onClick={() => openDetail(c)}
-                className="flex w-full items-center justify-between rounded-xl bg-white px-4 py-3 text-left text-sm shadow-elevation-1 transition-all hover:-translate-y-px hover:shadow-elevation-2"
+                className="flex w-full items-center justify-between gap-3 rounded-xl bg-white px-4 py-3 text-left text-sm shadow-elevation-1 transition-all hover:-translate-y-px hover:shadow-elevation-2"
               >
-                <span className="font-medium capitalize text-[#3C216C]">{c.category}</span>
-                <span className="text-xs text-muted-foreground">Review</span>
+                <span className="min-w-0">
+                  <span className="font-medium capitalize text-[#3C216C]">{c.category}</span>
+                  {(roomNumberOf(c) || guestNameOf(c)) && (
+                    <span className="ml-2 truncate text-xs text-muted-foreground">
+                      {roomNumberOf(c) ? `Room ${roomNumberOf(c)}` : ''}
+                      {roomNumberOf(c) && guestNameOf(c) ? ' · ' : ''}
+                      {guestNameOf(c) ?? ''}
+                    </span>
+                  )}
+                </span>
+                <span className="shrink-0 text-xs text-muted-foreground">Review</span>
               </button>
             ))}
           </div>
@@ -230,7 +247,17 @@ export function ComplaintsManager() {
                 <Icon className="h-5 w-5 text-[#3C216C]" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="font-semibold capitalize text-foreground">{c.category}</p>
+                <div className="flex flex-wrap items-center gap-x-2">
+                  <p className="font-semibold capitalize text-foreground">{c.category}</p>
+                  {roomNumberOf(c) && (
+                    <span className="rounded-md bg-[#3C216C]/8 px-2 py-0.5 text-[11px] font-semibold text-[#3C216C]">
+                      Room {roomNumberOf(c)}
+                    </span>
+                  )}
+                  {guestNameOf(c) && (
+                    <span className="text-xs text-muted-foreground">{guestNameOf(c)}</span>
+                  )}
+                </div>
                 <p className="truncate text-sm text-muted-foreground">{c.description}</p>
               </div>
               <span
@@ -264,6 +291,13 @@ export function ComplaintsManager() {
                     <h2 className="mt-0.5 font-display text-2xl font-semibold capitalize">
                       {selected.category}
                     </h2>
+                    {(roomNumberOf(selected) || guestNameOf(selected)) && (
+                      <p className="mt-1 text-sm text-white/80">
+                        {roomNumberOf(selected) ? `Room ${roomNumberOf(selected)}` : ''}
+                        {roomNumberOf(selected) && guestNameOf(selected) ? ' · ' : ''}
+                        {guestNameOf(selected) ?? ''}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <button

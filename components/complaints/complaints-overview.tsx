@@ -40,6 +40,14 @@ const priorityAccent: Record<string, string> = {
   low: 'shadow-[inset_4px_0_0_0_#cbd5e1]',
 }
 
+function overviewRoomNumber(c: Complaint): string | null {
+  return c.rooms?.number ?? c.room?.number ?? null
+}
+
+function overviewGuestName(c: Complaint): string | null {
+  return c.guests?.name ?? c.guest?.name ?? null
+}
+
 function guestStatusLabel(status: ComplaintStatus | null): string {
   if (!status) return 'Submitted'
   if (['open', 'assigned', 'in_progress'].includes(status)) return 'Being handled'
@@ -127,7 +135,17 @@ export function ComplaintsOverview({ complaints, limit = 5 }: ComplaintsOverview
               </div>
 
               <div className="min-w-0 flex-1">
-                <p className="font-semibold capitalize text-foreground">{c.category}</p>
+                <div className="flex flex-wrap items-center gap-x-2">
+                  <p className="font-semibold capitalize text-foreground">{c.category}</p>
+                  {overviewRoomNumber(c) && (
+                    <span className="rounded-md bg-[#3C216C]/8 px-1.5 py-0.5 text-[10px] font-semibold text-[#3C216C]">
+                      Room {overviewRoomNumber(c)}
+                    </span>
+                  )}
+                  {overviewGuestName(c) && (
+                    <span className="text-xs text-muted-foreground">{overviewGuestName(c)}</span>
+                  )}
+                </div>
                 <p className="truncate text-sm text-muted-foreground">
                   {c.description.length > 48 ? `${c.description.slice(0, 48)}…` : c.description}
                 </p>

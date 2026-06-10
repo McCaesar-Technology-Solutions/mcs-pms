@@ -2,8 +2,9 @@
 
 import { useMemo } from 'react'
 import { CalendarRange } from 'lucide-react'
-import { reservations } from '@/lib/mock-data'
+import { reservations as mockReservations } from '@/lib/mock-data'
 import { useProperty } from '@/lib/property-context'
+import type { Reservation } from '@/types'
 
 const SOURCE_STYLES: Record<string, { bar: string; legend: string; label: string }> = {
   website: { bar: 'bg-[#3C216C] text-white', legend: 'bg-[#3C216C]', label: 'Website' },
@@ -24,7 +25,7 @@ function isWeekend(dateStr: string) {
   return day === 0 || day === 6
 }
 
-export function ReservationsGantt() {
+export function ReservationsGantt({ data }: { data?: Reservation[] }) {
   const { activePropertyId, activeProperty } = useProperty()
   const todayStr = new Date().toISOString().split('T')[0]
   const days = 21
@@ -40,8 +41,11 @@ export function ReservationsGantt() {
   )
 
   const propertyReservations = useMemo(
-    () => reservations.filter((r) => r.propertyId === activePropertyId),
-    [activePropertyId],
+    () =>
+      data
+        ? data.filter((r) => r.status !== 'cancelled')
+        : mockReservations.filter((r) => r.propertyId === activePropertyId),
+    [data, activePropertyId],
   )
 
   const roomNumbers = useMemo(() => {
