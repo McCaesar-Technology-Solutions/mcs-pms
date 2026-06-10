@@ -8,17 +8,20 @@ import { SidebarLogo } from '@/components/brand/sidebar-logo'
 import { PropertySwitcher } from '@/components/dashboard/property-switcher'
 import { legacyNavigation, type NavItem } from '@/lib/navigation'
 import { getNavIcon } from '@/components/dashboard/nav-icons'
+import type { OccupancyToday } from '@/lib/data/occupancy'
 
 interface SidebarProps {
   mobileOpen?: boolean
   onMobileClose?: () => void
   navigation?: NavItem[]
+  occupancyToday?: OccupancyToday
 }
 
 export default function Sidebar({
   mobileOpen = false,
   onMobileClose,
   navigation = legacyNavigation,
+  occupancyToday,
 }: SidebarProps) {
   const pathname = usePathname()
   const [collapsed, setCollapsed] = useState(false)
@@ -111,31 +114,38 @@ export default function Sidebar({
           })}
         </nav>
 
-        {!collapsed || isDrawer ? (
-          <>
-            <div className="sidebar-soft-divider" />
-            <div className="p-4 pb-2">
-              <div className="sidebar-glass-panel p-3">
-                <p className="text-xs font-semibold tracking-wide text-[var(--sidebar-muted)]">
-                  Occupancy today
-                </p>
-                <p className="mt-1 text-2xl font-bold text-white">73%</p>
-                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/15">
-                  <div className="gradient-accent h-full rounded-full" style={{ width: '73%' }} />
+        {occupancyToday &&
+          (!collapsed || isDrawer ? (
+            <>
+              <div className="sidebar-soft-divider" />
+              <div className="p-4 pb-2">
+                <div className="sidebar-glass-panel p-3">
+                  <p className="text-xs font-semibold tracking-wide text-[var(--sidebar-muted)]">
+                    Occupancy today
+                  </p>
+                  <p className="mt-1 text-2xl font-bold text-white">{occupancyToday.percent}%</p>
+                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/15">
+                    <div
+                      className="gradient-accent h-full rounded-full transition-[width] duration-500"
+                      style={{ width: `${occupancyToday.percent}%` }}
+                    />
+                  </div>
+                  <p className="mt-1.5 text-[10px] font-medium text-[var(--sidebar-muted)]">
+                    {occupancyToday.occupied} of {occupancyToday.total} rooms occupied
+                  </p>
                 </div>
               </div>
+            </>
+          ) : (
+            <div className="hidden p-3 pb-2 md:block">
+              <div
+                className="sidebar-glass-panel mx-auto flex h-10 w-10 items-center justify-center text-xs font-bold text-white"
+                title={`Occupancy today: ${occupancyToday.percent}% (${occupancyToday.occupied} of ${occupancyToday.total} rooms)`}
+              >
+                {occupancyToday.percent}%
+              </div>
             </div>
-          </>
-        ) : (
-          <div className="hidden p-3 pb-2 md:block">
-            <div
-              className="sidebar-glass-panel mx-auto flex h-10 w-10 items-center justify-center text-xs font-bold text-white"
-              title="Occupancy today: 73%"
-            >
-              73%
-            </div>
-          </div>
-        )}
+          ))}
 
         <div className={`mt-auto hidden p-3 md:block ${collapsed ? 'px-2.5' : ''}`}>
           <button

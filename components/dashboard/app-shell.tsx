@@ -5,6 +5,7 @@ import Sidebar from '@/components/dashboard/sidebar'
 import Topbar from '@/components/dashboard/topbar'
 import type { NavItem } from '@/lib/navigation'
 import type { Profile } from '@/types'
+import type { OccupancyToday } from '@/lib/data/occupancy'
 import { ManagerRealtimeProvider } from '@/components/realtime/manager-realtime'
 
 interface AppShellProps {
@@ -12,6 +13,7 @@ interface AppShellProps {
   navigation?: NavItem[]
   profile?: Profile | null
   enableRealtime?: boolean
+  occupancyToday?: OccupancyToday
 }
 
 export function AppShell({
@@ -19,6 +21,7 @@ export function AppShell({
   navigation,
   profile,
   enableRealtime = false,
+  occupancyToday,
 }: AppShellProps) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
@@ -43,6 +46,7 @@ export function AppShell({
         mobileOpen={mobileNavOpen}
         onMobileClose={() => setMobileNavOpen(false)}
         navigation={navigation}
+        occupancyToday={occupancyToday}
       />
       <main className="app-main h-dvh min-w-0 flex-1 overflow-y-auto">
         <Topbar onMenuOpen={() => setMobileNavOpen(true)} profile={profile} />

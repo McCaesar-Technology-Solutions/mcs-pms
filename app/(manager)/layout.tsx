@@ -3,6 +3,7 @@ import { getProfile } from '@/lib/auth/get-profile'
 import { AppShell } from '@/components/dashboard/app-shell'
 import { managerNavigation } from '@/lib/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { getOccupancyToday, type OccupancyToday } from '@/lib/data/occupancy'
 
 async function getPendingApprovalsCount(hotelId: string) {
   const supabase = await createClient()
@@ -23,14 +24,20 @@ export default async function ManagerLayout({
   }
 
   const navigation = managerNavigation.map((item) => ({ ...item }))
+  let occupancyToday: OccupancyToday | undefined
   if (profile.hotel_id) {
-    const pending = await getPendingApprovalsCount(profile.hotel_id)
+    const supabase = await createClient()
+    const [pending, occupancy] = await Promise.all([
+      getPendingApprovalsCount(profile.hotel_id),
+      getOccupancyToday(supabase, profile.hotel_id),
+    ])
     const complaintsNav = navigation.find((n) => n.name === 'Complaints')
     if (complaintsNav) complaintsNav.badge = pending
+    occupancyToday = occupancy
   }
 
   return (
-    <AppShell navigation={navigation} profile={profile} enableRealtime>
+    <AppShell navigation={navigation} profile={profile} enableRealtime occupancyToday={occupancyToday}>
       {children}
     </AppShell>
   )

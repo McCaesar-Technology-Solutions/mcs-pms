@@ -151,7 +151,7 @@ export type Database = {
           email: string | null
           phone: string | null
           ghana_card_number: string | null
-          token: string
+          token: string | null
           token_expires_at: string | null
           check_in: string | null
           check_out: string | null
@@ -166,7 +166,7 @@ export type Database = {
           email?: string | null
           phone?: string | null
           ghana_card_number?: string | null
-          token?: string
+          token?: string | null
           token_expires_at?: string | null
           check_in?: string | null
           check_out?: string | null
@@ -181,7 +181,7 @@ export type Database = {
           email?: string | null
           phone?: string | null
           ghana_card_number?: string | null
-          token?: string
+          token?: string | null
           token_expires_at?: string | null
           check_in?: string | null
           check_out?: string | null

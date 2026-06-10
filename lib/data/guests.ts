@@ -17,6 +17,8 @@ export interface GuestRow {
   lastStay: string | null
   status: GuestStatus
   source: ReservationChannel | null
+  token: string | null
+  tokenExpiresAt: string | null
 }
 
 interface GuestQueryRow {
@@ -28,6 +30,8 @@ interface GuestQueryRow {
   check_in: string | null
   check_out: string | null
   created_at: string | null
+  token: string | null
+  token_expires_at: string | null
   rooms?: { number: string } | null
 }
 
@@ -59,7 +63,9 @@ export async function getGuestsData(): Promise<GuestRow[]> {
   const [guestsRes, reservationsRes] = await Promise.all([
     supabase
       .from('guests')
-      .select('id, name, email, phone, room_id, check_in, check_out, created_at, rooms(number)')
+      .select(
+        'id, name, email, phone, room_id, check_in, check_out, created_at, token, token_expires_at, rooms(number)',
+      )
       .eq('hotel_id', hotelId)
       .order('created_at', { ascending: false }),
     supabase
@@ -115,6 +121,8 @@ export async function getGuestsData(): Promise<GuestRow[]> {
       lastStay,
       status: deriveStatus(stays, totalSpent, isCurrentlyStaying),
       source: latestRes?.channel ?? null,
+      token: guest.token,
+      tokenExpiresAt: guest.token_expires_at,
     }
   })
 }

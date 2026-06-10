@@ -3,6 +3,7 @@ import { getProfile } from '@/lib/auth/get-profile'
 import { AppShell } from '@/components/dashboard/app-shell'
 import { ownerNavigation } from '@/lib/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { getOccupancyToday, type OccupancyToday } from '@/lib/data/occupancy'
 
 async function getPendingApprovalsCount(hotelId: string) {
   const supabase = await createClient()
@@ -23,14 +24,20 @@ export default async function OwnerLayout({
   }
 
   const navigation = [...ownerNavigation]
+  let occupancyToday: OccupancyToday | undefined
   if (profile.hotel_id) {
-    const pending = await getPendingApprovalsCount(profile.hotel_id)
+    const supabase = await createClient()
+    const [pending, occupancy] = await Promise.all([
+      getPendingApprovalsCount(profile.hotel_id),
+      getOccupancyToday(supabase, profile.hotel_id),
+    ])
     const complaintsNav = navigation.find((n) => n.href.includes('complaints'))
     if (complaintsNav) complaintsNav.badge = pending
+    occupancyToday = occupancy
   }
 
   return (
-    <AppShell navigation={navigation} profile={profile}>
+    <AppShell navigation={navigation} profile={profile} occupancyToday={occupancyToday}>
       {children}
     </AppShell>
   )

@@ -42,6 +42,33 @@ export function datesOverlap(aIn: string, aOut: string, bIn: string, bOut: strin
   return aIn < bOut && aOut > bIn
 }
 
+export interface OccupancyToday {
+  occupied: number
+  total: number
+  percent: number
+}
+
+/**
+ * Live occupancy for today: the share of rooms taken right now by an active
+ * reservation or guest stay (a span covering today). Powers the sidebar meter.
+ */
+export async function getOccupancyToday(client: Client, hotelId: string): Promise<OccupancyToday> {
+  const today = todayISO()
+  const [{ count }, spans] = await Promise.all([
+    client.from('rooms').select('id', { count: 'exact', head: true }).eq('hotel_id', hotelId),
+    getOccupancySpans(client, hotelId),
+  ])
+
+  const total = count ?? 0
+  const occupiedRoomIds = new Set<string>()
+  for (const span of spans) {
+    if (span.checkIn <= today && span.checkOut > today) occupiedRoomIds.add(span.roomId)
+  }
+  const occupied = Math.min(occupiedRoomIds.size, total)
+  const percent = total > 0 ? Math.round((occupied / total) * 100) : 0
+  return { occupied, total, percent }
+}
+
 /**
  * All current + future occupancy windows for a hotel, merged from reservations
  * and guest stays. Past windows (check_out before today) are skipped — they no

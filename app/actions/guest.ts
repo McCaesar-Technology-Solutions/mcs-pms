@@ -309,7 +309,98 @@ export async function enrollGuest(input: {
     const proto = h.get('x-forwarded-proto') ?? 'https'
     appUrl = host ? `${proto}://${host}` : 'http://localhost:3000'
   }
+  if (!guest.token) {
+    return { success: false, error: 'Could not enroll guest.' }
+  }
+
   const loginUrl = `${appUrl}/guest/enter?token=${guest.token}`
 
   return { success: true, data: { token: guest.token, loginUrl } }
+}
+
+async function requireHotelManager(): Promise<{ hotel_id: string; role: string } | null> {
+  const { createClient } = await import('@/lib/supabase/server')
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return null
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('hotel_id, role')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  if (!profile?.hotel_id || !['owner', 'manager'].includes(profile.role)) return null
+  return { hotel_id: profile.hotel_id, role: profile.role }
+}
+
+function revalidateGuestViews(revalidatePath: (path: string) => void) {
+  revalidatePath('/manager/guests')
+  revalidatePath('/owner/guests')
+}
+
+/**
+ * Revokes a guest's access link: clears the token (so the link no longer
+ * matches any guest) and expires it immediately (so any already-open guest
+ * session is cut off). Use when a stay ends early or access must be killed.
+ */
+export async function revokeGuestAccess(guestId: string): Promise<GuestActionResult> {
+  const profile = await requireHotelManager()
+  if (!profile) return { success: false, error: 'Not authorized.' }
+
+  const admin = createAdminClient()
+  const { error } = await admin
+    .from('guests')
+    .update({ token: null, token_expires_at: new Date().toISOString() })
+    .eq('id', guestId)
+    .eq('hotel_id', profile.hotel_id)
+
+  if (error) return { success: false, error: 'Could not revoke access.' }
+
+  const { revalidatePath } = await import('next/cache')
+  revalidateGuestViews(revalidatePath)
+  return { success: true }
+}
+
+/**
+ * Issues a fresh access link for a guest, valid until the end of their
+ * checkout day. Replaces any existing (or revoked) token.
+ */
+export async function regenerateGuestAccess(
+  guestId: string,
+): Promise<GuestActionResult<{ token: string; tokenExpiresAt: string }>> {
+  const profile = await requireHotelManager()
+  if (!profile) return { success: false, error: 'Not authorized.' }
+
+  const admin = createAdminClient()
+  const { data: guest } = await admin
+    .from('guests')
+    .select('check_out')
+    .eq('id', guestId)
+    .eq('hotel_id', profile.hotel_id)
+    .maybeSingle()
+
+  if (!guest) return { success: false, error: 'Guest not found.' }
+
+  const expires = guest.check_out
+    ? new Date(guest.check_out)
+    : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+  expires.setHours(23, 59, 59, 999)
+
+  const token = crypto.randomUUID()
+  const tokenExpiresAt = expires.toISOString()
+
+  const { error } = await admin
+    .from('guests')
+    .update({ token, token_expires_at: tokenExpiresAt })
+    .eq('id', guestId)
+    .eq('hotel_id', profile.hotel_id)
+
+  if (error) return { success: false, error: 'Could not regenerate link.' }
+
+  const { revalidatePath } = await import('next/cache')
+  revalidateGuestViews(revalidatePath)
+  return { success: true, data: { token, tokenExpiresAt } }
 }
