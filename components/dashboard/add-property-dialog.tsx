@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { Building2 } from 'lucide-react'
 import { useProperty, type NewPropertyInput } from '@/lib/property-context'
 import {
@@ -43,18 +44,33 @@ interface AddPropertyDialogProps {
 }
 
 export function AddPropertyDialog({ open, onClose }: AddPropertyDialogProps) {
+  const router = useRouter()
   const { addProperty } = useProperty()
   const [form, setForm] = useState<NewPropertyInput>(emptyForm)
+  const [error, setError] = useState<string | null>(null)
+  const [pending, startTransition] = useTransition()
 
   useEffect(() => {
-    if (open) setForm(emptyForm)
+    if (open) {
+      setForm(emptyForm)
+      setError(null)
+    }
   }, [open])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!form.name.trim() || !form.city.trim() || form.totalRooms < 1) return
-    addProperty(form)
-    onClose()
+
+    setError(null)
+    startTransition(async () => {
+      const created = await addProperty(form)
+      if (!created) {
+        setError('Could not create property. Please try again.')
+        return
+      }
+      onClose()
+      router.refresh()
+    })
   }
 
   return (
@@ -140,7 +156,16 @@ export function AddPropertyDialog({ open, onClose }: AddPropertyDialogProps) {
               }
               className="input-soft mt-2"
             />
+            <p className="mt-1 text-xs text-muted-foreground">
+              Rooms 1–{form.totalRooms} will be created automatically as standard rooms.
+            </p>
           </div>
+
+          {error && (
+            <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
+              {error}
+            </p>
+          )}
         </ModalBody>
 
         <ModalFooter>
@@ -148,15 +173,17 @@ export function AddPropertyDialog({ open, onClose }: AddPropertyDialogProps) {
             <button
               type="button"
               onClick={onClose}
-              className="modal-panel-btn-secondary flex-1 rounded-lg bg-secondary py-2.5 text-sm font-semibold transition-colors hover:bg-secondary/80"
+              disabled={pending}
+              className="modal-panel-btn-secondary flex-1 rounded-lg bg-secondary py-2.5 text-sm font-semibold transition-colors hover:bg-secondary/80 disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="flex-1 rounded-lg bg-primary py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 hover:shadow-elevation-2"
+              disabled={pending}
+              className="flex-1 rounded-lg bg-primary py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 hover:shadow-elevation-2 disabled:opacity-50"
             >
-              Add property
+              {pending ? 'Creating…' : 'Add property'}
             </button>
           </div>
         </ModalFooter>

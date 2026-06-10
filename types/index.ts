@@ -25,6 +25,9 @@ export interface Hotel {
   id: string
   name: string
   address: string | null
+  city: string | null
+  region: string | null
+  owner_id: string | null
   gta_license_number: string | null
   gta_license_expiry: string | null
   vat_registration_number: string | null

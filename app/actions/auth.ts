@@ -85,6 +85,7 @@ export async function signUpOwner(input: {
     .insert({
       name: parsed.data.hotelName.trim(),
       address: parsed.data.hotelAddress?.trim() || null,
+      owner_id: authUser.user.id,
     })
     .select('id')
     .single()

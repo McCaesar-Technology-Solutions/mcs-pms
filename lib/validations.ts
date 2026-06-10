@@ -57,6 +57,14 @@ export const acceptInviteSchema = z.object({
   password: z.string().min(8, 'Password must be at least 8 characters'),
 })
 
+export const createPropertySchema = z.object({
+  name: z.string().min(2, 'Property name is required'),
+  address: z.string().min(2, 'Address is required'),
+  city: z.string().min(2, 'City is required'),
+  region: z.string().min(2, 'Region is required'),
+  totalRooms: z.number().int().min(1).max(999),
+})
+
 export const signUpOwnerSchema = z.object({
   name: z.string().min(2, 'Your name is required'),
   email: z.string().email('Enter a valid email'),

@@ -1,14 +1,16 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { Building2, Users, Bell, Lock, Zap, Copy, CheckCircle, Plus, Check } from 'lucide-react'
 import { useProperty } from '@/lib/property-context'
 import { AddPropertyDialog } from '@/components/dashboard/add-property-dialog'
 
 export function SettingsPanel() {
-  const { properties, activeProperty, activePropertyId, setActivePropertyId, isAdmin } =
-    useProperty()
+  const router = useRouter()
+  const { properties, activeProperty, activePropertyId, switchProperty, isAdmin } = useProperty()
   const [addOpen, setAddOpen] = useState(false)
+  const [pending, startTransition] = useTransition()
 
   return (
     <>
@@ -66,7 +68,14 @@ export function SettingsPanel() {
                 {!isActive && (
                   <button
                     type="button"
-                    onClick={() => setActivePropertyId(property.id)}
+                    onClick={() => {
+                      if (property.id === activePropertyId) return
+                      startTransition(async () => {
+                        const ok = await switchProperty(property.id)
+                        if (ok) router.refresh()
+                      })
+                    }}
+                    disabled={pending}
                     className="mt-4 w-full rounded-lg bg-secondary py-2 text-sm font-semibold text-foreground transition-colors hover:bg-secondary/80"
                   >
                     Switch to this property

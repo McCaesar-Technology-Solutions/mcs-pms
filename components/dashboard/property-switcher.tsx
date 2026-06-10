@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { Building2, Check, ChevronDown, Plus } from 'lucide-react'
 import { useProperty } from '@/lib/property-context'
 import { AddPropertyDialog } from '@/components/dashboard/add-property-dialog'
@@ -10,16 +11,18 @@ interface PropertySwitcherProps {
 }
 
 export function PropertySwitcher({ collapsed = false }: PropertySwitcherProps) {
+  const router = useRouter()
   const {
     properties,
     activeProperty,
     activePropertyId,
-    setActivePropertyId,
+    switchProperty,
     isAdmin,
     canSwitchProperty,
   } = useProperty()
   const [open, setOpen] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
+  const [pending, startTransition] = useTransition()
   const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -109,9 +112,19 @@ export function PropertySwitcher({ collapsed = false }: PropertySwitcherProps) {
                     role="option"
                     aria-selected={isActive}
                     onClick={() => {
-                      setActivePropertyId(property.id)
-                      setOpen(false)
+                      if (property.id === activePropertyId) {
+                        setOpen(false)
+                        return
+                      }
+                      startTransition(async () => {
+                        const ok = await switchProperty(property.id)
+                        if (ok) {
+                          setOpen(false)
+                          router.refresh()
+                        }
+                      })
                     }}
+                    disabled={pending}
                     className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors ${
                       isActive
                         ? 'bg-white/12 text-white'

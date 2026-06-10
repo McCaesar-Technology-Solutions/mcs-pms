@@ -14,6 +14,9 @@ export type Database = {
           id: string
           name: string
           address: string | null
+          city: string | null
+          region: string | null
+          owner_id: string | null
           gta_license_number: string | null
           gta_license_expiry: string | null
           vat_registration_number: string | null
@@ -23,6 +26,9 @@ export type Database = {
           id?: string
           name: string
           address?: string | null
+          city?: string | null
+          region?: string | null
+          owner_id?: string | null
           gta_license_number?: string | null
           gta_license_expiry?: string | null
           vat_registration_number?: string | null
@@ -32,12 +38,23 @@ export type Database = {
           id?: string
           name?: string
           address?: string | null
+          city?: string | null
+          region?: string | null
+          owner_id?: string | null
           gta_license_number?: string | null
           gta_license_expiry?: string | null
           vat_registration_number?: string | null
           created_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: 'hotels_owner_id_fkey'
+            columns: ['owner_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
       }
       profiles: {
         Row: {
