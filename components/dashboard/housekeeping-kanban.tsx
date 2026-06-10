@@ -1,7 +1,8 @@
 'use client'
 
-import { useMemo, useState, useTransition } from 'react'
+import { useCallback, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import { useRealtimeRefresh } from '@/components/realtime/realtime-refresh-context'
 import { housekeepingTasks } from '@/lib/mock-data'
 import {
   CheckCircle,
@@ -88,6 +89,12 @@ function DbKanban({
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [adding, setAdding] = useState(false)
+
+  const refreshFromRealtime = useCallback(() => {
+    router.refresh()
+  }, [router])
+
+  useRealtimeRefresh('housekeeping', refreshFromRealtime)
 
   const staffById = useMemo(() => new Map(staff.map((s) => [s.id, s.name])), [staff])
 

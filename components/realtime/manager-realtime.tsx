@@ -3,13 +3,19 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { RealtimeReconnectBanner } from '@/components/realtime/reconnect-banner'
+import {
+  RealtimeRefreshProvider,
+  useRealtimeRefreshContext,
+} from '@/components/realtime/realtime-refresh-context'
+import { RealtimeLayoutRefresh } from '@/components/realtime/realtime-layout-refresh'
 
 interface ManagerRealtimeProviderProps {
   hotelId: string
   children: ReactNode
 }
 
-export function ManagerRealtimeProvider({ hotelId, children }: ManagerRealtimeProviderProps) {
+function ManagerRealtimeChannel({ hotelId, children }: ManagerRealtimeProviderProps) {
+  const { publish } = useRealtimeRefreshContext()
   const [disconnected, setDisconnected] = useState(false)
   const [retryKey, setRetryKey] = useState(0)
 
@@ -22,28 +28,72 @@ export function ManagerRealtimeProvider({ hotelId, children }: ManagerRealtimePr
     const supabase = createClient()
     let backoff = 1000
     let retryTimer: ReturnType<typeof setTimeout> | null = null
-    let channel = supabase
-      .channel(`manager-complaints-${hotelId}-${retryKey}`)
+
+    const refreshComplaints = () => publish(['complaints', 'layout'])
+
+    const channel = supabase
+      .channel(`manager-live-${hotelId}-${retryKey}`)
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'complaints', filter: `hotel_id=eq.${hotelId}` },
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'complaints',
+          filter: `hotel_id=eq.${hotelId}`,
+        },
         (payload) => {
-          const row = payload.new as { room_id?: string; category?: string }
+          const row = payload.new as { category?: string }
           import('sonner').then(({ toast }) => {
             toast.info(`New complaint — ${row.category ?? 'issue'} reported`)
           })
+          refreshComplaints()
         },
       )
       .on(
         'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'complaints', filter: `hotel_id=eq.${hotelId}` },
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'complaints',
+          filter: `hotel_id=eq.${hotelId}`,
+        },
         (payload) => {
-          const row = payload.new as { status?: string; room_id?: string }
+          const row = payload.new as { status?: string }
           if (row.status === 'pending_approval') {
             import('sonner').then(({ toast }) => {
               toast.success('Job ready for approval')
             })
           }
+          refreshComplaints()
+        },
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'complaints',
+          filter: `hotel_id=eq.${hotelId}`,
+        },
+        () => {
+          refreshComplaints()
+        },
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'housekeeping_tasks',
+          filter: `hotel_id=eq.${hotelId}`,
+        },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            import('sonner').then(({ toast }) => {
+              toast.info('New housekeeping task')
+            })
+          }
+          publish(['housekeeping', 'layout'])
         },
       )
       .subscribe((status) => {
@@ -53,9 +103,7 @@ export function ManagerRealtimeProvider({ hotelId, children }: ManagerRealtimePr
         }
         if (status === 'CHANNEL_ERROR' || status === 'CLOSED') {
           setDisconnected(true)
-          retryTimer = setTimeout(() => {
-            setRetryKey((k) => k + 1)
-          }, backoff)
+          retryTimer = setTimeout(() => setRetryKey((k) => k + 1), backoff)
           backoff = Math.min(backoff * 2, 8000)
         }
       })
@@ -64,12 +112,21 @@ export function ManagerRealtimeProvider({ hotelId, children }: ManagerRealtimePr
       if (retryTimer) clearTimeout(retryTimer)
       supabase.removeChannel(channel)
     }
-  }, [hotelId, retryKey])
+  }, [hotelId, retryKey, publish])
 
   return (
     <>
+      <RealtimeLayoutRefresh />
       {disconnected && <RealtimeReconnectBanner onReconnect={reconnect} />}
       {children}
     </>
+  )
+}
+
+export function ManagerRealtimeProvider({ hotelId, children }: ManagerRealtimeProviderProps) {
+  return (
+    <RealtimeRefreshProvider>
+      <ManagerRealtimeChannel hotelId={hotelId}>{children}</ManagerRealtimeChannel>
+    </RealtimeRefreshProvider>
   )
 }

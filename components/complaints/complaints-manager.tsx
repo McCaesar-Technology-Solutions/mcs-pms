@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Droplets,
   Zap,
@@ -23,6 +23,7 @@ import {
   getTechnicians,
   rejectComplaint,
 } from '@/app/actions/complaints'
+import { useRealtimeRefresh } from '@/components/realtime/realtime-refresh-context'
 import type {
   Complaint,
   ComplaintCategory,
@@ -115,6 +116,8 @@ export function ComplaintsManager() {
   const [rejectNote, setRejectNote] = useState('')
   const [roomStatus, setRoomStatus] = useState<DbRoomStatus>('available')
   const [loading, setLoading] = useState(false)
+  const selectedRef = useRef<Complaint | null>(null)
+  selectedRef.current = selected
 
   const load = useCallback(async () => {
     const [cResult, tResult] = await Promise.all([getHotelComplaints(), getTechnicians()])
@@ -122,9 +125,31 @@ export function ComplaintsManager() {
     if (tResult.success && tResult.data) setTechnicians(tResult.data)
   }, [])
 
+  const refreshFromRealtime = useCallback(async () => {
+    const [cResult, tResult] = await Promise.all([getHotelComplaints(), getTechnicians()])
+    if (cResult.success && cResult.data) {
+      setComplaints(cResult.data)
+      const current = selectedRef.current
+      if (current) {
+        const updated = cResult.data.find((c) => c.id === current.id)
+        if (updated) {
+          setSelected(updated)
+          const evResult = await getComplaintEvents(updated.id)
+          if (evResult.success && evResult.data) setEvents(evResult.data)
+        } else {
+          setSelected(null)
+          setEvents([])
+        }
+      }
+    }
+    if (tResult.success && tResult.data) setTechnicians(tResult.data)
+  }, [])
+
   useEffect(() => {
     load()
   }, [load])
+
+  useRealtimeRefresh('complaints', refreshFromRealtime)
 
   const pending = useMemo(
     () => complaints.filter((c) => c.status === 'pending_approval'),

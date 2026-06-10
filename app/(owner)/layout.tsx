@@ -37,7 +37,7 @@ export default async function OwnerLayout({
   }
 
   return (
-    <AppShell navigation={navigation} profile={profile} occupancyToday={occupancyToday}>
+    <AppShell navigation={navigation} profile={profile} enableRealtime occupancyToday={occupancyToday}>
       {children}
     </AppShell>
   )

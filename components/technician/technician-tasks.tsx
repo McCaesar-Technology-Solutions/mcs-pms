@@ -14,6 +14,7 @@ import {
   ClipboardList,
 } from 'lucide-react'
 import { getTechnicianComplaints, updateTechnicianComplaintStatus } from '@/app/actions/complaints'
+import { useRealtimeRefresh } from '@/components/realtime/realtime-refresh-context'
 import type { Complaint, ComplaintCategory, ComplaintStatus } from '@/types'
 
 const priorityOrder: Record<string, number> = {
@@ -92,6 +93,8 @@ export function TechnicianTasks() {
   useEffect(() => {
     load()
   }, [load])
+
+  useRealtimeRefresh('complaints', load)
 
   async function updateStatus(id: string, status: 'in_progress' | 'pending_approval') {
     setLoading(id)
