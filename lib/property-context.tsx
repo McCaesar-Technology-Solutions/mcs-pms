@@ -49,8 +49,8 @@ const emptyProperty: Property = {
 }
 
 export function PropertyProvider({ children }: { children: ReactNode }) {
-  const [propertiesList, setPropertiesList] = useState<Property[]>(seedProperties)
-  const [activePropertyId, setActivePropertyIdState] = useState(seedProperties[0]?.id ?? '')
+  const [propertiesList, setPropertiesList] = useState<Property[]>([])
+  const [activePropertyId, setActivePropertyIdState] = useState('')
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -71,17 +71,15 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
 
     if (prof.hotel_id) {
       const supabase = createClient()
-      const { data: hotel } = await supabase
-        .from('hotels')
-        .select('*, rooms(count)')
-        .eq('id', prof.hotel_id)
-        .maybeSingle()
+      const [{ data: hotel }, { count: roomCount }] = await Promise.all([
+        supabase.from('hotels').select('*').eq('id', prof.hotel_id).maybeSingle(),
+        supabase
+          .from('rooms')
+          .select('id', { count: 'exact', head: true })
+          .eq('hotel_id', prof.hotel_id),
+      ])
 
       if (hotel) {
-        const roomCount =
-          hotel.rooms && Array.isArray(hotel.rooms) && hotel.rooms[0]
-            ? (hotel.rooms[0] as { count: number }).count
-            : 0
         const mapped: Property = {
           id: hotel.id,
           name: hotel.name,
@@ -89,7 +87,7 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
           address: hotel.address ?? '',
           city: hotel.city ?? 'Accra',
           region: hotel.region ?? 'Greater Accra',
-          totalRooms: roomCount,
+          totalRooms: roomCount ?? 0,
         }
         setPropertiesList([mapped])
         setActivePropertyIdState(mapped.id)
@@ -106,6 +104,9 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
     const supabase = createClient()
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) {
+        // Legacy demo routes without auth still get mock portfolio data.
+        setPropertiesList(seedProperties)
+        setActivePropertyIdState(seedProperties[0]?.id ?? '')
         setLoading(false)
         return
       }
@@ -126,20 +127,29 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
     return propertiesList.find((p) => p.id === activePropertyId) ?? propertiesList[0] ?? emptyProperty
   }, [propertiesList, activePropertyId])
 
+  const refreshOwnerProperties = useCallback(async (activeHotelId: string) => {
+    const result = await fetchOwnerProperties()
+    if (result.success && result.data && result.data.length > 0) {
+      setPropertiesList(result.data)
+      const active =
+        result.data.find((p) => p.id === activeHotelId) ?? result.data[0]
+      setActivePropertyIdState(active.id)
+    }
+  }, [])
+
   const switchProperty = useCallback(
     async (id: string): Promise<boolean> => {
       if (!canSwitchProperty) return false
-      if (!propertiesList.some((p) => p.id === id)) return false
       if (id === activePropertyId) return true
 
       const result = await switchActiveProperty(id)
       if (!result.success) return false
 
-      setActivePropertyIdState(id)
       setProfile((prev) => (prev ? { ...prev, hotel_id: id } : prev))
+      await refreshOwnerProperties(id)
       return true
     },
-    [canSwitchProperty, propertiesList, activePropertyId],
+    [canSwitchProperty, activePropertyId, refreshOwnerProperties],
   )
 
   const addProperty = useCallback(
@@ -157,12 +167,11 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
       if (!result.success || !result.data) return null
 
       const property = result.data
-      setPropertiesList((prev) => [...prev.filter((p) => p.id !== property.id), property])
-      setActivePropertyIdState(property.id)
       setProfile((prev) => (prev ? { ...prev, hotel_id: property.id } : prev))
+      await refreshOwnerProperties(property.id)
       return property
     },
-    [canSwitchProperty],
+    [canSwitchProperty, refreshOwnerProperties],
   )
 
   const value = useMemo(

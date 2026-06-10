@@ -133,6 +133,11 @@ export async function createProperty(input: {
 
   revalidateOwnerViews()
 
+  const { count: roomCount } = await admin
+    .from('rooms')
+    .select('id', { count: 'exact', head: true })
+    .eq('hotel_id', hotel.id)
+
   const property: Property = {
     id: hotel.id,
     name: hotel.name,
@@ -140,7 +145,7 @@ export async function createProperty(input: {
     address: hotel.address ?? '',
     city: hotel.city ?? parsed.data.city,
     region: hotel.region ?? parsed.data.region,
-    totalRooms: parsed.data.totalRooms,
+    totalRooms: roomCount ?? 0,
   }
 
   return { success: true, data: property }

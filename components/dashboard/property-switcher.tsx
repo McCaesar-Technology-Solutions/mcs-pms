@@ -19,6 +19,7 @@ export function PropertySwitcher({ collapsed = false }: PropertySwitcherProps) {
     switchProperty,
     isAdmin,
     canSwitchProperty,
+    loading,
   } = useProperty()
   const [open, setOpen] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
@@ -35,6 +36,24 @@ export function PropertySwitcher({ collapsed = false }: PropertySwitcherProps) {
     document.addEventListener('mousedown', onPointerDown)
     return () => document.removeEventListener('mousedown', onPointerDown)
   }, [open])
+
+  if (loading) {
+    return (
+      <div
+        className={`flex w-full items-center gap-3 rounded-xl bg-white/10 p-3 ${
+          collapsed ? 'justify-center' : ''
+        }`}
+      >
+        <div className="h-9 w-9 shrink-0 animate-pulse rounded-lg bg-white/10" />
+        {!collapsed && (
+          <div className="min-w-0 flex-1 space-y-2">
+            <div className="h-3 w-24 animate-pulse rounded bg-white/10" />
+            <div className="h-2 w-32 animate-pulse rounded bg-white/10" />
+          </div>
+        )}
+      </div>
+    )
+  }
 
   // Managers / technicians are locked to their assigned property: show a static,
   // non-interactive badge with no switcher dropdown and no "Add property".
@@ -82,6 +101,9 @@ export function PropertySwitcher({ collapsed = false }: PropertySwitcherProps) {
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold text-white">{activeProperty.name}</p>
                 <p className="truncate text-xs font-medium text-[var(--sidebar-muted)]">
+                  {properties.length > 1
+                    ? `${properties.length} properties · `
+                    : ''}
                   {activeProperty.totalRooms} rooms · {activeProperty.city}
                 </p>
               </div>
