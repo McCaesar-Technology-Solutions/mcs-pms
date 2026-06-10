@@ -1,16 +1,27 @@
 'use client'
 
-import { graTaxSummary } from '@/lib/mock-data'
+import { graTaxSummary as mockSummary } from '@/lib/mock-data'
 import { AlertCircle, CheckCircle } from 'lucide-react'
+import type { GraSummary } from '@/lib/data/overview'
 
-export function GRATaxSummary() {
-  const statusConfig = {
-    pending: { icon: AlertCircle, color: 'text-orange-600', label: 'Pending', bg: 'bg-orange-50' },
-    submitted: { icon: CheckCircle, color: 'text-blue-600', label: 'Submitted', bg: 'bg-blue-50' },
-    approved: { icon: CheckCircle, color: 'text-amber-600', label: 'Approved', bg: 'bg-amber-50' },
+const statusConfig = {
+  pending: { icon: AlertCircle, color: 'text-orange-600', label: 'Pending', bg: 'bg-orange-50' },
+  submitted: { icon: CheckCircle, color: 'text-blue-600', label: 'Submitted', bg: 'bg-blue-50' },
+  approved: { icon: CheckCircle, color: 'text-amber-600', label: 'Approved', bg: 'bg-amber-50' },
+}
+
+export function GRATaxSummary({ summary }: { summary?: GraSummary }) {
+  const data: GraSummary = summary ?? {
+    period: mockSummary.period,
+    totalRevenue: mockSummary.totalRevenue,
+    totalTax: mockSummary.totalTax,
+    taxRate: mockSummary.taxRate,
+    invoicesIssued: mockSummary.invoicesIssued,
+    invoicesPaid: mockSummary.invoicesPaid,
+    status: mockSummary.status,
   }
 
-  const config = statusConfig[graTaxSummary.status]
+  const config = statusConfig[data.status]
   const Icon = config.icon
 
   return (
@@ -25,30 +36,30 @@ export function GRATaxSummary() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="info-block info-block-blue p-4">
             <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Period</p>
-            <p className="text-lg font-bold text-foreground mt-3">{graTaxSummary.period}</p>
+            <p className="text-lg font-bold text-foreground mt-3">{data.period}</p>
           </div>
           <div className="info-block info-block-emerald p-4">
             <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Total Revenue</p>
-            <p className="text-lg font-bold text-foreground mt-3">₵{graTaxSummary.totalRevenue.toLocaleString()}</p>
+            <p className="text-lg font-bold text-foreground mt-3">₵{data.totalRevenue.toLocaleString()}</p>
           </div>
           <div className="info-block info-block-orange p-4">
             <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Tax Amount</p>
-            <p className="text-lg font-bold text-foreground mt-3">₵{graTaxSummary.totalTax.toLocaleString()}</p>
+            <p className="text-lg font-bold text-foreground mt-3">₵{Math.round(data.totalTax).toLocaleString()}</p>
           </div>
           <div className="info-block info-block-purple p-4">
             <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Tax Rate</p>
-            <p className="text-lg font-bold text-foreground mt-3">{(graTaxSummary.taxRate * 100).toFixed(0)}%</p>
+            <p className="text-lg font-bold text-foreground mt-3">{(data.taxRate * 100).toFixed(0)}%</p>
           </div>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div className="info-block info-block-blue p-5 shadow-elevation-1">
             <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider mb-3">Invoices Issued</p>
-            <p className="text-3xl font-bold text-blue-600">{graTaxSummary.invoicesIssued}</p>
+            <p className="text-3xl font-bold text-blue-600">{data.invoicesIssued}</p>
           </div>
           <div className="info-block info-block-emerald p-5 shadow-elevation-1">
             <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider mb-3">Invoices Paid</p>
-            <p className="text-3xl font-bold text-amber-600">{graTaxSummary.invoicesPaid}</p>
+            <p className="text-3xl font-bold text-amber-600">{data.invoicesPaid}</p>
           </div>
         </div>
 
@@ -57,9 +68,9 @@ export function GRATaxSummary() {
           <div>
             <p className={`font-semibold text-sm ${config.color}`}>{config.label}</p>
             <p className="text-xs text-muted-foreground mt-1">
-              {graTaxSummary.status === 'pending' && 'Awaiting GRA submission'}
-              {graTaxSummary.status === 'submitted' && 'Submitted to GRA for processing'}
-              {graTaxSummary.status === 'approved' && 'Approved by Ghana Revenue Authority'}
+              {data.status === 'pending' && 'Awaiting GRA submission'}
+              {data.status === 'submitted' && 'Submitted to GRA for processing'}
+              {data.status === 'approved' && 'Approved by Ghana Revenue Authority'}
             </p>
           </div>
         </div>

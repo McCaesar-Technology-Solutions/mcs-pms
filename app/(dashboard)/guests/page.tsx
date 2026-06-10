@@ -10,7 +10,7 @@ export default function GuestsPage() {
         description="Manage all guests, view stay history, preferences, and communication records."
       />
 
-      <GuestsTable />
+      <GuestsTable guests={[]} />
     </div>
   )
 }

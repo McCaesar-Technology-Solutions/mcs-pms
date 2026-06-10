@@ -1,15 +1,22 @@
 import { PageHeader } from '@/components/dashboard/page-header'
-import { StaffAvailability } from '@/components/dashboard/staff-availability'
+import { StaffManager } from '@/components/dashboard/staff-manager'
+import { getStaffData } from '@/lib/data/staff'
 
-export default function ManagerStaffPage() {
+export default async function ManagerStaffPage() {
+  const { profile, staff, invites } = await getStaffData()
+
   return (
     <div className="page-shell space-y-6">
       <PageHeader
         badge="Team"
         title="Technicians"
-        description="Manage technician assignments and availability."
+        description="Invite technicians and manage their access."
       />
-      <StaffAvailability />
+      {profile ? (
+        <StaffManager currentProfile={profile} staff={staff} invites={invites} />
+      ) : (
+        <p className="text-sm text-muted-foreground">Unable to load your team right now.</p>
+      )}
     </div>
   )
 }

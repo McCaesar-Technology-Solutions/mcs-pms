@@ -2,7 +2,9 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import type { ReservationChannel, ReservationStatus } from '@/types'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { computeInvoiceTaxes } from '@/lib/tax'
+import type { PaymentMethod, ReservationChannel, ReservationStatus } from '@/types'
 
 export type ReservationActionResult = { success: true } | { success: false; error: string }
 
@@ -44,7 +46,19 @@ function revalidateReservationViews() {
   revalidatePath('/manager/reservations')
   revalidatePath('/owner/dashboard')
   revalidatePath('/manager/dashboard')
+  revalidatePath('/owner/billing')
+  revalidatePath('/owner/gra-reports')
 }
+
+const VALID_PAYMENT_METHODS: PaymentMethod[] = [
+  'mtn_momo',
+  'telecel_cash',
+  'airteltigo',
+  'visa',
+  'mastercard',
+  'cash',
+  'bank_transfer',
+]
 
 function nights(checkIn: string, checkOut: string): number {
   const start = new Date(checkIn + 'T00:00:00')
@@ -240,8 +254,77 @@ export async function checkInReservation(id: string): Promise<ReservationActionR
   return setReservationStatus(id, 'checked_in', 'occupied')
 }
 
-export async function checkOutReservation(id: string): Promise<ReservationActionResult> {
-  return setReservationStatus(id, 'checked_out', 'cleaning')
+export async function checkOutReservation(
+  id: string,
+  paymentMethod: PaymentMethod = 'cash',
+): Promise<ReservationActionResult> {
+  const { supabase, profile } = await requireManager()
+  if (!profile || !['owner', 'manager'].includes(profile.role) || !profile.hotel_id) {
+    return { success: false, error: 'Not authorized.' }
+  }
+  if (!VALID_PAYMENT_METHODS.includes(paymentMethod)) {
+    return { success: false, error: 'Invalid payment method.' }
+  }
+
+  const { data: reservation } = await supabase
+    .from('reservations')
+    .select('id, hotel_id, room_id, guest_id, guest_name, nightly_rate, total_amount, check_in, check_out, status')
+    .eq('id', id)
+    .maybeSingle()
+
+  if (!reservation) return { success: false, error: 'Reservation not found.' }
+
+  const { error: statusError } = await supabase
+    .from('reservations')
+    .update({ status: 'checked_out' })
+    .eq('id', id)
+  if (statusError) return { success: false, error: statusError.message }
+
+  if (reservation.room_id) {
+    await supabase
+      .from('rooms')
+      .update({ status: 'cleaning', updated_by: profile.id, updated_at: new Date().toISOString() })
+      .eq('id', reservation.room_id)
+  }
+
+  // Generate a GRA-compliant invoice (admin client: owners cannot insert
+  // invoices under RLS, but they are authorized to check out here).
+  const admin = createAdminClient()
+  const { data: existingInvoice } = await admin
+    .from('invoices')
+    .select('id')
+    .eq('reservation_id', id)
+    .maybeSingle()
+
+  if (!existingInvoice) {
+    const subtotal =
+      reservation.total_amount ??
+      (reservation.nightly_rate ?? 0) * nights(reservation.check_in, reservation.check_out)
+    const taxes = computeInvoiceTaxes(subtotal)
+    const now = new Date().toISOString()
+
+    await admin.from('invoices').insert({
+      hotel_id: reservation.hotel_id,
+      reservation_id: id,
+      guest_id: reservation.guest_id,
+      guest_name: reservation.guest_name,
+      subtotal: taxes.subtotal,
+      nhil_amount: taxes.nhil,
+      getfund_amount: taxes.getfund,
+      covid_levy_amount: taxes.covid,
+      vat_amount: taxes.vat,
+      elevy_amount: taxes.elevy,
+      total_amount: taxes.total,
+      payment_method: paymentMethod,
+      payment_status: 'paid',
+      issued_at: now,
+      due_at: now,
+      paid_at: now,
+    })
+  }
+
+  revalidateReservationViews()
+  return { success: true }
 }
 
 export async function cancelReservation(id: string): Promise<ReservationActionResult> {

@@ -5,11 +5,13 @@ import { TasksList } from '@/components/dashboard/tasks-list'
 import { ComplaintsOverview } from '@/components/complaints/complaints-overview'
 import { fetchHotelComplaints } from '@/lib/data/complaints'
 import { getDashboardData } from '@/lib/data/dashboard'
+import { getHousekeepingTasks } from '@/lib/data/housekeeping'
 
 export default async function ManagerDashboardPage() {
-  const [complaints, { metrics }] = await Promise.all([
+  const [complaints, { metrics }, tasks] = await Promise.all([
     fetchHotelComplaints(),
     getDashboardData(),
+    getHousekeepingTasks(),
   ])
 
   return (
@@ -32,7 +34,7 @@ export default async function ManagerDashboardPage() {
 
       <section className="space-y-4">
         <SectionHeading title="Tasks" description="Housekeeping and maintenance" />
-        <TasksList />
+        <TasksList tasks={tasks} />
       </section>
     </div>
   )

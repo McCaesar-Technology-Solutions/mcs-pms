@@ -1,8 +1,11 @@
 import { GuestsTable } from '@/components/dashboard/guests-table'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { GuestEnrollment } from '@/components/guest/guest-enrollment'
+import { getGuestsData } from '@/lib/data/guests'
 
-export default function ManagerGuestsPage() {
+export default async function ManagerGuestsPage() {
+  const guests = await getGuestsData()
+
   return (
     <div className="page-shell space-y-6">
       <PageHeader
@@ -11,7 +14,7 @@ export default function ManagerGuestsPage() {
         description="Enroll guests and manage active stays."
       />
       <GuestEnrollment />
-      <GuestsTable />
+      <GuestsTable guests={guests} />
     </div>
   )
 }

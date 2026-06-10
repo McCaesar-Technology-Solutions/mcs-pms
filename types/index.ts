@@ -324,3 +324,20 @@ export interface StaffInvite {
   created_at: string | null
 }
 
+export type HousekeepingTaskType = 'clean' | 'inspect' | 'maintenance' | 'restock'
+
+export interface DbHousekeepingTask {
+  id: string
+  hotel_id: string
+  room_id: string | null
+  task_type: HousekeepingTaskType
+  status: TaskStatus
+  priority: TaskPriority
+  assigned_to: string | null
+  notes: string | null
+  due_date: string | null
+  created_by: string | null
+  created_at: string | null
+  completed_at: string | null
+}
+

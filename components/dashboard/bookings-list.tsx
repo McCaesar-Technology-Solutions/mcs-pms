@@ -1,16 +1,17 @@
 'use client'
 
-import { reservations } from '@/lib/mock-data'
+import { reservations as mockReservations } from '@/lib/mock-data'
+import { getUpcomingBookings } from '@/lib/data/overview'
 import { ChevronRight } from 'lucide-react'
+import type { Reservation } from '@/types'
 
-export function BookingsList() {
-  const upcomingBookings = reservations
-    .filter((b) => b.status === 'confirmed' || b.status === 'checked_in')
-    .sort(
-      (a, b) =>
-        new Date(a.checkInDate).getTime() - new Date(b.checkInDate).getTime()
-    )
-    .slice(0, 5)
+interface BookingsListProps {
+  reservations?: Reservation[]
+  viewAllHref?: string
+}
+
+export function BookingsList({ reservations, viewAllHref = '/reservations' }: BookingsListProps) {
+  const upcomingBookings = getUpcomingBookings(reservations ?? mockReservations)
 
   const getStatusBadgeColor = (status: string) => {
     switch (status) {
@@ -32,40 +33,44 @@ export function BookingsList() {
             <h3 className="text-lg font-semibold text-foreground">Upcoming Bookings</h3>
             <p className="text-sm text-muted-foreground mt-1">Next 5 reservations</p>
           </div>
-          <a href="/reservations" className="text-primary hover:text-primary/80 text-sm font-semibold flex items-center gap-2 transition-colors">
+          <a href={viewAllHref} className="text-primary hover:text-primary/80 text-sm font-semibold flex items-center gap-2 transition-colors">
             View All <ChevronRight className="h-4 w-4" />
           </a>
         </div>
       </div>
 
       <div className="p-4">
-        <div className="card-list-tray space-y-3">
-          {upcomingBookings.map((booking) => (
-            <div
-              key={booking.id}
-              className="elevated-list-item cursor-pointer p-4 transition-colors"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <div className="mb-2 flex flex-wrap items-center gap-2">
-                    <p className="font-semibold text-[#111827]">{booking.guestName}</p>
-                    <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${getStatusBadgeColor(booking.status)}`}>
-                      {booking.status === 'checked_in' ? 'Checked In' : 'Confirmed'}
-                    </span>
+        {upcomingBookings.length === 0 ? (
+          <p className="px-2 py-8 text-center text-sm text-muted-foreground">No upcoming bookings.</p>
+        ) : (
+          <div className="card-list-tray space-y-3">
+            {upcomingBookings.map((booking) => (
+              <div
+                key={booking.id}
+                className="elevated-list-item cursor-pointer p-4 transition-colors"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="mb-2 flex flex-wrap items-center gap-2">
+                      <p className="font-semibold text-[#111827]">{booking.guestName}</p>
+                      <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${getStatusBadgeColor(booking.status)}`}>
+                        {booking.status === 'checked_in' ? 'Checked In' : 'Confirmed'}
+                      </span>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Room {booking.roomNumber} • {new Date(booking.checkInDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} →{' '}
+                      {new Date(booking.checkOutDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </p>
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    Room {booking.roomNumber} • {new Date(booking.checkInDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} →{' '}
-                    {new Date(booking.checkOutDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                  </p>
-                </div>
-                <div className="shrink-0 text-right">
-                  <p className="font-semibold text-[#111827]">₵{booking.totalPrice}</p>
-                  <p className="text-xs text-muted-foreground">{booking.numberOfNights} nights</p>
+                  <div className="shrink-0 text-right">
+                    <p className="font-semibold text-[#111827]">₵{booking.totalPrice.toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground">{booking.numberOfNights} nights</p>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

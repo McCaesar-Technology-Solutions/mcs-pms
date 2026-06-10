@@ -42,6 +42,15 @@ export const createReservationSchema = z.object({
   nightlyRate: z.number().positive().optional(),
 })
 
+export const createHousekeepingTaskSchema = z.object({
+  roomId: z.string().uuid(),
+  taskType: z.enum(['clean', 'inspect', 'maintenance', 'restock']),
+  priority: z.enum(['low', 'medium', 'high']).default('medium'),
+  assignedTo: z.string().uuid().optional().or(z.literal('')),
+  dueDate: z.string().optional().or(z.literal('')),
+  notes: z.string().max(500).optional().or(z.literal('')),
+})
+
 export const acceptInviteSchema = z.object({
   token: z.string().uuid(),
   name: z.string().min(2),

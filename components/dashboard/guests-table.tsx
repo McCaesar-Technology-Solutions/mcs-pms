@@ -1,117 +1,80 @@
 'use client'
 
 import { useState } from 'react'
-import { Search, Mail, Phone, MapPin, MoreVertical, Plus } from 'lucide-react'
-import { CenteredModal, ModalBody, ModalFooter, ModalHeader } from '@/components/ui/centered-modal'
+import { Search, Mail, Phone, BedDouble, CalendarDays } from 'lucide-react'
+import { CenteredModal, ModalBody, ModalHeader } from '@/components/ui/centered-modal'
+import type { GuestRow, GuestStatus } from '@/lib/data/guests'
+import type { ReservationChannel } from '@/types'
 
-const MOCK_GUESTS = [
-  {
-    id: 1,
-    name: 'Ama Mensah',
-    email: 'ama.mensah@email.com',
-    phone: '+233 24 123 4567',
-    totalStays: 3,
-    totalSpent: 4200,
-    lastStay: '2026-05-28',
-    status: 'returning',
-    source: 'website',
-    notes: 'Prefers room 302, business traveler',
-    city: 'Accra',
-  },
-  {
-    id: 2,
-    name: 'Kwame Asante',
-    email: 'kwame.a@email.com',
-    phone: '+233 54 567 8901',
-    totalStays: 1,
-    totalSpent: 1200,
-    lastStay: '2026-06-03',
-    status: 'active',
-    source: 'airbnb',
-    notes: 'First time guest',
-    city: 'Kumasi',
-  },
-  {
-    id: 3,
-    name: 'Abena Osei',
-    email: 'abena.osei@email.com',
-    phone: '+233 50 234 5678',
-    totalStays: 5,
-    totalSpent: 8900,
-    lastStay: '2026-04-15',
-    status: 'vip',
-    source: 'booking',
-    notes: 'VIP member, always leaves 5-star reviews',
-    city: 'Takoradi',
-  },
-  {
-    id: 4,
-    name: 'Kofi Boateng',
-    email: 'kofi.b@email.com',
-    phone: '+233 55 345 6789',
-    totalStays: 2,
-    totalSpent: 2800,
-    lastStay: '2026-05-10',
-    status: 'returning',
-    source: 'website',
-    notes: 'Prefers high floor, ocean view',
-    city: 'Accra',
-  },
-  {
-    id: 5,
-    name: 'Nana Acheampong',
-    email: 'nana.a@email.com',
-    phone: '+233 20 456 7890',
-    totalStays: 1,
-    totalSpent: 950,
-    lastStay: '2026-06-01',
-    status: 'active',
-    source: 'walk-in',
-    notes: 'Walk-in booking',
-    city: 'Accra',
-  },
-]
+interface GuestsTableProps {
+  guests: GuestRow[]
+}
 
-export function GuestsTable() {
+const STATUS_LABEL: Record<GuestStatus, string> = {
+  active: 'Active',
+  returning: 'Returning',
+  vip: 'VIP',
+  new: 'New',
+}
+
+const SOURCE_LABEL: Record<ReservationChannel, string> = {
+  airbnb: 'Airbnb',
+  booking_com: 'Booking.com',
+  direct: 'Direct',
+  walk_in: 'Walk-in',
+  other: 'Other',
+}
+
+function formatDate(value: string | null) {
+  if (!value) return '—'
+  return new Date(value + 'T12:00:00').toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: '2-digit',
+  })
+}
+
+function getStatusColor(status: GuestStatus) {
+  switch (status) {
+    case 'vip':
+      return 'bg-[#3C216C] text-white'
+    case 'returning':
+      return 'bg-blue-600 text-blue-50'
+    case 'active':
+      return 'bg-amber-600 text-amber-50'
+    default:
+      return 'bg-gray-500 text-gray-50'
+  }
+}
+
+function getSourceColor(source: ReservationChannel) {
+  switch (source) {
+    case 'direct':
+      return 'bg-blue-100 text-blue-700'
+    case 'airbnb':
+      return 'bg-orange-100 text-orange-700'
+    case 'booking_com':
+      return 'bg-yellow-100 text-yellow-700'
+    case 'walk_in':
+      return 'bg-green-100 text-green-700'
+    default:
+      return 'bg-gray-100 text-gray-700'
+  }
+}
+
+export function GuestsTable({ guests }: GuestsTableProps) {
   const [searchQuery, setSearchQuery] = useState('')
-  const [selectedStatus, setSelectedStatus] = useState<string | null>(null)
-  const [selectedGuest, setSelectedGuest] = useState<typeof MOCK_GUESTS[0] | null>(null)
+  const [selectedStatus, setSelectedStatus] = useState<GuestStatus | null>(null)
+  const [selectedGuest, setSelectedGuest] = useState<GuestRow | null>(null)
 
-  const filteredGuests = MOCK_GUESTS.filter((guest) => {
-    const matchesSearch = guest.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      guest.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      guest.phone.includes(searchQuery)
+  const filteredGuests = guests.filter((guest) => {
+    const matchesSearch =
+      guest.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (guest.email ?? '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (guest.phone ?? '').includes(searchQuery)
     const matchesStatus = !selectedStatus || guest.status === selectedStatus
     return matchesSearch && matchesStatus
   })
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'vip':
-        return 'bg-[#3C216C] text-white'
-      case 'returning':
-        return 'bg-blue-600 text-blue-50'
-      case 'active':
-        return 'bg-amber-600 text-amber-50'
-      default:
-        return 'bg-gray-600 text-gray-50'
-    }
-  }
-
-  const getSourceColor = (source: string) => {
-    switch (source) {
-      case 'website':
-        return 'bg-blue-100 text-blue-700'
-      case 'airbnb':
-        return 'bg-orange-100 text-orange-700'
-      case 'booking':
-        return 'bg-yellow-100 text-yellow-700'
-      case 'walk-in':
-        return 'bg-green-100 text-green-700'
-      default:
-        return 'bg-gray-100 text-gray-700'
-    }
-  }
 
   return (
     <>
@@ -121,10 +84,6 @@ export function GuestsTable() {
             <h2 className="text-2xl font-semibold text-foreground">Guest Directory</h2>
             <p className="text-sm text-muted-foreground mt-1">{filteredGuests.length} guests</p>
           </div>
-          <button className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg font-semibold shadow-elevation-1 hover:shadow-elevation-2 transition-all hover:-translate-y-0.5">
-            <Plus className="h-4 w-4" />
-            Add Guest
-          </button>
         </div>
 
         <div className="surface-card-header space-y-4">
@@ -150,7 +109,7 @@ export function GuestsTable() {
             >
               All Guests
             </button>
-            {['active', 'returning', 'vip'].map((status) => (
+            {(['active', 'returning', 'vip', 'new'] as GuestStatus[]).map((status) => (
               <button
                 key={status}
                 onClick={() => setSelectedStatus(status)}
@@ -160,11 +119,17 @@ export function GuestsTable() {
                     : 'bg-secondary text-foreground hover:bg-secondary/80'
                 }`}
               >
-                {status.charAt(0).toUpperCase() + status.slice(1)}
+                {STATUS_LABEL[status]}
               </button>
             ))}
           </div>
         </div>
+
+        {filteredGuests.length === 0 && (
+          <p className="px-6 py-12 text-center text-sm text-muted-foreground">
+            No guests found. Enroll a guest to get started.
+          </p>
+        )}
 
         <div className="space-y-3 p-4 md:hidden">
           {filteredGuests.map((guest) => (
@@ -177,21 +142,27 @@ export function GuestsTable() {
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="font-semibold text-foreground">{guest.name}</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">{guest.city}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {guest.roomNumber ? `Room ${guest.roomNumber}` : 'No room assigned'}
+                  </p>
                 </div>
                 <span className={`shrink-0 text-xs px-2.5 py-1 rounded-full font-semibold ${getStatusColor(guest.status)}`}>
-                  {guest.status.charAt(0).toUpperCase() + guest.status.slice(1)}
+                  {STATUS_LABEL[guest.status]}
                 </span>
               </div>
               <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
                 <Mail className="h-3.5 w-3.5 shrink-0" />
-                <span className="truncate">{guest.email}</span>
+                <span className="truncate">{guest.email ?? 'No email'}</span>
               </div>
               <div className="mt-3 flex items-center justify-between gap-2 text-sm">
-                <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${getSourceColor(guest.source)}`}>
-                  {guest.source.charAt(0).toUpperCase() + guest.source.slice(1)}
-                </span>
-                <span className="font-bold text-foreground">₵{guest.totalSpent}</span>
+                {guest.source ? (
+                  <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${getSourceColor(guest.source)}`}>
+                    {SOURCE_LABEL[guest.source]}
+                  </span>
+                ) : (
+                  <span className="text-xs text-muted-foreground">{guest.totalStays} stays</span>
+                )}
+                <span className="font-bold text-foreground">₵{guest.totalSpent.toLocaleString()}</span>
               </div>
             </button>
           ))}
@@ -207,7 +178,6 @@ export function GuestsTable() {
                 <th className="text-center py-4 px-6 font-semibold text-foreground">Stays</th>
                 <th className="text-right py-4 px-6 font-semibold text-foreground">Total Spent</th>
                 <th className="text-center py-4 px-6 font-semibold text-foreground">Status</th>
-                <th className="text-center py-4 px-6 font-semibold text-foreground"></th>
               </tr>
             </thead>
             <tbody>
@@ -219,40 +189,41 @@ export function GuestsTable() {
                 >
                   <td className="py-4 px-6">
                     <p className="font-semibold text-foreground">{guest.name}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{guest.city}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {guest.roomNumber ? `Room ${guest.roomNumber}` : 'No room assigned'}
+                    </p>
                   </td>
                   <td className="py-4 px-6">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Mail className="h-4 w-4" />
-                        {guest.email}
+                        {guest.email ?? '—'}
                       </div>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Phone className="h-4 w-4" />
-                        {guest.phone}
+                        {guest.phone ?? '—'}
                       </div>
                     </div>
                   </td>
                   <td className="py-4 px-6">
-                    <span className={`text-xs px-3 py-1.5 rounded-full font-semibold ${getSourceColor(guest.source)}`}>
-                      {guest.source.charAt(0).toUpperCase() + guest.source.slice(1)}
-                    </span>
+                    {guest.source ? (
+                      <span className={`text-xs px-3 py-1.5 rounded-full font-semibold ${getSourceColor(guest.source)}`}>
+                        {SOURCE_LABEL[guest.source]}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
                   </td>
                   <td className="py-4 px-6 text-center">
                     <p className="font-bold text-foreground">{guest.totalStays}</p>
                   </td>
                   <td className="py-4 px-6 text-right">
-                    <p className="font-bold text-foreground">₵{guest.totalSpent}</p>
+                    <p className="font-bold text-foreground">₵{guest.totalSpent.toLocaleString()}</p>
                   </td>
                   <td className="py-4 px-6 text-center">
                     <span className={`text-xs px-3 py-1.5 rounded-full font-semibold ${getStatusColor(guest.status)} shadow-elevation-1`}>
-                      {guest.status.charAt(0).toUpperCase() + guest.status.slice(1)}
+                      {STATUS_LABEL[guest.status]}
                     </span>
-                  </td>
-                  <td className="py-4 px-6 text-center">
-                    <button className="inline-flex items-center justify-center w-8 h-8 rounded-lg hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground">
-                      <MoreVertical className="h-4 w-4" />
-                    </button>
                   </td>
                 </tr>
               ))}
@@ -274,77 +245,75 @@ export function GuestsTable() {
             </ModalHeader>
 
             <ModalBody className="space-y-6">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="info-block info-block-blue p-4">
-                    <p className="modal-panel-subtle text-xs font-semibold uppercase tracking-wider">
-                      Total Stays
-                    </p>
-                    <p className="text-3xl font-bold text-blue-600 mt-2">{selectedGuest.totalStays}</p>
-                  </div>
-                  <div className="info-block info-block-emerald p-4">
-                    <p className="modal-panel-subtle text-xs font-semibold uppercase tracking-wider">
-                      Total Spent
-                    </p>
-                    <p className="text-2xl font-bold text-amber-600 mt-2">
-                      ₵{selectedGuest.totalSpent}
-                    </p>
-                  </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="info-block info-block-blue p-4">
+                  <p className="modal-panel-subtle text-xs font-semibold uppercase tracking-wider">
+                    Total Stays
+                  </p>
+                  <p className="text-3xl font-bold text-blue-600 mt-2">{selectedGuest.totalStays}</p>
                 </div>
-
-                <div className="space-y-3">
-                  <h4 className="font-semibold">Contact Information</h4>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-3 surface-inset p-3 rounded-xl">
-                      <Mail className="h-5 w-5 text-primary" />
-                      <span className="text-sm">{selectedGuest.email}</span>
-                    </div>
-                    <div className="flex items-center gap-3 surface-inset p-3 rounded-xl">
-                      <Phone className="h-5 w-5 text-primary" />
-                      <span className="text-sm">{selectedGuest.phone}</span>
-                    </div>
-                    <div className="flex items-center gap-3 surface-inset p-3 rounded-xl">
-                      <MapPin className="h-5 w-5 text-primary" />
-                      <span className="text-sm">{selectedGuest.city}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <h4 className="font-semibold">Booking Info</h4>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="surface-inset p-3 rounded-xl">
-                      <p className="modal-panel-subtle text-xs">Source</p>
-                      <p className="text-sm font-semibold mt-1 capitalize">{selectedGuest.source}</p>
-                    </div>
-                    <div className="surface-inset p-3 rounded-xl">
-                      <p className="modal-panel-subtle text-xs">Last Stay</p>
-                      <p className="text-sm font-semibold mt-1">
-                        {new Date(selectedGuest.lastStay).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                          year: '2-digit',
-                        })}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <h4 className="font-semibold">Notes</h4>
-                  <p className="modal-panel-subtle text-sm surface-inset p-3 rounded-xl">
-                    {selectedGuest.notes}
+                <div className="info-block info-block-emerald p-4">
+                  <p className="modal-panel-subtle text-xs font-semibold uppercase tracking-wider">
+                    Total Spent
+                  </p>
+                  <p className="text-2xl font-bold text-amber-600 mt-2">
+                    ₵{selectedGuest.totalSpent.toLocaleString()}
                   </p>
                 </div>
-            </ModalBody>
+              </div>
 
-            <ModalFooter>
-                <button
-                  type="button"
-                  className="gradient-primary w-full rounded-xl py-3 text-sm font-semibold text-white shadow-elevation-2 ring-1 ring-[#3C216C]/25 transition-all hover:-translate-y-0.5 hover:shadow-elevation-3"
-                >
-                  Edit Guest Profile
-                </button>
-            </ModalFooter>
+              <div className="space-y-3">
+                <h4 className="font-semibold">Contact Information</h4>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-3 surface-inset p-3 rounded-xl">
+                    <Mail className="h-5 w-5 text-primary" />
+                    <span className="text-sm">{selectedGuest.email ?? 'No email on file'}</span>
+                  </div>
+                  <div className="flex items-center gap-3 surface-inset p-3 rounded-xl">
+                    <Phone className="h-5 w-5 text-primary" />
+                    <span className="text-sm">{selectedGuest.phone ?? 'No phone on file'}</span>
+                  </div>
+                  <div className="flex items-center gap-3 surface-inset p-3 rounded-xl">
+                    <BedDouble className="h-5 w-5 text-primary" />
+                    <span className="text-sm">
+                      {selectedGuest.roomNumber ? `Room ${selectedGuest.roomNumber}` : 'No room assigned'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <h4 className="font-semibold">Stay Details</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="surface-inset p-3 rounded-xl">
+                    <p className="modal-panel-subtle text-xs">Source</p>
+                    <p className="text-sm font-semibold mt-1">
+                      {selectedGuest.source ? SOURCE_LABEL[selectedGuest.source] : '—'}
+                    </p>
+                  </div>
+                  <div className="surface-inset p-3 rounded-xl">
+                    <p className="modal-panel-subtle text-xs">Last Stay</p>
+                    <p className="text-sm font-semibold mt-1">{formatDate(selectedGuest.lastStay)}</p>
+                  </div>
+                  <div className="surface-inset p-3 rounded-xl">
+                    <p className="modal-panel-subtle text-xs">Check-in</p>
+                    <p className="text-sm font-semibold mt-1">{formatDate(selectedGuest.checkIn)}</p>
+                  </div>
+                  <div className="surface-inset p-3 rounded-xl">
+                    <p className="modal-panel-subtle text-xs">Check-out</p>
+                    <p className="text-sm font-semibold mt-1">{formatDate(selectedGuest.checkOut)}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <CalendarDays className="h-3.5 w-3.5" />
+                Status:{' '}
+                <span className={`px-2 py-0.5 rounded-full font-semibold ${getStatusColor(selectedGuest.status)}`}>
+                  {STATUS_LABEL[selectedGuest.status]}
+                </span>
+              </div>
+            </ModalBody>
           </>
         )}
       </CenteredModal>

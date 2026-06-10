@@ -1,15 +1,22 @@
 import { PageHeader } from '@/components/dashboard/page-header'
-import { StaffAvailability } from '@/components/dashboard/staff-availability'
+import { StaffManager } from '@/components/dashboard/staff-manager'
+import { getStaffData } from '@/lib/data/staff'
 
-export default function OwnerStaffPage() {
+export default async function OwnerStaffPage() {
+  const { profile, staff, invites } = await getStaffData()
+
   return (
     <div className="page-shell space-y-6">
       <PageHeader
         badge="Team"
         title="Staff"
-        description="Manage managers and view staff across your hotel."
+        description="Invite managers and technicians, and manage access across your hotel."
       />
-      <StaffAvailability />
+      {profile ? (
+        <StaffManager currentProfile={profile} staff={staff} invites={invites} />
+      ) : (
+        <p className="text-sm text-muted-foreground">Unable to load your team right now.</p>
+      )}
     </div>
   )
 }

@@ -7,9 +7,16 @@ import { GRATaxSummary } from '@/components/dashboard/gra-tax-summary'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { SectionHeading } from '@/components/dashboard/section-heading'
 import { getDashboardData } from '@/lib/data/dashboard'
+import { getHousekeepingTasks } from '@/lib/data/housekeeping'
+import { computeChannelPerformance, computeGraSummary } from '@/lib/data/overview'
 
 export default async function DashboardPage() {
-  const { metrics, availability } = await getDashboardData()
+  const [{ metrics, availability, reservations, invoices }, tasks] = await Promise.all([
+    getDashboardData(),
+    getHousekeepingTasks(),
+  ])
+  const channels = computeChannelPerformance(reservations)
+  const graSummary = computeGraSummary(invoices)
 
   return (
     <div className="page-shell space-y-8">
@@ -31,21 +38,21 @@ export default async function DashboardPage() {
             <AvailabilityStrip data={availability} />
           </div>
           <div>
-            <BookingsList />
+            <BookingsList reservations={reservations} viewAllHref="/owner/reservations" />
           </div>
         </div>
       </section>
 
       <section className="space-y-4">
         <SectionHeading title="Operations" description="Housekeeping and maintenance tasks" />
-        <TasksList />
+        <TasksList tasks={tasks} />
       </section>
 
       <section className="space-y-4">
         <SectionHeading title="Business Intelligence" description="Revenue sources and tax compliance" />
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <ChannelPerformanceWidget />
-          <GRATaxSummary />
+          <ChannelPerformanceWidget channels={channels} />
+          <GRATaxSummary summary={graSummary} />
         </div>
       </section>
     </div>

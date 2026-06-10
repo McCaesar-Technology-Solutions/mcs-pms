@@ -497,6 +497,66 @@ export type Database = {
           },
         ]
       }
+      housekeeping_tasks: {
+        Row: {
+          id: string
+          hotel_id: string
+          room_id: string | null
+          task_type: 'clean' | 'inspect' | 'maintenance' | 'restock'
+          status: 'todo' | 'in_progress' | 'done'
+          priority: 'low' | 'medium' | 'high'
+          assigned_to: string | null
+          notes: string | null
+          due_date: string | null
+          created_by: string | null
+          created_at: string | null
+          completed_at: string | null
+        }
+        Insert: {
+          id?: string
+          hotel_id: string
+          room_id?: string | null
+          task_type: 'clean' | 'inspect' | 'maintenance' | 'restock'
+          status?: 'todo' | 'in_progress' | 'done'
+          priority?: 'low' | 'medium' | 'high'
+          assigned_to?: string | null
+          notes?: string | null
+          due_date?: string | null
+          created_by?: string | null
+          created_at?: string | null
+          completed_at?: string | null
+        }
+        Update: {
+          id?: string
+          hotel_id?: string
+          room_id?: string | null
+          task_type?: 'clean' | 'inspect' | 'maintenance' | 'restock'
+          status?: 'todo' | 'in_progress' | 'done'
+          priority?: 'low' | 'medium' | 'high'
+          assigned_to?: string | null
+          notes?: string | null
+          due_date?: string | null
+          created_by?: string | null
+          created_at?: string | null
+          completed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'housekeeping_tasks_hotel_id_fkey'
+            columns: ['hotel_id']
+            isOneToOne: false
+            referencedRelation: 'hotels'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'housekeeping_tasks_room_id_fkey'
+            columns: ['room_id']
+            isOneToOne: false
+            referencedRelation: 'rooms'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       staff_invites: {
         Row: {
           id: string

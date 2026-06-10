@@ -15,8 +15,9 @@ import {
   ModalFooter,
   ModalHeader,
 } from '@/components/ui/centered-modal'
-import type { Reservation, ReservationChannel } from '@/types'
+import type { PaymentMethod, Reservation, ReservationChannel } from '@/types'
 import type { RoomOption } from '@/lib/data/dashboard'
+import { PAYMENT_METHOD_LABELS } from '@/lib/tax'
 
 const STATUS_FILTERS = ['all', 'checked_in', 'confirmed', 'checked_out', 'cancelled'] as const
 
@@ -293,9 +294,21 @@ interface ReservationDrawerProps {
   onMutated: () => void
 }
 
+const PAYMENT_METHODS: PaymentMethod[] = [
+  'cash',
+  'mtn_momo',
+  'telecel_cash',
+  'airteltigo',
+  'visa',
+  'mastercard',
+  'bank_transfer',
+]
+
 function ReservationDrawer({ reservation, onClose, onMutated }: ReservationDrawerProps) {
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
+  const [checkingOut, setCheckingOut] = useState(false)
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
 
   function run(action: () => Promise<{ success: boolean; error?: string }>) {
     setError(null)
@@ -411,26 +424,68 @@ function ReservationDrawer({ reservation, onClose, onMutated }: ReservationDrawe
                   Check in
                 </button>
               )}
-              {reservation.status === 'checked_in' && (
+              {reservation.status === 'checked_in' && !checkingOut && (
                 <button
                   type="button"
                   disabled={pending}
-                  onClick={() => run(() => checkOutReservation(reservation.id))}
+                  onClick={() => setCheckingOut(true)}
                   className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#3C216C] py-3 text-sm font-semibold text-white shadow-elevation-1 transition-all hover:shadow-elevation-2 disabled:opacity-50"
                 >
                   <LogOut className="h-4 w-4" />
                   Check out
                 </button>
               )}
-              <button
-                type="button"
-                disabled={pending}
-                onClick={() => run(() => cancelReservation(reservation.id))}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-white py-3 text-sm font-semibold text-red-600 shadow-elevation-1 transition-all hover:shadow-elevation-2 disabled:opacity-50"
-              >
-                <XCircle className="h-4 w-4" />
-                Cancel reservation
-              </button>
+              {reservation.status === 'checked_in' && checkingOut && (
+                <div className="space-y-3 rounded-xl surface-inset p-4">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Collect payment</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      A GRA tax invoice will be generated on check-out.
+                    </p>
+                  </div>
+                  <select
+                    value={paymentMethod}
+                    onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
+                    className={fieldClass}
+                  >
+                    {PAYMENT_METHODS.map((m) => (
+                      <option key={m} value={m}>
+                        {PAYMENT_METHOD_LABELS[m]}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() => setCheckingOut(false)}
+                      className="flex-1 rounded-xl bg-white py-2.5 text-sm font-semibold text-muted-foreground shadow-elevation-1 transition-all hover:shadow-elevation-2 disabled:opacity-50"
+                    >
+                      Back
+                    </button>
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() => run(() => checkOutReservation(reservation.id, paymentMethod))}
+                      className="flex flex-[2] items-center justify-center gap-2 rounded-xl bg-[#3C216C] py-2.5 text-sm font-semibold text-white shadow-elevation-1 transition-all hover:shadow-elevation-2 disabled:opacity-50"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      {pending ? 'Checking out…' : 'Confirm check-out'}
+                    </button>
+                  </div>
+                </div>
+              )}
+              {!checkingOut && (
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() => run(() => cancelReservation(reservation.id))}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-white py-3 text-sm font-semibold text-red-600 shadow-elevation-1 transition-all hover:shadow-elevation-2 disabled:opacity-50"
+                >
+                  <XCircle className="h-4 w-4" />
+                  Cancel reservation
+                </button>
+              )}
             </div>
           )}
         </div>
