@@ -3,6 +3,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getGuestSessionId } from '@/lib/guest-session'
 import { submitComplaintSchema } from '@/lib/validations'
+import { findAvailableRooms, getOccupancySpans, roomHasClash } from '@/lib/data/occupancy'
 import type { Complaint, Guest } from '@/types'
 
 export type GuestActionResult<T = void> =
@@ -174,6 +175,53 @@ export async function getGuestComplaints(): Promise<GuestActionResult<Complaint[
   return { success: true, data: (data ?? []) as Complaint[] }
 }
 
+export interface EnrollRoomOption {
+  id: string
+  number: string
+}
+
+export type EnrollGuestResult =
+  | { success: true; data: { token: string; loginUrl: string } }
+  | { success: false; error: string; suggestions?: EnrollRoomOption[] }
+
+export async function getEnrollmentRooms(): Promise<
+  GuestActionResult<{
+    rooms: EnrollRoomOption[]
+    stays: { roomId: string; checkIn: string; checkOut: string }[]
+  }>
+> {
+  const { createClient } = await import('@/lib/supabase/server')
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Not authorized.' }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('hotel_id, role')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  if (!profile?.hotel_id || !['owner', 'manager'].includes(profile.role)) {
+    return { success: false, error: 'Not authorized.' }
+  }
+
+  const admin = createAdminClient()
+  const [{ data: rooms }, spans] = await Promise.all([
+    admin.from('rooms').select('id, number').eq('hotel_id', profile.hotel_id).order('number'),
+    getOccupancySpans(admin, profile.hotel_id),
+  ])
+
+  return {
+    success: true,
+    data: {
+      rooms: (rooms ?? []) as EnrollRoomOption[],
+      stays: spans.map((s) => ({ roomId: s.roomId, checkIn: s.checkIn, checkOut: s.checkOut })),
+    },
+  }
+}
+
 export async function enrollGuest(input: {
   name: string
   phone?: string
@@ -181,7 +229,7 @@ export async function enrollGuest(input: {
   roomId: string
   checkIn: string
   checkOut: string
-}): Promise<GuestActionResult<{ token: string; loginUrl: string }>> {
+}): Promise<EnrollGuestResult> {
   const { enrollGuestSchema } = await import('@/lib/validations')
   const parsed = enrollGuestSchema.safeParse(input)
   if (!parsed.success) {
@@ -205,10 +253,37 @@ export async function enrollGuest(input: {
     return { success: false, error: 'Not authorized.' }
   }
 
+  if (parsed.data.checkOut <= parsed.data.checkIn) {
+    return { success: false, error: 'Check-out must be after check-in.' }
+  }
+
+  const admin = createAdminClient()
+
+  if (
+    await roomHasClash(
+      admin,
+      profile.hotel_id,
+      parsed.data.roomId,
+      parsed.data.checkIn,
+      parsed.data.checkOut,
+    )
+  ) {
+    const suggestions = await findAvailableRooms(
+      admin,
+      profile.hotel_id,
+      parsed.data.checkIn,
+      parsed.data.checkOut,
+    )
+    return {
+      success: false,
+      error: 'That room is already booked or occupied for these dates.',
+      suggestions,
+    }
+  }
+
   const checkOutDate = new Date(parsed.data.checkOut)
   checkOutDate.setHours(23, 59, 59, 999)
 
-  const admin = createAdminClient()
   const { data: guest, error } = await admin
     .from('guests')
     .insert({

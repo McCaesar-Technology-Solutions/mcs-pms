@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/centered-modal'
 import type { PaymentMethod, Reservation, ReservationChannel } from '@/types'
 import type { RoomOption } from '@/lib/data/dashboard'
+import type { OccupancySpan } from '@/lib/data/occupancy'
 import { PAYMENT_METHOD_LABELS } from '@/lib/tax'
 
 const STATUS_FILTERS = ['all', 'checked_in', 'confirmed', 'checked_out', 'cancelled'] as const
@@ -62,9 +63,14 @@ function sourceBadge(source: string) {
 interface ReservationsManagerProps {
   reservations: Reservation[]
   roomOptions: RoomOption[]
+  occupancySpans: OccupancySpan[]
 }
 
-export function ReservationsManager({ reservations, roomOptions }: ReservationsManagerProps) {
+export function ReservationsManager({
+  reservations,
+  roomOptions,
+  occupancySpans,
+}: ReservationsManagerProps) {
   const router = useRouter()
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
@@ -269,7 +275,7 @@ export function ReservationsManager({ reservations, roomOptions }: ReservationsM
       {creating && (
         <ReservationFormModal
           roomOptions={roomOptions}
-          reservations={reservations}
+          occupancySpans={occupancySpans}
           onClose={() => setCreating(false)}
           onDone={() => {
             setCreating(false)
@@ -496,14 +502,14 @@ function ReservationDrawer({ reservation, onClose, onMutated }: ReservationDrawe
 
 interface ReservationFormModalProps {
   roomOptions: RoomOption[]
-  reservations: Reservation[]
+  occupancySpans: OccupancySpan[]
   onClose: () => void
   onDone: () => void
 }
 
 function ReservationFormModal({
   roomOptions,
-  reservations,
+  occupancySpans,
   onClose,
   onDone,
 }: ReservationFormModalProps) {
@@ -524,13 +530,13 @@ function ReservationFormModal({
   const occupiedRoomIds = useMemo(() => {
     const set = new Set<string>()
     if (!datesValid) return set
-    for (const res of reservations) {
-      if (res.status === 'cancelled' || !res.roomId) continue
-      const overlaps = res.checkInDate < checkOut && res.checkOutDate > checkIn
-      if (overlaps) set.add(res.roomId)
+    for (const span of occupancySpans) {
+      if (!span.roomId) continue
+      const overlaps = span.checkIn < checkOut && span.checkOut > checkIn
+      if (overlaps) set.add(span.roomId)
     }
     return set
-  }, [reservations, checkIn, checkOut, datesValid])
+  }, [occupancySpans, checkIn, checkOut, datesValid])
 
   const availableRooms = useMemo(
     () => roomOptions.filter((r) => !occupiedRoomIds.has(r.id)),

@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { getProfile } from '@/lib/auth/get-profile'
+import { getOccupancySpans, type OccupancySpan } from '@/lib/data/occupancy'
 import type {
   Availability,
   DbInvoice,
@@ -27,6 +28,7 @@ export interface DashboardData {
   metrics: KPIMetrics
   availability: Availability[]
   roomOptions: RoomOption[]
+  occupancySpans: OccupancySpan[]
 }
 
 const ROOM_STATUS_MAP: Record<DbRoomStatus, RoomStatus> = {
@@ -198,6 +200,7 @@ export async function getDashboardData(): Promise<DashboardData> {
     },
     availability: [],
     roomOptions: [],
+    occupancySpans: [],
   }
 
   const profile = await getProfile()
@@ -206,7 +209,7 @@ export async function getDashboardData(): Promise<DashboardData> {
   const supabase = await createClient()
   const hotelId = profile.hotel_id
 
-  const [roomsRes, reservationsRes, invoicesRes] = await Promise.all([
+  const [roomsRes, reservationsRes, invoicesRes, occupancySpans] = await Promise.all([
     supabase.from('rooms').select('*').eq('hotel_id', hotelId).order('number'),
     supabase
       .from('reservations')
@@ -214,6 +217,7 @@ export async function getDashboardData(): Promise<DashboardData> {
       .eq('hotel_id', hotelId)
       .order('check_in', { ascending: false }),
     supabase.from('invoices').select('*').eq('hotel_id', hotelId),
+    getOccupancySpans(supabase, hotelId),
   ])
 
   const dbRooms = (roomsRes.data ?? []) as DbRoom[]
@@ -231,5 +235,6 @@ export async function getDashboardData(): Promise<DashboardData> {
     metrics: computeMetrics(dbRooms, reservations, invoices),
     availability: computeAvailability(dbRooms, reservations),
     roomOptions: dbRooms.map((r) => ({ id: r.id, number: r.number })),
+    occupancySpans,
   }
 }

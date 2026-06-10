@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { computeInvoiceTaxes } from '@/lib/tax'
+import { findAvailableRooms, roomHasClash } from '@/lib/data/occupancy'
 import type { PaymentMethod, ReservationChannel, ReservationStatus } from '@/types'
 
 export type ReservationActionResult = { success: true } | { success: false; error: string }
@@ -66,53 +67,6 @@ function nights(checkIn: string, checkOut: string): number {
   return Math.max(1, Math.round((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000)))
 }
 
-async function findAvailableRooms(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  hotelId: string,
-  checkIn: string,
-  checkOut: string,
-  excludeReservationId?: string,
-): Promise<RoomSuggestion[]> {
-  const [{ data: rooms }, clashes] = await Promise.all([
-    supabase.from('rooms').select('id, number').eq('hotel_id', hotelId).order('number'),
-    (async () => {
-      let query = supabase
-        .from('reservations')
-        .select('room_id')
-        .eq('hotel_id', hotelId)
-        .neq('status', 'cancelled')
-        .lt('check_in', checkOut)
-        .gt('check_out', checkIn)
-      if (excludeReservationId) query = query.neq('id', excludeReservationId)
-      const { data } = await query
-      return data
-    })(),
-  ])
-
-  const takenRoomIds = new Set((clashes ?? []).map((r) => r.room_id).filter(Boolean))
-  return (rooms ?? []).filter((r) => !takenRoomIds.has(r.id))
-}
-
-async function roomHasClash(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  roomId: string,
-  checkIn: string,
-  checkOut: string,
-  excludeReservationId?: string,
-): Promise<boolean> {
-  let query = supabase
-    .from('reservations')
-    .select('id')
-    .eq('room_id', roomId)
-    .neq('status', 'cancelled')
-    .lt('check_in', checkOut)
-    .gt('check_out', checkIn)
-    .limit(1)
-  if (excludeReservationId) query = query.neq('id', excludeReservationId)
-  const { data } = await query
-  return (data ?? []).length > 0
-}
-
 export async function createReservation(input: {
   room_id: string
   guest_name: string
@@ -133,7 +87,7 @@ export async function createReservation(input: {
   }
   if (!VALID_CHANNELS.includes(input.channel)) return { success: false, error: 'Invalid channel.' }
 
-  if (await roomHasClash(supabase, input.room_id, input.check_in, input.check_out)) {
+  if (await roomHasClash(supabase, profile.hotel_id, input.room_id, input.check_in, input.check_out)) {
     const suggestions = await findAvailableRooms(
       supabase,
       profile.hotel_id,
@@ -142,7 +96,7 @@ export async function createReservation(input: {
     )
     return {
       success: false,
-      error: 'That room is already booked for these dates.',
+      error: 'That room is already booked or occupied for these dates.',
       suggestions,
     }
   }
@@ -178,9 +132,9 @@ export async function updateReservation(
     channel?: ReservationChannel
     nightly_rate?: number
   },
-): Promise<ReservationActionResult> {
+): Promise<CreateReservationResult> {
   const { supabase, profile } = await requireManager()
-  if (!profile || !['owner', 'manager'].includes(profile.role)) {
+  if (!profile || !['owner', 'manager'].includes(profile.role) || !profile.hotel_id) {
     return { success: false, error: 'Not authorized.' }
   }
 
@@ -207,6 +161,44 @@ export async function updateReservation(
   const checkOut = payload.check_out
   if (checkIn && checkOut && checkOut <= checkIn) {
     return { success: false, error: 'Check-out must be after check-in.' }
+  }
+
+  // If room or dates are changing, re-check availability against every other
+  // reservation and guest stay (this record excludes itself).
+  if (payload.room_id || payload.check_in || payload.check_out) {
+    const { data: existing } = await supabase
+      .from('reservations')
+      .select('room_id, check_in, check_out')
+      .eq('id', id)
+      .maybeSingle()
+
+    const effectiveRoom = payload.room_id ?? existing?.room_id ?? undefined
+    const effectiveIn = payload.check_in ?? existing?.check_in ?? undefined
+    const effectiveOut = payload.check_out ?? existing?.check_out ?? undefined
+
+    if (effectiveRoom && effectiveIn && effectiveOut) {
+      if (effectiveOut <= effectiveIn) {
+        return { success: false, error: 'Check-out must be after check-in.' }
+      }
+      if (
+        await roomHasClash(supabase, profile.hotel_id, effectiveRoom, effectiveIn, effectiveOut, {
+          excludeReservationId: id,
+        })
+      ) {
+        const suggestions = await findAvailableRooms(
+          supabase,
+          profile.hotel_id,
+          effectiveIn,
+          effectiveOut,
+          { excludeReservationId: id },
+        )
+        return {
+          success: false,
+          error: 'That room is already booked or occupied for these dates.',
+          suggestions,
+        }
+      }
+    }
   }
 
   if (input.nightly_rate !== undefined && checkIn && checkOut) {

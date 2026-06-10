@@ -4,7 +4,7 @@ import { PageHeader } from '@/components/dashboard/page-header'
 import { getDashboardData } from '@/lib/data/dashboard'
 
 export default async function ReservationsPage() {
-  const { reservations, roomOptions } = await getDashboardData()
+  const { reservations, roomOptions, occupancySpans } = await getDashboardData()
 
   return (
     <div className="page-shell space-y-6">
@@ -16,7 +16,11 @@ export default async function ReservationsPage() {
 
       <ReservationsGantt data={reservations} />
 
-      <ReservationsManager reservations={reservations} roomOptions={roomOptions} />
+      <ReservationsManager
+        reservations={reservations}
+        roomOptions={roomOptions}
+        occupancySpans={occupancySpans}
+      />
     </div>
   )
 }
