@@ -10,7 +10,7 @@ const SEGMENTS = [
   { key: 'occupied' as const, label: 'Occupied', color: 'bg-primary', text: 'text-primary' },
   { key: 'reserved' as const, label: 'Reserved', color: 'bg-sky-500', text: 'text-sky-600' },
   { key: 'maintenance' as const, label: 'Maintenance', color: 'bg-amber-500', text: 'text-amber-600' },
-  { key: 'available' as const, label: 'Available', color: 'bg-amber-400/70', text: 'text-amber-700' },
+  { key: 'available' as const, label: 'Available', color: 'bg-[#D4A62E]/80', text: 'text-[#B88D24]' },
 ]
 
 function getTotal(day: Availability) {
@@ -97,9 +97,9 @@ export function AvailabilityStrip() {
           <p className="text-xs leading-relaxed text-muted-foreground">
             Each bar shows all {totalRooms} rooms.{' '}
             <span className="font-semibold text-foreground">Tap a day</span> to see the breakdown.{' '}
-            <span className="inline-flex items-center gap-1 font-medium text-amber-700">
-              <span className="inline-block h-2 w-2 rounded-full bg-amber-400" />
-              Green = rooms you can still sell
+            <span className="inline-flex items-center gap-1 font-medium text-[#B88D24]">
+              <span className="inline-block h-2 w-2 rounded-full bg-[#D4A62E]" />
+              Gold = rooms you can still sell
             </span>
           </p>
         </div>

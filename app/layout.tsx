@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Cormorant_Garamond, DM_Sans, JetBrains_Mono } from 'next/font/google'
+import { Toaster } from 'sonner'
 import { AppProviders } from '@/components/providers/app-providers'
 import './globals.css'
 
@@ -26,9 +27,14 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={`${dmSans.variable} ${cormorant.variable} ${jetbrainsMono.variable}`}>
-      <body className="font-sans antialiased text-foreground">
+    <html
+      lang="en"
+      className={`${dmSans.variable} ${cormorant.variable} ${jetbrainsMono.variable}`}
+      suppressHydrationWarning
+    >
+      <body className="font-sans antialiased text-foreground" suppressHydrationWarning>
         <AppProviders>{children}</AppProviders>
+        <Toaster position="top-right" richColors closeButton />
       </body>
     </html>
   )

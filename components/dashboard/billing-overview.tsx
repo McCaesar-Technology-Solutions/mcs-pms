@@ -117,12 +117,12 @@ export function BillingOverview() {
       </div>
 
       <div className="surface-card">
-        <div className="surface-card-header flex items-center justify-between">
+        <div className="surface-card-header flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-2xl font-semibold text-foreground">Invoices</h2>
             <p className="text-sm text-muted-foreground mt-1">{filteredInvoices.length} invoices</p>
           </div>
-          <button className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg font-semibold shadow-elevation-1 hover:shadow-elevation-2 transition-all hover:-translate-y-0.5">
+          <button className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 font-semibold text-primary-foreground shadow-elevation-1 transition-all hover:-translate-y-0.5 hover:shadow-elevation-2 sm:w-auto">
             <Plus className="h-4 w-4" />
             New Invoice
           </button>
@@ -154,7 +154,45 @@ export function BillingOverview() {
           ))}
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="space-y-3 p-4 md:hidden">
+          {filteredInvoices.map((invoice) => (
+            <div key={invoice.id} className="elevated-list-item p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-semibold text-foreground">{invoice.id}</p>
+                  <p className="mt-0.5 text-sm text-foreground">{invoice.guestName}</p>
+                  <p className="text-xs text-muted-foreground">Room {invoice.roomNumber}</p>
+                </div>
+                <span className={`shrink-0 text-xs px-2.5 py-1 rounded-full font-semibold ${getStatusColor(invoice.status)}`}>
+                  {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
+                </span>
+              </div>
+              <div className="mt-3 flex items-center justify-between gap-2 text-sm">
+                <div>
+                  <p className="text-foreground">
+                    {new Date(invoice.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Due {new Date(invoice.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </p>
+                </div>
+                <p className="text-lg font-bold text-foreground">₵{invoice.amount}</p>
+              </div>
+              <div className="mt-3 flex items-center justify-between gap-2">
+                <p className="text-sm text-muted-foreground">{invoice.paymentMethod}</p>
+                <button
+                  type="button"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                  aria-label={`Download ${invoice.id}`}
+                >
+                  <Download className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="hidden overflow-x-auto md:block">
           <table className="data-table w-full text-sm">
             <thead>
               <tr>

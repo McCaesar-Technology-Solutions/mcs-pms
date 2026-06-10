@@ -1,9 +1,14 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { createPortal } from 'react-dom'
-import { Building2, X } from 'lucide-react'
+import { Building2 } from 'lucide-react'
 import { useProperty, type NewPropertyInput } from '@/lib/property-context'
+import {
+  CenteredModal,
+  ModalBody,
+  ModalFooter,
+  ModalHeader,
+} from '@/components/ui/centered-modal'
 
 const GHANA_REGIONS = [
   'Greater Accra',
@@ -40,35 +45,10 @@ interface AddPropertyDialogProps {
 export function AddPropertyDialog({ open, onClose }: AddPropertyDialogProps) {
   const { addProperty } = useProperty()
   const [form, setForm] = useState<NewPropertyInput>(emptyForm)
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
 
   useEffect(() => {
     if (open) setForm(emptyForm)
   }, [open])
-
-  useEffect(() => {
-    if (!open) return
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    document.addEventListener('keydown', onKeyDown)
-    return () => document.removeEventListener('keydown', onKeyDown)
-  }, [open, onClose])
-
-  useEffect(() => {
-    if (!open) return
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.body.style.overflow = prev
-    }
-  }, [open])
-
-  if (!open || !mounted) return null
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -77,37 +57,24 @@ export function AddPropertyDialog({ open, onClose }: AddPropertyDialogProps) {
     onClose()
   }
 
-  return createPortal(
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-      <button
-        type="button"
-        aria-label="Close dialog"
-        className="absolute inset-0 bg-[#22124C]/40 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      <div className="modal-panel surface-card relative z-10 w-full max-w-lg overflow-hidden shadow-elevation-3">
-        <div className="flex items-start justify-between gap-4 border-b border-[#E9ECEF] px-6 py-5">
-          <div className="flex items-center gap-3">
-            <div className="gradient-primary flex h-10 w-10 items-center justify-center rounded-xl shadow-elevation-2">
-              <Building2 className="h-5 w-5 text-white" />
-            </div>
-            <div>
-              <h2 className="text-lg font-semibold">Add property</h2>
-              <p className="modal-panel-subtle text-sm mt-0.5">
-                Register a new hotel or rental in your portfolio
-              </p>
-            </div>
+  return (
+    <CenteredModal open={open} onClose={onClose} className="max-w-lg" aria-label="Add property">
+      <ModalHeader onClose={onClose}>
+        <div className="flex items-center gap-3">
+          <div className="gradient-primary flex h-10 w-10 items-center justify-center rounded-xl shadow-elevation-2">
+            <Building2 className="h-5 w-5 text-white" />
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="modal-panel-subtle rounded-lg p-2 transition-colors hover:bg-secondary/60"
-          >
-            <X className="h-5 w-5" />
-          </button>
+          <div>
+            <h2 className="text-lg font-semibold">Add property</h2>
+            <p className="modal-panel-subtle mt-0.5 text-sm">
+              Register a new hotel or rental in your portfolio
+            </p>
+          </div>
         </div>
+      </ModalHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 px-6 py-5">
+      <form onSubmit={handleSubmit}>
+        <ModalBody className="space-y-4">
           <div>
             <label className="text-sm font-semibold">Property name</label>
             <input
@@ -174,8 +141,10 @@ export function AddPropertyDialog({ open, onClose }: AddPropertyDialogProps) {
               className="input-soft mt-2"
             />
           </div>
+        </ModalBody>
 
-          <div className="flex gap-3 pt-2">
+        <ModalFooter>
+          <div className="flex gap-3">
             <button
               type="button"
               onClick={onClose}
@@ -190,9 +159,8 @@ export function AddPropertyDialog({ open, onClose }: AddPropertyDialogProps) {
               Add property
             </button>
           </div>
-        </form>
-      </div>
-    </div>,
-    document.body,
+        </ModalFooter>
+      </form>
+    </CenteredModal>
   )
 }

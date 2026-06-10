@@ -2,43 +2,24 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import {
-  LayoutDashboard,
-  Briefcase,
-  Calendar,
-  Users,
-  Banknote,
-  Tv,
-  Settings,
-  FileText,
-  BarChart3,
-  PanelLeftClose,
-  PanelLeft,
-  X,
-} from 'lucide-react'
+import { PanelLeftClose, PanelLeft, X } from 'lucide-react'
 import { useState } from 'react'
 import { SidebarLogo } from '@/components/brand/sidebar-logo'
 import { PropertySwitcher } from '@/components/dashboard/property-switcher'
-
-const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Housekeeping', href: '/housekeeping', icon: Briefcase },
-  { name: 'Reservations', href: '/reservations', icon: Calendar },
-  { name: 'Bookings', href: '/bookings', icon: Users },
-  { name: 'Guests', href: '/guests', icon: Users },
-  { name: 'Billing', href: '/billing', icon: Banknote },
-  { name: 'Channels', href: '/channels', icon: Tv },
-  { name: 'GRA Reports', href: '/gra-reports', icon: FileText },
-  { name: 'Analytics', href: '/analytics', icon: BarChart3 },
-  { name: 'Settings', href: '/settings', icon: Settings },
-]
+import { legacyNavigation, type NavItem } from '@/lib/navigation'
+import { getNavIcon } from '@/components/dashboard/nav-icons'
 
 interface SidebarProps {
   mobileOpen?: boolean
   onMobileClose?: () => void
+  navigation?: NavItem[]
 }
 
-export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
+export default function Sidebar({
+  mobileOpen = false,
+  onMobileClose,
+  navigation = legacyNavigation,
+}: SidebarProps) {
   const pathname = usePathname()
   const [collapsed, setCollapsed] = useState(false)
 
@@ -102,8 +83,8 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
             </p>
           )}
           {navigation.map((item) => {
-            const isActive = pathname === item.href
-            const Icon = item.icon
+            const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
+            const Icon = getNavIcon(item.icon)
             return (
               <Link
                 key={item.href}
@@ -115,7 +96,16 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
                 } ${isActive ? 'sidebar-nav-link--active' : 'sidebar-nav-link'}`}
               >
                 <Icon className="h-[1.125rem] w-[1.125rem] shrink-0" />
-                {(!collapsed || isDrawer) && <span className="truncate">{item.name}</span>}
+                {(!collapsed || isDrawer) && (
+                  <span className="flex flex-1 items-center justify-between truncate">
+                    <span className="truncate">{item.name}</span>
+                    {item.badge != null && item.badge > 0 && (
+                      <span className="ml-2 rounded-full bg-[#D85A30] px-2 py-0.5 text-[10px] font-bold text-white">
+                        {item.badge}
+                      </span>
+                    )}
+                  </span>
+                )}
               </Link>
             )
           })}

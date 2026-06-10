@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { createPortal } from 'react-dom'
-import { Search, Mail, Phone, MapPin, MoreVertical, Plus, X } from 'lucide-react'
+import { useState } from 'react'
+import { Search, Mail, Phone, MapPin, MoreVertical, Plus } from 'lucide-react'
+import { CenteredModal, ModalBody, ModalFooter, ModalHeader } from '@/components/ui/centered-modal'
 
 const MOCK_GUESTS = [
   {
@@ -76,28 +76,6 @@ export function GuestsTable() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null)
   const [selectedGuest, setSelectedGuest] = useState<typeof MOCK_GUESTS[0] | null>(null)
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  useEffect(() => {
-    if (!selectedGuest) return
-
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setSelectedGuest(null)
-    }
-
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    document.addEventListener('keydown', onKeyDown)
-
-    return () => {
-      document.body.style.overflow = prev
-      document.removeEventListener('keydown', onKeyDown)
-    }
-  }, [selectedGuest])
 
   const filteredGuests = MOCK_GUESTS.filter((guest) => {
     const matchesSearch = guest.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -283,29 +261,19 @@ export function GuestsTable() {
         </div>
       </div>
 
-      {selectedGuest &&
-        mounted &&
-        createPortal(
-          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-            <button
-              type="button"
-              aria-label="Close guest details"
-              className="absolute inset-0 bg-[#22124C]/40 backdrop-blur-sm"
-              onClick={() => setSelectedGuest(null)}
-            />
-            <div className="modal-panel surface-card relative z-10 w-full max-w-md max-h-[90vh] overflow-y-auto shadow-elevation-4">
-              <div className="surface-card-header flex items-center justify-between">
-                <h3 className="text-xl font-semibold">{selectedGuest.name}</h3>
-                <button
-                  type="button"
-                  onClick={() => setSelectedGuest(null)}
-                  className="modal-panel-subtle rounded-lg p-1.5 transition-colors hover:bg-secondary/60"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
+      <CenteredModal
+        open={!!selectedGuest}
+        onClose={() => setSelectedGuest(null)}
+        className="max-w-lg"
+        aria-label="Guest details"
+      >
+        {selectedGuest && (
+          <>
+            <ModalHeader onClose={() => setSelectedGuest(null)}>
+              <h3 className="text-xl font-semibold">{selectedGuest.name}</h3>
+            </ModalHeader>
 
-              <div className="p-6 space-y-6">
+            <ModalBody className="space-y-6">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="info-block info-block-blue p-4">
                     <p className="modal-panel-subtle text-xs font-semibold uppercase tracking-wider">
@@ -367,20 +335,19 @@ export function GuestsTable() {
                     {selectedGuest.notes}
                   </p>
                 </div>
-              </div>
+            </ModalBody>
 
-              <div className="border-t border-[#E9ECEF] bg-[#FAFDFF]/80 px-6 py-4">
+            <ModalFooter>
                 <button
                   type="button"
                   className="gradient-primary w-full rounded-xl py-3 text-sm font-semibold text-white shadow-elevation-2 ring-1 ring-[#3C216C]/25 transition-all hover:-translate-y-0.5 hover:shadow-elevation-3"
                 >
                   Edit Guest Profile
                 </button>
-              </div>
-            </div>
-          </div>,
-          document.body,
+            </ModalFooter>
+          </>
         )}
+      </CenteredModal>
     </>
   )
 }

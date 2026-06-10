@@ -64,7 +64,7 @@ export function PropertySwitcher({ collapsed = false }: PropertySwitcherProps) {
           <div
             role="listbox"
             aria-label="Select property"
-            className={`sidebar-property-menu absolute z-50 overflow-hidden rounded-xl border border-[rgba(212,166,46,0.22)] bg-[#2D215B]/95 shadow-elevation-3 backdrop-blur-xl ${
+            className={`sidebar-property-menu absolute z-50 overflow-hidden rounded-xl border border-[rgba(212,166,46,0.22)] bg-[#2D215B] shadow-elevation-3 ${
               collapsed ? 'left-full top-0 ml-2 w-64' : 'left-0 right-0 top-[calc(100%+0.5rem)]'
             }`}
           >

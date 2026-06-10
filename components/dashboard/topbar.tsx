@@ -4,12 +4,18 @@ import { Bell, ChevronDown, LogOut, Menu, Settings } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { HeaderSearch } from '@/components/dashboard/header-search'
 import { currentUser } from '@/lib/mock-data'
+import { signOut } from '@/app/actions/auth'
+import type { Profile } from '@/types'
 
 interface TopbarProps {
   onMenuOpen?: () => void
+  profile?: Profile | null
 }
 
-export default function Topbar({ onMenuOpen }: TopbarProps) {
+export default function Topbar({ onMenuOpen, profile }: TopbarProps) {
+  const user = profile
+    ? { name: profile.name, email: profile.email }
+    : { name: currentUser.name, email: currentUser.email }
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [scrolled, setScrolled] = useState(false)
   const userMenuRef = useRef<HTMLDivElement>(null)
@@ -86,19 +92,19 @@ export default function Topbar({ onMenuOpen }: TopbarProps) {
               className="main-header-user flex items-center gap-2 rounded-xl bg-white/50 px-2 py-1.5 shadow-elevation-1 backdrop-blur-sm transition-all hover:bg-white/70 hover:shadow-elevation-2 sm:px-2.5 md:px-3 md:py-2"
             >
               <div className="gradient-primary flex h-7 w-7 items-center justify-center rounded-lg text-xs font-bold text-white">
-                {currentUser.name.charAt(0)}
+                {user.name.charAt(0)}
               </div>
               <span className="main-header-user-name hidden text-sm font-medium sm:inline">
-                {currentUser.name}
+                {user.name}
               </span>
               <ChevronDown className="main-header-icon hidden h-4 w-4 sm:block" />
             </button>
 
             {showUserMenu && (
-              <div className="modal-panel surface-card absolute right-0 mt-2 w-52 overflow-hidden py-1 shadow-elevation-3">
+              <div className="modal-panel surface-card absolute right-0 mt-2 w-52 overflow-hidden bg-white py-1 shadow-elevation-3">
                 <div className="surface-card-header px-4 py-3">
-                  <p className="text-sm font-semibold">{currentUser.name}</p>
-                  <p className="modal-panel-subtle text-xs">{currentUser.email}</p>
+                  <p className="text-sm font-semibold">{user.name}</p>
+                  <p className="modal-panel-subtle text-xs">{user.email}</p>
                 </div>
                 <button
                   type="button"
@@ -109,6 +115,7 @@ export default function Topbar({ onMenuOpen }: TopbarProps) {
                 </button>
                 <button
                   type="button"
+                  onClick={() => signOut()}
                   className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-destructive transition-colors hover:bg-secondary/60"
                 >
                   <LogOut className="h-4 w-4" />
