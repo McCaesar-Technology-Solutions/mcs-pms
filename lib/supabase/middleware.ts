@@ -8,7 +8,7 @@ import {
 } from '@/lib/auth/roles'
 import type { Database } from '@/lib/supabase/types'
 
-const PUBLIC_PATHS = ['/login', '/accept-invite']
+const PUBLIC_PATHS = ['/login', '/accept-invite', '/signup']
 const GUEST_PREFIX = '/guest'
 
 const LEGACY_STAFF_PATHS = [

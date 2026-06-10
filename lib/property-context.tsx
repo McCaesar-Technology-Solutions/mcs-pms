@@ -38,6 +38,11 @@ interface PropertyContextValue {
   setActivePropertyId: (id: string) => void
   addProperty: (input: NewPropertyInput) => Property
   isAdmin: boolean
+  /** Only owners may switch between or add properties. */
+  canSwitchProperty: boolean
+  userRole: Profile['role'] | null
+  /** The hotel the signed-in user is assigned to (managers/technicians). */
+  assignedHotelId: string | null
   profile: Profile | null
 }
 
@@ -136,21 +141,29 @@ export function PropertyProvider({
     localStorage.setItem(ACTIVE_PROPERTY_KEY, activePropertyId)
   }, [activePropertyId, hydrated, initialHotel])
 
+  // When a real profile is present, only owners may switch/add properties.
+  // Without a profile (legacy demo / unauthenticated preview) keep full access.
+  const canSwitchProperty = profile ? profile.role === 'owner' : true
+
   const activeProperty = useMemo(() => {
     return propertiesList.find((p) => p.id === activePropertyId) ?? propertiesList[0]
   }, [propertiesList, activePropertyId])
 
   const setActivePropertyId = useCallback(
     (id: string) => {
+      if (!canSwitchProperty) return
       if (propertiesList.some((p) => p.id === id)) {
         setActivePropertyIdState(id)
       }
     },
-    [propertiesList],
+    [propertiesList, canSwitchProperty],
   )
 
   const addProperty = useCallback(
     (input: NewPropertyInput): Property => {
+      // Non-owners can never add a property, even if the UI is bypassed.
+      if (!canSwitchProperty) return activeProperty
+
       const property: Property = {
         id: crypto.randomUUID(),
         name: input.name.trim(),
@@ -165,7 +178,7 @@ export function PropertyProvider({
       setActivePropertyIdState(property.id)
       return property
     },
-    [propertiesList],
+    [propertiesList, canSwitchProperty, activeProperty],
   )
 
   const value = useMemo(
@@ -175,10 +188,14 @@ export function PropertyProvider({
       activePropertyId: activeProperty.id,
       setActivePropertyId,
       addProperty,
-      isAdmin: profile?.role === 'owner' || currentUser.role === 'admin',
+      // Without a real profile, fall back to the demo admin user.
+      isAdmin: profile ? profile.role === 'owner' : currentUser.role === 'admin',
+      canSwitchProperty,
+      userRole: profile?.role ?? null,
+      assignedHotelId: profile?.hotel_id ?? null,
       profile,
     }),
-    [propertiesList, activeProperty, setActivePropertyId, addProperty, profile],
+    [propertiesList, activeProperty, setActivePropertyId, addProperty, canSwitchProperty, profile],
   )
 
   return <PropertyContext.Provider value={value}>{children}</PropertyContext.Provider>

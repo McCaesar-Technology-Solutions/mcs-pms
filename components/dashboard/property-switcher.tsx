@@ -10,8 +10,14 @@ interface PropertySwitcherProps {
 }
 
 export function PropertySwitcher({ collapsed = false }: PropertySwitcherProps) {
-  const { properties, activeProperty, activePropertyId, setActivePropertyId, isAdmin } =
-    useProperty()
+  const {
+    properties,
+    activeProperty,
+    activePropertyId,
+    setActivePropertyId,
+    isAdmin,
+    canSwitchProperty,
+  } = useProperty()
   const [open, setOpen] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -26,6 +32,31 @@ export function PropertySwitcher({ collapsed = false }: PropertySwitcherProps) {
     document.addEventListener('mousedown', onPointerDown)
     return () => document.removeEventListener('mousedown', onPointerDown)
   }, [open])
+
+  // Managers / technicians are locked to their assigned property: show a static,
+  // non-interactive badge with no switcher dropdown and no "Add property".
+  if (!canSwitchProperty) {
+    return (
+      <div
+        title={collapsed ? activeProperty.name : undefined}
+        className={`flex w-full items-center gap-3 rounded-xl bg-white/10 p-3 text-left shadow-elevation-1 ${
+          collapsed ? 'justify-center' : ''
+        }`}
+      >
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10 shadow-elevation-2">
+          <Building2 className="h-4 w-4 text-[var(--accent)]" />
+        </div>
+        {!collapsed && (
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold text-white">{activeProperty.name}</p>
+            <p className="truncate text-xs font-medium text-[var(--sidebar-muted)]">
+              {activeProperty.totalRooms} rooms · {activeProperty.city}
+            </p>
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
     <>

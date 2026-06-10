@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { ROLE_HOME, isStaffRole } from '@/lib/auth/roles'
-import { acceptInviteSchema, signInSchema } from '@/lib/validations'
+import { acceptInviteSchema, signInSchema, signUpOwnerSchema } from '@/lib/validations'
 import type { UserRole } from '@/types'
 
 export type AuthActionResult =
@@ -45,6 +45,83 @@ export async function signIn(
 
   const redirectTo = ROLE_HOME[profile.role]
   return { success: true, role: profile.role, redirectTo }
+}
+
+export async function signUpOwner(input: {
+  name: string
+  email: string
+  password: string
+  hotelName: string
+  hotelAddress?: string
+}): Promise<AuthActionResult> {
+  const parsed = signUpOwnerSchema.safeParse(input)
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? 'Please check your details.' }
+  }
+
+  const admin = createAdminClient()
+
+  // Create the auth user (email pre-confirmed, no SMTP dependency).
+  const { data: authUser, error: signUpError } = await admin.auth.admin.createUser({
+    email: parsed.data.email,
+    password: parsed.data.password,
+    email_confirm: true,
+    user_metadata: { name: parsed.data.name },
+  })
+
+  if (signUpError || !authUser.user) {
+    const already = signUpError?.message?.toLowerCase().includes('already')
+    return {
+      success: false,
+      error: already
+        ? 'An account with this email already exists. Try signing in.'
+        : signUpError?.message ?? 'Could not create account.',
+    }
+  }
+
+  // Create the owner's hotel.
+  const { data: hotel, error: hotelError } = await admin
+    .from('hotels')
+    .insert({
+      name: parsed.data.hotelName.trim(),
+      address: parsed.data.hotelAddress?.trim() || null,
+    })
+    .select('id')
+    .single()
+
+  if (hotelError || !hotel) {
+    await admin.auth.admin.deleteUser(authUser.user.id)
+    return { success: false, error: 'Could not create your property. Please try again.' }
+  }
+
+  // Create the owner profile linking the user to the new hotel.
+  const { error: profileError } = await admin.from('profiles').insert({
+    id: authUser.user.id,
+    hotel_id: hotel.id,
+    role: 'owner',
+    name: parsed.data.name,
+    email: parsed.data.email,
+    is_active: true,
+  })
+
+  if (profileError) {
+    await admin.from('hotels').delete().eq('id', hotel.id)
+    await admin.auth.admin.deleteUser(authUser.user.id)
+    return { success: false, error: 'Could not complete registration. Please try again.' }
+  }
+
+  // Sign the new owner in.
+  const supabase = await createClient()
+  const { error: loginError } = await supabase.auth.signInWithPassword({
+    email: parsed.data.email,
+    password: parsed.data.password,
+  })
+
+  if (loginError) {
+    return { success: false, error: 'Account created but sign-in failed. Please log in manually.' }
+  }
+
+  return { success: true, role: 'owner', redirectTo: ROLE_HOME.owner }
 }
 
 export async function signOut(): Promise<void> {
