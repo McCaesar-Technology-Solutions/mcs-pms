@@ -79,26 +79,12 @@ export async function signUpOwner(input: {
     }
   }
 
-  // Create the owner's hotel.
-  const { data: hotel, error: hotelError } = await admin
-    .from('hotels')
-    .insert({
-      name: parsed.data.hotelName.trim(),
-      address: parsed.data.hotelAddress?.trim() || null,
-      owner_id: authUser.user.id,
-    })
-    .select('id')
-    .single()
+  const userId = authUser.user.id
 
-  if (hotelError || !hotel) {
-    await admin.auth.admin.deleteUser(authUser.user.id)
-    return { success: false, error: 'Could not create your property. Please try again.' }
-  }
-
-  // Create the owner profile linking the user to the new hotel.
+  // Profile must exist before hotel insert when owner_id FK targets profiles (migration 005).
   const { error: profileError } = await admin.from('profiles').insert({
-    id: authUser.user.id,
-    hotel_id: hotel.id,
+    id: userId,
+    hotel_id: null,
     role: 'owner',
     name: parsed.data.name,
     email: parsed.data.email,
@@ -106,8 +92,57 @@ export async function signUpOwner(input: {
   })
 
   if (profileError) {
+    console.error('[signUpOwner] profile insert failed:', profileError.message)
+    await admin.auth.admin.deleteUser(userId)
+    return { success: false, error: 'Could not complete registration. Please try again.' }
+  }
+
+  const { data: hotel, error: hotelError } = await admin
+    .from('hotels')
+    .insert({
+      name: parsed.data.hotelName.trim(),
+      address: parsed.data.hotelAddress?.trim() || null,
+      city: 'Accra',
+      region: 'Greater Accra',
+      owner_id: userId,
+    })
+    .select('id')
+    .single()
+
+  if (hotelError || !hotel) {
+    console.error('[signUpOwner] hotel insert failed:', hotelError?.message)
+    await admin.from('profiles').delete().eq('id', userId)
+    await admin.auth.admin.deleteUser(userId)
+
+    const msg = hotelError?.message?.toLowerCase() ?? ''
+    if (msg.includes('owner_id') && (msg.includes('column') || msg.includes('schema cache'))) {
+      return {
+        success: false,
+        error:
+          'Database setup is incomplete. Run Supabase migration 005_owner_properties.sql, then try again.',
+      }
+    }
+    if (msg.includes('violates foreign key') && msg.includes('owner_id')) {
+      return {
+        success: false,
+        error:
+          'Database setup needs an update. Run Supabase migration 006_hotels_owner_auth_users.sql, then try again.',
+      }
+    }
+
+    return { success: false, error: 'Could not create your property. Please try again.' }
+  }
+
+  const { error: linkError } = await admin
+    .from('profiles')
+    .update({ hotel_id: hotel.id })
+    .eq('id', userId)
+
+  if (linkError) {
+    console.error('[signUpOwner] profile link failed:', linkError.message)
     await admin.from('hotels').delete().eq('id', hotel.id)
-    await admin.auth.admin.deleteUser(authUser.user.id)
+    await admin.from('profiles').delete().eq('id', userId)
+    await admin.auth.admin.deleteUser(userId)
     return { success: false, error: 'Could not complete registration. Please try again.' }
   }
 
