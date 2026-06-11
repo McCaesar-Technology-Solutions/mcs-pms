@@ -14,6 +14,7 @@ import {
   ClipboardList,
 } from 'lucide-react'
 import { getTechnicianComplaints, updateTechnicianComplaintStatus } from '@/app/actions/complaints'
+import { ComplaintEstimateForm } from '@/components/technician/complaint-estimate-form'
 import { useRealtimeRefresh } from '@/components/realtime/realtime-refresh-context'
 import type { Complaint, ComplaintCategory, ComplaintStatus } from '@/types'
 
@@ -203,6 +204,15 @@ export function TechnicianTasks() {
                     </div>
                   )}
 
+                  {['assigned', 'in_progress', 'rejected'].includes(c.status ?? '') && (
+                    <ComplaintEstimateForm
+                      complaintId={c.id}
+                      roomNumber={c.rooms?.number ?? c.room?.number ?? null}
+                      category={c.category}
+                      onSubmitted={() => load()}
+                    />
+                  )}
+
                   {c.status === 'assigned' && (
                     <button
                       type="button"
@@ -218,9 +228,9 @@ export function TechnicianTasks() {
                       type="button"
                       disabled={loading === c.id}
                       onClick={() => updateStatus(c.id, 'pending_approval')}
-                      className="w-full rounded-xl bg-[#3C216C] py-3 text-sm font-semibold text-white shadow-elevation-1 transition-all hover:shadow-elevation-2 disabled:opacity-60"
+                      className="w-full rounded-xl border border-[#3C216C]/20 bg-white py-3 text-sm font-semibold text-[#3C216C] shadow-elevation-1 transition-all hover:shadow-elevation-2 disabled:opacity-60"
                     >
-                      Mark complete
+                      Mark complete (no invoice)
                     </button>
                   )}
                   {c.status === 'rejected' && (

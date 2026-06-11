@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 import { useRealtimeRefresh } from '@/components/realtime/realtime-refresh-context'
 import { DataEmptyState } from '@/components/dashboard/data-empty-state'
 import {
@@ -107,10 +108,15 @@ function DbKanban({
     done: tasks.filter((t) => t.status === 'done'),
   }
 
-  function run(action: () => Promise<unknown>) {
+  function run(action: () => Promise<{ success: boolean; error?: string }>) {
     startTransition(async () => {
-      await action()
-      router.refresh()
+      const result = await action()
+      if (result.success) {
+        toast.success('Task updated')
+        router.refresh()
+      } else {
+        toast.error(result.error ?? 'Update failed')
+      }
     })
   }
 

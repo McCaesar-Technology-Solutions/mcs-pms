@@ -1,8 +1,10 @@
 'use client'
 
-import { Bell, ChevronDown, LogOut, Menu, Settings } from 'lucide-react'
+import Link from 'next/link'
+import { ChevronDown, LogOut, Menu } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { HeaderSearch } from '@/components/dashboard/header-search'
+import { NotificationsMenu, settingsHref } from '@/components/dashboard/notifications-menu'
 import { signOut } from '@/app/actions/auth'
 import type { Profile } from '@/types'
 
@@ -66,21 +68,15 @@ export default function Topbar({ onMenuOpen, profile }: TopbarProps) {
         </button>
 
         <div className="absolute left-1/2 hidden w-full max-w-xl -translate-x-1/2 px-4 md:block">
-          <HeaderSearch />
+          <HeaderSearch role={profile?.role} />
         </div>
 
         <div className="min-w-0 flex-1 md:hidden">
-          <HeaderSearch />
+          <HeaderSearch role={profile?.role} />
         </div>
 
         <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2 md:gap-3">
-          <button
-            type="button"
-            className="main-header-icon relative rounded-xl p-2.5 transition-colors hover:bg-white/50"
-          >
-            <Bell className="h-5 w-5" />
-            <span className="absolute right-2 top-2 h-2 w-2 rounded-full border-2 border-white bg-destructive" />
-          </button>
+          <NotificationsMenu profile={profile} />
 
           <div className="relative" ref={userMenuRef}>
             <button
@@ -105,13 +101,13 @@ export default function Topbar({ onMenuOpen, profile }: TopbarProps) {
                   <p className="text-sm font-semibold">{user.name}</p>
                   <p className="modal-panel-subtle text-xs">{user.email}</p>
                 </div>
-                <button
-                  type="button"
+                <Link
+                  href={settingsHref(profile?.role)}
+                  onClick={() => setShowUserMenu(false)}
                   className="flex w-full items-center gap-2 px-4 py-2.5 text-sm transition-colors hover:bg-secondary/60"
                 >
-                  <Settings className="h-4 w-4" />
                   Settings
-                </button>
+                </Link>
                 <button
                   type="button"
                   onClick={() => signOut()}

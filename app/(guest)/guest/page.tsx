@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { GuestPortal } from '@/components/guest/guest-portal'
 import { getGuestFromSession } from '@/app/actions/guest'
+import { getGuestPropertyContacts } from '@/lib/data/contacts'
 
 export default async function GuestPage({
   searchParams,
@@ -19,7 +20,15 @@ export default async function GuestPage({
     return <GuestExpiredPage message={messageForError(params.error)} />
   }
 
-  return <GuestPortal guest={session.data.guest} roomNumber={session.data.roomNumber} />
+  const propertyContacts = await getGuestPropertyContacts(session.data.guest.hotel_id)
+
+  return (
+    <GuestPortal
+      guest={session.data.guest}
+      roomNumber={session.data.roomNumber}
+      propertyContacts={propertyContacts}
+    />
+  )
 }
 
 function messageForError(error?: string): string {

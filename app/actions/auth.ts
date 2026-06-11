@@ -3,6 +3,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { seedDefaultRoomCategories } from '@/lib/data/room-categories'
 import { ROLE_HOME, isStaffRole } from '@/lib/auth/roles'
 import { acceptInviteSchema, signInSchema, signUpOwnerSchema } from '@/lib/validations'
 import type { UserRole } from '@/types'
@@ -133,6 +134,8 @@ export async function signUpOwner(input: {
     return { success: false, error: 'Could not create your property. Please try again.' }
   }
 
+  await seedDefaultRoomCategories(admin, hotel.id)
+
   const { error: linkError } = await admin
     .from('profiles')
     .update({ hotel_id: hotel.id })
@@ -170,8 +173,9 @@ export async function acceptInvite(
   token: string,
   name: string,
   password: string,
+  phone: string,
 ): Promise<AuthActionResult> {
-  const parsed = acceptInviteSchema.safeParse({ token, name, password })
+  const parsed = acceptInviteSchema.safeParse({ token, name, password, phone })
   if (!parsed.success) {
     return { success: false, error: 'Please check your details and try again.' }
   }
@@ -206,6 +210,7 @@ export async function acceptInvite(
     role: invite.role,
     name: parsed.data.name,
     email: invite.email,
+    phone: parsed.data.phone.trim(),
     invited_by: invite.invited_by,
     is_active: true,
   })

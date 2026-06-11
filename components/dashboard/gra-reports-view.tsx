@@ -1,15 +1,35 @@
 'use client'
 
-import { Download, Eye, CheckCircle, AlertCircle, Clock } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Download, Eye, CheckCircle, AlertCircle, Clock, ChevronDown } from 'lucide-react'
 import { DataEmptyState } from '@/components/dashboard/data-empty-state'
+import { downloadGraCsv, downloadGraPdf, downloadGraAllZip } from '@/lib/export/gra-export'
+import type { ExportHotelInfo } from '@/lib/export/types'
 import type { GraReportRow, GraReportsSummary } from '@/lib/data/gra-reports'
+import type { DbInvoice } from '@/types'
 
 interface GRAReportsViewProps {
   reports: GraReportRow[]
   summary: GraReportsSummary
+  invoices: DbInvoice[]
+  hotel: ExportHotelInfo | null
 }
 
-export function GRAReportsView({ reports, summary }: GRAReportsViewProps) {
+export function GRAReportsView({ reports, summary, invoices, hotel }: GRAReportsViewProps) {
+  const [exportMenu, setExportMenu] = useState<string | null>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!exportMenu) return
+    const onPointerDown = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setExportMenu(null)
+      }
+    }
+    document.addEventListener('mousedown', onPointerDown)
+    return () => document.removeEventListener('mousedown', onPointerDown)
+  }, [exportMenu])
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'submitted':
@@ -45,9 +65,21 @@ export function GRAReportsView({ reports, summary }: GRAReportsViewProps) {
   return (
     <>
       <div className="surface-card mb-8">
-        <div className="surface-card-header">
-          <h2 className="text-2xl font-semibold text-foreground">Tax Filing Deadlines</h2>
-          <p className="text-sm text-muted-foreground mt-1">Upcoming GRA compliance deadlines</p>
+        <div className="surface-card-header flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-2xl font-semibold text-foreground">Tax Filing Deadlines</h2>
+            <p className="text-sm text-muted-foreground mt-1">Upcoming GRA compliance deadlines</p>
+          </div>
+          {reports.length > 0 && (
+            <button
+              type="button"
+              onClick={() => downloadGraAllZip(reports, invoices)}
+              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
+            >
+              <Download className="h-4 w-4" />
+              Export all periods (ZIP)
+            </button>
+          )}
         </div>
 
         <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -130,15 +162,44 @@ export function GRAReportsView({ reports, summary }: GRAReportsViewProps) {
                       </span>
                     </td>
                     <td className="py-4 px-6 text-center">
-                      <button
-                        type="button"
-                        disabled
-                        title="Download coming soon"
-                        className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-muted-foreground font-semibold opacity-50 cursor-not-allowed"
-                      >
-                        <Eye className="h-4 w-4" />
-                        <Download className="h-4 w-4" />
-                      </button>
+                      <div className="relative inline-block" ref={exportMenu === report.id ? menuRef : undefined}>
+                        <button
+                          type="button"
+                          onClick={() => setExportMenu(exportMenu === report.id ? null : report.id)}
+                          className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg font-semibold text-foreground transition-colors hover:bg-secondary"
+                        >
+                          <Eye className="h-4 w-4" />
+                          Export
+                          <ChevronDown className="h-3 w-3" />
+                        </button>
+                        {exportMenu === report.id && (
+                          <div className="modal-panel surface-card absolute right-0 z-10 mt-1 min-w-[140px] py-1 shadow-elevation-3">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                downloadGraCsv(report, invoices)
+                                setExportMenu(null)
+                              }}
+                              className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm hover:bg-secondary/60"
+                            >
+                              <Download className="h-4 w-4" />
+                              CSV
+                            </button>
+                            <button
+                              type="button"
+                              disabled={!hotel}
+                              onClick={() => {
+                                if (hotel) downloadGraPdf(hotel, report, invoices)
+                                setExportMenu(null)
+                              }}
+                              className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm hover:bg-secondary/60 disabled:opacity-40"
+                            >
+                              <Download className="h-4 w-4" />
+                              PDF
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

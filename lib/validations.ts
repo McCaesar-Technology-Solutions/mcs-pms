@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { phoneSchema } from '@/lib/phone'
 
 export const signInSchema = z.object({
   email: z.string().email('Enter a valid email'),
@@ -12,7 +13,7 @@ export const inviteStaffSchema = z.object({
 
 export const enrollGuestSchema = z.object({
   name: z.string().min(2, 'Name is required'),
-  phone: z.string().optional(),
+  phone: phoneSchema,
   email: z.string().email().optional().or(z.literal('')),
   roomId: z.string().uuid(),
   checkIn: z.string().min(1),
@@ -55,6 +56,7 @@ export const acceptInviteSchema = z.object({
   token: z.string().uuid(),
   name: z.string().min(2),
   password: z.string().min(8, 'Password must be at least 8 characters'),
+  phone: phoneSchema,
 })
 
 export const updateHotelSettingsSchema = z.object({
@@ -66,6 +68,13 @@ export const updateHotelSettingsSchema = z.object({
   gta_license_number: z.string().max(80).optional().or(z.literal('')),
   gta_license_expiry: z.string().optional().or(z.literal('')),
   vat_registration_number: z.string().max(80).optional().or(z.literal('')),
+  invoice_prefix: z
+    .string()
+    .min(2, 'Prefix must be at least 2 characters')
+    .max(12, 'Prefix is too long')
+    .regex(/^[A-Za-z0-9-]+$/, 'Use letters, numbers, or hyphens only')
+    .optional()
+    .or(z.literal('')),
 })
 
 export const createPropertySchema = z.object({
@@ -75,6 +84,41 @@ export const createPropertySchema = z.object({
   region: z.string().min(2, 'Region is required'),
   totalRooms: z.number().int().min(1).max(999),
 })
+
+const estimateMaterialRowSchema = z.object({
+  materialName: z.string().min(1, 'Material name is required').max(120),
+  quantity: z.coerce.number().positive('Quantity must be greater than 0'),
+  unitCost: z.coerce.number().min(0, 'Unit cost cannot be negative'),
+})
+
+export const submitComplaintEstimateSchema = z.object({
+  complaintId: z.string().uuid(),
+  note: z.string().max(2000).optional().or(z.literal('')),
+  labourCost: z.coerce.number().min(0, 'Labour cost cannot be negative'),
+  materials: z.array(estimateMaterialRowSchema).max(30),
+})
+
+export const createRoomCategorySchema = z.object({
+  name: z.string().min(1, 'Category name is required').max(80),
+  defaultNightlyRate: z.coerce.number().min(0, 'Rate cannot be negative'),
+})
+
+export const updateRoomCategorySchema = createRoomCategorySchema.partial()
+
+export const createRoomSchema = z.object({
+  number: z.string().min(1, 'Room number is required'),
+  floor: z.coerce.number().int().min(0),
+  categoryId: z.string().uuid('Select a room category'),
+  nightlyRate: z.coerce.number().min(0, 'Price cannot be negative'),
+})
+
+export const updateRoomSchema = createRoomSchema
+  .partial()
+  .extend({
+    status: z
+      .enum(['available', 'occupied', 'maintenance', 'needs_inspection', 'cleaning'])
+      .optional(),
+  })
 
 export const signUpOwnerSchema = z.object({
   name: z.string().min(2, 'Your name is required'),

@@ -1,10 +1,27 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { Download, Plus, TrendingUp } from 'lucide-react'
-import { CenteredModal, ModalBody, ModalHeader } from '@/components/ui/centered-modal'
-import { PAYMENT_METHOD_LABELS } from '@/lib/tax'
+import { toast } from 'sonner'
+import { createManualInvoice, recordInvoicePayment } from '@/app/actions/invoices'
+import { CenteredModal, ModalBody, ModalFooter, ModalHeader } from '@/components/ui/centered-modal'
+import { PAYMENT_METHOD_LABELS, computeInvoiceTaxes } from '@/lib/tax'
+import { formatInvoiceNumber } from '@/lib/invoices/numbering'
+import { downloadInvoicePdf } from '@/lib/export/invoice-pdf'
+import type { ExportHotelInfo } from '@/lib/export/types'
 import type { InvoiceWithRoom } from '@/lib/data/billing'
+import type { PaymentMethod } from '@/types'
+
+const PAYMENT_METHODS: PaymentMethod[] = [
+  'cash',
+  'mtn_momo',
+  'telecel_cash',
+  'airteltigo',
+  'visa',
+  'mastercard',
+  'bank_transfer',
+]
 
 interface BillingRow {
   id: string
@@ -31,7 +48,7 @@ function mapInvoices(invoices: InvoiceWithRoom[]): BillingRow[] {
       status = 'overdue'
     }
     return {
-      id: `INV-${inv.id.slice(0, 6).toUpperCase()}`,
+      id: formatInvoiceNumber(inv),
       guestName: inv.guest_name,
       roomNumber: inv.roomNumber ?? '—',
       amount: inv.total_amount ?? 0,
@@ -48,11 +65,47 @@ function money(value: number | null | undefined) {
   return `₵${(value ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
-export function BillingOverview({ invoices }: { invoices: InvoiceWithRoom[] }) {
-  const [statusFilter, setStatusFilter] = useState<string | null>(null)
-  const [detail, setDetail] = useState<InvoiceWithRoom | null>(null)
+function toExportRow(inv: InvoiceWithRoom) {
+  return {
+    invoiceNumber: formatInvoiceNumber(inv),
+    guestName: inv.guest_name,
+    roomNumber: inv.roomNumber,
+    checkIn: inv.checkIn,
+    checkOut: inv.checkOut,
+    nights: inv.nights,
+    issuedAt: inv.issued_at,
+    subtotal: inv.subtotal ?? 0,
+    nhil: inv.nhil_amount ?? 0,
+    getfund: inv.getfund_amount ?? 0,
+    covid: inv.covid_levy_amount ?? 0,
+    vat: inv.vat_amount ?? 0,
+    elevy: inv.elevy_amount ?? 0,
+    total: inv.total_amount ?? 0,
+    paymentMethod: inv.payment_method,
+    paymentStatus: inv.payment_status,
+  }
+}
 
-  const rows: BillingRow[] = mapInvoices(invoices)
+interface BillingOverviewProps {
+  invoices: InvoiceWithRoom[]
+  hotel: ExportHotelInfo | null
+  initialQuery?: string
+}
+
+export function BillingOverview({ invoices, hotel, initialQuery = '' }: BillingOverviewProps) {
+  const router = useRouter()
+  const [statusFilter, setStatusFilter] = useState<string | null>(null)
+  const [textFilter, setTextFilter] = useState(initialQuery)
+  const [detail, setDetail] = useState<InvoiceWithRoom | null>(null)
+  const [creating, setCreating] = useState(false)
+  const [newGuestName, setNewGuestName] = useState('')
+  const [newDescription, setNewDescription] = useState('')
+  const [newSubtotal, setNewSubtotal] = useState('')
+  const [newPaymentMethod, setNewPaymentMethod] = useState<PaymentMethod>('cash')
+  const [newMarkPaid, setNewMarkPaid] = useState(true)
+  const [pending, startTransition] = useTransition()
+
+  const rows: BillingRow[] = useMemo(() => mapInvoices(invoices), [invoices])
 
   const totalRevenue = rows.reduce((sum, inv) => sum + inv.amount, 0)
   const paidAmount = rows.filter((inv) => inv.status === 'paid').reduce((sum, inv) => sum + inv.amount, 0)
@@ -62,7 +115,62 @@ export function BillingOverview({ invoices }: { invoices: InvoiceWithRoom[] }) {
 
   const collectionRate = totalRevenue > 0 ? (paidAmount / totalRevenue) * 100 : 0
 
-  const filteredInvoices = statusFilter ? rows.filter((inv) => inv.status === statusFilter) : rows
+  const filteredInvoices = useMemo(() => {
+    const q = textFilter.trim().toLowerCase()
+    return rows.filter((inv) => {
+      const matchesStatus = !statusFilter || inv.status === statusFilter
+      if (!q) return matchesStatus
+      const matchesText =
+        inv.id.toLowerCase().includes(q) ||
+        inv.guestName.toLowerCase().includes(q) ||
+        String(inv.roomNumber).toLowerCase().includes(q)
+      return matchesStatus && matchesText
+    })
+  }, [rows, statusFilter, textFilter])
+
+  const downloadPdf = (inv: InvoiceWithRoom, e?: React.MouseEvent) => {
+    e?.stopPropagation()
+    if (!hotel) return
+    downloadInvoicePdf(hotel, toExportRow(inv))
+  }
+
+  const newSubtotalNum = parseFloat(newSubtotal) || 0
+  const newTaxPreview = newSubtotalNum > 0 ? computeInvoiceTaxes(newSubtotalNum) : null
+
+  function submitNewInvoice() {
+    startTransition(async () => {
+      const result = await createManualInvoice({
+        guestName: newGuestName,
+        description: newDescription || undefined,
+        subtotal: newSubtotalNum,
+        paymentMethod: newPaymentMethod,
+        markAsPaid: newMarkPaid,
+      })
+      if (result.success) {
+        toast.success('Invoice created')
+        setCreating(false)
+        setNewGuestName('')
+        setNewDescription('')
+        setNewSubtotal('')
+        router.refresh()
+      } else {
+        toast.error(result.error)
+      }
+    })
+  }
+
+  function markPaid(inv: InvoiceWithRoom) {
+    startTransition(async () => {
+      const result = await recordInvoicePayment(inv.id, inv.payment_method ?? undefined)
+      if (result.success) {
+        toast.success('Payment recorded')
+        setDetail(null)
+        router.refresh()
+      } else {
+        toast.error(result.error)
+      }
+    })
+  }
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -85,7 +193,7 @@ export function BillingOverview({ invoices }: { invoices: InvoiceWithRoom[] }) {
           <p className="text-3xl font-bold text-foreground mt-3">₵{totalRevenue.toLocaleString()}</p>
           <div className="flex items-center gap-2 mt-4 text-amber-600 text-sm font-medium">
             <TrendingUp className="h-4 w-4" />
-            June 2026
+            {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
           </div>
         </div>
 
@@ -116,11 +224,27 @@ export function BillingOverview({ invoices }: { invoices: InvoiceWithRoom[] }) {
             <h2 className="text-2xl font-semibold text-foreground">Invoices</h2>
             <p className="text-sm text-muted-foreground mt-1">{filteredInvoices.length} invoices</p>
           </div>
-          <button className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 font-semibold text-primary-foreground shadow-elevation-1 transition-all hover:-translate-y-0.5 hover:shadow-elevation-2 sm:w-auto">
+          <button
+            type="button"
+            onClick={() => setCreating(true)}
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 font-semibold text-primary-foreground shadow-elevation-1 transition-all hover:-translate-y-0.5 hover:shadow-elevation-2 sm:w-auto"
+          >
             <Plus className="h-4 w-4" />
             New Invoice
           </button>
         </div>
+
+        {rows.length > 0 && (
+          <div className="surface-card-header border-t-0 pt-0">
+            <input
+              type="search"
+              placeholder="Filter by invoice number, guest, or room…"
+              value={textFilter}
+              onChange={(e) => setTextFilter(e.target.value)}
+              className="w-full max-w-md rounded-lg border border-[#E9ECEF] bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20"
+            />
+          </div>
+        )}
 
         <div className="surface-card-header flex items-center gap-2 overflow-x-auto">
           <button
@@ -153,7 +277,7 @@ export function BillingOverview({ invoices }: { invoices: InvoiceWithRoom[] }) {
         <div className="space-y-3 p-4 md:hidden">
           {filteredInvoices.map((invoice) => (
             <button
-              key={invoice.id}
+              key={invoice.invoice?.id ?? invoice.id}
               type="button"
               onClick={() => invoice.invoice && setDetail(invoice.invoice)}
               className="elevated-list-item w-full p-4 text-left"
@@ -195,7 +319,7 @@ export function BillingOverview({ invoices }: { invoices: InvoiceWithRoom[] }) {
             <tbody>
               {filteredInvoices.map((invoice) => (
                 <tr
-                  key={invoice.id}
+                  key={invoice.invoice?.id ?? invoice.id}
                   className={invoice.invoice ? 'cursor-pointer' : ''}
                   onClick={() => invoice.invoice && setDetail(invoice.invoice)}
                 >
@@ -222,7 +346,13 @@ export function BillingOverview({ invoices }: { invoices: InvoiceWithRoom[] }) {
                     </span>
                   </td>
                   <td className="py-4 px-6 text-center">
-                    <button className="inline-flex items-center justify-center w-8 h-8 rounded-lg hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground">
+                    <button
+                      type="button"
+                      disabled={!hotel || !invoice.invoice}
+                      title={hotel ? 'Download PDF' : 'Hotel details unavailable'}
+                      onClick={(e) => invoice.invoice && downloadPdf(invoice.invoice, e)}
+                      className="inline-flex items-center justify-center w-8 h-8 rounded-lg hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground disabled:opacity-40"
+                    >
                       <Download className="h-4 w-4" />
                     </button>
                   </td>
@@ -237,7 +367,7 @@ export function BillingOverview({ invoices }: { invoices: InvoiceWithRoom[] }) {
         {detail && (
           <>
             <ModalHeader onClose={() => setDetail(null)}>
-              <h3 className="text-lg font-semibold">Invoice INV-{detail.id.slice(0, 6).toUpperCase()}</h3>
+              <h3 className="text-lg font-semibold">Invoice {formatInvoiceNumber(detail)}</h3>
               <p className="modal-panel-subtle text-sm">
                 {detail.guest_name}
                 {detail.roomNumber ? ` · Room ${detail.roomNumber}` : ''}
@@ -284,9 +414,106 @@ export function BillingOverview({ invoices }: { invoices: InvoiceWithRoom[] }) {
                   </p>
                 </div>
               </div>
+
+              {hotel && (
+                <button
+                  type="button"
+                  onClick={() => downloadPdf(detail)}
+                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-secondary px-4 py-2.5 text-sm font-semibold text-foreground"
+                >
+                  <Download className="h-4 w-4" />
+                  Download PDF
+                </button>
+              )}
+
+              {detail.payment_status !== 'paid' && (
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() => markPaid(detail)}
+                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+                >
+                  Record payment
+                </button>
+              )}
             </ModalBody>
           </>
         )}
+      </CenteredModal>
+
+      <CenteredModal open={creating} onClose={() => setCreating(false)} className="max-w-md" aria-label="New invoice">
+        <ModalHeader onClose={() => setCreating(false)}>
+          <h3 className="text-lg font-semibold">New invoice</h3>
+          <p className="modal-panel-subtle text-sm">Bill extras, services, or walk-in charges</p>
+        </ModalHeader>
+        <ModalBody className="space-y-4">
+          <div>
+            <label className="text-sm font-semibold">Guest name</label>
+            <input
+              value={newGuestName}
+              onChange={(e) => setNewGuestName(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-[#E9ECEF] px-3 py-2 text-sm"
+              placeholder="Guest or company name"
+            />
+          </div>
+          <div>
+            <label className="text-sm font-semibold">Description (optional)</label>
+            <input
+              value={newDescription}
+              onChange={(e) => setNewDescription(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-[#E9ECEF] px-3 py-2 text-sm"
+              placeholder="e.g. Laundry, minibar"
+            />
+          </div>
+          <div>
+            <label className="text-sm font-semibold">Subtotal (GHS, before tax)</label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={newSubtotal}
+              onChange={(e) => setNewSubtotal(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-[#E9ECEF] px-3 py-2 text-sm"
+            />
+            {newTaxPreview && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Total with GRA taxes: {money(newTaxPreview.total)}
+              </p>
+            )}
+          </div>
+          <div>
+            <label className="text-sm font-semibold">Payment method</label>
+            <select
+              value={newPaymentMethod}
+              onChange={(e) => setNewPaymentMethod(e.target.value as PaymentMethod)}
+              className="mt-1 w-full rounded-lg border border-[#E9ECEF] px-3 py-2 text-sm"
+            >
+              {PAYMENT_METHODS.map((m) => (
+                <option key={m} value={m}>
+                  {PAYMENT_METHOD_LABELS[m]}
+                </option>
+              ))}
+            </select>
+          </div>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={newMarkPaid}
+              onChange={(e) => setNewMarkPaid(e.target.checked)}
+            />
+            Payment received now
+          </label>
+        </ModalBody>
+        <ModalFooter>
+          <button
+            type="button"
+            disabled={pending || newGuestName.trim().length < 2 || newSubtotalNum <= 0}
+            onClick={submitNewInvoice}
+            className="w-full rounded-lg bg-primary py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+          >
+            {pending ? 'Creating…' : 'Create invoice'}
+          </button>
+        </ModalFooter>
       </CenteredModal>
     </>
   )

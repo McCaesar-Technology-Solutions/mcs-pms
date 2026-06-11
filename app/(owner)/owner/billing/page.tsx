@@ -1,9 +1,15 @@
 import { BillingOverview } from '@/components/dashboard/billing-overview'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { getInvoicesData } from '@/lib/data/billing'
+import { getHotelExportInfo } from '@/lib/data/settings'
 
-export default async function BillingPage() {
-  const invoices = await getInvoicesData()
+export default async function BillingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>
+}) {
+  const { q } = await searchParams
+  const [invoices, hotel] = await Promise.all([getInvoicesData(), getHotelExportInfo()])
 
   return (
     <div className="page-shell space-y-6">
@@ -13,7 +19,7 @@ export default async function BillingPage() {
         description="Manage invoices, track payments, and monitor revenue collection."
       />
 
-      <BillingOverview invoices={invoices} />
+      <BillingOverview invoices={invoices} hotel={hotel} initialQuery={q} />
     </div>
   )
 }

@@ -23,6 +23,7 @@ export async function updateHotelSettings(input: {
   gta_license_number?: string
   gta_license_expiry?: string
   vat_registration_number?: string
+  invoice_prefix?: string
 }): Promise<SettingsActionResult> {
   const parsed = updateHotelSettingsSchema.safeParse(input)
   if (!parsed.success) {
@@ -59,6 +60,9 @@ export async function updateHotelSettings(input: {
       gta_license_number: parsed.data.gta_license_number?.trim() || null,
       gta_license_expiry: parsed.data.gta_license_expiry || null,
       vat_registration_number: parsed.data.vat_registration_number?.trim() || null,
+      ...(parsed.data.invoice_prefix?.trim()
+        ? { invoice_prefix: parsed.data.invoice_prefix.trim().toUpperCase() }
+        : {}),
     })
     .eq('id', parsed.data.hotelId)
 

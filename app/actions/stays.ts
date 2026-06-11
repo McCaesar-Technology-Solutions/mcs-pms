@@ -1,0 +1,750 @@
+'use server'
+
+import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { computeInvoiceTaxes } from '@/lib/tax'
+import { allocateInvoiceNumber } from '@/lib/invoices/numbering'
+import { createPostCheckoutCleanTask } from '@/lib/housekeeping/checkout-task'
+import { phoneSchema } from '@/lib/phone'
+import { findAvailableRooms, roomHasClash } from '@/lib/data/occupancy'
+import {
+  buildGuestLoginUrl,
+  revalidateStayViews,
+  stayNights,
+  todayISO,
+  tokenExpiryISO,
+} from '@/lib/stays/helpers'
+import type { PaymentMethod, ReservationChannel } from '@/types'
+import { z } from 'zod'
+
+export type StayActionResult<T = void> =
+  | { success: true; data?: T }
+  | { success: false; error: string; suggestions?: { id: string; number: string }[] }
+
+const VALID_PAYMENT_METHODS: PaymentMethod[] = [
+  'mtn_momo',
+  'telecel_cash',
+  'airteltigo',
+  'visa',
+  'mastercard',
+  'cash',
+  'bank_transfer',
+]
+
+const checkInStaySchema = z.object({
+  phone: phoneSchema,
+  email: z.string().email().optional().or(z.literal('')),
+  guestId: z.string().uuid().optional(),
+  guestName: z.string().min(2).optional(),
+})
+
+async function requireManager() {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { supabase, profile: null, userId: null }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('id, role, hotel_id')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  return { supabase, profile, userId: user.id }
+}
+
+async function getRoomNightlyRate(
+  admin: ReturnType<typeof createAdminClient>,
+  roomId: string,
+): Promise<number> {
+  const { data } = await admin
+    .from('rooms')
+    .select('nightly_rate, room_categories(default_nightly_rate)')
+    .eq('id', roomId)
+    .maybeSingle()
+
+  if (data?.nightly_rate != null) return Number(data.nightly_rate)
+  const cat = data?.room_categories as { default_nightly_rate?: number } | null
+  return Number(cat?.default_nightly_rate ?? 0)
+}
+
+async function findInHouseGuestByPhone(
+  admin: ReturnType<typeof createAdminClient>,
+  hotelId: string,
+  phone: string,
+  excludeGuestId?: string,
+): Promise<string | null> {
+  const digits = phone.replace(/\D/g, '')
+  const { data: guests } = await admin
+    .from('guests')
+    .select('id, phone, check_in, check_out')
+    .eq('hotel_id', hotelId)
+
+  const today = todayISO()
+  for (const g of guests ?? []) {
+    if (excludeGuestId && g.id === excludeGuestId) continue
+    if (!g.phone || g.phone.replace(/\D/g, '') !== digits) continue
+    if (g.check_in && g.check_out && g.check_in <= today && g.check_out >= today) {
+      const { data: activeRes } = await admin
+        .from('reservations')
+        .select('id')
+        .eq('guest_id', g.id)
+        .eq('status', 'checked_in')
+        .maybeSingle()
+      if (activeRes) return g.id
+    }
+  }
+  return null
+}
+
+export async function searchGuests(query: string): Promise<
+  StayActionResult<{ id: string; name: string; phone: string | null; email: string | null }[]>
+> {
+  const { profile } = await requireManager()
+  if (!profile?.hotel_id) return { success: false, error: 'Not authorized.' }
+
+  const q = query.trim()
+  if (q.length < 2) return { success: true, data: [] }
+
+  const admin = createAdminClient()
+  const { data, error } = await admin
+    .from('guests')
+    .select('id, name, phone, email')
+    .eq('hotel_id', profile.hotel_id)
+    .or(`name.ilike.%${q}%,phone.ilike.%${q}%,email.ilike.%${q}%`)
+    .order('name')
+    .limit(8)
+
+  if (error) return { success: false, error: error.message }
+  return { success: true, data: data ?? [] }
+}
+
+export async function checkInStay(
+  reservationId: string,
+  input: { phone: string; email?: string; guestId?: string; guestName?: string },
+): Promise<StayActionResult<{ loginUrl: string; token: string; guestId: string }>> {
+  const parsed = checkInStaySchema.safeParse(input)
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid input.' }
+  }
+
+  const { supabase, profile, userId } = await requireManager()
+  if (!profile?.hotel_id || !userId || !['owner', 'manager'].includes(profile.role)) {
+    return { success: false, error: 'Not authorized.' }
+  }
+
+  const admin = createAdminClient()
+  const { data: reservation } = await admin
+    .from('reservations')
+    .select('*')
+    .eq('id', reservationId)
+    .eq('hotel_id', profile.hotel_id)
+    .maybeSingle()
+
+  if (!reservation) return { success: false, error: 'Reservation not found.' }
+  if (reservation.status !== 'confirmed') {
+    return { success: false, error: 'Only confirmed reservations can be checked in.' }
+  }
+  if (!reservation.room_id) return { success: false, error: 'Reservation has no room assigned.' }
+
+  const duplicateGuest = await findInHouseGuestByPhone(
+    admin,
+    profile.hotel_id,
+    parsed.data.phone,
+    parsed.data.guestId,
+  )
+  if (duplicateGuest) {
+    return {
+      success: false,
+      error: 'Another guest with this phone is already checked in. Use a different contact or check them out first.',
+    }
+  }
+
+  const guestName = parsed.data.guestName?.trim() || reservation.guest_name
+  const token = crypto.randomUUID()
+  const tokenExpiresAt = tokenExpiryISO(reservation.check_out)
+
+  let guestId = parsed.data.guestId ?? reservation.guest_id ?? null
+
+  if (guestId) {
+    const { data: existing } = await admin
+      .from('guests')
+      .select('id')
+      .eq('id', guestId)
+      .eq('hotel_id', profile.hotel_id)
+      .maybeSingle()
+    if (!existing) return { success: false, error: 'Guest not found.' }
+
+    const { error: guestError } = await admin
+      .from('guests')
+      .update({
+        name: guestName,
+        phone: parsed.data.phone.trim(),
+        email: parsed.data.email || null,
+        room_id: reservation.room_id,
+        check_in: reservation.check_in,
+        check_out: reservation.check_out,
+        token,
+        token_expires_at: tokenExpiresAt,
+      })
+      .eq('id', guestId)
+
+    if (guestError) return { success: false, error: guestError.message }
+  } else {
+    const { data: newGuest, error: guestError } = await admin
+      .from('guests')
+      .insert({
+        hotel_id: profile.hotel_id,
+        room_id: reservation.room_id,
+        name: guestName,
+        phone: parsed.data.phone.trim(),
+        email: parsed.data.email || null,
+        check_in: reservation.check_in,
+        check_out: reservation.check_out,
+        token,
+        token_expires_at: tokenExpiresAt,
+        enrolled_by: userId,
+      })
+      .select('id')
+      .single()
+
+    if (guestError || !newGuest) return { success: false, error: 'Could not create guest record.' }
+    guestId = newGuest.id
+  }
+
+  const { error: resError } = await admin
+    .from('reservations')
+    .update({
+      guest_id: guestId,
+      guest_name: guestName,
+      status: 'checked_in',
+    })
+    .eq('id', reservationId)
+
+  if (resError) return { success: false, error: resError.message }
+
+  await admin
+    .from('rooms')
+    .update({
+      status: 'occupied',
+      updated_by: userId,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', reservation.room_id)
+
+  const loginUrl = await buildGuestLoginUrl(token)
+  revalidateStayViews()
+  return { success: true, data: { loginUrl, token, guestId } }
+}
+
+export async function walkInCheckIn(input: {
+  name: string
+  phone: string
+  email?: string
+  roomId: string
+  checkOut: string
+}): Promise<
+  StayActionResult<{ loginUrl: string; token: string; reservationId: string; guestId: string }>
+> {
+  const { profile, userId } = await requireManager()
+  if (!profile?.hotel_id || !userId || !['owner', 'manager'].includes(profile.role)) {
+    return { success: false, error: 'Not authorized.' }
+  }
+
+  const checkIn = todayISO()
+  if (input.checkOut <= checkIn) {
+    return { success: false, error: 'Check-out must be a future date.' }
+  }
+
+  const admin = createAdminClient()
+
+  if (await roomHasClash(admin, profile.hotel_id, input.roomId, checkIn, input.checkOut)) {
+    const suggestions = await findAvailableRooms(admin, profile.hotel_id, checkIn, input.checkOut)
+    return {
+      success: false,
+      error: 'That room is already occupied for these dates.',
+      suggestions,
+    }
+  }
+
+  const nightlyRate = await getRoomNightlyRate(admin, input.roomId)
+  const total = nightlyRate * stayNights(checkIn, input.checkOut)
+
+  const { data: reservation, error: resError } = await admin
+    .from('reservations')
+    .insert({
+      hotel_id: profile.hotel_id,
+      room_id: input.roomId,
+      guest_name: input.name.trim(),
+      check_in: checkIn,
+      check_out: input.checkOut,
+      status: 'confirmed',
+      channel: 'walk_in' as ReservationChannel,
+      nightly_rate: nightlyRate,
+      total_amount: total,
+      created_by: userId,
+    })
+    .select('id')
+    .single()
+
+  if (resError || !reservation) {
+    return { success: false, error: resError?.message ?? 'Could not create stay.' }
+  }
+
+  const checkInResult = await checkInStay(reservation.id, {
+    phone: input.phone,
+    email: input.email,
+    guestName: input.name.trim(),
+  })
+
+  if (!checkInResult.success || !checkInResult.data) {
+    await admin.from('reservations').delete().eq('id', reservation.id)
+    return {
+      success: false,
+      error: checkInResult.success ? 'Check-in failed.' : checkInResult.error,
+    }
+  }
+
+  return {
+    success: true,
+    data: {
+      ...checkInResult.data,
+      reservationId: reservation.id,
+    },
+  }
+}
+
+export async function checkOutStay(input: {
+  reservationId?: string
+  guestId?: string
+  paymentMethod: PaymentMethod
+  earlyCheckout?: boolean
+  markAsPaid?: boolean
+}): Promise<StayActionResult> {
+  const { profile, userId } = await requireManager()
+  if (!profile?.hotel_id || !userId || !['owner', 'manager'].includes(profile.role)) {
+    return { success: false, error: 'Not authorized.' }
+  }
+  if (!VALID_PAYMENT_METHODS.includes(input.paymentMethod)) {
+    return { success: false, error: 'Invalid payment method.' }
+  }
+  if (!input.reservationId && !input.guestId) {
+    return { success: false, error: 'Specify a reservation or guest to check out.' }
+  }
+
+  const admin = createAdminClient()
+  let reservation: {
+    id: string
+    hotel_id: string
+    room_id: string | null
+    guest_id: string | null
+    guest_name: string
+    nightly_rate: number | null
+    total_amount: number | null
+    check_in: string
+    check_out: string
+    status: string | null
+  } | null = null
+
+  if (input.reservationId) {
+    const { data } = await admin
+      .from('reservations')
+      .select('*')
+      .eq('id', input.reservationId)
+      .eq('hotel_id', profile.hotel_id)
+      .maybeSingle()
+    reservation = data
+  } else if (input.guestId) {
+    const { data } = await admin
+      .from('reservations')
+      .select('*')
+      .eq('guest_id', input.guestId)
+      .eq('hotel_id', profile.hotel_id)
+      .eq('status', 'checked_in')
+      .maybeSingle()
+    reservation = data
+  }
+
+  const today = todayISO()
+
+  // Legacy guest without reservation — create checkout record on the fly
+  if (!reservation && input.guestId) {
+    const { data: guest } = await admin
+      .from('guests')
+      .select('*')
+      .eq('id', input.guestId)
+      .eq('hotel_id', profile.hotel_id)
+      .maybeSingle()
+
+    if (!guest?.room_id || !guest.check_in || !guest.check_out) {
+      return { success: false, error: 'No active stay found for this guest.' }
+    }
+    if (guest.check_out < today && !input.earlyCheckout) {
+      return { success: false, error: 'This stay has already ended.' }
+    }
+
+    const effectiveCheckOut = input.earlyCheckout ? today : guest.check_out
+    if (effectiveCheckOut <= guest.check_in) {
+      return { success: false, error: 'Check-out must be after check-in.' }
+    }
+
+    const nightlyRate = await getRoomNightlyRate(admin, guest.room_id)
+    const subtotal = nightlyRate * stayNights(guest.check_in, effectiveCheckOut)
+    const taxes = computeInvoiceTaxes(subtotal)
+    const now = new Date().toISOString()
+    const paidNow = input.markAsPaid !== false
+    const dueAt = paidNow
+      ? now
+      : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+
+    const { data: newRes } = await admin
+      .from('reservations')
+      .insert({
+        hotel_id: profile.hotel_id,
+        room_id: guest.room_id,
+        guest_id: guest.id,
+        guest_name: guest.name,
+        check_in: guest.check_in,
+        check_out: effectiveCheckOut,
+        status: 'checked_out',
+        channel: 'walk_in',
+        nightly_rate: nightlyRate,
+        total_amount: subtotal,
+        created_by: userId,
+      })
+      .select('id')
+      .single()
+
+    const invoiceNumber = await allocateInvoiceNumber(profile.hotel_id)
+    await admin.from('invoices').insert({
+      hotel_id: profile.hotel_id,
+      reservation_id: newRes?.id ?? null,
+      guest_id: guest.id,
+      guest_name: guest.name,
+      invoice_number: invoiceNumber,
+      subtotal: taxes.subtotal,
+      nhil_amount: taxes.nhil,
+      getfund_amount: taxes.getfund,
+      covid_levy_amount: taxes.covid,
+      vat_amount: taxes.vat,
+      elevy_amount: taxes.elevy,
+      total_amount: taxes.total,
+      payment_method: input.paymentMethod,
+      payment_status: paidNow ? 'paid' : 'pending',
+      issued_at: now,
+      due_at: dueAt,
+      paid_at: paidNow ? now : null,
+    })
+
+    await admin
+      .from('guests')
+      .update({
+        check_out: effectiveCheckOut,
+        token: null,
+        token_expires_at: new Date().toISOString(),
+      })
+      .eq('id', guest.id)
+
+    if (guest.room_id) {
+      await admin
+        .from('rooms')
+        .update({ status: 'cleaning', updated_by: userId, updated_at: now })
+        .eq('id', guest.room_id)
+
+      await createPostCheckoutCleanTask(admin, {
+        hotelId: profile.hotel_id,
+        roomId: guest.room_id,
+        guestName: guest.name,
+        createdBy: userId,
+      })
+    }
+
+    revalidateStayViews()
+    return { success: true }
+  }
+
+  if (!reservation) return { success: false, error: 'Reservation not found.' }
+  if (reservation.status !== 'checked_in') {
+    return { success: false, error: 'Only checked-in stays can be checked out.' }
+  }
+
+  const effectiveCheckOut = input.earlyCheckout ? today : reservation.check_out
+  if (effectiveCheckOut <= reservation.check_in) {
+    return { success: false, error: 'Check-out must be after check-in.' }
+  }
+
+  const nightlyRate =
+    reservation.nightly_rate ??
+    (reservation.room_id ? await getRoomNightlyRate(admin, reservation.room_id) : 0)
+  const subtotal = nightlyRate * stayNights(reservation.check_in, effectiveCheckOut)
+  const taxes = computeInvoiceTaxes(subtotal)
+  const now = new Date().toISOString()
+  const paidNow = input.markAsPaid !== false
+  const dueAt = paidNow
+    ? now
+    : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+
+  const { data: existingInvoice } = await admin
+    .from('invoices')
+    .select('id')
+    .eq('reservation_id', reservation.id)
+    .maybeSingle()
+
+  if (!existingInvoice) {
+    const invoiceNumber = await allocateInvoiceNumber(reservation.hotel_id)
+    await admin.from('invoices').insert({
+      hotel_id: reservation.hotel_id,
+      reservation_id: reservation.id,
+      guest_id: reservation.guest_id,
+      guest_name: reservation.guest_name,
+      invoice_number: invoiceNumber,
+      subtotal: taxes.subtotal,
+      nhil_amount: taxes.nhil,
+      getfund_amount: taxes.getfund,
+      covid_levy_amount: taxes.covid,
+      vat_amount: taxes.vat,
+      elevy_amount: taxes.elevy,
+      total_amount: taxes.total,
+      payment_method: input.paymentMethod,
+      payment_status: paidNow ? 'paid' : 'pending',
+      issued_at: now,
+      due_at: dueAt,
+      paid_at: paidNow ? now : null,
+    })
+  }
+
+  await admin
+    .from('reservations')
+    .update({
+      status: 'checked_out',
+      check_out: effectiveCheckOut,
+      total_amount: subtotal,
+    })
+    .eq('id', reservation.id)
+
+  if (reservation.guest_id) {
+    await admin
+      .from('guests')
+      .update({
+        check_out: effectiveCheckOut,
+        token: null,
+        token_expires_at: new Date().toISOString(),
+      })
+      .eq('id', reservation.guest_id)
+  }
+
+  if (reservation.room_id) {
+    await admin
+      .from('rooms')
+      .update({ status: 'cleaning', updated_by: userId, updated_at: now })
+      .eq('id', reservation.room_id)
+
+    await createPostCheckoutCleanTask(admin, {
+      hotelId: reservation.hotel_id,
+      roomId: reservation.room_id,
+      guestName: reservation.guest_name,
+      createdBy: userId,
+    })
+  }
+
+  revalidateStayViews()
+  return { success: true }
+}
+
+export async function extendStay(
+  reservationId: string,
+  newCheckOut: string,
+): Promise<StayActionResult> {
+  const { profile } = await requireManager()
+  if (!profile?.hotel_id || !['owner', 'manager'].includes(profile.role)) {
+    return { success: false, error: 'Not authorized.' }
+  }
+
+  const admin = createAdminClient()
+  const { data: reservation } = await admin
+    .from('reservations')
+    .select('*')
+    .eq('id', reservationId)
+    .eq('hotel_id', profile.hotel_id)
+    .maybeSingle()
+
+  if (!reservation) return { success: false, error: 'Reservation not found.' }
+  if (reservation.status !== 'checked_in') {
+    return { success: false, error: 'Only in-house stays can be extended.' }
+  }
+  if (newCheckOut <= reservation.check_out) {
+    return { success: false, error: 'New check-out must be after the current check-out date.' }
+  }
+  if (!reservation.room_id) return { success: false, error: 'No room on this stay.' }
+
+  if (
+    await roomHasClash(
+      admin,
+      profile.hotel_id,
+      reservation.room_id,
+      reservation.check_in,
+      newCheckOut,
+      { excludeReservationId: reservationId, excludeGuestId: reservation.guest_id ?? undefined },
+    )
+  ) {
+    const suggestions = await findAvailableRooms(
+      admin,
+      profile.hotel_id,
+      reservation.check_in,
+      newCheckOut,
+      { excludeReservationId: reservationId },
+    )
+    return {
+      success: false,
+      error: 'Room is booked for the extended dates.',
+      suggestions,
+    }
+  }
+
+  const nightlyRate = reservation.nightly_rate ?? (await getRoomNightlyRate(admin, reservation.room_id))
+  const total = nightlyRate * stayNights(reservation.check_in, newCheckOut)
+  const tokenExpiresAt = tokenExpiryISO(newCheckOut)
+
+  await admin
+    .from('reservations')
+    .update({ check_out: newCheckOut, total_amount: total })
+    .eq('id', reservationId)
+
+  if (reservation.guest_id) {
+    await admin
+      .from('guests')
+      .update({ check_out: newCheckOut, token_expires_at: tokenExpiresAt })
+      .eq('id', reservation.guest_id)
+  }
+
+  revalidateStayViews()
+  return { success: true }
+}
+
+export async function moveStayRoom(
+  reservationId: string,
+  newRoomId: string,
+): Promise<StayActionResult> {
+  const { profile, userId } = await requireManager()
+  if (!profile?.hotel_id || !userId || !['owner', 'manager'].includes(profile.role)) {
+    return { success: false, error: 'Not authorized.' }
+  }
+
+  const admin = createAdminClient()
+  const { data: reservation } = await admin
+    .from('reservations')
+    .select('*')
+    .eq('id', reservationId)
+    .eq('hotel_id', profile.hotel_id)
+    .maybeSingle()
+
+  if (!reservation) return { success: false, error: 'Reservation not found.' }
+  if (reservation.status !== 'checked_in') {
+    return { success: false, error: 'Only in-house stays can be moved.' }
+  }
+  if (reservation.room_id === newRoomId) {
+    return { success: false, error: 'Guest is already in that room.' }
+  }
+
+  if (
+    await roomHasClash(
+      admin,
+      profile.hotel_id,
+      newRoomId,
+      reservation.check_in,
+      reservation.check_out,
+      { excludeReservationId: reservationId, excludeGuestId: reservation.guest_id ?? undefined },
+    )
+  ) {
+    const suggestions = await findAvailableRooms(
+      admin,
+      profile.hotel_id,
+      reservation.check_in,
+      reservation.check_out,
+      { excludeReservationId: reservationId },
+    )
+    return {
+      success: false,
+      error: 'That room is not available for these dates.',
+      suggestions,
+    }
+  }
+
+  const oldRoomId = reservation.room_id
+  const now = new Date().toISOString()
+
+  await admin.from('reservations').update({ room_id: newRoomId }).eq('id', reservationId)
+
+  if (reservation.guest_id) {
+    await admin.from('guests').update({ room_id: newRoomId }).eq('id', reservation.guest_id)
+  }
+
+  if (oldRoomId) {
+    await admin
+      .from('rooms')
+      .update({ status: 'cleaning', updated_by: userId, updated_at: now })
+      .eq('id', oldRoomId)
+  }
+
+  await admin
+    .from('rooms')
+    .update({ status: 'occupied', updated_by: userId, updated_at: now })
+    .eq('id', newRoomId)
+
+  revalidateStayViews()
+  return { success: true }
+}
+
+export async function markNoShow(reservationId: string): Promise<StayActionResult> {
+  const { supabase, profile } = await requireManager()
+  if (!profile || !['owner', 'manager'].includes(profile.role)) {
+    return { success: false, error: 'Not authorized.' }
+  }
+
+  const { data: reservation } = await supabase
+    .from('reservations')
+    .select('id, status, check_in')
+    .eq('id', reservationId)
+    .maybeSingle()
+
+  if (!reservation) return { success: false, error: 'Reservation not found.' }
+  if (reservation.status !== 'confirmed') {
+    return { success: false, error: 'Only confirmed reservations can be marked as no-show.' }
+  }
+
+  const { error } = await supabase
+    .from('reservations')
+    .update({ status: 'cancelled' })
+    .eq('id', reservationId)
+
+  if (error) return { success: false, error: error.message }
+
+  revalidateStayViews()
+  return { success: true }
+}
+
+export async function getRoomsWithRates(): Promise<
+  StayActionResult<{ id: string; number: string; nightlyRate: number }[]>
+> {
+  const { profile } = await requireManager()
+  if (!profile?.hotel_id) return { success: false, error: 'Not authorized.' }
+
+  const admin = createAdminClient()
+  const { data, error } = await admin
+    .from('rooms')
+    .select('id, number, nightly_rate, room_categories(default_nightly_rate)')
+    .eq('hotel_id', profile.hotel_id)
+    .order('number')
+
+  if (error) return { success: false, error: error.message }
+
+  const rooms = (data ?? []).map((r) => {
+    const cat = r.room_categories as { default_nightly_rate?: number } | null
+    const nightlyRate =
+      r.nightly_rate != null ? Number(r.nightly_rate) : Number(cat?.default_nightly_rate ?? 0)
+    return { id: r.id, number: r.number, nightlyRate }
+  })
+
+  return { success: true, data: rooms }
+}

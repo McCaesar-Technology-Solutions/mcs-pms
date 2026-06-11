@@ -14,6 +14,8 @@ import { createClient } from '@/lib/supabase/client'
 import { submitGuestComplaint, getGuestComplaints } from '@/app/actions/guest'
 import { guestStatusLabel } from '@/components/complaints/complaints-overview'
 import { RealtimeReconnectBanner } from '@/components/realtime/reconnect-banner'
+import { PhoneContactList } from '@/components/ui/phone-contact'
+import type { StaffContact } from '@/lib/data/contacts'
 import type { Complaint, ComplaintCategory, Guest } from '@/types'
 
 const categories: { id: ComplaintCategory; label: string; icon: typeof Droplets }[] = [
@@ -29,9 +31,10 @@ const categories: { id: ComplaintCategory; label: string; icon: typeof Droplets 
 interface GuestPortalProps {
   guest: Guest
   roomNumber: string | null
+  propertyContacts: StaffContact[]
 }
 
-export function GuestPortal({ guest, roomNumber }: GuestPortalProps) {
+export function GuestPortal({ guest, roomNumber, propertyContacts }: GuestPortalProps) {
   const [category, setCategory] = useState<ComplaintCategory | null>(null)
   const [description, setDescription] = useState('')
   const [urgent, setUrgent] = useState(false)
@@ -118,6 +121,9 @@ export function GuestPortal({ guest, roomNumber }: GuestPortalProps) {
         <p className="text-3xl font-semibold text-[#D4A62E]">MOJO APARTMENTS</p>
         <p className="mt-6 text-xl font-medium">Complaint submitted</p>
         <p className="mt-2 text-white/80">Reference: {reference}</p>
+        <p className="mt-3 max-w-sm text-sm text-white/70">
+          Our team has been notified by SMS/WhatsApp and will respond shortly.
+        </p>
         <button
           type="button"
           onClick={() => setReference(null)}
@@ -141,6 +147,16 @@ export function GuestPortal({ guest, roomNumber }: GuestPortalProps) {
         {roomNumber && <p className="mt-2 text-lg">Room {roomNumber}</p>}
         <p className="mt-1 text-white/80">Hi {guest.name}</p>
       </header>
+
+      {propertyContacts.length > 0 && (
+        <section className="mx-4 mb-6">
+          <PhoneContactList
+            contacts={propertyContacts}
+            title="Need to speak with someone?"
+            variant="dark"
+          />
+        </section>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-6 px-4">
         <section>

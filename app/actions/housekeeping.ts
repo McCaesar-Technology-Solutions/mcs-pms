@@ -30,6 +30,9 @@ function revalidate() {
   revalidatePath('/manager/housekeeping')
   revalidatePath('/manager/dashboard')
   revalidatePath('/owner/dashboard')
+  revalidatePath('/mobile/housekeeping')
+  revalidatePath('/owner/rooms')
+  revalidatePath('/manager/rooms')
 }
 
 export async function createHousekeepingTask(input: {
@@ -94,6 +97,15 @@ export async function setHousekeepingTaskStatus(
   if (!profile?.hotel_id) return { success: false, error: 'Not authorized.' }
 
   const supabase = await createClient()
+  const { data: task } = await supabase
+    .from('housekeeping_tasks')
+    .select('id, room_id, task_type')
+    .eq('id', taskId)
+    .eq('hotel_id', profile.hotel_id)
+    .maybeSingle()
+
+  if (!task) return { success: false, error: 'Task not found.' }
+
   const { error } = await supabase
     .from('housekeeping_tasks')
     .update({
@@ -104,6 +116,18 @@ export async function setHousekeepingTaskStatus(
     .eq('hotel_id', profile.hotel_id)
 
   if (error) return { success: false, error: 'Could not update the task.' }
+
+  if (status === 'done' && task.task_type === 'clean' && task.room_id) {
+    await supabase
+      .from('rooms')
+      .update({
+        status: 'available',
+        updated_by: profile.id,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', task.room_id)
+      .eq('hotel_id', profile.hotel_id)
+  }
 
   revalidate()
   return { success: true }

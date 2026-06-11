@@ -3,7 +3,8 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getGuestSessionId } from '@/lib/guest-session'
 import { submitComplaintSchema } from '@/lib/validations'
-import { findAvailableRooms, getOccupancySpans, roomHasClash } from '@/lib/data/occupancy'
+import { walkInCheckIn, checkOutStay } from '@/app/actions/stays'
+import { getOccupancySpans } from '@/lib/data/occupancy'
 import type { Complaint, Guest } from '@/types'
 
 export type GuestActionResult<T = void> =
@@ -149,6 +150,11 @@ export async function submitGuestComplaint(
   })
 
   const reference = complaint.id.slice(0, 8).toUpperCase()
+
+  void import('@/lib/notifications/complaints').then(({ notifyComplaintSubmitted }) =>
+    notifyComplaintSubmitted(complaint.id).catch(() => undefined),
+  )
+
   return { success: true, data: { reference } }
 }
 
@@ -224,98 +230,90 @@ export async function getEnrollmentRooms(): Promise<
 
 export async function enrollGuest(input: {
   name: string
-  phone?: string
+  phone: string
   email?: string
   roomId: string
   checkIn: string
   checkOut: string
 }): Promise<EnrollGuestResult> {
-  const { enrollGuestSchema } = await import('@/lib/validations')
-  const parsed = enrollGuestSchema.safeParse(input)
-  if (!parsed.success) {
-    return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid input.' }
-  }
+  const result = await walkInCheckIn({
+    name: input.name,
+    phone: input.phone,
+    email: input.email,
+    roomId: input.roomId,
+    checkOut: input.checkOut,
+  })
 
-  const { createClient } = await import('@/lib/supabase/server')
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return { success: false, error: 'Not authorized.' }
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('hotel_id, role')
-    .eq('id', user.id)
-    .maybeSingle()
-
-  if (!profile?.hotel_id || !['owner', 'manager'].includes(profile.role)) {
-    return { success: false, error: 'Not authorized.' }
-  }
-
-  // Enrollment is for a guest who is physically here now: check-in is always
-  // today (server-authoritative). Anything future-dated must go through
-  // Reservations. This guarantees a room can only ever hold one active guest.
-  const checkIn = new Date().toISOString().split('T')[0]
-
-  if (parsed.data.checkOut <= checkIn) {
-    return { success: false, error: 'Check-out must be a future date.' }
-  }
-
-  const admin = createAdminClient()
-
-  if (await roomHasClash(admin, profile.hotel_id, parsed.data.roomId, checkIn, parsed.data.checkOut)) {
-    const suggestions = await findAvailableRooms(
-      admin,
-      profile.hotel_id,
-      checkIn,
-      parsed.data.checkOut,
-    )
+  if (!result.success) {
     return {
       success: false,
-      error: 'That room is already occupied. Pick a free room.',
-      suggestions,
+      error: result.error,
+      suggestions: result.suggestions,
     }
   }
 
-  const checkOutDate = new Date(parsed.data.checkOut)
-  checkOutDate.setHours(23, 59, 59, 999)
+  if (!result.data) {
+    return { success: false, error: 'Could not complete walk-in check-in.' }
+  }
 
-  const { data: guest, error } = await admin
+  return {
+    success: true,
+    data: { token: result.data.token, loginUrl: result.data.loginUrl },
+  }
+}
+
+export async function checkOutGuest(input: {
+  guestId: string
+  paymentMethod: import('@/types').PaymentMethod
+  earlyCheckout?: boolean
+  markAsPaid?: boolean
+}): Promise<GuestActionResult> {
+  const result = await checkOutStay({
+    guestId: input.guestId,
+    paymentMethod: input.paymentMethod,
+    earlyCheckout: input.earlyCheckout,
+    markAsPaid: input.markAsPaid,
+  })
+  if (!result.success) return { success: false, error: result.error }
+  return { success: true }
+}
+
+export async function updateGuest(input: {
+  guestId: string
+  name: string
+  email?: string
+  phone: string
+}): Promise<GuestActionResult> {
+  const { phoneSchema } = await import('@/lib/phone')
+  const name = input.name.trim()
+  if (name.length < 2) return { success: false, error: 'Name is required.' }
+  const phoneParsed = phoneSchema.safeParse(input.phone)
+  if (!phoneParsed.success) {
+    return { success: false, error: phoneParsed.error.issues[0]?.message ?? 'Invalid phone.' }
+  }
+
+  const manager = await requireHotelManager()
+  if (!manager?.hotel_id || !['owner', 'manager'].includes(manager.role)) {
+    return { success: false, error: 'Not authorized.' }
+  }
+
+  const admin = createAdminClient()
+  const { error } = await admin
     .from('guests')
-    .insert({
-      hotel_id: profile.hotel_id,
-      room_id: parsed.data.roomId,
-      name: parsed.data.name,
-      phone: parsed.data.phone || null,
-      email: parsed.data.email || null,
-      check_in: checkIn,
-      check_out: parsed.data.checkOut,
-      token_expires_at: checkOutDate.toISOString(),
-      enrolled_by: user.id,
+    .update({
+      name,
+      phone: phoneParsed.data,
+      email: input.email?.trim() || null,
     })
-    .select('token')
-    .single()
+    .eq('id', input.guestId)
+    .eq('hotel_id', manager.hotel_id)
 
-  if (error || !guest) {
-    return { success: false, error: 'Could not enroll guest.' }
-  }
+  if (error) return { success: false, error: error.message }
 
-  let appUrl = process.env.NEXT_PUBLIC_APP_URL
-  if (!appUrl) {
-    const { headers } = await import('next/headers')
-    const h = await headers()
-    const host = h.get('host')
-    const proto = h.get('x-forwarded-proto') ?? 'https'
-    appUrl = host ? `${proto}://${host}` : 'http://localhost:3000'
-  }
-  if (!guest.token) {
-    return { success: false, error: 'Could not enroll guest.' }
-  }
-
-  const loginUrl = `${appUrl}/guest/enter?token=${guest.token}`
-
-  return { success: true, data: { token: guest.token, loginUrl } }
+  const { revalidatePath } = await import('next/cache')
+  revalidatePath('/manager/guests')
+  revalidatePath('/owner/guests')
+  return { success: true }
 }
 
 async function requireHotelManager(): Promise<{ hotel_id: string; role: string } | null> {

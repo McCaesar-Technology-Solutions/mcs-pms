@@ -3,7 +3,12 @@ import { ReservationsManager } from '@/components/dashboard/reservations-manager
 import { PageHeader } from '@/components/dashboard/page-header'
 import { getDashboardData } from '@/lib/data/dashboard'
 
-export default async function ReservationsPage() {
+export default async function ReservationsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; open?: string }>
+}) {
+  const { q, open } = await searchParams
   const { reservations, roomOptions, occupancySpans } = await getDashboardData()
 
   return (
@@ -20,6 +25,8 @@ export default async function ReservationsPage() {
         reservations={reservations}
         roomOptions={roomOptions}
         occupancySpans={occupancySpans}
+        initialSearch={q}
+        openReservationId={open}
       />
     </div>
   )

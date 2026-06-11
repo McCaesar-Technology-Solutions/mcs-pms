@@ -146,7 +146,7 @@ export function StaffManager({ currentProfile, staff, invites }: StaffManagerPro
               {isSelf && <span className="ml-1.5 text-xs font-normal text-muted-foreground">(You)</span>}
             </p>
             <p className="truncate text-xs text-muted-foreground">
-              {member.specialty ? member.specialty : member.email}
+              {member.phone ?? (member.specialty ? member.specialty : member.email)}
             </p>
           </div>
         </div>

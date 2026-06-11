@@ -2,6 +2,7 @@ import { getProfile } from '@/lib/auth/get-profile'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { ownerOwnsHotel } from '@/lib/data/properties'
 import type { Hotel } from '@/types'
+import type { ExportHotelInfo } from '@/lib/export/types'
 
 export interface HotelSettings {
   id: string
@@ -12,6 +13,7 @@ export interface HotelSettings {
   gta_license_number: string | null
   gta_license_expiry: string | null
   vat_registration_number: string | null
+  invoice_prefix: string | null
   roomCount: number
 }
 
@@ -41,6 +43,29 @@ export async function getActiveHotelSettings(): Promise<HotelSettings | null> {
     gta_license_number: h.gta_license_number,
     gta_license_expiry: h.gta_license_expiry,
     vat_registration_number: h.vat_registration_number,
+    invoice_prefix: h.invoice_prefix,
     roomCount: roomCount ?? 0,
+  }
+}
+
+export async function getHotelExportInfo(): Promise<ExportHotelInfo | null> {
+  const profile = await getProfile()
+  if (!profile?.hotel_id) return null
+
+  const admin = createAdminClient()
+  const { data: hotel } = await admin
+    .from('hotels')
+    .select('name, address, city, region, vat_registration_number')
+    .eq('id', profile.hotel_id)
+    .maybeSingle()
+
+  if (!hotel) return null
+
+  return {
+    name: hotel.name,
+    address: hotel.address,
+    city: hotel.city,
+    region: hotel.region,
+    vatRegistrationNumber: hotel.vat_registration_number,
   }
 }

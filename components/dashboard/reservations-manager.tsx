@@ -1,14 +1,22 @@
 'use client'
 
-import { useMemo, useState, useTransition } from 'react'
+import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { ChevronRight, LogIn, LogOut, Plus, Search, X, XCircle } from 'lucide-react'
+import { toast } from 'sonner'
+import { ChevronRight, LogIn, LogOut, Plus, Search, X, XCircle, CalendarPlus, ArrowRightLeft, UserX } from 'lucide-react'
 import {
   cancelReservation,
-  checkInReservation,
   checkOutReservation,
   createReservation,
 } from '@/app/actions/reservations'
+import {
+  checkInStay,
+  extendStay,
+  markNoShow,
+  moveStayRoom,
+  searchGuests,
+} from '@/app/actions/stays'
+import { PortalLinkPanel } from '@/components/dashboard/portal-link-panel'
 import {
   CenteredModal,
   ModalBody,
@@ -64,16 +72,20 @@ interface ReservationsManagerProps {
   reservations: Reservation[]
   roomOptions: RoomOption[]
   occupancySpans: OccupancySpan[]
+  initialSearch?: string
+  openReservationId?: string
 }
 
 export function ReservationsManager({
   reservations,
   roomOptions,
   occupancySpans,
+  initialSearch = '',
+  openReservationId,
 }: ReservationsManagerProps) {
   const router = useRouter()
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [search, setSearch] = useState('')
+  const [selectedId, setSelectedId] = useState<string | null>(openReservationId ?? null)
+  const [search, setSearch] = useState(initialSearch)
   const [statusFilter, setStatusFilter] = useState<(typeof STATUS_FILTERS)[number]>('all')
   const [creating, setCreating] = useState(false)
 
@@ -264,6 +276,7 @@ export function ReservationsManager({
       {selected && (
         <ReservationDrawer
           reservation={selected}
+          roomOptions={roomOptions}
           onClose={() => setSelectedId(null)}
           onMutated={() => {
             setSelectedId(null)
@@ -296,6 +309,7 @@ function formatDate(value: string) {
 
 interface ReservationDrawerProps {
   reservation: Reservation
+  roomOptions: RoomOption[]
   onClose: () => void
   onMutated: () => void
 }
@@ -310,22 +324,59 @@ const PAYMENT_METHODS: PaymentMethod[] = [
   'bank_transfer',
 ]
 
-function ReservationDrawer({ reservation, onClose, onMutated }: ReservationDrawerProps) {
+function ReservationDrawer({ reservation, roomOptions, onClose, onMutated }: ReservationDrawerProps) {
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
   const [checkingOut, setCheckingOut] = useState(false)
+  const [checkingIn, setCheckingIn] = useState(false)
+  const [extending, setExtending] = useState(false)
+  const [moving, setMoving] = useState(false)
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
+  const [earlyCheckout, setEarlyCheckout] = useState(false)
+  const [markAsPaid, setMarkAsPaid] = useState(true)
+  const [phone, setPhone] = useState('')
+  const [email, setEmail] = useState('')
+  const [guestName, setGuestName] = useState(reservation.guestName)
+  const [guestQuery, setGuestQuery] = useState('')
+  const [guestMatches, setGuestMatches] = useState<
+    { id: string; name: string; phone: string | null; email: string | null }[]
+  >([])
+  const [selectedGuestId, setSelectedGuestId] = useState<string | null>(null)
+  const [portalUrl, setPortalUrl] = useState<string | null>(null)
+  const [newCheckOut, setNewCheckOut] = useState(reservation.checkOutDate)
+  const [newRoomId, setNewRoomId] = useState(reservation.roomId)
 
-  function run(action: () => Promise<{ success: boolean; error?: string }>) {
+  useEffect(() => {
+    if (!guestQuery.trim() || guestQuery.length < 2) {
+      setGuestMatches([])
+      return
+    }
+    const t = setTimeout(async () => {
+      const result = await searchGuests(guestQuery)
+      if (result.success && result.data) setGuestMatches(result.data)
+    }, 300)
+    return () => clearTimeout(t)
+  }, [guestQuery])
+
+  function run(action: () => Promise<{ success: boolean; error?: string }>, onSuccess?: () => void) {
     setError(null)
     startTransition(async () => {
       const result = await action()
-      if (result.success) onMutated()
-      else setError(result.error ?? 'Something went wrong.')
+      if (result.success) {
+        toast.success('Saved')
+        if (onSuccess) onSuccess()
+        else onMutated()
+      } else {
+        setError(result.error ?? 'Something went wrong.')
+        toast.error(result.error ?? 'Something went wrong.')
+      }
     })
   }
 
   const balance = reservation.totalPrice - reservation.paidAmount
+  const today = new Date().toISOString().slice(0, 10)
+  const canNoShow =
+    reservation.status === 'confirmed' && reservation.checkInDate <= today
 
   return (
     <CenteredModal
@@ -335,8 +386,8 @@ function ReservationDrawer({ reservation, onClose, onMutated }: ReservationDrawe
       panelClassName="p-0"
       aria-label="Reservation details"
     >
-      <div className="flex flex-col overflow-hidden bg-white">
-        <div className="gradient-primary px-6 py-5 text-white">
+      <div className="flex max-h-[90dvh] flex-col overflow-hidden bg-white">
+        <div className="gradient-primary shrink-0 px-6 py-5 text-white">
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="font-mono text-xs font-medium text-white/70">{reservation.bookingRef}</p>
@@ -413,34 +464,207 @@ function ReservationDrawer({ reservation, onClose, onMutated }: ReservationDrawe
             </div>
           </div>
 
+          {portalUrl && <PortalLinkPanel loginUrl={portalUrl} />}
+
           {error && (
             <p className="rounded-xl bg-red-50 px-3 py-2.5 text-sm text-red-700">{error}</p>
           )}
 
           {reservation.status !== 'checked_out' && reservation.status !== 'cancelled' && (
             <div className="space-y-2">
-              {reservation.status === 'confirmed' && (
+              {reservation.status === 'confirmed' && !checkingIn && (
                 <button
                   type="button"
                   disabled={pending}
-                  onClick={() => run(() => checkInReservation(reservation.id))}
+                  onClick={() => setCheckingIn(true)}
                   className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#D4A62E] py-3 text-sm font-semibold text-gray-900 shadow-elevation-1 transition-all hover:shadow-elevation-2 disabled:opacity-50"
                 >
                   <LogIn className="h-4 w-4" />
-                  Check in
+                  Check in guest
                 </button>
               )}
-              {reservation.status === 'checked_in' && !checkingOut && (
-                <button
-                  type="button"
-                  disabled={pending}
-                  onClick={() => setCheckingOut(true)}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#3C216C] py-3 text-sm font-semibold text-white shadow-elevation-1 transition-all hover:shadow-elevation-2 disabled:opacity-50"
-                >
-                  <LogOut className="h-4 w-4" />
-                  Check out
-                </button>
+
+              {reservation.status === 'confirmed' && checkingIn && (
+                <div className="space-y-3 rounded-xl surface-inset p-4">
+                  <p className="text-sm font-semibold text-foreground">Guest check-in</p>
+                  <Field label="Guest name">
+                    <input value={guestName} onChange={(e) => setGuestName(e.target.value)} className={fieldClass} />
+                  </Field>
+                  <Field label="Phone (required)">
+                    <input
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="+233 XX XXX XXXX"
+                      className={fieldClass}
+                    />
+                  </Field>
+                  <Field label="Email (optional)">
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className={fieldClass}
+                    />
+                  </Field>
+                  <Field label="Find returning guest">
+                    <input
+                      value={guestQuery}
+                      onChange={(e) => setGuestQuery(e.target.value)}
+                      placeholder="Search name or phone…"
+                      className={fieldClass}
+                    />
+                    {guestMatches.length > 0 && (
+                      <ul className="mt-2 max-h-32 overflow-y-auto rounded-lg border border-border bg-white">
+                        {guestMatches.map((g) => (
+                          <li key={g.id}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedGuestId(g.id)
+                                setGuestName(g.name)
+                                setPhone(g.phone ?? '')
+                                setEmail(g.email ?? '')
+                                setGuestQuery(g.name)
+                                setGuestMatches([])
+                              }}
+                              className={`w-full px-3 py-2 text-left text-sm hover:bg-secondary ${
+                                selectedGuestId === g.id ? 'bg-secondary font-semibold' : ''
+                              }`}
+                            >
+                              {g.name}
+                              {g.phone ? ` · ${g.phone}` : ''}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </Field>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() => setCheckingIn(false)}
+                      className="flex-1 rounded-xl bg-white py-2.5 text-sm font-semibold text-muted-foreground shadow-elevation-1"
+                    >
+                      Back
+                    </button>
+                    <button
+                      type="button"
+                      disabled={pending || !phone.trim() || !guestName.trim()}
+                      onClick={() => {
+                        setError(null)
+                        startTransition(async () => {
+                          const result = await checkInStay(reservation.id, {
+                            phone,
+                            email,
+                            guestId: selectedGuestId ?? undefined,
+                            guestName,
+                          })
+                          if (result.success && result.data) {
+                            setPortalUrl(result.data.loginUrl)
+                            setCheckingIn(false)
+                          } else if (!result.success) {
+                            setError(result.error ?? 'Check-in failed.')
+                          }
+                        })
+                      }}
+                      className="flex-[2] rounded-xl bg-[#D4A62E] py-2.5 text-sm font-semibold text-gray-900"
+                    >
+                      {pending ? 'Checking in…' : 'Complete check-in'}
+                    </button>
+                  </div>
+                </div>
               )}
+
+              {reservation.status === 'checked_in' && !checkingOut && !extending && !moving && (
+                <>
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() => setCheckingOut(true)}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#3C216C] py-3 text-sm font-semibold text-white shadow-elevation-1 transition-all hover:shadow-elevation-2 disabled:opacity-50"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Check out
+                  </button>
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() => setExtending(true)}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-white py-3 text-sm font-semibold text-foreground shadow-elevation-1"
+                  >
+                    <CalendarPlus className="h-4 w-4" />
+                    Extend stay
+                  </button>
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() => setMoving(true)}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-white py-3 text-sm font-semibold text-foreground shadow-elevation-1"
+                  >
+                    <ArrowRightLeft className="h-4 w-4" />
+                    Move room
+                  </button>
+                </>
+              )}
+
+              {extending && (
+                <div className="space-y-3 rounded-xl surface-inset p-4">
+                  <p className="text-sm font-semibold">Extend stay</p>
+                  <Field label="New check-out date">
+                    <input
+                      type="date"
+                      value={newCheckOut}
+                      min={reservation.checkOutDate}
+                      onChange={(e) => setNewCheckOut(e.target.value)}
+                      className={fieldClass}
+                    />
+                  </Field>
+                  <div className="flex gap-2">
+                    <button type="button" onClick={() => setExtending(false)} className="flex-1 rounded-xl bg-white py-2.5 text-sm font-semibold shadow-elevation-1">
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      disabled={pending || newCheckOut <= reservation.checkOutDate}
+                      onClick={() => run(() => extendStay(reservation.id, newCheckOut))}
+                      className="flex-[2] rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground"
+                    >
+                      {pending ? 'Saving…' : 'Extend'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {moving && (
+                <div className="space-y-3 rounded-xl surface-inset p-4">
+                  <p className="text-sm font-semibold">Move to another room</p>
+                  <Field label="New room">
+                    <select value={newRoomId} onChange={(e) => setNewRoomId(e.target.value)} className={fieldClass}>
+                      {roomOptions.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          Room {r.number}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <div className="flex gap-2">
+                    <button type="button" onClick={() => setMoving(false)} className="flex-1 rounded-xl bg-white py-2.5 text-sm font-semibold shadow-elevation-1">
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      disabled={pending || newRoomId === reservation.roomId}
+                      onClick={() => run(() => moveStayRoom(reservation.id, newRoomId))}
+                      className="flex-[2] rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground"
+                    >
+                      {pending ? 'Moving…' : 'Move guest'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {reservation.status === 'checked_in' && checkingOut && (
                 <div className="space-y-3 rounded-xl surface-inset p-4">
                   <div>
@@ -449,6 +673,14 @@ function ReservationDrawer({ reservation, onClose, onMutated }: ReservationDrawe
                       A GRA tax invoice will be generated on check-out.
                     </p>
                   </div>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={earlyCheckout}
+                      onChange={(e) => setEarlyCheckout(e.target.checked)}
+                    />
+                    Early checkout (bill through today)
+                  </label>
                   <select
                     value={paymentMethod}
                     onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
@@ -460,6 +692,14 @@ function ReservationDrawer({ reservation, onClose, onMutated }: ReservationDrawe
                       </option>
                     ))}
                   </select>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={markAsPaid}
+                      onChange={(e) => setMarkAsPaid(e.target.checked)}
+                    />
+                    Payment received now
+                  </label>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
@@ -472,7 +712,11 @@ function ReservationDrawer({ reservation, onClose, onMutated }: ReservationDrawe
                     <button
                       type="button"
                       disabled={pending}
-                      onClick={() => run(() => checkOutReservation(reservation.id, paymentMethod))}
+                      onClick={() =>
+                        run(() =>
+                          checkOutReservation(reservation.id, paymentMethod, earlyCheckout, markAsPaid),
+                        )
+                      }
                       className="flex flex-[2] items-center justify-center gap-2 rounded-xl bg-[#3C216C] py-2.5 text-sm font-semibold text-white shadow-elevation-1 transition-all hover:shadow-elevation-2 disabled:opacity-50"
                     >
                       <LogOut className="h-4 w-4" />
@@ -481,16 +725,30 @@ function ReservationDrawer({ reservation, onClose, onMutated }: ReservationDrawe
                   </div>
                 </div>
               )}
-              {!checkingOut && (
-                <button
-                  type="button"
-                  disabled={pending}
-                  onClick={() => run(() => cancelReservation(reservation.id))}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-white py-3 text-sm font-semibold text-red-600 shadow-elevation-1 transition-all hover:shadow-elevation-2 disabled:opacity-50"
-                >
-                  <XCircle className="h-4 w-4" />
-                  Cancel reservation
-                </button>
+
+              {!checkingOut && !checkingIn && !extending && !moving && (
+                <>
+                  {canNoShow ? (
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() => run(() => markNoShow(reservation.id))}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-amber-50 py-3 text-sm font-semibold text-amber-800 shadow-elevation-1"
+                    >
+                      <UserX className="h-4 w-4" />
+                      Mark no-show
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() => run(() => cancelReservation(reservation.id))}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-white py-3 text-sm font-semibold text-red-600 shadow-elevation-1 transition-all hover:shadow-elevation-2 disabled:opacity-50"
+                  >
+                    <XCircle className="h-4 w-4" />
+                    Cancel reservation
+                  </button>
+                </>
               )}
             </div>
           )}
@@ -521,9 +779,31 @@ function ReservationFormModal({
   const [checkIn, setCheckIn] = useState(today)
   const [checkOut, setCheckOut] = useState(tomorrow)
   const [channel, setChannel] = useState<ReservationChannel>('direct')
-  const [rate, setRate] = useState('450')
+  const [rate, setRate] = useState(String(roomOptions[0]?.nightlyRate ?? 0))
+  const [guestQuery, setGuestQuery] = useState('')
+  const [guestMatches, setGuestMatches] = useState<
+    { id: string; name: string; phone: string | null; email: string | null }[]
+  >([])
+  const [selectedGuestId, setSelectedGuestId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
+
+  useEffect(() => {
+    const room = roomOptions.find((r) => r.id === roomId)
+    if (room) setRate(String(room.nightlyRate))
+  }, [roomId, roomOptions])
+
+  useEffect(() => {
+    if (!guestQuery.trim() || guestQuery.length < 2) {
+      setGuestMatches([])
+      return
+    }
+    const t = setTimeout(async () => {
+      const result = await searchGuests(guestQuery)
+      if (result.success && result.data) setGuestMatches(result.data)
+    }, 300)
+    return () => clearTimeout(t)
+  }, [guestQuery])
 
   const datesValid = checkOut > checkIn
 
@@ -565,6 +845,7 @@ function ReservationFormModal({
         check_out: checkOut,
         channel,
         nightly_rate: Number(rate || 0),
+        guest_id: selectedGuestId ?? undefined,
       })
       if (result.success) {
         onDone()
@@ -592,6 +873,36 @@ function ReservationFormModal({
             placeholder="Full name"
             className={fieldClass}
           />
+        </Field>
+
+        <Field label="Find existing guest (optional)">
+          <input
+            value={guestQuery}
+            onChange={(e) => setGuestQuery(e.target.value)}
+            placeholder="Search name or phone…"
+            className={fieldClass}
+          />
+          {guestMatches.length > 0 && (
+            <ul className="mt-2 max-h-28 overflow-y-auto rounded-lg border border-border bg-white">
+              {guestMatches.map((g) => (
+                <li key={g.id}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedGuestId(g.id)
+                      setGuestName(g.name)
+                      setGuestQuery(g.name)
+                      setGuestMatches([])
+                    }}
+                    className="w-full px-3 py-2 text-left text-sm hover:bg-secondary"
+                  >
+                    {g.name}
+                    {g.phone ? ` · ${g.phone}` : ''}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </Field>
 
         <Field label="Room">

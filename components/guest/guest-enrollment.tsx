@@ -93,13 +93,13 @@ export function GuestEnrollment() {
   return (
     <>
       <Button onClick={openModal} className="bg-[#3C216C] text-white">
-        Enroll Guest
+        Walk-in check-in
       </Button>
 
-      <CenteredModal open={open} onClose={() => setOpen(false)} className="max-w-md" aria-label="Enroll Guest">
+      <CenteredModal open={open} onClose={() => setOpen(false)} className="max-w-md" aria-label="Walk-in check-in">
         <ModalHeader onClose={() => setOpen(false)}>
-          <h3 className="text-lg font-semibold">Enroll Guest</h3>
-          <p className="modal-panel-subtle text-sm">Step {step} of 3</p>
+          <h3 className="text-lg font-semibold">Walk-in check-in</h3>
+          <p className="modal-panel-subtle text-sm">Step {step} of 3 · creates reservation + portal access</p>
         </ModalHeader>
         <ModalBody>
         {step === 1 && (
@@ -109,14 +109,20 @@ export function GuestEnrollment() {
               <Input value={name} onChange={(e) => setName(e.target.value)} required />
             </div>
             <div className="space-y-2">
-              <Label>Phone (optional)</Label>
-              <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
+              <Label>Phone</Label>
+              <Input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="+233 XX XXX XXXX"
+                required
+              />
             </div>
             <div className="space-y-2">
               <Label>Email (optional)</Label>
               <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
             </div>
-            <Button onClick={() => setStep(2)} disabled={!name.trim()} className="w-full">
+            <Button onClick={() => setStep(2)} disabled={!name.trim() || !phone.trim()} className="w-full">
               Next
             </Button>
           </div>

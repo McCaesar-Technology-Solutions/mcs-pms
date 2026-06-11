@@ -13,6 +13,8 @@ import {
   CheckCircle2,
   UserPlus,
   Clock,
+  Receipt,
+  Phone,
 } from 'lucide-react'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
 import {
@@ -23,10 +25,14 @@ import {
   getTechnicians,
   rejectComplaint,
 } from '@/app/actions/complaints'
+import { fetchComplaintEstimate } from '@/app/actions/complaint-estimates'
+import { ComplaintEstimateCard } from '@/components/complaints/complaint-estimate-card'
+import { PhoneContact } from '@/components/ui/phone-contact'
 import { useRealtimeRefresh } from '@/components/realtime/realtime-refresh-context'
 import type {
   Complaint,
   ComplaintCategory,
+  ComplaintEstimate,
   ComplaintEvent,
   ComplaintEventType,
   ComplaintStatus,
@@ -67,6 +73,10 @@ function guestNameOf(c: Complaint): string | null {
   return c.guests?.name ?? c.guest?.name ?? null
 }
 
+function guestPhoneOf(c: Complaint): string | null {
+  return c.guests?.phone ?? c.guest?.phone ?? null
+}
+
 function priorityBadge(priority: string | null | undefined) {
   switch (priority) {
     case 'urgent':
@@ -105,13 +115,17 @@ const timelineLabels: Record<ComplaintEventType, string> = {
   completion_requested: 'Completion requested',
   rejected: 'Sent back for rework',
   resolved: 'Resolved',
+  estimate_submitted: 'Cost estimate sent',
 }
 
 export function ComplaintsManager() {
   const [complaints, setComplaints] = useState<Complaint[]>([])
-  const [technicians, setTechnicians] = useState<{ id: string; name: string; specialty: string | null }[]>([])
+  const [technicians, setTechnicians] = useState<
+    { id: string; name: string; specialty: string | null; phone: string | null }[]
+  >([])
   const [selected, setSelected] = useState<Complaint | null>(null)
   const [events, setEvents] = useState<ComplaintEvent[]>([])
+  const [estimate, setEstimate] = useState<ComplaintEstimate | null>(null)
   const [statusFilter, setStatusFilter] = useState<ComplaintStatus | 'all'>('all')
   const [rejectNote, setRejectNote] = useState('')
   const [roomStatus, setRoomStatus] = useState<DbRoomStatus>('available')
@@ -134,11 +148,16 @@ export function ComplaintsManager() {
         const updated = cResult.data.find((c) => c.id === current.id)
         if (updated) {
           setSelected(updated)
-          const evResult = await getComplaintEvents(updated.id)
+          const [evResult, estResult] = await Promise.all([
+            getComplaintEvents(updated.id),
+            fetchComplaintEstimate(updated.id),
+          ])
           if (evResult.success && evResult.data) setEvents(evResult.data)
+          if (estResult.success) setEstimate(estResult.data ?? null)
         } else {
           setSelected(null)
           setEvents([])
+          setEstimate(null)
         }
       }
     }
@@ -164,13 +183,19 @@ export function ComplaintsManager() {
   async function openDetail(complaint: Complaint) {
     setSelected(complaint)
     setRejectNote('')
-    const result = await getComplaintEvents(complaint.id)
-    if (result.success && result.data) setEvents(result.data)
+    setEstimate(null)
+    const [evResult, estResult] = await Promise.all([
+      getComplaintEvents(complaint.id),
+      fetchComplaintEstimate(complaint.id),
+    ])
+    if (evResult.success && evResult.data) setEvents(evResult.data)
+    if (estResult.success) setEstimate(estResult.data ?? null)
   }
 
   function closeDetail() {
     setSelected(null)
     setRejectNote('')
+    setEstimate(null)
   }
 
   async function handleAssign(techId: string) {
@@ -352,6 +377,29 @@ export function ComplaintsManager() {
                 <p className="mt-2 text-sm leading-relaxed text-foreground">{selected.description}</p>
               </div>
 
+              {(guestPhoneOf(selected) || selected.assignee?.phone) && (
+                <div className={`${liftCard} space-y-3 p-4`}>
+                  <p className="flex items-center gap-2 text-sm font-semibold text-[#3C216C]">
+                    <Phone className="h-4 w-4" />
+                    Contact
+                  </p>
+                  {guestPhoneOf(selected) && guestNameOf(selected) && (
+                    <PhoneContact
+                      name={guestNameOf(selected)!}
+                      phone={guestPhoneOf(selected)!}
+                      label={`Guest · ${guestNameOf(selected)}`}
+                    />
+                  )}
+                  {selected.assignee?.phone && (
+                    <PhoneContact
+                      name={selected.assignee.name}
+                      phone={selected.assignee.phone}
+                      label={`Technician · ${selected.assignee.name}`}
+                    />
+                  )}
+                </div>
+              )}
+
               {selected.rejection_note && (
                 <div className="rounded-2xl bg-red-500/8 p-4 shadow-elevation-1">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-red-600/90">
@@ -360,6 +408,8 @@ export function ComplaintsManager() {
                   <p className="mt-2 text-sm leading-relaxed text-red-800/90">{selected.rejection_note}</p>
                 </div>
               )}
+
+              {estimate && <ComplaintEstimateCard estimate={estimate} />}
 
               {selected.status === 'pending_approval' && (
                 <div className="overflow-hidden rounded-2xl bg-gradient-to-b from-[#D85A30]/10 via-white to-white p-5 shadow-elevation-2">
@@ -434,7 +484,9 @@ export function ComplaintsManager() {
                       </option>
                       {technicians.map((t) => (
                         <option key={t.id} value={t.id}>
-                          {t.name} {t.specialty ? `· ${t.specialty}` : ''}
+                          {t.name}
+                          {t.specialty ? ` · ${t.specialty}` : ''}
+                          {t.phone ? ` · ${t.phone}` : ''}
                         </option>
                       ))}
                     </select>

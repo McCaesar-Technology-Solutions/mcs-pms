@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { getProfile } from '@/lib/auth/get-profile'
+import { getStaffContacts } from '@/lib/data/contacts'
 import { TechnicianShell } from '@/components/technician/technician-shell'
 
 export default async function TechnicianLayout({
@@ -10,5 +11,13 @@ export default async function TechnicianLayout({
     redirect('/login')
   }
 
-  return <TechnicianShell profile={profile}>{children}</TechnicianShell>
+  const managerContacts = profile.hotel_id
+    ? await getStaffContacts(profile.hotel_id, ['manager', 'owner'])
+    : []
+
+  return (
+    <TechnicianShell profile={profile} managerContacts={managerContacts}>
+      {children}
+    </TechnicianShell>
+  )
 }

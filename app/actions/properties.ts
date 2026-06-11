@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { seedDefaultRoomCategories } from '@/lib/data/room-categories'
 import { getOwnerProperties, ownerOwnsHotel } from '@/lib/data/properties'
 import { createPropertySchema } from '@/lib/validations'
 import type { Property } from '@/types'
@@ -60,11 +61,27 @@ function propertyCode(name: string): string {
 
 async function seedRooms(hotelId: string, totalRooms: number, ownerId: string) {
   const admin = createAdminClient()
+  const standardCategoryId = await seedDefaultRoomCategories(admin, hotelId)
+  if (!standardCategoryId) {
+    throw new Error('Could not create default room categories.')
+  }
+
+  const { data: standardCategory } = await admin
+    .from('room_categories')
+    .select('id, default_nightly_rate')
+    .eq('hotel_id', hotelId)
+    .eq('name', 'Standard')
+    .maybeSingle()
+
+  const categoryId = standardCategory?.id ?? standardCategoryId
+  const nightlyRate = Number(standardCategory?.default_nightly_rate ?? 250)
+
   const rooms = Array.from({ length: totalRooms }, (_, i) => ({
     hotel_id: hotelId,
     number: String(i + 1),
     floor: 1,
-    type: 'standard' as const,
+    category_id: categoryId,
+    nightly_rate: nightlyRate,
     status: 'available' as const,
     updated_by: ownerId,
   }))

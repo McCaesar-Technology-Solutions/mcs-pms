@@ -23,6 +23,7 @@ export const ownerNavigation: NavItem[] = [
   { name: 'Dashboard', href: '/owner/dashboard', icon: 'layout-dashboard' },
   { name: 'Rooms', href: '/owner/rooms', icon: 'bed-double' },
   { name: 'Reservations', href: '/owner/reservations', icon: 'calendar' },
+  { name: 'Guests', href: '/owner/guests', icon: 'users' },
   { name: 'Staff', href: '/owner/staff', icon: 'user-cog' },
   { name: 'Billing', href: '/owner/billing', icon: 'banknote' },
   { name: 'GRA Reports', href: '/owner/gra-reports', icon: 'file-text' },

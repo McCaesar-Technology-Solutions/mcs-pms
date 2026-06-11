@@ -16,14 +16,20 @@ import {
   RefreshCw,
   Ban,
   KeyRound,
+  LogOut,
 } from 'lucide-react'
 import { CenteredModal, ModalBody, ModalHeader } from '@/components/ui/centered-modal'
-import { regenerateGuestAccess, revokeGuestAccess } from '@/app/actions/guest'
+import { regenerateGuestAccess, revokeGuestAccess, checkOutGuest, updateGuest } from '@/app/actions/guest'
+import { toast } from 'sonner'
+import { PAYMENT_METHOD_LABELS } from '@/lib/tax'
+import type { PaymentMethod } from '@/types'
 import type { GuestRow, GuestStatus } from '@/lib/data/guests'
 import type { ReservationChannel } from '@/types'
 
 interface GuestsTableProps {
   guests: GuestRow[]
+  initialSearch?: string
+  readOnly?: boolean
 }
 
 const STATUS_LABEL: Record<GuestStatus, string> = {
@@ -78,10 +84,12 @@ function getSourceColor(source: ReservationChannel) {
   }
 }
 
-export function GuestsTable({ guests }: GuestsTableProps) {
-  const [searchQuery, setSearchQuery] = useState('')
+export function GuestsTable({ guests, initialSearch = '', readOnly = false }: GuestsTableProps) {
+  const router = useRouter()
+  const [searchQuery, setSearchQuery] = useState(initialSearch)
   const [selectedStatus, setSelectedStatus] = useState<GuestStatus | null>(null)
   const [selectedGuest, setSelectedGuest] = useState<GuestRow | null>(null)
+  const [editingGuest, setEditingGuest] = useState(false)
 
   const filteredGuests = guests.filter((guest) => {
     const matchesSearch =
@@ -279,23 +287,46 @@ export function GuestsTable({ guests }: GuestsTableProps) {
               </div>
 
               <div className="space-y-3">
-                <h4 className="font-semibold">Contact Information</h4>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-3 surface-inset p-3 rounded-xl">
-                    <Mail className="h-5 w-5 text-primary" />
-                    <span className="text-sm">{selectedGuest.email ?? 'No email on file'}</span>
-                  </div>
-                  <div className="flex items-center gap-3 surface-inset p-3 rounded-xl">
-                    <Phone className="h-5 w-5 text-primary" />
-                    <span className="text-sm">{selectedGuest.phone ?? 'No phone on file'}</span>
-                  </div>
-                  <div className="flex items-center gap-3 surface-inset p-3 rounded-xl">
-                    <BedDouble className="h-5 w-5 text-primary" />
-                    <span className="text-sm">
-                      {selectedGuest.roomNumber ? `Room ${selectedGuest.roomNumber}` : 'No room assigned'}
-                    </span>
-                  </div>
+                <div className="flex items-center justify-between">
+                  <h4 className="font-semibold">Contact Information</h4>
+                  {!readOnly && !editingGuest && (
+                    <button
+                      type="button"
+                      onClick={() => setEditingGuest(true)}
+                      className="text-xs font-semibold text-primary hover:underline"
+                    >
+                      Edit
+                    </button>
+                  )}
                 </div>
+                {!readOnly && editingGuest ? (
+                  <GuestEditForm
+                    guest={selectedGuest}
+                    onCancel={() => setEditingGuest(false)}
+                    onSaved={() => {
+                      setEditingGuest(false)
+                      setSelectedGuest(null)
+                      router.refresh()
+                    }}
+                  />
+                ) : (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-3 surface-inset p-3 rounded-xl">
+                      <Mail className="h-5 w-5 text-primary" />
+                      <span className="text-sm">{selectedGuest.email ?? 'No email on file'}</span>
+                    </div>
+                    <div className="flex items-center gap-3 surface-inset p-3 rounded-xl">
+                      <Phone className="h-5 w-5 text-primary" />
+                      <span className="text-sm">{selectedGuest.phone ?? 'No phone on file'}</span>
+                    </div>
+                    <div className="flex items-center gap-3 surface-inset p-3 rounded-xl">
+                      <BedDouble className="h-5 w-5 text-primary" />
+                      <span className="text-sm">
+                        {selectedGuest.roomNumber ? `Room ${selectedGuest.roomNumber}` : 'No room assigned'}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-3">
@@ -322,7 +353,17 @@ export function GuestsTable({ guests }: GuestsTableProps) {
                 </div>
               </div>
 
-              <GuestAccessLink guest={selectedGuest} />
+              {!readOnly && <GuestAccessLink guest={selectedGuest} />}
+
+              {!readOnly && selectedGuest.isInHouse && (
+                <GuestCheckoutPanel
+                  guest={selectedGuest}
+                  onDone={() => {
+                    setSelectedGuest(null)
+                    router.refresh()
+                  }}
+                />
+              )}
 
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <CalendarDays className="h-3.5 w-3.5" />
@@ -336,6 +377,111 @@ export function GuestsTable({ guests }: GuestsTableProps) {
         )}
       </CenteredModal>
     </>
+  )
+}
+
+function GuestCheckoutPanel({
+  guest,
+  onDone,
+}: {
+  guest: GuestRow
+  onDone: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
+  const [earlyCheckout, setEarlyCheckout] = useState(false)
+  const [markAsPaid, setMarkAsPaid] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [pending, startTransition] = useTransition()
+
+  const methods: PaymentMethod[] = [
+    'cash',
+    'mtn_momo',
+    'telecel_cash',
+    'airteltigo',
+    'visa',
+    'mastercard',
+    'bank_transfer',
+  ]
+
+  function submit() {
+    setError(null)
+    startTransition(async () => {
+      const result = await checkOutGuest({
+        guestId: guest.id,
+        paymentMethod,
+        earlyCheckout,
+        markAsPaid,
+      })
+      if (result.success) {
+        toast.success('Guest checked out')
+        onDone()
+      } else setError(result.error ?? 'Check-out failed.')
+    })
+  }
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#3C216C] py-3 text-sm font-semibold text-white shadow-elevation-1"
+      >
+        <LogOut className="h-4 w-4" />
+        Check out guest
+      </button>
+    )
+  }
+
+  return (
+    <div className="space-y-3 rounded-xl surface-inset p-4">
+      <p className="text-sm font-semibold">Check out & collect payment</p>
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={earlyCheckout}
+          onChange={(e) => setEarlyCheckout(e.target.checked)}
+        />
+        Early checkout (bill through today)
+      </label>
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={markAsPaid}
+          onChange={(e) => setMarkAsPaid(e.target.checked)}
+        />
+        Payment received now
+      </label>
+      <select
+        value={paymentMethod}
+        onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
+        className="w-full rounded-lg border border-border px-3 py-2 text-sm"
+      >
+        {methods.map((m) => (
+          <option key={m} value={m}>
+            {PAYMENT_METHOD_LABELS[m]}
+          </option>
+        ))}
+      </select>
+      {error && <p className="text-sm text-destructive">{error}</p>}
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          className="flex-1 rounded-lg border border-border py-2 text-sm font-semibold"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          disabled={pending}
+          onClick={submit}
+          className="flex-[2] rounded-lg bg-[#3C216C] py-2 text-sm font-semibold text-white disabled:opacity-50"
+        >
+          {pending ? 'Processing…' : 'Confirm check-out'}
+        </button>
+      </div>
+    </div>
   )
 }
 
@@ -507,6 +653,89 @@ function GuestAccessLink({ guest }: { guest: GuestRow }) {
       )}
 
       {error && <p className="text-sm text-red-600">{error}</p>}
+    </div>
+  )
+}
+
+function GuestEditForm({
+  guest,
+  onCancel,
+  onSaved,
+}: {
+  guest: GuestRow
+  onCancel: () => void
+  onSaved: () => void
+}) {
+  const [name, setName] = useState(guest.name)
+  const [email, setEmail] = useState(guest.email ?? '')
+  const [phone, setPhone] = useState(guest.phone ?? '')
+  const [error, setError] = useState<string | null>(null)
+  const [pending, startTransition] = useTransition()
+
+  function save() {
+    setError(null)
+    startTransition(async () => {
+      const result = await updateGuest({
+        guestId: guest.id,
+        name,
+        email: email || undefined,
+        phone,
+      })
+      if (result.success) {
+        toast.success('Guest profile updated')
+        onSaved()
+      } else {
+        setError(result.error ?? 'Could not save.')
+        toast.error(result.error ?? 'Could not save.')
+      }
+    })
+  }
+
+  return (
+    <div className="space-y-3 rounded-xl surface-inset p-4">
+      <div>
+        <label className="text-xs font-semibold text-muted-foreground">Name</label>
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm"
+        />
+      </div>
+      <div>
+        <label className="text-xs font-semibold text-muted-foreground">Email</label>
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm"
+        />
+      </div>
+      <div>
+        <label className="text-xs font-semibold text-muted-foreground">Phone</label>
+        <input
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm"
+        />
+      </div>
+      {error && <p className="text-sm text-destructive">{error}</p>}
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="flex-1 rounded-lg bg-secondary py-2 text-sm font-semibold"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          disabled={pending}
+          onClick={save}
+          className="flex-1 rounded-lg bg-primary py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+        >
+          {pending ? 'Saving…' : 'Save'}
+        </button>
+      </div>
     </div>
   )
 }

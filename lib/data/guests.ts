@@ -10,6 +10,7 @@ export interface GuestRow {
   email: string | null
   phone: string | null
   roomNumber: string | null
+  roomId: string | null
   checkIn: string | null
   checkOut: string | null
   totalStays: number
@@ -19,6 +20,8 @@ export interface GuestRow {
   source: ReservationChannel | null
   token: string | null
   tokenExpiresAt: string | null
+  reservationId: string | null
+  isInHouse: boolean
 }
 
 interface GuestQueryRow {
@@ -103,6 +106,8 @@ export async function getGuestsData(): Promise<GuestRow[]> {
       resList.some((r) => r.status === 'checked_in') ||
       Boolean(guest.check_in && guest.check_out && guest.check_in <= today && guest.check_out >= today)
 
+    const activeReservation = resList.find((r) => r.status === 'checked_in') ?? null
+
     const latestRes = resList
       .slice()
       .sort((a, b) => (a.created_at ?? '').localeCompare(b.created_at ?? ''))
@@ -114,15 +119,18 @@ export async function getGuestsData(): Promise<GuestRow[]> {
       email: guest.email,
       phone: guest.phone,
       roomNumber: guest.rooms?.number ?? null,
+      roomId: guest.room_id,
       checkIn: guest.check_in,
       checkOut: guest.check_out,
       totalStays: stays,
       totalSpent,
       lastStay,
       status: deriveStatus(stays, totalSpent, isCurrentlyStaying),
-      source: latestRes?.channel ?? null,
+      source: activeReservation?.channel ?? latestRes?.channel ?? null,
       token: guest.token,
       tokenExpiresAt: guest.token_expires_at,
+      reservationId: activeReservation?.id ?? null,
+      isInHouse: isCurrentlyStaying,
     }
   })
 }

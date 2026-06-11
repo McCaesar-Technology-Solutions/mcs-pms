@@ -84,6 +84,23 @@ function ManagerRealtimeChannel({ hotelId, children }: ManagerRealtimeProviderPr
         {
           event: '*',
           schema: 'public',
+          table: 'complaint_estimates',
+          filter: `hotel_id=eq.${hotelId}`,
+        },
+        (payload) => {
+          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+            import('sonner').then(({ toast }) => {
+              toast.info('Technician cost estimate received')
+            })
+          }
+          refreshComplaints()
+        },
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
           table: 'housekeeping_tasks',
           filter: `hotel_id=eq.${hotelId}`,
         },

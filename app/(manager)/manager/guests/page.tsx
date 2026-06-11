@@ -3,7 +3,12 @@ import { PageHeader } from '@/components/dashboard/page-header'
 import { GuestEnrollment } from '@/components/guest/guest-enrollment'
 import { getGuestsData } from '@/lib/data/guests'
 
-export default async function ManagerGuestsPage() {
+export default async function ManagerGuestsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>
+}) {
+  const { q } = await searchParams
   const guests = await getGuestsData()
 
   return (
@@ -14,7 +19,7 @@ export default async function ManagerGuestsPage() {
         description="Enroll guests and manage active stays."
       />
       <GuestEnrollment />
-      <GuestsTable guests={guests} />
+      <GuestsTable guests={guests} initialSearch={q} />
     </div>
   )
 }

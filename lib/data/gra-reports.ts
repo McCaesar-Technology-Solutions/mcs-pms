@@ -2,6 +2,7 @@ import type { DbInvoice } from '@/types'
 
 export interface GraReportRow {
   id: string
+  yearMonth: string
   month: string
   totalRevenue: number
   taxAmount: number
@@ -59,6 +60,7 @@ export function computeGraReports(invoices: DbInvoice[]): GraReportRow[] {
 
       return {
         id: `GRA-${yearMonth}`,
+        yearMonth,
         month: monthLabel(yearMonth),
         totalRevenue: Math.round(totalRevenue),
         taxAmount: Math.round(taxAmount),

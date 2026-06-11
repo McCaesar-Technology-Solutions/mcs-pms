@@ -89,6 +89,10 @@ export async function assignComplaint(
     event_type: 'assigned',
   })
 
+  void import('@/lib/notifications/complaints').then(({ notifyComplaintAssigned }) =>
+    notifyComplaintAssigned(complaintId, technicianId).catch(() => undefined),
+  )
+
   revalidatePath('/manager/complaints')
   return { success: true }
 }
@@ -204,6 +208,12 @@ export async function updateTechnicianComplaintStatus(
     event_type: eventType,
   })
 
+  if (status === 'pending_approval') {
+    void import('@/lib/notifications/complaints').then(({ notifyComplaintCompletionRequested }) =>
+      notifyComplaintCompletionRequested(complaintId).catch(() => undefined),
+    )
+  }
+
   revalidatePath('/technician/tasks')
   revalidatePath('/manager/complaints')
   return { success: true }
@@ -224,12 +234,12 @@ export async function getComplaintEvents(
 }
 
 export async function getTechnicians(): Promise<
-  ComplaintActionResult<{ id: string; name: string; specialty: string | null }[]>
+  ComplaintActionResult<{ id: string; name: string; specialty: string | null; phone: string | null }[]>
 > {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, name, specialty')
+    .select('id, name, specialty, phone')
     .eq('role', 'technician')
     .eq('is_active', true)
 

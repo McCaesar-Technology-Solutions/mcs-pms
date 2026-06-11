@@ -1,16 +1,17 @@
 'use client'
 
-import { useMemo, useState, useTransition } from 'react'
+import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus, Trash2 } from 'lucide-react'
 import { createRoom, deleteRoom, updateRoom } from '@/app/actions/rooms'
+import { RoomCategoriesPanel } from '@/components/dashboard/room-categories-panel'
 import {
   CenteredModal,
   ModalBody,
   ModalFooter,
   ModalHeader,
 } from '@/components/ui/centered-modal'
-import type { DbRoom, DbRoomStatus, DbRoomType } from '@/types'
+import type { DbRoom, DbRoomStatus, RoomCategory } from '@/types'
 
 const STATUS_CONFIG: Record<DbRoomStatus, { label: string; dot: string; chip: string }> = {
   available: { label: 'Available', dot: 'bg-[#D4A62E]', chip: 'bg-[#D4A62E]/15 text-[#B88D24]' },
@@ -32,12 +33,6 @@ const STATUS_ORDER: DbRoomStatus[] = [
   'maintenance',
 ]
 
-const TYPE_LABELS: Record<DbRoomType, string> = {
-  standard: 'Standard',
-  deluxe: 'Deluxe',
-  suite: 'Suite',
-}
-
 const tileColor: Record<DbRoomStatus, string> = {
   available: 'bg-[#D4A62E]/15 text-[#B88D24] ring-[#D4A62E]/25',
   occupied: 'bg-[#3C216C] text-white ring-[#3C216C]/30',
@@ -46,15 +41,33 @@ const tileColor: Record<DbRoomStatus, string> = {
   maintenance: 'bg-red-100 text-red-700 ring-red-200',
 }
 
-interface RoomsManagerProps {
-  rooms: DbRoom[]
-  canDelete?: boolean
+function categoryLabel(room: DbRoom): string {
+  return room.room_categories?.name ?? 'Uncategorized'
 }
 
-export function RoomsManager({ rooms, canDelete = false }: RoomsManagerProps) {
+interface RoomsManagerProps {
+  rooms: DbRoom[]
+  categories: RoomCategory[]
+  canDelete?: boolean
+  initialSearch?: string
+}
+
+export function RoomsManager({ rooms, categories, canDelete = false, initialSearch = '' }: RoomsManagerProps) {
   const router = useRouter()
   const [editing, setEditing] = useState<DbRoom | null>(null)
   const [creating, setCreating] = useState(false)
+  const [searchQuery, setSearchQuery] = useState(initialSearch)
+
+  const filteredRooms = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase()
+    if (!q) return rooms
+    return rooms.filter(
+      (r) =>
+        r.number.toLowerCase().includes(q) ||
+        categoryLabel(r).toLowerCase().includes(q) ||
+        String(r.floor ?? '').includes(q),
+    )
+  }, [rooms, searchQuery])
 
   const counts = useMemo(() => {
     const map: Record<DbRoomStatus, number> = {
@@ -64,41 +77,64 @@ export function RoomsManager({ rooms, canDelete = false }: RoomsManagerProps) {
       needs_inspection: 0,
       maintenance: 0,
     }
-    for (const room of rooms) {
+    for (const room of filteredRooms) {
       const status = (room.status ?? 'available') as DbRoomStatus
       map[status] = (map[status] ?? 0) + 1
     }
     return map
-  }, [rooms])
+  }, [filteredRooms])
+
+  const canAddRoom = categories.length > 0
 
   return (
     <div className="space-y-6">
+      <RoomCategoriesPanel categories={categories} />
+
       <div className="surface-card p-6">
         <div className="surface-card-accent" />
         <div className="relative mb-6 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h3 className="text-lg font-semibold text-foreground">Room Status</h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              {rooms.length} rooms · tap a room to update
+              {filteredRooms.length} of {rooms.length} rooms · tap a room to update
             </p>
           </div>
           <button
             type="button"
             onClick={() => setCreating(true)}
-            className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-elevation-1 transition-all hover:-translate-y-px hover:shadow-elevation-2"
+            disabled={!canAddRoom}
+            className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-elevation-1 transition-all hover:-translate-y-px hover:shadow-elevation-2 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Plus className="h-4 w-4" />
             Add room
           </button>
         </div>
 
+        <div className="relative mb-4">
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search room number, category, floor…"
+            className="w-full max-w-md rounded-lg border border-[#E9ECEF] px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20"
+          />
+        </div>
+
+        {!canAddRoom && (
+          <p className="mb-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            Add at least one room category before creating rooms.
+          </p>
+        )}
+
         {rooms.length === 0 ? (
           <p className="py-10 text-center text-sm text-muted-foreground">
             No rooms yet. Add your first room to get started.
           </p>
+        ) : filteredRooms.length === 0 ? (
+          <p className="py-10 text-center text-sm text-muted-foreground">No rooms match your search.</p>
         ) : (
           <div className="relative grid grid-cols-4 gap-2 sm:grid-cols-6 md:grid-cols-8">
-            {rooms.map((room) => {
+            {filteredRooms.map((room) => {
               const status = (room.status ?? 'available') as DbRoomStatus
               return (
                 <button
@@ -109,8 +145,8 @@ export function RoomsManager({ rooms, canDelete = false }: RoomsManagerProps) {
                   title={`Room ${room.number} — ${STATUS_CONFIG[status].label}`}
                 >
                   {room.number}
-                  <span className="mt-0.5 text-[9px] font-medium opacity-80">
-                    {TYPE_LABELS[(room.type ?? 'standard') as DbRoomType]}
+                  <span className="mt-0.5 max-w-full truncate px-1 text-[9px] font-medium opacity-80">
+                    {categoryLabel(room)}
                   </span>
                 </button>
               )
@@ -132,6 +168,7 @@ export function RoomsManager({ rooms, canDelete = false }: RoomsManagerProps) {
       {editing && (
         <RoomModal
           room={editing}
+          categories={categories}
           canDelete={canDelete}
           onClose={() => setEditing(null)}
           onDone={() => {
@@ -143,6 +180,7 @@ export function RoomsManager({ rooms, canDelete = false }: RoomsManagerProps) {
 
       {creating && (
         <RoomModal
+          categories={categories}
           onClose={() => setCreating(false)}
           onDone={() => {
             setCreating(false)
@@ -156,26 +194,53 @@ export function RoomsManager({ rooms, canDelete = false }: RoomsManagerProps) {
 
 interface RoomModalProps {
   room?: DbRoom
+  categories: RoomCategory[]
   canDelete?: boolean
   onClose: () => void
   onDone: () => void
 }
 
-function RoomModal({ room, canDelete, onClose, onDone }: RoomModalProps) {
+function RoomModal({ room, categories, canDelete, onClose, onDone }: RoomModalProps) {
   const isEdit = Boolean(room)
+  const defaultCategoryId = room?.category_id ?? categories[0]?.id ?? ''
   const [number, setNumber] = useState(room?.number ?? '')
   const [floor, setFloor] = useState(String(room?.floor ?? 1))
-  const [type, setType] = useState<DbRoomType>((room?.type ?? 'standard') as DbRoomType)
+  const [categoryId, setCategoryId] = useState(defaultCategoryId)
+  const [nightlyRate, setNightlyRate] = useState(
+    String(room?.nightly_rate ?? categories.find((c) => c.id === defaultCategoryId)?.default_nightly_rate ?? ''),
+  )
   const [status, setStatus] = useState<DbRoomStatus>((room?.status ?? 'available') as DbRoomStatus)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
+  useEffect(() => {
+    if (isEdit) return
+    const category = categories.find((c) => c.id === categoryId)
+    if (category) {
+      setNightlyRate(String(category.default_nightly_rate))
+    }
+  }, [categoryId, categories, isEdit])
+
+  function handleCategoryChange(nextCategoryId: string) {
+    setCategoryId(nextCategoryId)
+    const category = categories.find((c) => c.id === nextCategoryId)
+    if (category) {
+      setNightlyRate(String(category.default_nightly_rate))
+    }
+  }
+
   function save() {
     setError(null)
     startTransition(async () => {
+      const payload = {
+        number,
+        floor: Number(floor),
+        categoryId,
+        nightlyRate: Number(nightlyRate),
+      }
       const result = isEdit
-        ? await updateRoom(room!.id, { number, floor: Number(floor), type, status })
-        : await createRoom({ number, floor: Number(floor), type })
+        ? await updateRoom(room!.id, { ...payload, status })
+        : await createRoom(payload)
       if (result.success) {
         onDone()
       } else {
@@ -227,20 +292,31 @@ function RoomModal({ room, canDelete, onClose, onDone }: RoomModalProps) {
               className={fieldClass}
             />
           </Field>
-          <Field label="Type">
+          <Field label="Category">
             <select
-              value={type}
-              onChange={(e) => setType(e.target.value as DbRoomType)}
+              value={categoryId}
+              onChange={(e) => handleCategoryChange(e.target.value)}
               className={fieldClass}
             >
-              {(Object.keys(TYPE_LABELS) as DbRoomType[]).map((t) => (
-                <option key={t} value={t}>
-                  {TYPE_LABELS[t]}
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
                 </option>
               ))}
             </select>
           </Field>
         </div>
+
+        <Field label="Nightly rate (₵)">
+          <input
+            type="number"
+            min={0}
+            step="0.01"
+            value={nightlyRate}
+            onChange={(e) => setNightlyRate(e.target.value)}
+            className={fieldClass}
+          />
+        </Field>
 
         {isEdit && (
           <Field label="Status">

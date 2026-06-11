@@ -20,6 +20,9 @@ export type Database = {
           gta_license_number: string | null
           gta_license_expiry: string | null
           vat_registration_number: string | null
+          invoice_prefix: string
+          invoice_next_seq: number
+          invoice_seq_year: number | null
           created_at: string | null
         }
         Insert: {
@@ -32,6 +35,9 @@ export type Database = {
           gta_license_number?: string | null
           gta_license_expiry?: string | null
           vat_registration_number?: string | null
+          invoice_prefix?: string
+          invoice_next_seq?: number
+          invoice_seq_year?: number | null
           created_at?: string | null
         }
         Update: {
@@ -44,6 +50,9 @@ export type Database = {
           gta_license_number?: string | null
           gta_license_expiry?: string | null
           vat_registration_number?: string | null
+          invoice_prefix?: string
+          invoice_next_seq?: number
+          invoice_seq_year?: number | null
           created_at?: string | null
         }
         Relationships: [
@@ -63,6 +72,7 @@ export type Database = {
           role: 'owner' | 'manager' | 'technician'
           name: string
           email: string
+          phone: string | null
           specialty: string | null
           invited_by: string | null
           is_active: boolean | null
@@ -74,6 +84,7 @@ export type Database = {
           role: 'owner' | 'manager' | 'technician'
           name: string
           email: string
+          phone?: string | null
           specialty?: string | null
           invited_by?: string | null
           is_active?: boolean | null
@@ -85,6 +96,7 @@ export type Database = {
           role?: 'owner' | 'manager' | 'technician'
           name?: string
           email?: string
+          phone?: string | null
           specialty?: string | null
           invited_by?: string | null
           is_active?: boolean | null
@@ -106,7 +118,8 @@ export type Database = {
           hotel_id: string
           number: string
           floor: number | null
-          type: 'standard' | 'deluxe' | 'suite' | null
+          category_id: string | null
+          nightly_rate: number | null
           status:
             | 'available'
             | 'occupied'
@@ -122,7 +135,8 @@ export type Database = {
           hotel_id: string
           number: string
           floor?: number | null
-          type?: 'standard' | 'deluxe' | 'suite' | null
+          category_id?: string | null
+          nightly_rate?: number | null
           status?:
             | 'available'
             | 'occupied'
@@ -138,7 +152,8 @@ export type Database = {
           hotel_id?: string
           number?: string
           floor?: number | null
-          type?: 'standard' | 'deluxe' | 'suite' | null
+          category_id?: string | null
+          nightly_rate?: number | null
           status?:
             | 'available'
             | 'occupied'
@@ -151,7 +166,46 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: 'rooms_category_id_fkey'
+            columns: ['category_id']
+            isOneToOne: false
+            referencedRelation: 'room_categories'
+            referencedColumns: ['id']
+          },
+          {
             foreignKeyName: 'rooms_hotel_id_fkey'
+            columns: ['hotel_id']
+            isOneToOne: false
+            referencedRelation: 'hotels'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      room_categories: {
+        Row: {
+          id: string
+          hotel_id: string
+          name: string
+          default_nightly_rate: number
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          hotel_id: string
+          name: string
+          default_nightly_rate?: number
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          hotel_id?: string
+          name?: string
+          default_nightly_rate?: number
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'room_categories_hotel_id_fkey'
             columns: ['hotel_id']
             isOneToOne: false
             referencedRelation: 'hotels'
@@ -379,6 +433,7 @@ export type Database = {
             | 'completion_requested'
             | 'rejected'
             | 'resolved'
+            | 'estimate_submitted'
           note: string | null
           created_at: string | null
         }
@@ -394,6 +449,7 @@ export type Database = {
             | 'completion_requested'
             | 'rejected'
             | 'resolved'
+            | 'estimate_submitted'
           note?: string | null
           created_at?: string | null
         }
@@ -409,6 +465,7 @@ export type Database = {
             | 'completion_requested'
             | 'rejected'
             | 'resolved'
+            | 'estimate_submitted'
           note?: string | null
           created_at?: string | null
         }
@@ -422,6 +479,91 @@ export type Database = {
           },
         ]
       }
+      complaint_estimates: {
+        Row: {
+          id: string
+          complaint_id: string
+          hotel_id: string
+          technician_id: string
+          note: string | null
+          labour_cost: number
+          materials_total: number
+          total_cost: number
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          complaint_id: string
+          hotel_id: string
+          technician_id: string
+          note?: string | null
+          labour_cost?: number
+          materials_total?: number
+          total_cost?: number
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          complaint_id?: string
+          hotel_id?: string
+          technician_id?: string
+          note?: string | null
+          labour_cost?: number
+          materials_total?: number
+          total_cost?: number
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'complaint_estimates_complaint_id_fkey'
+            columns: ['complaint_id']
+            isOneToOne: true
+            referencedRelation: 'complaints'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      complaint_estimate_items: {
+        Row: {
+          id: string
+          estimate_id: string
+          material_name: string
+          quantity: number
+          unit_cost: number
+          line_total: number
+          sort_order: number
+        }
+        Insert: {
+          id?: string
+          estimate_id: string
+          material_name: string
+          quantity?: number
+          unit_cost?: number
+          line_total?: number
+          sort_order?: number
+        }
+        Update: {
+          id?: string
+          estimate_id?: string
+          material_name?: string
+          quantity?: number
+          unit_cost?: number
+          line_total?: number
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'complaint_estimate_items_estimate_id_fkey'
+            columns: ['estimate_id']
+            isOneToOne: false
+            referencedRelation: 'complaint_estimates'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       invoices: {
         Row: {
           id: string
@@ -429,6 +571,7 @@ export type Database = {
           reservation_id: string | null
           guest_id: string | null
           guest_name: string
+          invoice_number: string | null
           subtotal: number
           vat_amount: number | null
           nhil_amount: number | null
@@ -456,6 +599,7 @@ export type Database = {
           reservation_id?: string | null
           guest_id?: string | null
           guest_name: string
+          invoice_number: string | null
           subtotal: number
           vat_amount?: number | null
           nhil_amount?: number | null
@@ -615,9 +759,60 @@ export type Database = {
           },
         ]
       }
+      notification_log: {
+        Row: {
+          id: string
+          hotel_id: string | null
+          recipient_phone: string
+          channel: 'sms' | 'whatsapp'
+          template_key: string
+          body: string
+          provider: string | null
+          provider_id: string | null
+          status: 'sent' | 'failed' | 'skipped'
+          error_message: string | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          hotel_id?: string | null
+          recipient_phone: string
+          channel: 'sms' | 'whatsapp'
+          template_key: string
+          body: string
+          provider?: string | null
+          provider_id?: string | null
+          status?: 'sent' | 'failed' | 'skipped'
+          error_message?: string | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          hotel_id?: string | null
+          recipient_phone?: string
+          channel?: 'sms' | 'whatsapp'
+          template_key?: string
+          body?: string
+          provider?: string | null
+          provider_id?: string | null
+          status?: 'sent' | 'failed' | 'skipped'
+          error_message?: string | null
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'notification_log_hotel_id_fkey'
+            columns: ['hotel_id']
+            isOneToOne: false
+            referencedRelation: 'hotels'
+            referencedColumns: ['id']
+          },
+        ]
+      }
     }
     Views: Record<string, never>
     Functions: {
+      allocate_invoice_number: { Args: { p_hotel_id: string }; Returns: string }
       auth_hotel_id: { Args: Record<string, never>; Returns: string }
       auth_role: { Args: Record<string, never>; Returns: string }
     }

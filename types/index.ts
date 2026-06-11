@@ -15,6 +15,7 @@ export interface Profile {
   role: UserRole
   name: string
   email: string
+  phone: string | null
   specialty: string | null
   invited_by: string | null
   is_active: boolean | null
@@ -31,6 +32,9 @@ export interface Hotel {
   gta_license_number: string | null
   gta_license_expiry: string | null
   vat_registration_number: string | null
+  invoice_prefix: string | null
+  invoice_next_seq: number | null
+  invoice_seq_year: number | null
   created_at: string | null
 }
 
@@ -179,7 +183,13 @@ export type DbRoomStatus =
   | 'needs_inspection'
   | 'cleaning'
 
-export type DbRoomType = 'standard' | 'deluxe' | 'suite'
+export interface RoomCategory {
+  id: string
+  hotel_id: string
+  name: string
+  default_nightly_rate: number
+  created_at: string | null
+}
 
 export type ReservationStatus = 'confirmed' | 'checked_in' | 'checked_out' | 'cancelled'
 
@@ -211,6 +221,32 @@ export type ComplaintEventType =
   | 'completion_requested'
   | 'rejected'
   | 'resolved'
+  | 'estimate_submitted'
+
+export interface ComplaintEstimateItem {
+  id: string
+  estimate_id: string
+  material_name: string
+  quantity: number
+  unit_cost: number
+  line_total: number
+  sort_order: number
+}
+
+export interface ComplaintEstimate {
+  id: string
+  complaint_id: string
+  hotel_id: string
+  technician_id: string
+  note: string | null
+  labour_cost: number
+  materials_total: number
+  total_cost: number
+  created_at: string | null
+  updated_at: string | null
+  items?: ComplaintEstimateItem[]
+  technician?: { name: string } | null
+}
 
 export type PaymentMethod =
   | 'mtn_momo'
@@ -228,10 +264,12 @@ export interface DbRoom {
   hotel_id: string
   number: string
   floor: number | null
-  type: DbRoomType | null
+  category_id: string | null
+  nightly_rate: number | null
   status: DbRoomStatus | null
   updated_at: string | null
   updated_by: string | null
+  room_categories?: Pick<RoomCategory, 'name' | 'default_nightly_rate'> | null
 }
 
 export interface Guest {
@@ -281,9 +319,9 @@ export interface Complaint {
   resolved_at: string | null
   room?: DbRoom | null
   guest?: Guest | null
-  assignee?: Profile | null
+  assignee?: Pick<Profile, 'id' | 'name' | 'phone' | 'specialty'> | null
   rooms?: { number: string } | null
-  guests?: { name: string } | null
+  guests?: { name: string; phone: string | null } | null
 }
 
 export interface ComplaintEvent {
@@ -302,6 +340,7 @@ export interface DbInvoice {
   reservation_id: string | null
   guest_id: string | null
   guest_name: string
+  invoice_number: string | null
   subtotal: number
   vat_amount: number | null
   nhil_amount: number | null

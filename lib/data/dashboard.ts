@@ -7,7 +7,6 @@ import type {
   DbReservation,
   DbRoom,
   DbRoomStatus,
-  DbRoomType,
   KPIMetrics,
   Reservation,
   Room,
@@ -17,6 +16,7 @@ import type {
 export interface RoomOption {
   id: string
   number: string
+  nightlyRate: number
 }
 
 export interface DashboardData {
@@ -39,16 +39,11 @@ const ROOM_STATUS_MAP: Record<DbRoomStatus, RoomStatus> = {
   cleaning: 'dirty',
 }
 
-const ROOM_TYPE_MAP: Record<DbRoomType, Room['type']> = {
-  standard: 'single',
-  deluxe: 'double',
-  suite: 'suite',
-}
-
-const ROOM_PRICE_MAP: Record<DbRoomType, number> = {
-  standard: 250,
-  deluxe: 380,
-  suite: 550,
+function categoryToRoomType(name: string | undefined): Room['type'] {
+  const normalized = (name ?? '').toLowerCase()
+  if (normalized.includes('suite')) return 'suite'
+  if (normalized.includes('deluxe') || normalized.includes('double')) return 'double'
+  return 'single'
 }
 
 const CHANNEL_SOURCE_MAP: Record<string, Reservation['source']> = {
@@ -60,15 +55,20 @@ const CHANNEL_SOURCE_MAP: Record<string, Reservation['source']> = {
 }
 
 function mapRoom(room: DbRoom): Room {
-  const type = (room.type ?? 'standard') as DbRoomType
+  const categoryName = room.room_categories?.name
+  const price =
+    room.nightly_rate != null
+      ? Number(room.nightly_rate)
+      : Number(room.room_categories?.default_nightly_rate ?? 0)
+
   return {
     id: room.id,
     number: room.number,
-    type: ROOM_TYPE_MAP[type] ?? 'single',
+    type: categoryToRoomType(categoryName),
     status: ROOM_STATUS_MAP[(room.status ?? 'available') as DbRoomStatus] ?? 'vacant',
     propertyId: room.hotel_id,
     floor: room.floor ?? 1,
-    price: ROOM_PRICE_MAP[type] ?? 250,
+    price,
   }
 }
 
@@ -210,7 +210,11 @@ export async function getDashboardData(): Promise<DashboardData> {
   const hotelId = profile.hotel_id
 
   const [roomsRes, reservationsRes, invoicesRes, occupancySpans] = await Promise.all([
-    supabase.from('rooms').select('*').eq('hotel_id', hotelId).order('number'),
+    supabase
+      .from('rooms')
+      .select('*, room_categories(name, default_nightly_rate)')
+      .eq('hotel_id', hotelId)
+      .order('number'),
     supabase
       .from('reservations')
       .select('*, rooms(number), guests(email, phone)')
@@ -234,7 +238,14 @@ export async function getDashboardData(): Promise<DashboardData> {
     invoices,
     metrics: computeMetrics(dbRooms, reservations, invoices),
     availability: computeAvailability(dbRooms, reservations),
-    roomOptions: dbRooms.map((r) => ({ id: r.id, number: r.number })),
+    roomOptions: dbRooms.map((r) => ({
+      id: r.id,
+      number: r.number,
+      nightlyRate:
+        r.nightly_rate != null
+          ? Number(r.nightly_rate)
+          : Number(r.room_categories?.default_nightly_rate ?? 0),
+    })),
     occupancySpans,
   }
 }

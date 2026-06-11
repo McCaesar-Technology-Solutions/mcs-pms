@@ -14,6 +14,7 @@ function AcceptInviteForm() {
 
   const [name, setName] = useState('')
   const [password, setPassword] = useState('')
+  const [phone, setPhone] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -30,7 +31,7 @@ function AcceptInviteForm() {
     setError(null)
     setLoading(true)
 
-    const result = await acceptInvite(token, name, password)
+    const result = await acceptInvite(token, name, password, phone)
     setLoading(false)
 
     if (!result.success) {
@@ -53,6 +54,21 @@ function AcceptInviteForm() {
           value={name}
           onChange={(e) => setName(e.target.value)}
           required
+          className="border-white/20 bg-white/10 text-white"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="phone" className="text-white/90">
+          Phone number
+        </Label>
+        <Input
+          id="phone"
+          type="tel"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          required
+          placeholder="+233 XX XXX XXXX"
           className="border-white/20 bg-white/10 text-white"
         />
       </div>

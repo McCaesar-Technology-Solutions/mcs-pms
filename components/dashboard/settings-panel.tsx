@@ -55,6 +55,7 @@ export function SettingsPanel({ hotelSettings, staffHref = '/owner/staff' }: Set
   const [gtaLicense, setGtaLicense] = useState('')
   const [gtaExpiry, setGtaExpiry] = useState('')
   const [vatNumber, setVatNumber] = useState('')
+  const [invoicePrefix, setInvoicePrefix] = useState('MOJO')
 
   useEffect(() => {
     if (!hotelSettings) return
@@ -65,6 +66,7 @@ export function SettingsPanel({ hotelSettings, staffHref = '/owner/staff' }: Set
     setGtaLicense(hotelSettings.gta_license_number ?? '')
     setGtaExpiry(hotelSettings.gta_license_expiry ?? '')
     setVatNumber(hotelSettings.vat_registration_number ?? '')
+    setInvoicePrefix(hotelSettings.invoice_prefix ?? 'MOJO')
     setError(null)
     setSaved(false)
   }, [hotelSettings])
@@ -85,6 +87,7 @@ export function SettingsPanel({ hotelSettings, staffHref = '/owner/staff' }: Set
         gta_license_number: gtaLicense,
         gta_license_expiry: gtaExpiry,
         vat_registration_number: vatNumber,
+        invoice_prefix: invoicePrefix,
       })
 
       if (!result.success) {
@@ -287,6 +290,21 @@ export function SettingsPanel({ hotelSettings, staffHref = '/owner/staff' }: Set
                   placeholder="e.g. C0001234567"
                   className="input-soft mt-2"
                 />
+              </div>
+
+              <div>
+                <label className="text-sm font-semibold text-foreground">Invoice prefix</label>
+                <input
+                  type="text"
+                  value={invoicePrefix}
+                  onChange={(e) => setInvoicePrefix(e.target.value.toUpperCase())}
+                  placeholder="e.g. MOJO"
+                  maxLength={12}
+                  className="input-soft mt-2 uppercase"
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Used for sequential numbers like {invoicePrefix || 'MOJO'}-{new Date().getFullYear()}-00001 (resets each year)
+                </p>
               </div>
             </div>
           </div>
