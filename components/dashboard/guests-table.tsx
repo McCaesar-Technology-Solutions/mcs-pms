@@ -20,6 +20,7 @@ import {
 } from 'lucide-react'
 import { CenteredModal, ModalBody, ModalHeader } from '@/components/ui/centered-modal'
 import { regenerateGuestAccess, revokeGuestAccess, checkOutGuest, updateGuest } from '@/app/actions/guest'
+import { hasPhoneNumber } from '@/lib/phone'
 import { toast } from 'sonner'
 import { PAYMENT_METHOD_LABELS } from '@/lib/tax'
 import type { PaymentMethod } from '@/types'
@@ -209,7 +210,10 @@ export function GuestsTable({ guests, initialSearch = '', readOnly = false }: Gu
                 <tr
                   key={guest.id}
                   className="cursor-pointer"
-                  onClick={() => setSelectedGuest(guest)}
+                  onClick={() => {
+                    setSelectedGuest(guest)
+                    setEditingGuest(!readOnly && !hasPhoneNumber(guest.phone))
+                  }}
                 >
                   <td className="py-4 px-6">
                     <p className="font-semibold text-foreground">{guest.name}</p>
@@ -258,13 +262,19 @@ export function GuestsTable({ guests, initialSearch = '', readOnly = false }: Gu
 
       <CenteredModal
         open={!!selectedGuest}
-        onClose={() => setSelectedGuest(null)}
+        onClose={() => {
+          setSelectedGuest(null)
+          setEditingGuest(false)
+        }}
         className="max-w-lg"
         aria-label="Guest details"
       >
         {selectedGuest && (
           <>
-            <ModalHeader onClose={() => setSelectedGuest(null)}>
+            <ModalHeader onClose={() => {
+              setSelectedGuest(null)
+              setEditingGuest(false)
+            }}>
               <h3 className="text-xl font-semibold">{selectedGuest.name}</h3>
             </ModalHeader>
 
@@ -295,7 +305,7 @@ export function GuestsTable({ guests, initialSearch = '', readOnly = false }: Gu
                       onClick={() => setEditingGuest(true)}
                       className="text-xs font-semibold text-primary hover:underline"
                     >
-                      Edit
+                      {hasPhoneNumber(selectedGuest.phone) ? 'Edit' : 'Add phone'}
                     </button>
                   )}
                 </div>

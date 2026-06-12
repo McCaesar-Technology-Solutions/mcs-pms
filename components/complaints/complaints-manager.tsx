@@ -29,6 +29,11 @@ import { fetchComplaintEstimate } from '@/app/actions/complaint-estimates'
 import { ComplaintEstimateCard } from '@/components/complaints/complaint-estimate-card'
 import { PhoneContact } from '@/components/ui/phone-contact'
 import { useRealtimeRefresh } from '@/components/realtime/realtime-refresh-context'
+import {
+  isPendingCompletion,
+  isPendingEstimate,
+  managerPendingLabel,
+} from '@/lib/complaints/workflow'
 import type {
   Complaint,
   ComplaintCategory,
@@ -112,10 +117,11 @@ const timelineLabels: Record<ComplaintEventType, string> = {
   submitted: 'Submitted by guest',
   assigned: 'Assigned to technician',
   started: 'Work started',
-  completion_requested: 'Completion requested',
+  completion_requested: 'Work marked complete',
   rejected: 'Sent back for rework',
   resolved: 'Resolved',
-  estimate_submitted: 'Cost estimate sent',
+  estimate_submitted: 'Invoice submitted',
+  estimate_approved: 'Invoice approved — work authorized',
 }
 
 export function ComplaintsManager() {
@@ -244,20 +250,27 @@ export function ComplaintsManager() {
               <button
                 key={c.id}
                 type="button"
-                onClick={() => openDetail(c)}
-                className="flex w-full items-center justify-between gap-3 rounded-xl bg-white px-4 py-3 text-left text-sm shadow-elevation-1 transition-all hover:-translate-y-px hover:shadow-elevation-2"
+                onClick={() => {
+                  setSelected(c)
+                  setRejectNote('')
+                  void getComplaintEvents(c.id).then((r) => {
+                    if (r.success && r.data) setEvents(r.data)
+                  })
+                  void fetchComplaintEstimate(c.id).then((r) => {
+                    if (r.success) setEstimate(r.data ?? null)
+                  })
+                }}
+                className={`${liftCard} flex w-full items-center justify-between gap-3 p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-elevation-2`}
               >
-                <span className="min-w-0">
-                  <span className="font-medium capitalize text-[#3C216C]">{c.category}</span>
-                  {(roomNumberOf(c) || guestNameOf(c)) && (
-                    <span className="ml-2 truncate text-xs text-muted-foreground">
-                      {roomNumberOf(c) ? `Room ${roomNumberOf(c)}` : ''}
-                      {roomNumberOf(c) && guestNameOf(c) ? ' · ' : ''}
-                      {guestNameOf(c) ?? ''}
-                    </span>
-                  )}
+                <div>
+                  <p className="font-semibold text-foreground">
+                    Room {roomNumberOf(c) ?? '—'} · {formatLabel(c.category)}
+                  </p>
+                  <p className="mt-0.5 line-clamp-1 text-sm text-muted-foreground">{c.description}</p>
+                </div>
+                <span className="shrink-0 rounded-full bg-[#D85A30]/12 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-[#D85A30]">
+                  {managerPendingLabel(c)}
                 </span>
-                <span className="shrink-0 text-xs text-muted-foreground">Review</span>
               </button>
             ))}
           </div>
@@ -415,33 +428,55 @@ export function ComplaintsManager() {
                 <div className="overflow-hidden rounded-2xl bg-gradient-to-b from-[#D85A30]/10 via-white to-white p-5 shadow-elevation-2">
                   <div className="mb-4 flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-[#D85A30]" />
-                    <h3 className="text-sm font-semibold text-[#D85A30]">Awaiting your approval</h3>
+                    <h3 className="text-sm font-semibold text-[#D85A30]">
+                      {isPendingEstimate(selected)
+                        ? 'Approve invoice to authorize work'
+                        : 'Approve completed work'}
+                    </h3>
                   </div>
                   <div className="space-y-4">
-                    <div>
-                      <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                        Room status after approval
-                      </label>
-                      <select
-                        value={roomStatus}
-                        onChange={(e) => setRoomStatus(e.target.value as DbRoomStatus)}
-                        className={softField}
-                      >
-                        <option value="available">Available</option>
-                        <option value="occupied">Occupied</option>
-                        <option value="maintenance">Maintenance</option>
-                        <option value="needs_inspection">Needs inspection</option>
-                        <option value="cleaning">Cleaning</option>
-                      </select>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleApprove}
-                      disabled={loading}
-                      className="gradient-primary w-full rounded-xl py-3.5 text-sm font-semibold text-white shadow-elevation-2 transition-all hover:-translate-y-0.5 hover:shadow-elevation-3 disabled:opacity-60"
-                    >
-                      {loading ? 'Approving…' : 'Approve & resolve'}
-                    </button>
+                    {isPendingEstimate(selected) ? (
+                      <>
+                        <p className="text-sm text-muted-foreground">
+                          Review the invoice below. Once approved, the technician can start the job.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={handleApprove}
+                          disabled={loading}
+                          className="gradient-primary w-full rounded-xl py-3.5 text-sm font-semibold text-white shadow-elevation-2 transition-all hover:-translate-y-0.5 hover:shadow-elevation-3 disabled:opacity-60"
+                        >
+                          {loading ? 'Approving…' : 'Approve invoice & authorize work'}
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <div>
+                          <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                            Room status after approval
+                          </label>
+                          <select
+                            value={roomStatus}
+                            onChange={(e) => setRoomStatus(e.target.value as DbRoomStatus)}
+                            className={softField}
+                          >
+                            <option value="available">Available</option>
+                            <option value="occupied">Occupied</option>
+                            <option value="maintenance">Maintenance</option>
+                            <option value="needs_inspection">Needs inspection</option>
+                            <option value="cleaning">Cleaning</option>
+                          </select>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleApprove}
+                          disabled={loading}
+                          className="gradient-primary w-full rounded-xl py-3.5 text-sm font-semibold text-white shadow-elevation-2 transition-all hover:-translate-y-0.5 hover:shadow-elevation-3 disabled:opacity-60"
+                        >
+                          {loading ? 'Approving…' : 'Approve & resolve'}
+                        </button>
+                      </>
+                    )}
                     <p className="text-center text-xs text-muted-foreground">or send back to technician</p>
                     <div>
                       <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -450,7 +485,11 @@ export function ComplaintsManager() {
                       <textarea
                         value={rejectNote}
                         onChange={(e) => setRejectNote(e.target.value)}
-                        placeholder="Explain what needs to be fixed…"
+                        placeholder={
+                          isPendingEstimate(selected)
+                            ? 'Explain what to change on the invoice…'
+                            : 'Explain what still needs to be fixed…'
+                        }
                         className={`${softField} min-h-24 resize-none`}
                       />
                     </div>

@@ -174,13 +174,36 @@ export async function notifyComplaintInvoiceSubmitted(
     `MOJO: Technician invoice${tech}`,
     refLine(ctx),
     `Total: GHS ${totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-    'Awaiting your approval.',
+    'Awaiting your approval to start work.',
     appUrl('/manager/complaints'),
   ].join('\n')
 
   await notifyPhones(phones, body, {
     hotelId: ctx.hotelId,
     templateKey: 'complaint_invoice_submitted',
+    includeWhatsApp: true,
+  })
+}
+
+/** Manager approved invoice — technician may start the job. */
+export async function notifyComplaintEstimateApproved(
+  complaintId: string,
+  technicianId: string,
+): Promise<void> {
+  const ctx = await loadComplaintContext(complaintId)
+  const phone = await technicianPhone(technicianId)
+  if (!ctx || !phone) return
+
+  const body = [
+    'MOJO: Invoice approved',
+    refLine(ctx),
+    'You can now start the job.',
+    appUrl('/technician/tasks'),
+  ].join('\n')
+
+  await notifyPhones([phone], body, {
+    hotelId: ctx.hotelId,
+    templateKey: 'complaint_estimate_approved',
     includeWhatsApp: true,
   })
 }

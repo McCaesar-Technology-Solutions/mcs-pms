@@ -48,8 +48,12 @@ function overviewGuestName(c: Complaint): string | null {
   return c.guests?.name ?? c.guest?.name ?? null
 }
 
-function guestStatusLabel(status: ComplaintStatus | null): string {
+function guestStatusLabel(
+  status: ComplaintStatus | null,
+  approvalStage?: Complaint['approval_stage'],
+): string {
   if (!status) return 'Submitted'
+  if (status === 'pending_approval' && approvalStage === 'estimate') return 'Quote under review'
   if (['open', 'assigned', 'in_progress'].includes(status)) return 'Being handled'
   if (status === 'pending_approval') return 'Almost done'
   if (status === 'resolved') return 'Resolved ✓'

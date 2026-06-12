@@ -156,7 +156,8 @@ export function GuestPortal({ guest, roomNumber, propertyContacts }: GuestPortal
         <section className="mx-4 mb-6">
           <PhoneContactList
             contacts={propertyContacts}
-            title="Need to speak with someone?"
+            title="Contact your manager"
+            emptyMessage="Manager contact not available."
             variant="dark"
           />
         </section>
@@ -241,7 +242,7 @@ export function GuestPortal({ guest, roomNumber, propertyContacts }: GuestPortal
             {complaints.map((c) => (
               <li key={c.id} className="rounded-xl bg-white/10 px-4 py-3">
                 <p className="capitalize">{c.category}</p>
-                <p className="text-sm text-[#D4A62E]">{guestStatusLabel(c.status)}</p>
+                <p className="text-sm text-[#D4A62E]">{guestStatusLabel(c.status, c.approval_stage)}</p>
               </li>
             ))}
           </ul>

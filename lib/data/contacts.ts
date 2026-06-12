@@ -12,7 +12,7 @@ export interface StaffContact {
 
 export async function getStaffContacts(
   hotelId: string,
-  roles: UserRole[] = ['manager', 'owner'],
+  roles: UserRole[] = ['manager'],
 ): Promise<StaffContact[]> {
   const supabase = await createClient()
   const { data, error } = await supabase
@@ -36,7 +36,7 @@ export async function getStaffContacts(
     }))
 }
 
-/** Guest portal has no staff session — use service role with guest's hotel id. */
+/** Guest portal — managers only (owner contact is not exposed to guests). */
 export async function getGuestPropertyContacts(hotelId: string): Promise<StaffContact[]> {
   const admin = createAdminClient()
   const { data, error } = await admin
@@ -44,9 +44,9 @@ export async function getGuestPropertyContacts(hotelId: string): Promise<StaffCo
     .select('id, name, phone, role')
     .eq('hotel_id', hotelId)
     .eq('is_active', true)
-    .in('role', ['manager', 'owner'])
+    .eq('role', 'manager')
     .not('phone', 'is', null)
-    .order('role')
+    .order('name')
 
   if (error) return []
 

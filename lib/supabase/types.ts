@@ -350,6 +350,8 @@ export type Database = {
             | 'resolved'
             | null
           assigned_to: string | null
+          approval_stage: 'estimate' | 'completion' | null
+          estimate_approved_at: string | null
           rejection_note: string | null
           submitted_at: string | null
           resolved_at: string | null
@@ -378,6 +380,8 @@ export type Database = {
             | 'resolved'
             | null
           assigned_to?: string | null
+          approval_stage?: 'estimate' | 'completion' | null
+          estimate_approved_at?: string | null
           rejection_note?: string | null
           submitted_at?: string | null
           resolved_at?: string | null
@@ -406,6 +410,8 @@ export type Database = {
             | 'resolved'
             | null
           assigned_to?: string | null
+          approval_stage?: 'estimate' | 'completion' | null
+          estimate_approved_at?: string | null
           rejection_note?: string | null
           submitted_at?: string | null
           resolved_at?: string | null
@@ -434,6 +440,7 @@ export type Database = {
             | 'rejected'
             | 'resolved'
             | 'estimate_submitted'
+            | 'estimate_approved'
           note: string | null
           created_at: string | null
         }
@@ -450,6 +457,7 @@ export type Database = {
             | 'rejected'
             | 'resolved'
             | 'estimate_submitted'
+            | 'estimate_approved'
           note?: string | null
           created_at?: string | null
         }
@@ -466,6 +474,7 @@ export type Database = {
             | 'rejected'
             | 'resolved'
             | 'estimate_submitted'
+            | 'estimate_approved'
           note?: string | null
           created_at?: string | null
         }

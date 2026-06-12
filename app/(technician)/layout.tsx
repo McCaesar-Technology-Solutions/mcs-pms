@@ -12,7 +12,7 @@ export default async function TechnicianLayout({
   }
 
   const managerContacts = profile.hotel_id
-    ? await getStaffContacts(profile.hotel_id, ['manager', 'owner'])
+    ? await getStaffContacts(profile.hotel_id, ['manager'])
     : []
 
   return (

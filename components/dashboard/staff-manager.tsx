@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Check, Copy, Mail, Plus, ShieldCheck, UserX, X } from 'lucide-react'
 import { inviteStaff, revokeInvite, setStaffActive, updateStaffPhone } from '@/app/actions/staff'
 import { ProfilePhoneEditor } from '@/components/dashboard/profile-phone-editor'
+import { hasPhoneNumber } from '@/lib/phone'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -211,7 +212,7 @@ export function StaffManager({ currentProfile, staff, invites }: StaffManagerPro
                     onClick={() => startPhoneEdit(member)}
                     className="shrink-0 text-[11px] font-semibold text-primary hover:underline"
                   >
-                    {member.phone ? 'Edit phone' : 'Add phone'}
+                    {hasPhoneNumber(member.phone) ? 'Edit phone' : 'Add phone'}
                   </button>
                 )}
               </div>
@@ -250,10 +251,10 @@ export function StaffManager({ currentProfile, staff, invites }: StaffManagerPro
 
   return (
     <>
-      {currentProfile.role === 'manager' && (
+      {currentProfile.role !== 'technician' && (
         <ProfilePhoneEditor
           initialPhone={currentProfile.phone}
-          roleLabel="manager"
+          roleLabel={currentProfile.role === 'owner' ? 'property owner' : 'manager'}
           variant="card"
         />
       )}

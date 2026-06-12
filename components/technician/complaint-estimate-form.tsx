@@ -141,7 +141,7 @@ export function ComplaintEstimateForm({
 
     setHasExisting(true)
     setSavedAt(new Date().toISOString())
-    toast.success('Invoice sent to manager — they will be notified by SMS/WhatsApp.')
+    toast.success('Invoice sent — manager must approve before you can start work.')
     if (result.data) onSubmitted?.(result.data)
   }
 
@@ -167,8 +167,8 @@ export function ComplaintEstimateForm({
         </p>
       )}
       <p className="text-xs leading-relaxed text-muted-foreground">
-        List materials and labour. Your manager receives this as an invoice with room and complaint
-        type, and gets an SMS/WhatsApp alert to approve.
+        Step 1: List materials and labour, then submit for manager approval. You can only start
+        work after the invoice is approved.
       </p>
 
       <div className="space-y-2">

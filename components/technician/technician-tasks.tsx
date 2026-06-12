@@ -13,10 +13,24 @@ import {
   HelpCircle,
   ClipboardList,
 } from 'lucide-react'
-import { getTechnicianComplaints, updateTechnicianComplaintStatus } from '@/app/actions/complaints'
+import {
+  getTechnicianComplaints,
+  markComplaintComplete,
+  startTechnicianComplaint,
+} from '@/app/actions/complaints'
+import { fetchComplaintEstimate } from '@/app/actions/complaint-estimates'
 import { ComplaintEstimateForm } from '@/components/technician/complaint-estimate-form'
+import { ComplaintEstimateCard } from '@/components/complaints/complaint-estimate-card'
 import { useRealtimeRefresh } from '@/components/realtime/realtime-refresh-context'
-import type { Complaint, ComplaintCategory, ComplaintStatus } from '@/types'
+import {
+  canMarkComplete,
+  canStartJob,
+  canSubmitInvoice,
+  isPendingCompletion,
+  isPendingEstimate,
+  technicianStatusLabel,
+} from '@/lib/complaints/workflow'
+import type { Complaint, ComplaintCategory, ComplaintEstimate } from '@/types'
 
 const priorityOrder: Record<string, number> = {
   urgent: 0,
@@ -35,15 +49,6 @@ const categoryIcons: Record<ComplaintCategory, typeof Droplets> = {
   other: HelpCircle,
 }
 
-const statusLabels: Record<ComplaintStatus, string> = {
-  open: 'Open',
-  assigned: 'Assigned',
-  in_progress: 'In progress',
-  pending_approval: 'Pending approval',
-  rejected: 'Sent back',
-  resolved: 'Resolved',
-}
-
 function priorityBadge(priority: string | null | undefined) {
   switch (priority) {
     case 'urgent':
@@ -57,26 +62,20 @@ function priorityBadge(priority: string | null | undefined) {
   }
 }
 
-function statusBadge(status: ComplaintStatus | null | undefined) {
-  switch (status) {
-    case 'pending_approval':
-      return 'bg-[#D85A30]/12 text-[#D85A30]'
-    case 'assigned':
-    case 'in_progress':
-      return 'bg-[#D4A62E]/15 text-[#B88D24]'
-    case 'resolved':
-      return 'bg-emerald-500/10 text-emerald-700'
-    case 'rejected':
-      return 'bg-red-500/10 text-red-700'
-    default:
-      return 'bg-[#3C216C]/10 text-[#3C216C]'
-  }
+function statusBadge(c: Complaint) {
+  if (isPendingEstimate(c) || isPendingCompletion(c)) return 'bg-[#D85A30]/12 text-[#D85A30]'
+  if (canStartJob(c)) return 'bg-emerald-500/10 text-emerald-700'
+  if (c.status === 'assigned' || c.status === 'in_progress') return 'bg-[#D4A62E]/15 text-[#B88D24]'
+  if (c.status === 'resolved') return 'bg-emerald-500/10 text-emerald-700'
+  if (c.status === 'rejected') return 'bg-red-500/10 text-red-700'
+  return 'bg-[#3C216C]/10 text-[#3C216C]'
 }
 
 export function TechnicianTasks() {
   const [tab, setTab] = useState<'active' | 'completed'>('active')
   const [complaints, setComplaints] = useState<Complaint[]>([])
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [estimates, setEstimates] = useState<Record<string, ComplaintEstimate | null>>({})
   const [loading, setLoading] = useState<string | null>(null)
 
   const load = useCallback(async () => {
@@ -97,9 +96,23 @@ export function TechnicianTasks() {
 
   useRealtimeRefresh('complaints', load)
 
-  async function updateStatus(id: string, status: 'in_progress' | 'pending_approval') {
+  async function loadEstimate(complaintId: string) {
+    const result = await fetchComplaintEstimate(complaintId)
+    if (result.success) {
+      setEstimates((prev) => ({ ...prev, [complaintId]: result.data ?? null }))
+    }
+  }
+
+  async function handleStart(id: string) {
     setLoading(id)
-    await updateTechnicianComplaintStatus(id, status)
+    await startTechnicianComplaint(id)
+    setLoading(null)
+    await load()
+  }
+
+  async function handleComplete(id: string) {
+    setLoading(id)
+    await markComplaintComplete(id)
     setLoading(null)
     await load()
   }
@@ -134,7 +147,8 @@ export function TechnicianTasks() {
           const roomsJoin =
             (c as Complaint & { rooms?: { number: string } }).rooms?.number ?? roomNumber
           const isRejected = c.status === 'rejected'
-          const isPending = c.status === 'pending_approval'
+          const isPending = isPendingEstimate(c) || isPendingCompletion(c)
+          const estimate = estimates[c.id]
 
           return (
             <article
@@ -146,7 +160,11 @@ export function TechnicianTasks() {
               <button
                 type="button"
                 className="flex w-full items-start gap-3 p-4 text-left"
-                onClick={() => setExpandedId(expanded ? null : c.id)}
+                onClick={() => {
+                  const next = expanded ? null : c.id
+                  setExpandedId(next)
+                  if (next && !estimates[c.id]) void loadEstimate(c.id)
+                }}
               >
                 <div
                   className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${
@@ -182,9 +200,9 @@ export function TechnicianTasks() {
                   </p>
                   <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{c.description}</p>
                   <span
-                    className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${statusBadge(c.status)}`}
+                    className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${statusBadge(c)}`}
                   >
-                    {statusLabels[c.status ?? 'assigned']}
+                    {technicianStatusLabel(c)}
                   </span>
                 </div>
 
@@ -204,50 +222,59 @@ export function TechnicianTasks() {
                     </div>
                   )}
 
-                  {['assigned', 'in_progress', 'rejected'].includes(c.status ?? '') && (
-                    <ComplaintEstimateForm
-                      complaintId={c.id}
-                      roomNumber={c.rooms?.number ?? c.room?.number ?? null}
-                      category={c.category}
-                      onSubmitted={() => load()}
-                    />
+                  {canSubmitInvoice(c) && (
+                    <>
+                      <p className="text-xs leading-relaxed text-muted-foreground">
+                        Step 1: Submit your invoice. The manager must approve it before you can
+                        start work.
+                      </p>
+                      <ComplaintEstimateForm
+                        complaintId={c.id}
+                        roomNumber={c.rooms?.number ?? c.room?.number ?? null}
+                        category={c.category}
+                        onSubmitted={() => load()}
+                      />
+                    </>
                   )}
 
-                  {c.status === 'assigned' && (
+                  {canStartJob(c) && (
                     <button
                       type="button"
                       disabled={loading === c.id}
-                      onClick={() => updateStatus(c.id, 'in_progress')}
+                      onClick={() => handleStart(c.id)}
                       className="w-full rounded-xl bg-[#D4A62E] py-3 text-sm font-semibold text-gray-900 shadow-elevation-1 transition-all hover:shadow-elevation-2 disabled:opacity-60"
                     >
-                      Start job
+                      {loading === c.id ? 'Starting…' : 'Start job'}
                     </button>
                   )}
-                  {c.status === 'in_progress' && (
+
+                  {(c.status === 'in_progress' || isPendingCompletion(c)) && estimate && (
+                    <ComplaintEstimateCard estimate={estimate} />
+                  )}
+
+                  {canMarkComplete(c) && (
                     <button
                       type="button"
                       disabled={loading === c.id}
-                      onClick={() => updateStatus(c.id, 'pending_approval')}
-                      className="w-full rounded-xl border border-[#3C216C]/20 bg-white py-3 text-sm font-semibold text-[#3C216C] shadow-elevation-1 transition-all hover:shadow-elevation-2 disabled:opacity-60"
-                    >
-                      Mark complete (no invoice)
-                    </button>
-                  )}
-                  {c.status === 'rejected' && (
-                    <button
-                      type="button"
-                      disabled={loading === c.id}
-                      onClick={() => updateStatus(c.id, 'in_progress')}
+                      onClick={() => handleComplete(c.id)}
                       className="w-full rounded-xl bg-[#3C216C] py-3 text-sm font-semibold text-white shadow-elevation-1 transition-all hover:shadow-elevation-2 disabled:opacity-60"
                     >
-                      Resume job
+                      {loading === c.id ? 'Submitting…' : 'Mark job complete'}
                     </button>
                   )}
-                  {c.status === 'pending_approval' && (
+
+                  {isPendingEstimate(c) && (
                     <p className="rounded-xl bg-white px-3 py-2.5 text-center text-sm font-medium text-muted-foreground shadow-elevation-1">
-                      Awaiting manager approval
+                      Invoice sent — awaiting manager approval to start work
                     </p>
                   )}
+
+                  {isPendingCompletion(c) && (
+                    <p className="rounded-xl bg-white px-3 py-2.5 text-center text-sm font-medium text-muted-foreground shadow-elevation-1">
+                      Work complete — awaiting manager sign-off
+                    </p>
+                  )}
+
                   {c.status === 'resolved' && c.resolved_at && (
                     <p className="text-center text-xs text-muted-foreground">
                       Resolved {new Date(c.resolved_at).toLocaleDateString()}

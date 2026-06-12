@@ -1,14 +1,15 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Phone } from 'lucide-react'
 import { updateProfilePhone } from '@/app/actions/profile'
+import { hasPhoneNumber } from '@/lib/phone'
 
 interface ProfilePhoneEditorProps {
   initialPhone?: string | null
   roleLabel: string
-  variant?: 'banner' | 'card' | 'inline'
+  variant?: 'banner' | 'card' | 'inline' | 'embedded'
 }
 
 export function ProfilePhoneEditor({
@@ -18,9 +19,16 @@ export function ProfilePhoneEditor({
 }: ProfilePhoneEditorProps) {
   const router = useRouter()
   const [phone, setPhone] = useState(initialPhone ?? '')
-  const [editing, setEditing] = useState(!initialPhone)
+  const [editing, setEditing] = useState(variant === 'embedded' || !hasPhoneNumber(initialPhone))
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
+
+  useEffect(() => {
+    setPhone(initialPhone ?? '')
+    if (variant !== 'embedded') {
+      setEditing(!hasPhoneNumber(initialPhone))
+    }
+  }, [initialPhone, variant])
 
   function save(e: React.FormEvent) {
     e.preventDefault()
@@ -36,7 +44,7 @@ export function ProfilePhoneEditor({
     })
   }
 
-  if (variant === 'inline' && initialPhone && !editing) {
+  if (variant === 'inline' && hasPhoneNumber(initialPhone) && !editing) {
     return (
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs text-muted-foreground">
@@ -45,7 +53,7 @@ export function ProfilePhoneEditor({
         <button
           type="button"
           onClick={() => {
-            setPhone(initialPhone)
+            setPhone(initialPhone ?? '')
             setEditing(true)
             setError(null)
           }}
@@ -57,7 +65,7 @@ export function ProfilePhoneEditor({
     )
   }
 
-  if (variant === 'card' && initialPhone && !editing) {
+  if (variant === 'card' && hasPhoneNumber(initialPhone) && !editing) {
     return (
       <div className="surface-card p-6">
         <div className="flex items-start justify-between gap-4">
@@ -73,7 +81,7 @@ export function ProfilePhoneEditor({
           <button
             type="button"
             onClick={() => {
-              setPhone(initialPhone)
+              setPhone(initialPhone ?? '')
               setEditing(true)
               setError(null)
             }}
@@ -93,6 +101,13 @@ export function ProfilePhoneEditor({
           <h3 className="text-lg font-semibold text-foreground">Your phone number</h3>
           <p className="mt-0.5 text-sm text-muted-foreground">
             Used for SMS notifications and so guests can reach you.
+          </p>
+        </div>
+      )}
+      {variant === 'embedded' && (
+        <div>
+          <p className="text-sm text-muted-foreground">
+            Ghana format, e.g. +233 24 123 4567
           </p>
         </div>
       )}
@@ -123,11 +138,11 @@ export function ProfilePhoneEditor({
           }
         />
         <div className="flex gap-2">
-          {(variant === 'card' || variant === 'inline') && initialPhone && (
+          {(variant === 'card' || variant === 'inline') && hasPhoneNumber(initialPhone) && (
             <button
               type="button"
               onClick={() => {
-                setPhone(initialPhone)
+                setPhone(initialPhone ?? '')
                 setEditing(false)
                 setError(null)
               }}
@@ -161,7 +176,7 @@ export function ProfilePhoneEditor({
     return <div className="border-b border-amber-200 bg-amber-50 px-4 py-3">{form}</div>
   }
 
-  if (variant === 'inline') {
+  if (variant === 'inline' || variant === 'embedded') {
     return <div>{form}</div>
   }
 

@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Pencil } from 'lucide-react'
 import { updateGuestPhone } from '@/app/actions/guest'
+import { hasPhoneNumber } from '@/lib/phone'
 
 interface GuestPhoneEditorProps {
   initialPhone?: string | null
@@ -12,7 +13,7 @@ interface GuestPhoneEditorProps {
 export function GuestPhoneEditor({ initialPhone }: GuestPhoneEditorProps) {
   const router = useRouter()
   const [phone, setPhone] = useState(initialPhone ?? '')
-  const [editing, setEditing] = useState(!initialPhone)
+  const [editing, setEditing] = useState(!hasPhoneNumber(initialPhone))
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
@@ -30,7 +31,7 @@ export function GuestPhoneEditor({ initialPhone }: GuestPhoneEditorProps) {
     })
   }
 
-  if (initialPhone && !editing) {
+  if (hasPhoneNumber(initialPhone) && !editing) {
     return (
       <div className="flex items-center justify-between gap-3 rounded-xl border border-white/20 bg-white/5 px-4 py-3">
         <div>
@@ -40,7 +41,7 @@ export function GuestPhoneEditor({ initialPhone }: GuestPhoneEditorProps) {
         <button
           type="button"
           onClick={() => {
-            setPhone(initialPhone)
+            setPhone(initialPhone ?? '')
             setEditing(true)
             setError(null)
           }}
@@ -73,7 +74,7 @@ export function GuestPhoneEditor({ initialPhone }: GuestPhoneEditorProps) {
             <button
               type="button"
               onClick={() => {
-                setPhone(initialPhone)
+                setPhone(initialPhone ?? '')
                 setEditing(false)
                 setError(null)
               }}

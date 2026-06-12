@@ -60,10 +60,10 @@ export async function submitComplaintEstimate(input: {
     return { success: false, error: 'This task is not assigned to you.' }
   }
 
-  if (!['assigned', 'in_progress', 'rejected'].includes(complaint.status ?? '')) {
+  if (!['assigned', 'rejected'].includes(complaint.status ?? '')) {
     return {
       success: false,
-      error: 'You can only submit an invoice while the job is active.',
+      error: 'Submit your invoice while the job is assigned and before work begins.',
     }
   }
 
@@ -156,7 +156,11 @@ export async function submitComplaintEstimate(input: {
 
   await admin
     .from('complaints')
-    .update({ status: 'pending_approval', rejection_note: null })
+    .update({
+      status: 'pending_approval',
+      approval_stage: 'estimate',
+      rejection_note: null,
+    })
     .eq('id', parsed.data.complaintId)
 
   void import('@/lib/notifications/complaints').then(({ notifyComplaintInvoiceSubmitted }) =>

@@ -8,6 +8,7 @@ import type { Profile } from '@/types'
 import type { OccupancyToday } from '@/lib/data/occupancy'
 import { ManagerRealtimeProvider } from '@/components/realtime/manager-realtime'
 import { ProfilePhoneBanner } from '@/components/dashboard/profile-phone-banner'
+import { hasPhoneNumber } from '@/lib/phone'
 
 interface AppShellProps {
   children: React.ReactNode
@@ -51,7 +52,7 @@ export function AppShell({
       />
       <main className="app-main h-dvh min-w-0 flex-1 overflow-y-auto">
         <Topbar onMenuOpen={() => setMobileNavOpen(true)} profile={profile} />
-        {profile && !profile.phone && profile.role !== 'technician' && (
+        {profile && !hasPhoneNumber(profile.phone) && profile.role !== 'technician' && (
           <ProfilePhoneBanner
             roleLabel={profile.role === 'owner' ? 'property owner' : 'manager'}
           />

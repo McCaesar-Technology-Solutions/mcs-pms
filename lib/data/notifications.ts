@@ -50,7 +50,7 @@ export async function getNotifications(): Promise<AppNotification[]> {
       .eq('check_out', today),
     supabase
       .from('complaints')
-      .select('id, category, status, priority')
+      .select('id, category, status, priority, approval_stage')
       .eq('hotel_id', hotelId)
       .in('status', ['open', 'assigned', 'in_progress', 'pending_approval'])
       .order('created_at', { ascending: false })
@@ -86,7 +86,12 @@ export async function getNotifications(): Promise<AppNotification[]> {
     items.push({
       id: `cmp-${c.id}`,
       kind: 'pending_complaint',
-      title: c.status === 'pending_approval' ? 'Estimate awaiting approval' : 'Open complaint',
+      title:
+        c.status === 'pending_approval' && c.approval_stage === 'estimate'
+          ? 'Invoice awaiting approval'
+          : c.status === 'pending_approval'
+            ? 'Job awaiting sign-off'
+            : 'Open complaint',
       subtitle: `${c.category}${c.priority === 'urgent' ? ' · Urgent' : ''}`,
       href: `${prefix}/complaints`,
       urgent: c.priority === 'urgent' || c.status === 'pending_approval',

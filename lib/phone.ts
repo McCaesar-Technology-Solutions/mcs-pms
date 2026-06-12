@@ -9,6 +9,10 @@ export function phoneDigits(phone: string): string {
   return phone.replace(/\D/g, '')
 }
 
+export function hasPhoneNumber(phone: string | null | undefined): boolean {
+  return Boolean(phone?.trim())
+}
+
 export function telHref(phone: string): string {
   const digits = phoneDigits(phone)
   return digits ? `tel:${digits}` : ''
