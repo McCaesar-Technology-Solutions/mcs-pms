@@ -199,36 +199,33 @@ const { data } = await supabase
 
 ### Role-Based Access Control (RBAC)
 
-Define user roles:
+Staff roles in `profiles.role`:
 
 ```typescript
-type UserRole = 'admin' | 'manager' | 'staff' | 'housekeeping'
+type UserRole = 'owner' | 'manager' | 'technician'
+```
 
-const permissions = {
-  admin: ['create', 'read', 'update', 'delete', 'settings'],
-  manager: ['create', 'read', 'update', 'read:billing'],
-  staff: ['read'],
-  housekeeping: ['read:tasks', 'update:tasks'],
+| Role | Route prefix | Typical access |
+|------|--------------|----------------|
+| owner | `/owner/*` | All hotels in portfolio; billing, GRA, analytics, settings; invite managers |
+| manager | `/manager/*` | One hotel; reservations, guests, complaints, housekeeping; invite technicians |
+| technician | `/technician/*` | Assigned complaints only; no billing or guest directory |
+| guest | `/guest` (token) | Own complaints for active stay; no staff UI |
+
+**Enforcement layers:**
+
+1. **Middleware** — `lib/supabase/middleware.ts` blocks wrong role from route prefixes.
+2. **RLS** — PostgreSQL policies on `hotel_id` and role (e.g. technicians cannot read owner profiles — migration `014`).
+3. **Server Actions** — call `getProfile()` and verify role/hotel before mutations.
+
+```typescript
+const profile = await getProfile()
+if (!profile || profile.role !== 'manager') {
+  return { success: false, error: 'Forbidden' }
 }
 ```
 
-**Check permissions in API:**
-```typescript
-function checkPermission(user: User, action: string, resource: string) {
-  const allowed = permissions[user.role]
-  return allowed.includes(`${action}:${resource}`)
-}
-
-export async function PUT(request: Request, { params }: Props) {
-  const user = await getCurrentUser()
-  
-  if (!checkPermission(user, 'update', 'reservations')) {
-    return new Response('Forbidden', { status: 403 })
-  }
-  
-  // Process update
-}
-```
+Guests use portal tokens (`lib/guest-session.ts`), not Supabase Auth staff sessions.
 
 ### Audit Logging
 

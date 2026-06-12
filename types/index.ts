@@ -364,6 +364,7 @@ export interface StaffInvite {
   id: string
   hotel_id: string
   email: string
+  phone: string | null
   role: 'manager' | 'technician'
   invited_by: string | null
   token: string

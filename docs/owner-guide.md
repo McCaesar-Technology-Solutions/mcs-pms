@@ -53,8 +53,9 @@ You own one or more properties. You handle money, tax compliance, portfolio sett
 ### Top bar (every owner page)
 
 - **Search** — guests, reservations, rooms, **invoices** (owners only).
-- **Notifications** — overdue/pending invoices, check-outs today, open complaints.
+- **Notifications** — overdue/pending invoices, check-outs today, open complaints (updates live).
 - **Phone** — add or edit your number (SMS alerts).
+- **Live updates** — dashboard and lists refresh when managers or staff change data (no manual refresh).
 - **User menu** — Edit phone, Settings, Logout.
 
 ### Occupancy widget
@@ -182,8 +183,10 @@ Sidebar shows today’s occupancy: “X of Y rooms occupied” and a percentage 
 
 ### Invite staff
 
-1. **Invite staff** → email → role **Manager** or **Technician**.
-2. Share invite link (`/accept-invite?token=...`).
+1. **Invite staff** → choose role:
+   - **Manager** — enter their **email**.
+   - **Technician** — enter their **phone number** (for SMS job alerts).
+2. Share invite link (`/accept-invite?token=...`) via WhatsApp, SMS, or in person.
 
 ### Manage team
 

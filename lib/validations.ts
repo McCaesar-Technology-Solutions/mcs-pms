@@ -6,10 +6,21 @@ export const signInSchema = z.object({
   password: z.string().min(6, 'Password must be at least 6 characters'),
 })
 
-export const inviteStaffSchema = z.object({
-  email: z.string().email(),
-  role: z.enum(['manager', 'technician']),
-})
+export const inviteStaffSchema = z
+  .object({
+    role: z.enum(['manager', 'technician']),
+    email: z.string().email().optional(),
+    phone: phoneSchema.optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.role === 'manager') {
+      if (!data.email?.trim()) {
+        ctx.addIssue({ code: 'custom', message: 'Email is required.', path: ['email'] })
+      }
+    } else if (!data.phone?.trim()) {
+      ctx.addIssue({ code: 'custom', message: 'Phone number is required.', path: ['phone'] })
+    }
+  })
 
 export const enrollGuestSchema = z.object({
   name: z.string().min(2, 'Name is required'),

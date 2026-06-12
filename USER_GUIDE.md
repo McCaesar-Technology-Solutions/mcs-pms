@@ -29,6 +29,10 @@ Complete guides for every role in the property management system.
 | Billing / GRA / Analytics | ✓ | — | — | — |
 | Settings / multi-property | ✓ | — | — | — |
 
+## Live updates
+
+Owner, manager, technician, and guest views refresh automatically when data changes (Supabase Realtime). Keep the browser tab open; use the **Reconnect** banner if Wi‑Fi drops.
+
 ## Support
 
-For Hubtel SMS setup, run Supabase migrations `001`–`014` in order, and configure `.env.local` per `.env.example`.
+For Hubtel SMS setup, apply Supabase migrations `001`–`016` (see [DEPLOYMENT.md](DEPLOYMENT.md)), and configure `.env.local` per `.env.example`.

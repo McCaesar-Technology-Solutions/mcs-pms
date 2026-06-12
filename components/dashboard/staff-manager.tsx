@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Check, Copy, Mail, Plus, ShieldCheck, UserX, X } from 'lucide-react'
+import { Check, Copy, Mail, Phone, Plus, ShieldCheck, UserX, X } from 'lucide-react'
 import { inviteStaff, revokeInvite, setStaffActive, updateStaffPhone } from '@/app/actions/staff'
 import { ProfilePhoneEditor } from '@/components/dashboard/profile-phone-editor'
 import { hasPhoneNumber } from '@/lib/phone'
@@ -65,11 +65,12 @@ export function StaffManager({ currentProfile, staff, invites }: StaffManagerPro
   const canInvite = inviteRoles.length > 0
 
   const [open, setOpen] = useState(false)
-  const [email, setEmail] = useState('')
+  const [contact, setContact] = useState('')
   const [role, setRole] = useState<'manager' | 'technician'>(inviteRoles[0] ?? 'technician')
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [createdToken, setCreatedToken] = useState<string | null>(null)
+  const [createdContact, setCreatedContact] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [editingPhoneId, setEditingPhoneId] = useState<string | null>(null)
   const [phoneDraft, setPhoneDraft] = useState('')
@@ -79,12 +80,15 @@ export function StaffManager({ currentProfile, staff, invites }: StaffManagerPro
   const inactiveStaff = useMemo(() => staff.filter((s) => s.is_active === false), [staff])
 
   function resetModal() {
-    setEmail('')
+    setContact('')
     setRole(inviteRoles[0] ?? 'technician')
     setError(null)
     setCreatedToken(null)
+    setCreatedContact(null)
     setCopied(false)
   }
+
+  const inviteUsesPhone = role === 'technician'
 
   function openModal() {
     resetModal()
@@ -94,13 +98,16 @@ export function StaffManager({ currentProfile, staff, invites }: StaffManagerPro
   async function handleInvite() {
     setError(null)
     setSubmitting(true)
-    const result = await inviteStaff(email, role)
+    const result = await inviteStaff(contact, role)
     setSubmitting(false)
     if (!result.success) {
       setError(result.error)
       return
     }
-    if (result.data) setCreatedToken(result.data.token)
+    if (result.data) {
+      setCreatedToken(result.data.token)
+      setCreatedContact(result.data.phone ?? result.data.email ?? contact)
+    }
     router.refresh()
   }
 
@@ -300,17 +307,21 @@ export function StaffManager({ currentProfile, staff, invites }: StaffManagerPro
           </div>
           <div className="p-4">
             <div className="card-list-tray space-y-3">
-              {invites.map((invite) => (
+              {invites.map((invite) => {
+                const inviteContact =
+                  invite.role === 'technician' && invite.phone ? invite.phone : invite.email
+                const InviteIcon = invite.role === 'technician' ? Phone : Mail
+                return (
                 <div
                   key={invite.id}
                   className="elevated-list-item flex flex-col gap-3 p-3.5 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <div className="flex min-w-0 items-center gap-3">
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#faf8fc] text-[#3C216C]">
-                      <Mail className="h-4 w-4" />
+                      <InviteIcon className="h-4 w-4" />
                     </div>
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-[#111827]">{invite.email}</p>
+                      <p className="truncate text-sm font-semibold text-[#111827]">{inviteContact}</p>
                       <span
                         className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold ${
                           ROLE_BADGE[invite.role].chip
@@ -340,7 +351,7 @@ export function StaffManager({ currentProfile, staff, invites }: StaffManagerPro
                     </button>
                   </div>
                 </div>
-              ))}
+              )})}
             </div>
           </div>
         </div>
@@ -364,7 +375,7 @@ export function StaffManager({ currentProfile, staff, invites }: StaffManagerPro
             <ModalBody className="space-y-4">
               <div className="flex items-center gap-2 rounded-xl bg-[#3C216C]/8 px-4 py-3 text-sm font-medium text-[#3C216C]">
                 <Check className="h-4 w-4" />
-                Invite created. Share this link with {email}.
+                Invite created. Share this link with {createdContact}.
               </div>
               <div className="space-y-2">
                 <Label>Invite link</Label>
@@ -396,21 +407,15 @@ export function StaffManager({ currentProfile, staff, invites }: StaffManagerPro
           <>
             <ModalBody className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="invite-email">Email</Label>
-                <Input
-                  id="invite-email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@example.com"
-                />
-              </div>
-              <div className="space-y-2">
                 <Label htmlFor="invite-role">Role</Label>
                 <select
                   id="invite-role"
                   value={role}
-                  onChange={(e) => setRole(e.target.value as 'manager' | 'technician')}
+                  onChange={(e) => {
+                    setRole(e.target.value as 'manager' | 'technician')
+                    setContact('')
+                    setError(null)
+                  }}
                   className="w-full rounded-lg border border-border px-3 py-2 text-sm"
                 >
                   {inviteRoles.map((r) => (
@@ -420,12 +425,29 @@ export function StaffManager({ currentProfile, staff, invites }: StaffManagerPro
                   ))}
                 </select>
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="invite-contact">
+                  {inviteUsesPhone ? 'Phone number' : 'Email'}
+                </Label>
+                <Input
+                  id="invite-contact"
+                  type={inviteUsesPhone ? 'tel' : 'email'}
+                  value={contact}
+                  onChange={(e) => setContact(e.target.value)}
+                  placeholder={inviteUsesPhone ? '+233 XX XXX XXXX' : 'name@example.com'}
+                />
+                {inviteUsesPhone && (
+                  <p className="text-xs text-muted-foreground">
+                    Used for SMS job alerts. They will set a password when accepting the invite link.
+                  </p>
+                )}
+              </div>
               {error && <p className="text-sm text-destructive">{error}</p>}
             </ModalBody>
             <ModalFooter>
               <Button
                 onClick={handleInvite}
-                disabled={submitting || !email.trim()}
+                disabled={submitting || !contact.trim()}
                 className="w-full bg-[#3C216C] text-white"
               >
                 {submitting ? 'Creating invite…' : 'Create invite'}

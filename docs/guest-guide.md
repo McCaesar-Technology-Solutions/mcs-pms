@@ -118,8 +118,8 @@ You do **not** see technician names, costs, or internal notes.
 
 ### Live updates
 
-- List refreshes automatically (~every 15 seconds).
-- **Reconnect** banner if connection drops.
+- Complaint status updates appear automatically (no need to refresh the page).
+- **Reconnect** banner if your connection drops — tap to retry.
 
 ---
 

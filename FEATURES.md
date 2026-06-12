@@ -1,4 +1,85 @@
-# Feature Guide - MOJO APARTMENTS
+# Feature Guide — MOJO APARTMENTS
+
+## Current application (2026)
+
+Production features shipped beyond the original UI prototype.
+
+### Roles and access
+
+| Role | Sign-in | Scope |
+|------|---------|-------|
+| **Owner** | `/signup` or login | All properties in portfolio; billing, GRA, analytics, settings |
+| **Manager** | Staff invite | One property; daily ops, complaints, housekeeping |
+| **Technician** | Staff invite | Assigned maintenance jobs only |
+| **Guest** | Portal token (no password) | Submit/track complaints for current stay |
+
+### Operations
+
+- **Reservations** — create, check-in, check-out, extend, move room, cancel, no-show; GRA invoice on checkout.
+- **Guests** — directory, walk-in check-in (manager), portal link + QR, phone editing.
+- **Rooms** — inventory, categories/rates, status grid; owner can delete rooms.
+- **Housekeeping** — kanban (desktop + `/mobile/housekeeping`); auto clean task on checkout.
+- **Complaints** — guest submit → manager assign → technician invoice → manager approve → work → completion approval → resolved.
+- **Staff** — invite managers by **email**, technicians by **phone**; phone numbers editable on profiles.
+- **Billing / GRA / Analytics** — owner only; invoice numbering, PDF export, tax reports.
+
+### Notifications and live updates
+
+- **SMS / WhatsApp** — job alerts via Twilio or Hubtel SMS (Ghana); requires phone on profile.
+- **In-app bell** — check-outs, complaints; refreshes on realtime events.
+- **Realtime** — Supabase Realtime (migration `015`); pages update without manual refresh; toast alerts for new complaints, pending approvals, assignments.
+
+### What is incomplete
+
+The app is **operationally usable** for a pilot property (staff workflows, billing records, complaints). It is **not yet a full commercial PMS / SaaS**. See also [README.md](README.md) (summary) and [ARCHITECTURE.md](ARCHITECTURE.md) (integrations).
+
+#### 1. Payments (largest gap)
+
+- Invoices can be created and **marked paid manually** (cash, MoMo, card, etc.).
+- **No** Paystack / Hubtel Pay checkout, webhooks, or guest self-pay.
+- Checkout records payment method; collection is still front-desk / manual.
+
+#### 2. Distribution
+
+- **No** channel manager or OTA sync (Airbnb, Booking.com, iCal).
+- Dashboard **channel performance** only reports how bookings were labeled — it does not connect to external calendars.
+
+#### 3. SaaS productization
+
+- Built for **one owner** adding properties, not multi-tenant org signup.
+- No subscription billing, super-admin console, or self-service beyond owner signup.
+
+#### 4. Production hardening
+
+| Area | State |
+|------|--------|
+| Automated tests | None in repo |
+| Error monitoring (Sentry) | Documented, not wired |
+| Rate limiting | Not on server actions |
+| Pagination | Large tables load in bulk |
+| Password reset | Not implemented |
+| 2FA / OAuth | Email + password only |
+
+Realtime updates require an **open browser tab** — not push when the app is closed.
+
+#### 5. Partial features
+
+- **Owner complaints UI** — managers use `/manager/complaints`; owners see bell alerts only.
+- **Technician housekeeping** — toast alerts only; no HK screen on `/technician/tasks`.
+- **File storage** — buckets documented; no guest document upload UI.
+- **Email notifications** — SMS/WhatsApp only (Twilio / Hubtel SMS).
+- **Notification log** — written to DB; no delivery review UI.
+- **Audit trail** — complaint timeline only; no global change log.
+
+#### Recommended build order
+
+1. Online payments → 2. OTA / iCal → 3. Password reset + tests → 4. SaaS onboarding.
+
+---
+
+## Screen reference
+
+The sections below describe dashboard screens and UI patterns. Data is loaded from **Supabase**, not mock files.
 
 ## Dashboard
 

@@ -1,8 +1,10 @@
 'use server'
 
+import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { toE164 } from '@/lib/notifications/e164'
 import { inviteStaffSchema } from '@/lib/validations'
 import { phoneSchema } from '@/lib/phone'
 import type { Profile, UserRole } from '@/types'
@@ -10,6 +12,13 @@ import type { Profile, UserRole } from '@/types'
 export type StaffActionResult<T = void> =
   | { success: true; data?: T }
   | { success: false; error: string }
+
+export type InviteStaffResult = {
+  token: string
+  role: 'manager' | 'technician'
+  email?: string
+  phone?: string
+}
 
 async function requireStaffProfile(): Promise<Profile | null> {
   const supabase = await createClient()
@@ -42,13 +51,24 @@ function canManageMember(actor: Profile, target: Profile): boolean {
   return false
 }
 
+/** Internal login email for technician invites (Supabase Auth requires an email). */
+function technicianAuthEmail(token: string): string {
+  return `tech+${token}@invite.mojo.local`
+}
+
 export async function inviteStaff(
-  email: string,
+  contact: string,
   role: 'manager' | 'technician',
-): Promise<StaffActionResult<{ token: string; email: string; role: 'manager' | 'technician' }>> {
-  const parsed = inviteStaffSchema.safeParse({ email, role })
+): Promise<StaffActionResult<InviteStaffResult>> {
+  const payload =
+    role === 'manager'
+      ? { role, email: contact.trim() }
+      : { role, phone: contact.trim() }
+
+  const parsed = inviteStaffSchema.safeParse(payload)
   if (!parsed.success) {
-    return { success: false, error: 'Enter a valid email and role.' }
+    const msg = parsed.error.issues[0]?.message
+    return { success: false, error: msg ?? 'Check the contact details and try again.' }
   }
 
   const profile = await requireStaffProfile()
@@ -59,38 +79,104 @@ export async function inviteStaff(
   }
 
   const admin = createAdminClient()
-  const normalizedEmail = parsed.data.email.trim().toLowerCase()
 
-  const { data: existingProfile } = await admin
+  if (parsed.data.role === 'manager') {
+    const normalizedEmail = parsed.data.email!.trim().toLowerCase()
+
+    const { data: existingProfile } = await admin
+      .from('profiles')
+      .select('id')
+      .eq('hotel_id', profile.hotel_id)
+      .eq('email', normalizedEmail)
+      .maybeSingle()
+
+    if (existingProfile) {
+      return { success: false, error: 'Someone with that email is already on your team.' }
+    }
+
+    const { data: existingInvite } = await admin
+      .from('staff_invites')
+      .select('id')
+      .eq('hotel_id', profile.hotel_id)
+      .eq('email', normalizedEmail)
+      .eq('accepted', false)
+      .maybeSingle()
+
+    if (existingInvite) {
+      return { success: false, error: 'There is already a pending invite for that email.' }
+    }
+
+    const { data: invite, error } = await admin
+      .from('staff_invites')
+      .insert({
+        hotel_id: profile.hotel_id,
+        email: normalizedEmail,
+        role: 'manager',
+        invited_by: profile.id,
+      })
+      .select('token')
+      .single()
+
+    if (error || !invite) {
+      return { success: false, error: 'Could not create the invite. Try again.' }
+    }
+
+    revalidatePath('/owner/staff')
+    revalidatePath('/manager/staff')
+
+    return {
+      success: true,
+      data: { token: invite.token, email: normalizedEmail, role: 'manager' },
+    }
+  }
+
+  const phoneParsed = phoneSchema.safeParse(parsed.data.phone)
+  if (!phoneParsed.success) {
+    return { success: false, error: phoneParsed.error.issues[0]?.message ?? 'Invalid phone number.' }
+  }
+
+  const normalizedPhone = toE164(phoneParsed.data.trim())
+  if (!normalizedPhone) {
+    return { success: false, error: 'Enter a valid phone number.' }
+  }
+
+  const { data: staffAtHotel } = await admin
     .from('profiles')
-    .select('id')
+    .select('id, phone')
     .eq('hotel_id', profile.hotel_id)
-    .eq('email', normalizedEmail)
-    .maybeSingle()
+    .eq('role', 'technician')
 
-  if (existingProfile) {
-    return { success: false, error: 'Someone with that email is already on your team.' }
+  for (const member of staffAtHotel ?? []) {
+    if (member.phone && toE164(member.phone) === normalizedPhone) {
+      return { success: false, error: 'A technician with that phone number is already on your team.' }
+    }
   }
 
-  const { data: existingInvite } = await admin
+  const { data: pendingInvites } = await admin
     .from('staff_invites')
-    .select('id')
+    .select('id, phone')
     .eq('hotel_id', profile.hotel_id)
-    .eq('email', normalizedEmail)
+    .eq('role', 'technician')
     .eq('accepted', false)
-    .maybeSingle()
 
-  if (existingInvite) {
-    return { success: false, error: 'There is already a pending invite for that email.' }
+  for (const inv of pendingInvites ?? []) {
+    if (inv.phone && toE164(inv.phone) === normalizedPhone) {
+      return { success: false, error: 'There is already a pending invite for that phone number.' }
+    }
   }
+
+  const token = randomUUID()
+  const authEmail = technicianAuthEmail(token)
 
   const { data: invite, error } = await admin
     .from('staff_invites')
     .insert({
       hotel_id: profile.hotel_id,
-      email: normalizedEmail,
-      role: parsed.data.role,
+      email: authEmail,
+      phone: normalizedPhone,
+      role: 'technician',
       invited_by: profile.id,
+      token,
     })
     .select('token')
     .single()
@@ -104,7 +190,7 @@ export async function inviteStaff(
 
   return {
     success: true,
-    data: { token: invite.token, email: normalizedEmail, role: parsed.data.role },
+    data: { token: invite.token, phone: normalizedPhone, role: 'technician' },
   }
 }
 

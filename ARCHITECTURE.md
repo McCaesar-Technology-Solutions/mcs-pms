@@ -1,432 +1,159 @@
-# MOJO APARTMENTS - Architecture & Decisions
+# MOJO APARTMENTS — Architecture
 
-## System Architecture
+System design for the property management application.
 
-### High-Level Architecture
+---
 
-```
+## High-level architecture
+
+```text
 ┌─────────────────────────────────────────────────────────────┐
-│                        Web Browser                           │
-│              (Desktop, Tablet, Mobile)                       │
+│  Browser (desktop / mobile)                                  │
 └──────────────────────────┬──────────────────────────────────┘
                            │ HTTPS
 ┌──────────────────────────▼──────────────────────────────────┐
-│                  Vercel CDN & Edge                          │
-│          (Global distribution, caching)                     │
-└──────────────────────────┬──────────────────────────────────┘
-                           │
-┌──────────────────────────▼──────────────────────────────────┐
-│              Next.js 16 Application                         │
-│    ┌─────────────────────────────────────────┐             │
-│    │  Static HTML (11 prerendered routes)    │             │
-│    │  - Dashboard                            │             │
-│    │  - Housekeeping                         │             │
-│    │  - Reservations                         │             │
-│    │  - Guests, Billing, Channels, etc.     │             │
-│    └─────────────────────────────────────────┘             │
-│    ┌─────────────────────────────────────────┐             │
-│    │  Client-Side React (Interactive)        │             │
-│    │  - State management (hooks)             │             │
-│    │  - Forms & interactions                 │             │
-│    │  - Real-time updates                    │             │
-│    └─────────────────────────────────────────┘             │
-│    ┌─────────────────────────────────────────┐             │
-│    │  API Routes (to be implemented)         │             │
-│    │  - /api/guests                          │             │
-│    │  - /api/bookings                        │             │
-│    │  - /api/billing                         │             │
-│    └─────────────────────────────────────────┘             │
+│  Vercel — Next.js 16 App Router                              │
+│  ┌────────────────────────────────────────────────────────┐ │
+│  │ Server Components + Server Actions                      │ │
+│  │  lib/data/* reads  ·  app/actions/* writes            │ │
+│  └────────────────────────────────────────────────────────┘ │
+│  ┌────────────────────────────────────────────────────────┐ │
+│  │ Client Components + Supabase Realtime                   │ │
+│  │  live complaints, housekeeping, layout refresh        │ │
+│  └────────────────────────────────────────────────────────┘ │
+│  middleware.ts — session refresh, role route guards         │
 └──────────────────────────┬──────────────────────────────────┘
                            │
         ┌──────────────────┼──────────────────┐
-        │                  │                  │
         ▼                  ▼                  ▼
 ┌──────────────┐  ┌──────────────┐  ┌──────────────┐
-│   Supabase   │  │  Supabase    │  │  External    │
-│  PostgreSQL  │  │  Auth +      │  │  Services    │
-│  + Storage   │  │  Storage     │  │ (Paystack,   │
-│  + RLS       │  │              │  │  OTA, etc.)  │
+│  Supabase    │  │  Supabase    │  │  External    │
+│  PostgreSQL  │  │  Auth        │  │  Twilio /    │
+│  + RLS       │  │              │  │  Hubtel SMS  │
+│  + Realtime  │  │              │  │              │
 └──────────────┘  └──────────────┘  └──────────────┘
 ```
 
-## Technology Stack
+---
 
-### Frontend Layer
+## Technology choices
 
-**Framework:** Next.js 16 with React 19
-- App Router for file-based routing
-- Server Components for data fetching
-- Client Components for interactivity
-- Automatic code splitting per route
+| Layer | Choice | Notes |
+|-------|--------|-------|
+| UI | Next.js 16, React 19 | App Router; mostly Server Components for pages |
+| Styling | Tailwind CSS 4 | Design tokens in `app/globals.css` |
+| Database | Supabase PostgreSQL | Migrations in `supabase/migrations/` |
+| Tenancy | `hotel_id` on rows | RLS policies scope by hotel / role |
+| Auth | Supabase Auth | Staff users; guests use portal tokens |
+| Mutations | Server Actions | Not REST `/api/*` for core CRUD |
+| Live UI | Supabase Realtime | `postgres_changes` → refresh or client refetch |
+| Notifications | Twilio / Hubtel | Optional; console fallback in dev |
+| Hosting | Vercel | Preview + production deploys |
 
-**Styling:** Tailwind CSS v4
-- Utility-first CSS framework
-- Custom design tokens via CSS variables
-- 8px spacing grid system
-- 4-level elevation shadow system
-- Responsive breakpoints (mobile-first)
+---
 
-**Components:** shadcn/ui + custom
-- Accessible UI components
-- Lucide React for icons
-- Custom design system patterns
-- Consistent styling across app
+## Application layers
 
-**State Management:** React Hooks
-- useState for component state
-- useEffect for side effects
-- Custom hooks for reusable logic
-- Context API for global state (optional)
+### 1. Route groups (by role)
 
-**Data Fetching:** SWR (to be implemented)
-- Client-side data fetching with caching
-- Automatic revalidation
-- Built-in error handling
-- Perfect for real-time updates
-
-### Backend Layer (To Be Implemented)
-
-**Platform:** [Supabase](https://supabase.com)
-- PostgreSQL database with SQL migrations (`supabase/migrations/`)
-- Supabase Auth — staff, admin, and guest portal users
-- Supabase Storage — guest documents, property photos, invoice PDFs
-- Row Level Security (RLS) — multi-tenant isolation by `organization_id` / `property_id`
-
-**Client libraries:**
-- `@supabase/supabase-js` — database, auth, storage
-- `@supabase/ssr` — cookie-based sessions in Next.js App Router
-
-**API Framework:** Next.js Route Handlers
-- Server-side Supabase client for privileged operations
-- Zod validation on request bodies
-- RLS as the primary tenant boundary; API routes enforce role checks for staff actions
-
-### Deployment
-
-**Hosting:** Vercel
-- Automatic deployments from GitHub
-- Global CDN distribution
-- Edge functions support
-- Environment variable management
-- Performance monitoring
-
-## Key Architectural Decisions
-
-### 1. Static Site Generation
-
-**Decision:** Prerender all 11 dashboard routes at build time
-
-**Rationale:**
-- Fast page loads (< 1s) for end users
-- Reduced server load
-- Better SEO
-- Works great for demo/MVP
-- Easy to transition to dynamic content
-
-**Implementation:**
-```typescript
-// Routes are automatically prerendered by Next.js
-// No getStaticProps needed - works by default
+```text
+app/(owner)/owner/*       → owner only
+app/(manager)/manager/*   → manager only
+app/(technician)/*        → technician only
+app/(guest)/*             → guest portal (token session)
+app/(auth)/*              → public login, signup, invite
+app/mobile/*              → mobile housekeeping
 ```
 
-### 2. Mock Data Centralization
+`lib/supabase/middleware.ts` redirects unauthenticated users and wrong roles.
 
-**Decision:** All demo data in `lib/mock-data.ts`
+### 2. Data access
 
-**Rationale:**
-- Single source of truth
-- Easy to update all data at once
-- Clear separation from components
-- Simple to replace with API calls
-- Reduces component complexity
+**Reads:** Server Components call `lib/data/*.ts` functions that use the server Supabase client. RLS enforces access.
 
-**Implementation:**
-```typescript
-// lib/mock-data.ts
-export const reservations: Reservation[] = [...]
-export const guests: Guest[] = [...]
-export const tasks: Task[] = [...]
+**Writes:** `app/actions/*.ts` Server Actions validate input (Zod), mutate rows, call `revalidatePath`, and optionally trigger notifications.
 
-// components/reservations-table.tsx
-import { reservations } from '@/lib/mock-data'
+**Admin client:** `lib/supabase/admin.ts` for trusted server-only operations where RLS would block legitimate self-service (used sparingly).
+
+### 3. Realtime
+
+Migration `015` publishes operational tables to `supabase_realtime`.
+
+`HotelRealtimeProvider` (owner/manager shell) listens for changes filtered by `hotel_id` and:
+
+- Publishes `layout` → `router.refresh()` for server-rendered pages
+- Publishes `complaints` / `housekeeping` → client components refetch lists
+
+`TechnicianRealtime` filters by `assigned_to`. Guest portal subscribes to the guest's complaints.
+
+### 4. Notifications
+
+Event-driven SMS/WhatsApp from `lib/notifications/complaints.ts` on assignment, estimate submit/approve, etc. Delivery via `lib/notifications/send.ts`.
+
+---
+
+## Core data model (simplified)
+
+```text
+hotels (property)
+  ├── profiles (staff: owner | manager | technician)
+  ├── staff_invites
+  ├── rooms, room_categories
+  ├── guests, reservations
+  ├── housekeeping_tasks
+  ├── complaints
+  │     └── complaint_estimates
+  ├── invoices
+  └── notification_log
 ```
 
-### 3. Component-First Architecture
+Guest portal users are `guests` rows with access tokens — not `profiles`.
 
-**Decision:** Break UI into small, reusable components
+Complaint states use `status` plus `approval_stage` (`estimate` | `completion`) for the two-step manager approval workflow.
 
-**Rationale:**
-- Easier to maintain and test
-- Reusable across pages
-- Clear separation of concerns
-- Better code organization
-- Scales well as app grows
+---
 
-**Structure:**
-```
-Page Component (route handler)
-  ├─ Feature Component (dashboard/reservations-table.tsx)
-  │  ├─ Smaller Components (status badge, action buttons)
-  │  └─ State management (useState, custom hooks)
-  └─ Another Feature Component
-```
+## Security architecture
 
-### 4. Client-Side State Only
+1. **RLS** — primary tenant boundary on all hotel-scoped tables.
+2. **Middleware** — session cookie refresh; block `/owner/*` from managers, etc.
+3. **Server Actions** — never trust client; re-check role and `hotel_id`.
+4. **Contact privacy** — owner phone visible to managers only (migration `014`).
+5. **Secrets** — `SUPABASE_SERVICE_ROLE_KEY`, Twilio/Hubtel keys server-only.
 
-**Decision:** Use React hooks instead of external state management
+See [SECURITY.md](SECURITY.md) for detail.
 
-**Rationale:**
-- Simpler setup for MVP
-- Faster development
-- No Redux/Zustand complexity
-- Easy to add Context later if needed
-- Works great for component-scoped state
+---
 
-**When to upgrade:**
-- Add Context API for global theme/auth
-- Add Redux/Zustand if state becomes complex
-- Add Jotai for distributed atom-based state
+## Integration points
 
-### 5. Design Token System
+| Integration | Status | Location |
+|-------------|--------|----------|
+| Supabase Auth | Live | `lib/supabase/*`, `app/actions/auth.ts` |
+| Supabase Realtime | Live (migration `015`) | `components/realtime/*` |
+| Twilio SMS/WhatsApp | Optional env | `lib/notifications/send.ts` |
+| Hubtel SMS | Optional env | `lib/notifications/send.ts` |
+| Paystack / Hubtel Pay | **Not built** | — |
+| OTA / iCal | **Not built** | — |
+| Email (Resend, etc.) | **Not built** | — |
+| Supabase Storage | Buckets documented; **no upload UI** | DEPLOYMENT.md |
+| Sentry / E2E tests | **Not wired** | — |
 
-**Decision:** Use CSS variables for all colors and spacing
+Product gaps (owner complaints UI, pagination, password reset, etc.) are listed in [FEATURES.md](FEATURES.md#what-is-incomplete).
 
-**Rationale:**
-- Easy to change brand colors globally
-- Support for light/dark mode
-- No build step needed for theme changes
-- Works with Tailwind CSS seamlessly
-- Accessible naming conventions
+---
 
-**Variables:**
-```css
---primary: #6d28d9
---accent: #d4a62e
---background: #faf8fc
---card: #ffffff
---sidebar: #2e1065
---shadow-elevation-2: 0 4px 12px rgba(26, 11, 46, 0.08)
-```
+## Scalability notes
 
-### 6. Responsive Mobile-First
+- **Current scale:** single-digit properties per owner; hundreds of rooms; suitable for pilot properties.
+- **Indexes:** on `hotel_id`, reservation dates, complaint status as data grows.
+- **Pagination:** large guest/reservation tables may need server-side pagination (not yet everywhere).
+- **Realtime:** one channel per hotel shell; acceptable for typical property staff counts.
 
-**Decision:** Design mobile first, enhance for desktop
+---
 
-**Rationale:**
-- Mobile is primary interface (PWA housekeeping app)
-- Progressive enhancement works better
-- Better performance on mobile devices
-- Desktop views are natural enhancement
+## Related docs
 
-**Breakpoints:**
-```
-Mobile: 375px (iPhone)
-Tablet: 768px (iPad)
-Desktop: 1024px (wide screens)
-4K: 1920px+ (monitors)
-```
-
-### 7. Feature Flags in Sidebar
-
-**Decision:** All 11 pages in main sidebar navigation
-
-**Rationale:**
-- Easy access to all features
-- Clear visual hierarchy
-- Scales well to 15-20 pages
-- Mobile sidebar collapses to icons
-
-**Future scalability:**
-- Implement feature flags for beta features
-- User role-based access control
-- Customizable sidebar per role
-
-## Data Models
-
-### Core Entities
-
-```typescript
-interface Reservation {
-  id: string
-  guestName: string
-  roomNumber: number
-  checkInDate: string (ISO 8601)
-  checkOutDate: string
-  status: 'pending' | 'confirmed' | 'checked_in' | 'checked_out'
-  source: 'website' | 'airbnb' | 'booking' | 'walk_in'
-  totalPrice: number
-  numberOfNights: number
-}
-
-interface Guest {
-  id: string
-  name: string
-  email: string
-  phone: string
-  address: string
-  status: 'active' | 'past' | 'blocked'
-  membershipLevel: 'standard' | 'vip' | 'corporate'
-  totalStays: number
-  totalSpent: number
-}
-
-interface Task {
-  id: string
-  roomNumber: number
-  taskType: 'clean' | 'inspect' | 'maintenance' | 'restock'
-  status: 'todo' | 'in_progress' | 'done'
-  priority: 'low' | 'medium' | 'high'
-  assignedTo: string
-  dueDate: string
-  notes: string
-}
-
-interface Invoice {
-  id: string
-  invoiceNumber: string
-  guestId: string
-  amount: number
-  status: 'draft' | 'sent' | 'paid' | 'overdue'
-  issuedDate: string
-  dueDate: string
-  paidDate?: string
-}
-```
-
-## Performance Characteristics
-
-### Current (Mock Data)
-
-| Metric | Value |
-|--------|-------|
-| Build time | ~45s (prerendering) |
-| Page load | <1s |
-| LCP | <1s |
-| CLS | 0 |
-| TTI | Instant |
-| Bundle size | ~150KB |
-| Memory usage | <50MB |
-
-### With Database (Expected)
-
-| Metric | Current | With DB |
-|--------|---------|---------|
-| Page load | <1s | 1-2s |
-| API response | N/A | 50-200ms |
-| Database query | N/A | 10-100ms |
-
-### Optimization Strategies
-
-1. **Caching** - Redis for frequent queries
-2. **Pagination** - Load large datasets in chunks
-3. **Indexing** - Database indexes on key columns
-4. **CDN** - Static assets via Vercel
-5. **Code splitting** - Automatic per route
-6. **Image optimization** - Next.js Image component
-
-## Scalability Path
-
-### Phase 1: MVP (Current)
-- Mock data + React state
-- All features demo-ready
-- Static site generation
-
-### Phase 2: Basic Backend
-- Add Supabase (PostgreSQL + Auth + Storage)
-- Implement core API routes with RLS
-- Deploy to production
-
-### Phase 3: Enhanced Features
-- Add 15 more API routes
-- Implement real-time sync (webhooks)
-- Add rate limiting
-- Analytics integration
-
-### Phase 4: Enterprise
-- Multi-property support
-- Team collaboration features
-- Advanced reporting
-- API for integrations
-- Mobile app (React Native)
-
-## Integration Points
-
-### Future Integrations
-
-**Payment Processing**
-- Stripe for credit card payments
-- Webhook for payment confirmations
-- Invoice generation
-
-**OTA Channels**
-- Airbnb API for bookings sync
-- Booking.com extranet
-- Google Hotels
-- Expedia
-
-**Communication**
-- SendGrid for email
-- Twilio for SMS
-- Slack notifications
-
-**Analytics**
-- Google Analytics 4
-- Mixpanel for events
-- Sentry for error tracking
-
-## Security Architecture
-
-**In Transit:**
-- HTTPS everywhere (Vercel auto-issued)
-- TLS 1.3 minimum
-
-**At Rest:**
-- Database and Storage encryption at Supabase
-- API key encryption
-- Secure session cookies (Supabase Auth)
-
-**Authentication:**
-- Supabase Auth with secure password hashing
-- Two-factor authentication (optional, via Supabase)
-- Session timeout and refresh token rotation
-
-**Authorization:**
-- Role-based access control (`profiles.role`)
-- Row Level Security policies on all tenant tables
-- Storage bucket policies scoped by organization
-- API route verification for staff-only actions
-
-## Migration Strategy
-
-### From Mock Data to Real Data
-
-1. **Week 1:** Set up Supabase project, schema, RLS, Storage buckets
-2. **Week 2:** Implement 5 core API routes (/api/guests, /bookings, etc.)
-3. **Week 3:** Add Supabase Auth + middleware for dashboard routes
-4. **Week 4:** Migrate components to use API instead of mock data
-5. **Week 5:** Testing and bug fixes
-6. **Week 6:** Deploy to production
-
-**Zero downtime:**
-- Both mock data and API exist simultaneously
-- Feature flags to switch between data sources
-- Rollback capability if issues
-
-## Technology Choices Rationale
-
-| Tech | Alternative | Why Chosen |
-|------|-------------|-----------|
-| Next.js | Remix, Nuxt | Best React ecosystem, Vercel integration |
-| Tailwind | CSS Modules, styled-components | Utility-first, rapid development |
-| TypeScript | JavaScript | Type safety, better IDE support |
-| Supabase | Neon + separate auth/storage | All-in-one Postgres, Auth, Storage, RLS for multi-tenant SaaS |
-| @supabase/ssr | NextAuth, Better Auth | Native Next.js App Router session handling |
-| Vercel | AWS, Digital Ocean | Developer experience, auto-scaling |
-
-## Future Architecture Improvements
-
-1. **Microservices** - Separate auth, billing, analytics services
-2. **Message Queue** - Async job processing (email, reports)
-3. **WebSockets** - Real-time updates for team collaboration
-4. **GraphQL** - More flexible API queries
-5. **Mobile App** - React Native for iOS/Android
+- [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md) — how to add features
+- [DEPLOYMENT.md](DEPLOYMENT.md) — migrations and env setup
+- [FEATURES.md](FEATURES.md) — product feature reference

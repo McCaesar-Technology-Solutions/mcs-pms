@@ -161,31 +161,30 @@ setTasks(tasks)
 
 **Solutions:**
 
-1. Check mock data exists:
-```bash
-grep -n "export const guests" lib/mock-data.ts
-```
+1. Verify Supabase env vars in `.env.local` and restart `npm run dev`.
+2. Confirm you are signed in with the correct role (owner vs manager see different routes).
+3. Check RLS: data must belong to your `hotel_id`. Owners switching properties use the sidebar switcher.
+4. Inspect server action / loader errors in the terminal running Next.js.
+5. Run missing migrations — see [DEPLOYMENT.md](DEPLOYMENT.md#schema-and-migrations).
 
-2. Verify import path:
-```tsx
-// ✅ Correct
-import { guests } from '@/lib/mock-data'
+#### `supabase db push` fails — "relation already exists"
 
-// ❌ Wrong
-import guests from '@/lib/mock-data' // Default export
-```
+**Error:** `relation "hotels" already exists` on migration `001`
 
-3. Check data format matches component:
-```tsx
-// Mock data should be an array
-export const guests = [
-  { id: '1', name: 'Ama', ... },
-  { id: '2', name: 'Kofi', ... }
-]
+**Cause:** Database was created manually; migration history is not tracked.
 
-// Component expects array
-guests.map(guest => <tr key={guest.id}> ...</tr>)
-```
+**Fix:** Run only missing migration SQL in the Supabase SQL Editor (e.g. `015_realtime_publication.sql`). Do not re-run `001` on an existing database.
+
+#### Live updates not working
+
+**Symptoms:** Must refresh manually to see complaint or reservation changes.
+
+**Solutions:**
+
+1. Apply migration `015` and verify tables appear in `pg_publication_tables` for `supabase_realtime`.
+2. Owner/manager layouts must use `enableRealtime` on `AppShell` (already set in `(owner)` and `(manager)` layouts).
+3. Check browser console for Realtime channel errors; use the **Reconnect** banner if shown.
+4. Ensure the tab stays open — realtime does not push when the app is closed.
 
 #### Routing Issues
 
@@ -309,13 +308,13 @@ className="px-2 md:px-4 lg:px-6"
 A: MOJO APARTMENTS is a property management system designed for Ghana hospitality businesses. It manages bookings, guests, housekeeping, billing, and GRA tax compliance.
 
 **Q: Is the data real or mock?**
-A: Currently all data is mock (demo). Connect Supabase to use real data.
+A: Production paths use **Supabase PostgreSQL**. Configure `.env.local` with your project keys. Optional `USE_MOCK_DATA=true` exists for legacy migration only.
 
 **Q: Can I use this for my property?**
 A: The system is production-ready. Customize colors, add your property info in Settings, and deploy to Vercel.
 
 **Q: How many properties does it support?**
-A: Currently optimized for 1-2 properties. Multi-property version coming soon.
+A: Owners can manage **multiple properties** via the sidebar property switcher. Managers are assigned to one property.
 
 ### Technical
 
@@ -333,7 +332,7 @@ A: Yes! All styling uses Tailwind CSS and is easily customizable. See DESIGN_SYS
 A: Create new component files and import them. See DEVELOPER_GUIDE.md for patterns.
 
 **Q: What's the database structure?**
-A: Currently using mock data. See ARCHITECTURE.md for planned schema.
+A: See `supabase/migrations/` and [ARCHITECTURE.md](ARCHITECTURE.md). Core tenant key is `hotel_id`.
 
 **Q: Can I use a different database?**
 A: Supabase PostgreSQL is the chosen backend. See [ARCHITECTURE.md](ARCHITECTURE.md) and [DEPLOYMENT.md](DEPLOYMENT.md).
@@ -369,13 +368,13 @@ A: Supabase handles daily automatic backups on paid plans. One-click restore fro
 ### Features
 
 **Q: Can multiple staff members use it simultaneously?**
-A: Yes, design supports unlimited concurrent users. Real-time sync coming soon.
+A: Yes. Supabase Realtime pushes updates to open browser tabs (after migration `015`).
 
 **Q: Does it support multi-currency?**
 A: Currently set to Ghana Cedis (₵). Modify currency in component files.
 
 **Q: Can I connect OTA channels like Airbnb?**
-A: Yes! Settings screen has OTA integration setup. API connections in development.
+A: Not yet. Channels UI may exist as placeholder; iCal/API sync is on the roadmap.
 
 **Q: Does it have a mobile app?**
 A: Yes! PWA housekeeping app at /mobile/housekeeping optimized for iOS/Android.
@@ -468,11 +467,15 @@ npm run analyze  # if configured
 
 ## Known Limitations
 
-1. **Mock data only** - Use real database for production
-2. **Single property** - Multi-property in v2
-3. **Limited reporting** - Advanced reports coming soon
-4. **No real-time sync** - Implement WebSockets for live updates
-5. **Basic auth** - Add OAuth/2FA before public launch
+Operational caveats you may hit day to day:
+
+1. **No online payments** — mark invoices paid manually; guests cannot pay in the portal.
+2. **No OTA sync** — external calendars (Airbnb, Booking.com) are not connected.
+3. **Realtime requires open tab** — updates stop when the browser is closed.
+4. **No password reset** — use owner/manager to re-invite or reset via Supabase dashboard.
+5. **Large lists** — guests/reservations may slow down without pagination.
+
+Full product gap analysis (SaaS, tests, email, storage UI, etc.): [FEATURES.md — What is incomplete](FEATURES.md#what-is-incomplete).
 
 ## Report a Bug
 

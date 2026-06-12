@@ -38,7 +38,8 @@ You are locked to **one property** — no property switcher.
 - Search: guests, reservations, rooms (no invoices).
 - Notifications: check-outs today, complaints.
 - **Settings** menu → Staff page (not a settings page).
-- Live toasts for new complaints and estimates.
+- **Live updates** — complaints, housekeeping, reservations, guests, and notifications refresh automatically when something changes (no manual page refresh).
+- Toast alerts for new complaints, technician estimates, and pending approvals.
 
 ---
 
@@ -182,7 +183,7 @@ Checkout creates a **Clean** task; room → Cleaning. Marking clean task **Done*
 **Path:** `/manager/staff`
 
 - Your phone card.
-- **Invite technicians only** (not managers).
+- **Invite technicians only** (not managers) — enter **phone number**, then share the invite link.
 - Disable/reactivate technicians only.
 - Edit technician phones.
 - Pending invites: copy link, revoke.

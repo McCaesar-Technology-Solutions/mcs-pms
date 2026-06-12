@@ -8,8 +8,8 @@ Technicians see **assigned maintenance jobs** on mobile. Submit invoices, wait f
 
 ### Join the team
 
-1. Owner or manager sends invite: `/accept-invite?token=...`
-2. Enter name, password, phone.
+1. Owner or manager creates an invite with your **phone number** and shares the link (`/accept-invite?token=...`) via WhatsApp, SMS, or in person.
+2. Open the link, enter your name, phone, and password.
 3. Land on **My tasks** (`/technician/tasks`).
 
 ### First-time setup
@@ -37,8 +37,12 @@ If no phone: amber **“Add your phone number”** at top — required for SMS j
 ### Live alerts (toasts)
 
 - New task assigned.
+- **Invoice approved** — you can start the job.
 - Job sent back — read manager note.
+- **Job approved and closed** — work is complete.
 - New housekeeping task (no housekeeping screen for technicians).
+
+Task list updates automatically when status changes.
 
 ---
 

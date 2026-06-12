@@ -4,17 +4,15 @@
 
 Closes #
 
-## Phase
+## Area
 
 <!-- Check one -->
 
-- [ ] Phase 0 — UI prototype
-- [ ] Phase 1 — Foundation (DB, auth, API)
-- [ ] Phase 2 — Daily operations
-- [ ] Phase 3 — Ghana compliance & payments
-- [ ] Phase 4 — Channels & SaaS
-- [ ] Phase 5 — Hardening & launch
-- [ ] Chore / docs / CI (no phase)
+- [ ] Feature (operations, complaints, billing, etc.)
+- [ ] Bug fix
+- [ ] Documentation
+- [ ] Infrastructure / migrations
+- [ ] Chore (deps, CI)
 
 ## Type of change
 

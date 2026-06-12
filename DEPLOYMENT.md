@@ -57,8 +57,18 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 # App
 NEXT_PUBLIC_APP_URL=https://yourdomain.com
 
-# API Keys (external services — Phase 3+)
-PAYSTACK_SECRET_KEY=sk_live_...
+# Notifications (optional — logs to console when unset)
+# TWILIO_ACCOUNT_SID=
+# TWILIO_AUTH_TOKEN=
+# TWILIO_SMS_FROM=+1...
+# TWILIO_WHATSAPP_FROM=whatsapp:+14155238886
+# HUBTEL_CLIENT_ID=
+# HUBTEL_CLIENT_SECRET=
+# HUBTEL_SENDER_ID=MOJO
+# NOTIFICATION_CHANNELS=sms,whatsapp
+
+# Payments (not yet integrated)
+# PAYSTACK_SECRET_KEY=sk_live_...
 ```
 
 ### Setting Environment Variables in Vercel
@@ -85,7 +95,23 @@ PAYSTACK_SECRET_KEY=sk_live_...
 
 ### 2. Schema and migrations
 
-Use the Supabase CLI or SQL Editor:
+Migrations live in `supabase/migrations/` (`001` through `015`). Every tenant table has RLS enabled.
+
+| Migration | Purpose |
+|-----------|---------|
+| `001`–`004` | Core schema, RLS, rooms |
+| `005`–`006` | Multi-property, owner auth |
+| `007` | Complaint estimates + realtime for complaints |
+| `008` | Room categories |
+| `009` | Profile phones |
+| `010`–`011` | Invoice numbering |
+| `012` | Notification log |
+| `013` | Two-step complaint approval (`approval_stage`) |
+| `014` | Technician profile visibility (owner phone privacy) |
+| `015` | Realtime publication for reservations, guests, invoices, etc. |
+| `016` | `staff_invites.phone` for technician invites |
+
+**Fresh database** — Supabase CLI:
 
 ```bash
 npm install -g supabase
@@ -94,7 +120,20 @@ supabase link --project-ref your-project-ref
 supabase db push
 ```
 
-Migrations live in `supabase/migrations/`. Every tenant table must have RLS enabled.
+**Existing database** (tables already created, `db push` fails on `001`):
+
+1. Confirm which migrations are already applied.
+2. Run only missing SQL files in the **SQL Editor** (safe for `015` — uses `duplicate_object` guards).
+3. Or repair `supabase_migrations.schema_migrations` before using `db push` again.
+
+**Realtime:** migration `015` is required for live UI updates on reservations, guests, billing-related tables, and staff. Complaints/housekeeping realtime is enabled in earlier migrations.
+
+Verify publication:
+
+```sql
+SELECT tablename FROM pg_publication_tables
+WHERE pubname = 'supabase_realtime' ORDER BY tablename;
+```
 
 ### 3. Storage buckets
 
@@ -165,7 +204,9 @@ export async function middleware(request: NextRequest) {
 }
 ```
 
-4. Staff roles live in `profiles` (linked to `auth.users` via trigger). Guest portal users get `role = 'guest'` with RLS limiting access to their reservations.
+4. Staff roles live in `profiles`: `owner`, `manager`, or `technician`. Guest portal access uses `guests` portal tokens — not staff auth accounts.
+
+5. Role routes: `/owner/*`, `/manager/*`, `/technician/*` are enforced in `lib/supabase/middleware.ts`.
 
 ## Build Configuration
 

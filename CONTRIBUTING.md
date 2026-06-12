@@ -19,11 +19,11 @@ Related docs: [README.md](README.md) (roadmap), [DEVELOPER_GUIDE.md](DEVELOPER_G
 
 We do **not** use personal branches (`john/dev`). We do **not** commit directly to `main`.
 
-**Phases** (Phase 0, Phase 1, …) are tracked with:
+Work is tracked with:
 
-- GitHub **Milestones** (group issues)
-- Git **tags** on `main` when a phase completes (e.g. `v0.1.0-phase1`)
-- Optional short-lived `phase/N-integration` branches (lead only, max ~2 weeks) — see below
+- GitHub **Milestones** or project board (group issues by theme)
+- Git **tags** on `main` for releases (e.g. `v0.2.0`)
+- Optional short-lived integration branches (lead only, max ~2 weeks) — see below
 
 ---
 
@@ -33,16 +33,14 @@ We do **not** use personal branches (`john/dev`). We do **not** commit directly 
 feature/<phase>-<short-description>
 ```
 
-| Phase | Prefix | Example |
-|-------|--------|---------|
-| Phase 0 (UI) | `p0` | `feature/p0-guest-modal-center` |
-| Phase 1 (Foundation) | `p1` | `feature/p1-api-reservations` |
-| Phase 2 (Operations) | `p2` | `feature/p2-housekeeping-kanban-api` |
-| Phase 3 (Ghana/payments) | `p3` | `feature/p3-gra-export-csv` |
-| Phase 4 (Channels/SaaS) | `p4` | `feature/p4-ical-sync` |
-| Phase 5 (Launch) | `p5` | `feature/p5-e2e-reservations` |
-| Bugfix | `fix` | `fix/p1-reservation-date-timezone` |
+| Area | Prefix | Example |
+|------|--------|---------|
+| Feature | `feat` | `feature/feat-payment-webhook` |
+| Bugfix | `fix` | `fix/realtime-reconnect` |
+| Docs | `docs` | `docs/update-deployment-guide` |
 | Chore (deps, CI) | `chore` | `chore/add-eslint-ci` |
+
+Legacy phase prefixes (`p0`–`p5`) may still appear on older branches. New work should use descriptive names above.
 
 Rules:
 
@@ -173,8 +171,8 @@ Do not keep phase branches open across multiple months.
 ### One-time GitHub setup
 
 - [ ] Create repo `mojo-apartments` under your organisation (private).
-- [ ] Push Phase 0 UI as initial commit on `main`.
-- [ ] Tag prototype: `v0.0.0-phase0-ui`.
+- [ ] Ensure `main` reflects the current Supabase-backed application.
+- [ ] Tag releases as needed (e.g. `v0.2.0`).
 - [ ] Enable branch protection on `main`:
   - Require pull request before merging
   - Require 1 approval
