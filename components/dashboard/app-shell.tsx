@@ -6,7 +6,7 @@ import Topbar from '@/components/dashboard/topbar'
 import type { NavItem } from '@/lib/navigation'
 import type { Profile } from '@/types'
 import type { OccupancyToday } from '@/lib/data/occupancy'
-import { ManagerRealtimeProvider } from '@/components/realtime/manager-realtime'
+import { HotelRealtimeProvider } from '@/components/realtime/hotel-realtime'
 import { ProfilePhoneBanner } from '@/components/dashboard/profile-phone-banner'
 import { hasPhoneNumber } from '@/lib/phone'
 
@@ -64,9 +64,9 @@ export function AppShell({
 
   if (enableRealtime && profile?.hotel_id) {
     return (
-      <ManagerRealtimeProvider hotelId={profile.hotel_id}>
+      <HotelRealtimeProvider hotelId={profile.hotel_id}>
         {content}
-      </ManagerRealtimeProvider>
+      </HotelRealtimeProvider>
     )
   }
 

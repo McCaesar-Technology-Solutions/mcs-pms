@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import { HousekeepingKanban } from '@/components/dashboard/housekeeping-kanban'
+import { MobileRealtimeShell } from '@/components/realtime/mobile-realtime-shell'
 import { getProfile } from '@/lib/auth/get-profile'
 import { getDashboardData } from '@/lib/data/dashboard'
 import { getStaffData } from '@/lib/data/staff'
@@ -47,12 +48,14 @@ export default async function MobileHousekeepingPage() {
         </div>
       </div>
 
-      <HousekeepingKanban
-        tasks={tasks}
-        rooms={roomOptions}
-        staff={assignableStaff}
-        canManage={profile.role === 'owner' || profile.role === 'manager'}
-      />
+      <MobileRealtimeShell hotelId={profile.hotel_id}>
+        <HousekeepingKanban
+          tasks={tasks}
+          rooms={roomOptions}
+          staff={assignableStaff}
+          canManage={profile.role === 'owner' || profile.role === 'manager'}
+        />
+      </MobileRealtimeShell>
     </div>
   )
 }

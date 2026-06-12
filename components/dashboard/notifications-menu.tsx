@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, useRef, useState, useTransition } from 'react'
+import { useCallback, useEffect, useRef, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { Bell, CheckCircle, Clock, FileText, LogOut, Settings } from 'lucide-react'
 import { loadNotifications } from '@/app/actions/notifications'
+import { useRealtimeRefresh } from '@/components/realtime/realtime-refresh-context'
 import type { AppNotification } from '@/lib/data/notifications'
 import type { Profile } from '@/types'
 
@@ -23,13 +24,24 @@ export function NotificationsMenu({ profile }: NotificationsMenuProps) {
   const [pending, startTransition] = useTransition()
   const rootRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    if (!open) return
+  const fetchNotifications = useCallback(() => {
+    if (!profile?.hotel_id) return
     startTransition(async () => {
       const data = await loadNotifications()
       setItems(data)
     })
-  }, [open])
+  }, [profile?.hotel_id])
+
+  useEffect(() => {
+    fetchNotifications()
+  }, [fetchNotifications])
+
+  useRealtimeRefresh('layout', fetchNotifications)
+
+  useEffect(() => {
+    if (!open) return
+    fetchNotifications()
+  }, [open, fetchNotifications])
 
   useEffect(() => {
     if (!open) return

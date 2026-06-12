@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { toE164 } from '@/lib/notifications/e164'
+import { resolveHubtelSenderId, validateHubtelSenderId } from '@/lib/notifications/hubtel-sender'
 
 export type NotificationChannel = 'sms' | 'whatsapp'
 
@@ -97,9 +98,14 @@ async function sendTwilioWhatsApp(to: string, body: string): Promise<SendResult>
 async function sendHubtelSms(to: string, body: string): Promise<SendResult> {
   const clientId = process.env.HUBTEL_CLIENT_ID
   const clientSecret = process.env.HUBTEL_CLIENT_SECRET
-  const sender = process.env.HUBTEL_SENDER_ID ?? 'MOJO'
+  const sender = resolveHubtelSenderId()
   if (!clientId || !clientSecret) {
     return { channel: 'sms', success: false, error: 'Hubtel SMS not configured' }
+  }
+
+  const senderCheck = validateHubtelSenderId(sender)
+  if (!senderCheck.ok) {
+    return { channel: 'sms', success: false, error: senderCheck.error }
   }
 
   const res = await fetch('https://smsc.hubtel.com/v1/messages/send', {

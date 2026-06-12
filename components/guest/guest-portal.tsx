@@ -53,8 +53,6 @@ export function GuestPortal({ guest, roomNumber, propertyContacts }: GuestPortal
 
   useEffect(() => {
     loadComplaints()
-    const interval = setInterval(loadComplaints, 15000)
-    return () => clearInterval(interval)
   }, [loadComplaints])
 
   useEffect(() => {
@@ -67,7 +65,7 @@ export function GuestPortal({ guest, roomNumber, propertyContacts }: GuestPortal
       .on(
         'postgres_changes',
         {
-          event: 'UPDATE',
+          event: '*',
           schema: 'public',
           table: 'complaints',
           filter: `guest_id=eq.${guest.id}`,
