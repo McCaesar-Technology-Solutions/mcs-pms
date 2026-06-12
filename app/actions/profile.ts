@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { phoneSchema } from '@/lib/phone'
 import { z } from 'zod'
 
@@ -33,7 +34,8 @@ export async function updateProfilePhone(phone: string): Promise<ProfileActionRe
     return { success: false, error: 'Not authorized.' }
   }
 
-  const { error } = await supabase
+  const admin = createAdminClient()
+  const { error } = await admin
     .from('profiles')
     .update({ phone: parsed.data.phone.trim() })
     .eq('id', user.id)

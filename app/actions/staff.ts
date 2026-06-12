@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { inviteStaffSchema } from '@/lib/validations'
+import { phoneSchema } from '@/lib/phone'
 import type { Profile, UserRole } from '@/types'
 
 export type StaffActionResult<T = void> =
@@ -157,5 +158,44 @@ export async function setStaffActive(
 
   revalidatePath('/owner/staff')
   revalidatePath('/manager/staff')
+  return { success: true }
+}
+
+export async function updateStaffPhone(
+  profileId: string,
+  phone: string,
+): Promise<StaffActionResult> {
+  const parsed = phoneSchema.safeParse(phone)
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid phone number.' }
+  }
+
+  const actor = await requireStaffProfile()
+  if (!actor?.hotel_id) return { success: false, error: 'Not authorized.' }
+
+  const admin = createAdminClient()
+  const { data: target } = await admin
+    .from('profiles')
+    .select('*')
+    .eq('id', profileId)
+    .maybeSingle()
+
+  if (!target) return { success: false, error: 'Team member not found.' }
+
+  const isSelf = actor.id === profileId
+  if (!isSelf && !canManageMember(actor, target as Profile)) {
+    return { success: false, error: 'You cannot update this team member.' }
+  }
+
+  const { error } = await admin
+    .from('profiles')
+    .update({ phone: parsed.data.trim() })
+    .eq('id', profileId)
+
+  if (error) return { success: false, error: 'Could not update phone number.' }
+
+  revalidatePath('/owner/staff')
+  revalidatePath('/manager/staff')
+  revalidatePath('/', 'layout')
   return { success: true }
 }

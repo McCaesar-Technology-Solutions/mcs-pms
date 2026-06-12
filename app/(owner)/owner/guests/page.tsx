@@ -17,7 +17,7 @@ export default async function OwnerGuestsPage({
         title="Guests"
         description="View guest directory and stay history across your property."
       />
-      <GuestsTable guests={guests} initialSearch={q} readOnly />
+      <GuestsTable guests={guests} initialSearch={q} />
     </div>
   )
 }

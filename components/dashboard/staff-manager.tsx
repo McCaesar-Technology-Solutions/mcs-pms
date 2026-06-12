@@ -3,7 +3,8 @@
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Check, Copy, Mail, Plus, ShieldCheck, UserX, X } from 'lucide-react'
-import { inviteStaff, revokeInvite, setStaffActive } from '@/app/actions/staff'
+import { inviteStaff, revokeInvite, setStaffActive, updateStaffPhone } from '@/app/actions/staff'
+import { ProfilePhoneEditor } from '@/components/dashboard/profile-phone-editor'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -69,6 +70,9 @@ export function StaffManager({ currentProfile, staff, invites }: StaffManagerPro
   const [submitting, setSubmitting] = useState(false)
   const [createdToken, setCreatedToken] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  const [editingPhoneId, setEditingPhoneId] = useState<string | null>(null)
+  const [phoneDraft, setPhoneDraft] = useState('')
+  const [phoneError, setPhoneError] = useState<string | null>(null)
 
   const activeStaff = useMemo(() => staff.filter((s) => s.is_active !== false), [staff])
   const inactiveStaff = useMemo(() => staff.filter((s) => s.is_active === false), [staff])
@@ -123,16 +127,37 @@ export function StaffManager({ currentProfile, staff, invites }: StaffManagerPro
     })
   }
 
+  function startPhoneEdit(member: Profile) {
+    setEditingPhoneId(member.id)
+    setPhoneDraft(member.phone ?? '')
+    setPhoneError(null)
+  }
+
+  function saveStaffPhone(profileId: string) {
+    setPhoneError(null)
+    startTransition(async () => {
+      const result = await updateStaffPhone(profileId, phoneDraft)
+      if (result.success) {
+        setEditingPhoneId(null)
+        router.refresh()
+      } else {
+        setPhoneError(result.error ?? 'Could not save.')
+      }
+    })
+  }
+
   function renderStaffRow(member: Profile) {
     const badge = ROLE_BADGE[member.role]
     const manageable = canManageMember(currentProfile, member)
     const inactive = member.is_active === false
     const isSelf = member.id === currentProfile.id
+    const canEditPhone = isSelf || manageable
+    const isEditingPhone = editingPhoneId === member.id
 
     return (
       <div
         key={member.id}
-        className={`elevated-list-item flex items-center justify-between gap-3 p-3.5 ${
+        className={`elevated-list-item flex flex-col gap-3 p-3.5 sm:flex-row sm:items-center sm:justify-between ${
           inactive ? 'opacity-60' : ''
         }`}
       >
@@ -145,9 +170,52 @@ export function StaffManager({ currentProfile, staff, invites }: StaffManagerPro
               {member.name}
               {isSelf && <span className="ml-1.5 text-xs font-normal text-muted-foreground">(You)</span>}
             </p>
-            <p className="truncate text-xs text-muted-foreground">
-              {member.phone ?? (member.specialty ? member.specialty : member.email)}
-            </p>
+            {isEditingPhone ? (
+              <div className="mt-1 flex flex-col gap-2 sm:flex-row sm:items-center">
+                <input
+                  type="tel"
+                  value={phoneDraft}
+                  onChange={(e) => setPhoneDraft(e.target.value)}
+                  placeholder="+233 XX XXX XXXX"
+                  className="w-full rounded-lg border border-border px-2.5 py-1.5 text-xs sm:max-w-[180px]"
+                />
+                <div className="flex gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setEditingPhoneId(null)}
+                    className="rounded-lg bg-secondary px-2.5 py-1.5 text-xs font-semibold"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isPending || !phoneDraft.trim()}
+                    onClick={() => saveStaffPhone(member.id)}
+                    className="rounded-lg bg-[#3C216C] px-2.5 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+                  >
+                    Save
+                  </button>
+                </div>
+                {phoneError && isEditingPhone && (
+                  <p className="text-xs text-destructive">{phoneError}</p>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <p className="truncate text-xs text-muted-foreground">
+                  {member.phone ?? (member.specialty ? member.specialty : member.email)}
+                </p>
+                {canEditPhone && (
+                  <button
+                    type="button"
+                    onClick={() => startPhoneEdit(member)}
+                    className="shrink-0 text-[11px] font-semibold text-primary hover:underline"
+                  >
+                    {member.phone ? 'Edit phone' : 'Add phone'}
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -182,6 +250,14 @@ export function StaffManager({ currentProfile, staff, invites }: StaffManagerPro
 
   return (
     <>
+      {currentProfile.role === 'manager' && (
+        <ProfilePhoneEditor
+          initialPhone={currentProfile.phone}
+          roleLabel="manager"
+          variant="card"
+        />
+      )}
+
       <div className="surface-card overflow-hidden">
         <div className="surface-card-accent" />
         <div className="surface-card-header flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

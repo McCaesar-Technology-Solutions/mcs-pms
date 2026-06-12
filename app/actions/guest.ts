@@ -316,6 +316,32 @@ export async function updateGuest(input: {
   return { success: true }
 }
 
+export async function updateGuestPhone(phone: string): Promise<GuestActionResult> {
+  const { phoneSchema } = await import('@/lib/phone')
+  const phoneParsed = phoneSchema.safeParse(phone)
+  if (!phoneParsed.success) {
+    return { success: false, error: phoneParsed.error.issues[0]?.message ?? 'Invalid phone.' }
+  }
+
+  const session = await getGuestFromSession()
+  if (!session.success) {
+    return { success: false, error: session.error ?? 'Not authorized.' }
+  }
+  if (!session.data) {
+    return { success: false, error: 'Not authorized.' }
+  }
+
+  const admin = createAdminClient()
+  const { error } = await admin
+    .from('guests')
+    .update({ phone: phoneParsed.data })
+    .eq('id', session.data.guest.id)
+
+  if (error) return { success: false, error: error.message }
+
+  return { success: true }
+}
+
 async function requireHotelManager(): Promise<{ hotel_id: string; role: string } | null> {
   const { createClient } = await import('@/lib/supabase/server')
   const supabase = await createClient()

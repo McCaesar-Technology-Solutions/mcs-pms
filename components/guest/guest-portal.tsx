@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { submitGuestComplaint, getGuestComplaints } from '@/app/actions/guest'
+import { GuestPhoneEditor } from '@/components/guest/guest-phone-editor'
 import { guestStatusLabel } from '@/components/complaints/complaints-overview'
 import { RealtimeReconnectBanner } from '@/components/realtime/reconnect-banner'
 import { PhoneContactList } from '@/components/ui/phone-contact'
@@ -146,6 +147,9 @@ export function GuestPortal({ guest, roomNumber, propertyContacts }: GuestPortal
         </p>
         {roomNumber && <p className="mt-2 text-lg">Room {roomNumber}</p>}
         <p className="mt-1 text-white/80">Hi {guest.name}</p>
+        <div className="mx-auto mt-4 max-w-md">
+          <GuestPhoneEditor initialPhone={guest.phone} />
+        </div>
       </header>
 
       {propertyContacts.length > 0 && (

@@ -8,6 +8,8 @@ import { updateHotelSettings } from '@/app/actions/settings'
 import { useProperty } from '@/lib/property-context'
 import { AddPropertyDialog } from '@/components/dashboard/add-property-dialog'
 import type { HotelSettings } from '@/lib/data/settings'
+import type { Profile } from '@/types'
+import { ProfilePhoneEditor } from '@/components/dashboard/profile-phone-editor'
 
 const GHANA_REGIONS = [
   'Greater Accra',
@@ -31,9 +33,10 @@ const GHANA_REGIONS = [
 interface SettingsPanelProps {
   hotelSettings?: HotelSettings | null
   staffHref?: string
+  profile?: Profile | null
 }
 
-export function SettingsPanel({ hotelSettings, staffHref = '/owner/staff' }: SettingsPanelProps) {
+export function SettingsPanel({ hotelSettings, staffHref = '/owner/staff', profile }: SettingsPanelProps) {
   const router = useRouter()
   const {
     properties,
@@ -104,6 +107,16 @@ export function SettingsPanel({ hotelSettings, staffHref = '/owner/staff' }: Set
 
   return (
     <>
+      {profile && (
+        <div className="mb-6">
+          <ProfilePhoneEditor
+            initialPhone={profile.phone}
+            roleLabel="property owner"
+            variant="card"
+          />
+        </div>
+      )}
+
       {/* Portfolio */}
       <div className="surface-card mb-6 p-6">
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

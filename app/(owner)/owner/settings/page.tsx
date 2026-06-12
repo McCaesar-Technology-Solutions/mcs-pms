@@ -1,9 +1,13 @@
 import { SettingsPanel } from '@/components/dashboard/settings-panel'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { getActiveHotelSettings } from '@/lib/data/settings'
+import { getProfile } from '@/lib/auth/get-profile'
 
 export default async function SettingsPage() {
-  const hotelSettings = await getActiveHotelSettings()
+  const [hotelSettings, profile] = await Promise.all([
+    getActiveHotelSettings(),
+    getProfile(),
+  ])
 
   return (
     <div className="page-shell space-y-6">
@@ -13,7 +17,7 @@ export default async function SettingsPage() {
         description="Manage property details, tax compliance, and your apartment portfolio."
       />
 
-      <SettingsPanel hotelSettings={hotelSettings} />
+      <SettingsPanel hotelSettings={hotelSettings} profile={profile} />
     </div>
   )
 }

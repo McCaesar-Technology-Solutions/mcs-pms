@@ -4,6 +4,7 @@ import { LogOut } from 'lucide-react'
 import { signOut } from '@/app/actions/auth'
 import { TechnicianRealtime } from '@/components/realtime/technician-realtime'
 import { ProfilePhoneBanner } from '@/components/dashboard/profile-phone-banner'
+import { ProfilePhoneEditor } from '@/components/dashboard/profile-phone-editor'
 import { PhoneContactList } from '@/components/ui/phone-contact'
 import type { StaffContact } from '@/lib/data/contacts'
 import type { Profile } from '@/types'
@@ -16,11 +17,9 @@ interface TechnicianShellProps {
 }
 
 export function TechnicianShell({ profile, managerContacts, children }: TechnicianShellProps) {
-  const needsPhone = !profile.phone
-
   return (
     <div className="flex min-h-dvh flex-col bg-[#F7F4FB]">
-      {needsPhone && <ProfilePhoneBanner roleLabel="technician" />}
+      {!profile.phone && <ProfilePhoneBanner roleLabel="technician" />}
       <header className="sticky top-0 z-30 bg-white shadow-elevation-1">
         <div className="mx-auto max-w-lg px-4 py-3">
           <div className="flex items-center justify-between gap-3">
@@ -42,6 +41,15 @@ export function TechnicianShell({ profile, managerContacts, children }: Technici
               <LogOut className="h-5 w-5" />
             </button>
           </div>
+          {profile.phone && (
+            <div className="mt-3 border-t border-border/60 pt-3">
+              <ProfilePhoneEditor
+                initialPhone={profile.phone}
+                roleLabel="technician"
+                variant="inline"
+              />
+            </div>
+          )}
           {managerContacts.length > 0 && (
             <div className="mt-3 border-t border-border/60 pt-3">
               <PhoneContactList
