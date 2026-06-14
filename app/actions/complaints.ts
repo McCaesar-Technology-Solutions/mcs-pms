@@ -34,13 +34,179 @@ export async function getHotelComplaints(): Promise<ComplaintActionResult<Compla
   }
 }
 
+export interface ComplaintFormRoom {
+  id: string
+  number: string
+}
+
+export interface ComplaintFormGuest {
+  id: string
+  name: string
+  roomId: string | null
+  roomNumber: string | null
+}
+
+/** Rooms + currently-staying guests for the staff "log complaint" form. */
+export async function getComplaintFormOptions(): Promise<
+  ComplaintActionResult<{ rooms: ComplaintFormRoom[]; guests: ComplaintFormGuest[] }>
+> {
+  const profile = await requireStaffProfile()
+  if (!profile?.hotel_id || !['owner', 'manager', 'receptionist'].includes(profile.role)) {
+    return { success: false, error: 'Not authorized.' }
+  }
+
+  const supabase = await createClient()
+  const startOfToday = new Date()
+  startOfToday.setHours(0, 0, 0, 0)
+
+  const [{ data: rooms }, { data: guests }] = await Promise.all([
+    supabase
+      .from('rooms')
+      .select('id, number')
+      .eq('hotel_id', profile.hotel_id)
+      .order('number'),
+    supabase
+      .from('guests')
+      .select('id, name, room_id, check_out, rooms(number)')
+      .eq('hotel_id', profile.hotel_id)
+      .not('room_id', 'is', null)
+      .or(`check_out.is.null,check_out.gte.${startOfToday.toISOString()}`)
+      .order('name'),
+  ])
+
+  return {
+    success: true,
+    data: {
+      rooms: (rooms ?? []) as ComplaintFormRoom[],
+      guests: ((guests ?? []) as unknown as Array<{
+        id: string
+        name: string
+        room_id: string | null
+        rooms: { number: string } | null
+      }>).map((g) => ({
+        id: g.id,
+        name: g.name,
+        roomId: g.room_id,
+        roomNumber: g.rooms?.number ?? null,
+      })),
+    },
+  }
+}
+
+/** Lets an owner/manager/receptionist log a complaint on behalf of a guest or room. */
+export async function createStaffComplaint(input: unknown): Promise<ComplaintActionResult> {
+  const profile = await requireStaffProfile()
+  if (!profile?.hotel_id || !['owner', 'manager', 'receptionist'].includes(profile.role)) {
+    return { success: false, error: 'Not authorized.' }
+  }
+
+  const { staffComplaintSchema } = await import('@/lib/validations')
+  const parsed = staffComplaintSchema.safeParse(input)
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid complaint.' }
+  }
+
+  // Admin client: complaints have no staff INSERT policy (guests insert via the
+  // portal's admin path), so staff-logged complaints are written server-side.
+  const { createAdminClient } = await import('@/lib/supabase/admin')
+  const admin = createAdminClient()
+  let roomId = parsed.data.roomId ?? null
+  const guestId = parsed.data.guestId ?? null
+
+  // A linked guest determines the room when one isn't explicitly chosen.
+  if (guestId) {
+    const { data: guest } = await admin
+      .from('guests')
+      .select('room_id')
+      .eq('id', guestId)
+      .eq('hotel_id', profile.hotel_id)
+      .maybeSingle()
+    if (!guest) return { success: false, error: 'Guest not found.' }
+    if (!roomId) roomId = guest.room_id
+  }
+
+  if (!roomId && !guestId) {
+    return { success: false, error: 'Select a room or a guest.' }
+  }
+
+  const { data: complaint, error } = await admin
+    .from('complaints')
+    .insert({
+      hotel_id: profile.hotel_id,
+      room_id: roomId,
+      guest_id: guestId,
+      category: parsed.data.category,
+      description: parsed.data.description,
+      priority: parsed.data.priority,
+      status: 'open',
+    })
+    .select('id')
+    .single()
+
+  if (error || !complaint) {
+    return { success: false, error: error?.message ?? 'Could not log complaint.' }
+  }
+
+  await admin.from('complaint_events').insert({
+    complaint_id: complaint.id,
+    actor_id: profile.id,
+    actor_role: profile.role,
+    event_type: 'submitted',
+    note: parsed.data.description.slice(0, 200),
+  })
+
+  void import('@/lib/notifications/complaints').then(({ notifyComplaintSubmitted }) =>
+    notifyComplaintSubmitted(complaint.id).catch(() => undefined),
+  )
+
+  revalidatePath('/manager/complaints')
+  revalidatePath('/owner/complaints')
+  revalidatePath('/receptionist/complaints')
+  return { success: true }
+}
+
+/** Pending manager/owner approvals — used for live sidebar badge updates. */
+export async function getPendingComplaintApprovalsCount(): Promise<number> {
+  const profile = await requireStaffProfile()
+  if (!profile?.hotel_id || !['owner', 'manager'].includes(profile.role)) return 0
+
+  const supabase = await createClient()
+  const { count } = await supabase
+    .from('complaints')
+    .select('*', { count: 'exact', head: true })
+    .eq('hotel_id', profile.hotel_id)
+    .eq('status', 'pending_approval')
+
+  return count ?? 0
+}
+
 export async function getTechnicianComplaints(
   includeCompleted = false,
 ): Promise<ComplaintActionResult<Complaint[]>> {
   const supabase = await createClient()
-  let query = supabase
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Not authorized.' }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  if (profile?.role !== 'technician') {
+    return { success: false, error: 'Not authorized.' }
+  }
+
+  // Admin client so we can join guest contact details (guests are hidden from
+  // technicians by RLS). Scoped to jobs assigned to this technician only.
+  const { createAdminClient } = await import('@/lib/supabase/admin')
+  const admin = createAdminClient()
+  let query = admin
     .from('complaints')
-    .select('*, rooms(number)')
+    .select('*, rooms(number), guests(name, phone)')
+    .eq('assigned_to', user.id)
     .order('priority', { ascending: true })
 
   if (includeCompleted) {

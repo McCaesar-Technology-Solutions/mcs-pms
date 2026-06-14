@@ -69,7 +69,7 @@ export type Database = {
         Row: {
           id: string
           hotel_id: string | null
-          role: 'owner' | 'manager' | 'technician'
+          role: 'owner' | 'manager' | 'technician' | 'receptionist'
           name: string
           email: string
           phone: string | null
@@ -81,7 +81,7 @@ export type Database = {
         Insert: {
           id: string
           hotel_id?: string | null
-          role: 'owner' | 'manager' | 'technician'
+          role: 'owner' | 'manager' | 'technician' | 'receptionist'
           name: string
           email: string
           phone?: string | null
@@ -93,7 +93,7 @@ export type Database = {
         Update: {
           id?: string
           hotel_id?: string | null
-          role?: 'owner' | 'manager' | 'technician'
+          role?: 'owner' | 'manager' | 'technician' | 'receptionist'
           name?: string
           email?: string
           phone?: string | null
@@ -733,7 +733,7 @@ export type Database = {
           hotel_id: string
           email: string
           phone: string | null
-          role: 'manager' | 'technician'
+          role: 'manager' | 'technician' | 'receptionist'
           invited_by: string | null
           token: string
           accepted: boolean | null
@@ -744,7 +744,7 @@ export type Database = {
           hotel_id: string
           email: string
           phone?: string | null
-          role: 'manager' | 'technician'
+          role: 'manager' | 'technician' | 'receptionist'
           invited_by?: string | null
           token?: string
           accepted?: boolean | null
@@ -755,7 +755,7 @@ export type Database = {
           hotel_id?: string
           email?: string
           phone?: string | null
-          role?: 'manager' | 'technician'
+          role?: 'manager' | 'technician' | 'receptionist'
           invited_by?: string | null
           token?: string
           accepted?: boolean | null

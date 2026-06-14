@@ -54,7 +54,13 @@ export function AppShell({
         <Topbar onMenuOpen={() => setMobileNavOpen(true)} profile={profile} />
         {profile && !hasPhoneNumber(profile.phone) && profile.role !== 'technician' && (
           <ProfilePhoneBanner
-            roleLabel={profile.role === 'owner' ? 'property owner' : 'manager'}
+            roleLabel={
+              profile.role === 'owner'
+                ? 'property owner'
+                : profile.role === 'receptionist'
+                  ? 'receptionist'
+                  : 'manager'
+            }
           />
         )}
         {children}

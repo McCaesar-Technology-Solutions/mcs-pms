@@ -8,12 +8,12 @@ export const signInSchema = z.object({
 
 export const inviteStaffSchema = z
   .object({
-    role: z.enum(['manager', 'technician']),
+    role: z.enum(['manager', 'technician', 'receptionist']),
     email: z.string().email().optional(),
     phone: phoneSchema.optional(),
   })
   .superRefine((data, ctx) => {
-    if (data.role === 'manager') {
+    if (data.role === 'manager' || data.role === 'receptionist') {
       if (!data.email?.trim()) {
         ctx.addIssue({ code: 'custom', message: 'Email is required.', path: ['email'] })
       }
@@ -43,6 +43,22 @@ export const submitComplaintSchema = z.object({
   ]),
   description: z.string().min(10, 'Please describe the issue'),
   priority: z.enum(['medium', 'urgent']).default('medium'),
+})
+
+export const staffComplaintSchema = z.object({
+  category: z.enum([
+    'plumbing',
+    'electrical',
+    'hvac',
+    'furniture',
+    'cleaning',
+    'noise',
+    'other',
+  ]),
+  description: z.string().min(10, 'Please describe the issue'),
+  priority: z.enum(['low', 'medium', 'high', 'urgent']).default('medium'),
+  roomId: z.string().uuid('Select a room').optional(),
+  guestId: z.string().uuid().optional(),
 })
 
 export const createReservationSchema = z.object({
@@ -142,4 +158,5 @@ export const signUpOwnerSchema = z.object({
 export type SignInInput = z.infer<typeof signInSchema>
 export type EnrollGuestInput = z.infer<typeof enrollGuestSchema>
 export type SubmitComplaintInput = z.infer<typeof submitComplaintSchema>
+export type StaffComplaintInput = z.infer<typeof staffComplaintSchema>
 export type AcceptInviteInput = z.infer<typeof acceptInviteSchema>

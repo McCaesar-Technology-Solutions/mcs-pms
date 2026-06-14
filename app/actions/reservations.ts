@@ -78,7 +78,7 @@ export async function createReservation(input: {
   guest_id?: string
 }): Promise<CreateReservationResult> {
   const { supabase, profile } = await requireManager()
-  if (!profile || !['owner', 'manager'].includes(profile.role) || !profile.hotel_id) {
+  if (!profile || !['owner', 'manager', 'receptionist'].includes(profile.role) || !profile.hotel_id) {
     return { success: false, error: 'Not authorized.' }
   }
   if (!input.guest_name.trim()) return { success: false, error: 'Guest name is required.' }
@@ -137,7 +137,7 @@ export async function updateReservation(
   },
 ): Promise<CreateReservationResult> {
   const { supabase, profile } = await requireManager()
-  if (!profile || !['owner', 'manager'].includes(profile.role) || !profile.hotel_id) {
+  if (!profile || !['owner', 'manager', 'receptionist'].includes(profile.role) || !profile.hotel_id) {
     return { success: false, error: 'Not authorized.' }
   }
 
@@ -220,7 +220,7 @@ async function setReservationStatus(
   roomStatus?: 'occupied' | 'cleaning' | 'available',
 ): Promise<ReservationActionResult> {
   const { supabase, profile } = await requireManager()
-  if (!profile || !['owner', 'manager'].includes(profile.role)) {
+  if (!profile || !['owner', 'manager', 'receptionist'].includes(profile.role)) {
     return { success: false, error: 'Not authorized.' }
   }
 

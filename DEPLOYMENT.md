@@ -95,7 +95,7 @@ NEXT_PUBLIC_APP_URL=https://yourdomain.com
 
 ### 2. Schema and migrations
 
-Migrations live in `supabase/migrations/` (`001` through `015`). Every tenant table has RLS enabled.
+Migrations live in `supabase/migrations/` (`001` through `018`). Every tenant table has RLS enabled.
 
 | Migration | Purpose |
 |-----------|---------|
@@ -110,6 +110,8 @@ Migrations live in `supabase/migrations/` (`001` through `015`). Every tenant ta
 | `014` | Technician profile visibility (owner phone privacy) |
 | `015` | Realtime publication for reservations, guests, invoices, etc. |
 | `016` | `staff_invites.phone` for technician invites |
+| `017` | `REPLICA IDENTITY FULL` for richer realtime UPDATE payloads |
+| `018` | Receptionist role: role constraints + front-desk RLS policies |
 
 **Fresh database** — Supabase CLI:
 

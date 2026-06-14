@@ -1,5 +1,5 @@
 // User & Auth (Phase 0 legacy + Phase 1)
-export type UserRole = 'owner' | 'manager' | 'technician'
+export type UserRole = 'owner' | 'manager' | 'technician' | 'receptionist'
 
 export interface User {
   id: string
@@ -365,7 +365,7 @@ export interface StaffInvite {
   hotel_id: string
   email: string
   phone: string | null
-  role: 'manager' | 'technician'
+  role: 'manager' | 'technician' | 'receptionist'
   invited_by: string | null
   token: string
   accepted: boolean | null

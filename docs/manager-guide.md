@@ -31,7 +31,7 @@ You are locked to **one property** — no property switcher.
 | Reservations | `/manager/reservations` | Full booking lifecycle |
 | Complaints | `/manager/complaints` | Badge = pending approvals |
 | Housekeeping | `/manager/housekeeping` | Task kanban |
-| Staff | `/manager/staff` | Technicians only |
+| Staff | `/manager/staff` | Invite technicians & receptionists |
 
 ### Top bar
 
@@ -47,7 +47,7 @@ You are locked to **one property** — no property switcher.
 
 **Path:** `/manager/dashboard`
 
-- KPI cards (revenue, occupancy, rate, bookings).
+- KPI cards: occupancy, average nightly rate, bookings. **Revenue is hidden from managers** (owner-only).
 - **Complaints overview** (up to 5) → link to Complaints page.
 - **Tasks summary** (read-only housekeeping columns).
 
@@ -106,8 +106,16 @@ Deep link: `/manager/reservations?open={id}`.
 
 ### List
 
+- **Log complaint** button — record an issue on behalf of a guest (see below).
 - **Pending approvals** banner (orange).
 - Filters: all, open, assigned, in_progress, pending_approval, resolved.
+
+### Log a complaint for a guest
+
+1. Click **Log complaint**.
+2. Optionally pick the **guest** (auto-fills their room) or just choose a **room**.
+3. Set **category**, **priority** (low–urgent), and a **description**.
+4. **Log complaint** → appears as an open complaint, ready to assign.
 
 ### Detail panel
 
@@ -178,14 +186,14 @@ Checkout creates a **Clean** task; room → Cleaning. Marking clean task **Done*
 
 ---
 
-## 10. Staff (technicians)
+## 10. Staff (technicians & receptionists)
 
 **Path:** `/manager/staff`
 
 - Your phone card.
-- **Invite technicians only** (not managers) — enter **phone number**, then share the invite link.
-- Disable/reactivate technicians only.
-- Edit technician phones.
+- **Invite technicians** (by phone) and **receptionists** (by email) — not other managers. Share the invite link after creating it.
+- Disable/reactivate technicians and receptionists.
+- Edit staff phones.
 - Pending invites: copy link, revoke.
 
 ---

@@ -8,6 +8,7 @@ Complete guides for every role in the property management system.
 | **Part 2 — Manager** | Daily operations (guests, complaints, housekeeping) | [docs/manager-guide.md](docs/manager-guide.md) |
 | **Part 3 — Guest** | In-house guests (complaint portal via link/QR) | [docs/guest-guide.md](docs/guest-guide.md) |
 | **Part 4 — Technician** | Maintenance staff (tasks, invoices, job workflow) | [docs/technician-guide.md](docs/technician-guide.md) |
+| **Part 5 — Receptionist** | Front desk (bookings, check-in/out, room status, complaints) | [docs/receptionist-guide.md](docs/receptionist-guide.md) |
 
 ## Quick links
 
@@ -18,16 +19,16 @@ Complete guides for every role in the property management system.
 
 ## Roles at a glance
 
-| Feature | Owner | Manager | Technician | Guest |
-|---------|:-----:|:-------:|:----------:|:-----:|
-| Dashboard / KPIs | ✓ | ✓ | — | — |
-| Reservations | ✓ | ✓ | — | — |
-| Guest directory | ✓ | ✓ (+ walk-in) | — | Portal only |
-| Rooms | ✓ (+ delete) | ✓ | — | — |
-| Complaints UI | — | ✓ | Tasks only | Submit only |
-| Housekeeping | Summary only | ✓ | — | — |
-| Billing / GRA / Analytics | ✓ | — | — | — |
-| Settings / multi-property | ✓ | — | — | — |
+| Feature | Owner | Manager | Receptionist | Technician | Guest |
+|---------|:-----:|:-------:|:------------:|:----------:|:-----:|
+| Dashboard / KPIs | ✓ (+ revenue) | ✓ (no revenue) | ✓ (no revenue) | — | — |
+| Reservations | ✓ | ✓ | ✓ | — | — |
+| Guest directory | ✓ | ✓ (+ walk-in) | ✓ (+ walk-in) | — | Portal only |
+| Rooms | ✓ (+ delete) | ✓ | Status only | — | — |
+| Complaints UI | Read-only | ✓ (+ log for guest) | Log + read-only | Tasks only | Submit only |
+| Housekeeping | Summary only | ✓ | — | — | — |
+| Billing / GRA / Analytics | ✓ | — | — | — | — |
+| Settings / multi-property | ✓ | — | — | — | — |
 
 ## Live updates
 

@@ -24,6 +24,7 @@ export const ownerNavigation: NavItem[] = [
   { name: 'Rooms', href: '/owner/rooms', icon: 'bed-double' },
   { name: 'Reservations', href: '/owner/reservations', icon: 'calendar' },
   { name: 'Guests', href: '/owner/guests', icon: 'users' },
+  { name: 'Complaints', href: '/owner/complaints', icon: 'wrench' },
   { name: 'Staff', href: '/owner/staff', icon: 'user-cog' },
   { name: 'Billing', href: '/owner/billing', icon: 'banknote' },
   { name: 'GRA Reports', href: '/owner/gra-reports', icon: 'file-text' },
@@ -39,4 +40,12 @@ export const managerNavigation: NavItem[] = [
   { name: 'Complaints', href: '/manager/complaints', icon: 'wrench' },
   { name: 'Housekeeping', href: '/manager/housekeeping', icon: 'briefcase' },
   { name: 'Staff', href: '/manager/staff', icon: 'user-cog' },
+]
+
+export const receptionistNavigation: NavItem[] = [
+  { name: 'Dashboard', href: '/receptionist/dashboard', icon: 'layout-dashboard' },
+  { name: 'Reservations', href: '/receptionist/reservations', icon: 'calendar' },
+  { name: 'Guests', href: '/receptionist/guests', icon: 'users' },
+  { name: 'Rooms', href: '/receptionist/rooms', icon: 'bed-double' },
+  { name: 'Complaints', href: '/receptionist/complaints', icon: 'wrench' },
 ]

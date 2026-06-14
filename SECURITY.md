@@ -202,13 +202,14 @@ const { data } = await supabase
 Staff roles in `profiles.role`:
 
 ```typescript
-type UserRole = 'owner' | 'manager' | 'technician'
+type UserRole = 'owner' | 'manager' | 'technician' | 'receptionist'
 ```
 
 | Role | Route prefix | Typical access |
 |------|--------------|----------------|
-| owner | `/owner/*` | All hotels in portfolio; billing, GRA, analytics, settings; invite managers |
-| manager | `/manager/*` | One hotel; reservations, guests, complaints, housekeeping; invite technicians |
+| owner | `/owner/*` | All hotels in portfolio; billing, GRA, analytics, settings; invite managers/receptionists/technicians |
+| manager | `/manager/*` | One hotel; reservations, guests, complaints, housekeeping; invite receptionists/technicians |
+| receptionist | `/receptionist/*` | One hotel; reservations, check-in/out, guest directory, room status, log complaints. No revenue/billing/GRA/analytics, room pricing, or complaint assignment/approval (migration `018`) |
 | technician | `/technician/*` | Assigned complaints only; no billing or guest directory |
 | guest | `/guest` (token) | Own complaints for active stay; no staff UI |
 

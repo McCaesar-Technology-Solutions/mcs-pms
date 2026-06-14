@@ -10,32 +10,17 @@ import {
   Volume2,
   HelpCircle,
   X,
-  CheckCircle2,
-  UserPlus,
-  Clock,
-  Receipt,
   Phone,
-  Plus,
 } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
-import {
-  approveComplaint,
-  assignComplaint,
-  getComplaintEvents,
-  getHotelComplaints,
-  getTechnicians,
-  rejectComplaint,
-} from '@/app/actions/complaints'
+import { getComplaintEvents, getHotelComplaints } from '@/app/actions/complaints'
 import { fetchComplaintEstimate } from '@/app/actions/complaint-estimates'
 import { ComplaintEstimateCard } from '@/components/complaints/complaint-estimate-card'
 import { StaffComplaintModal } from '@/components/complaints/staff-complaint-modal'
 import { PhoneContact } from '@/components/ui/phone-contact'
 import { useRealtimeRefresh } from '@/components/realtime/realtime-refresh-context'
-import {
-  isPendingCompletion,
-  isPendingEstimate,
-  managerPendingLabel,
-} from '@/lib/complaints/workflow'
+import { managerPendingLabel } from '@/lib/complaints/workflow'
 import type {
   Complaint,
   ComplaintCategory,
@@ -43,7 +28,6 @@ import type {
   ComplaintEvent,
   ComplaintEventType,
   ComplaintStatus,
-  DbRoomStatus,
 } from '@/types'
 
 const categoryIcons: Record<ComplaintCategory, typeof Droplets> = {
@@ -63,10 +47,18 @@ const priorityAccent: Record<string, string> = {
   low: 'shadow-[inset_4px_0_0_0_#cbd5e1]',
 }
 
-const softField =
-  'mt-2 w-full appearance-none rounded-xl border-0 bg-white px-4 py-3 text-sm text-foreground shadow-elevation-1 outline-none transition-[box-shadow,transform] focus:shadow-elevation-2 focus:ring-2 focus:ring-[#3C216C]/10'
-
 const liftCard = 'rounded-2xl bg-white shadow-elevation-1'
+
+const timelineLabels: Record<ComplaintEventType, string> = {
+  submitted: 'Submitted',
+  assigned: 'Assigned to technician',
+  started: 'Work started',
+  completion_requested: 'Work marked complete',
+  rejected: 'Sent back for rework',
+  resolved: 'Resolved',
+  estimate_submitted: 'Invoice submitted',
+  estimate_approved: 'Invoice approved — work authorized',
+}
 
 function formatLabel(value: string) {
   return value.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
@@ -115,62 +107,44 @@ function statusBadge(status: ComplaintStatus | null | undefined) {
   }
 }
 
-const timelineLabels: Record<ComplaintEventType, string> = {
-  submitted: 'Submitted by guest',
-  assigned: 'Assigned to technician',
-  started: 'Work started',
-  completion_requested: 'Work marked complete',
-  rejected: 'Sent back for rework',
-  resolved: 'Resolved',
-  estimate_submitted: 'Invoice submitted',
-  estimate_approved: 'Invoice approved — work authorized',
+interface ComplaintsOwnerViewProps {
+  /** Show a "Log complaint" button (front-desk roles). Owners stay read-only. */
+  canLog?: boolean
 }
 
-export function ComplaintsManager() {
+/** Read-only complaints view: full lifecycle visibility, no assign/approve actions. */
+export function ComplaintsOwnerView({ canLog = false }: ComplaintsOwnerViewProps) {
   const [complaints, setComplaints] = useState<Complaint[]>([])
-  const [technicians, setTechnicians] = useState<
-    { id: string; name: string; specialty: string | null; phone: string | null }[]
-  >([])
   const [selected, setSelected] = useState<Complaint | null>(null)
   const [events, setEvents] = useState<ComplaintEvent[]>([])
   const [estimate, setEstimate] = useState<ComplaintEstimate | null>(null)
   const [statusFilter, setStatusFilter] = useState<ComplaintStatus | 'all'>('all')
-  const [rejectNote, setRejectNote] = useState('')
-  const [roomStatus, setRoomStatus] = useState<DbRoomStatus>('available')
-  const [loading, setLoading] = useState(false)
   const [showCreate, setShowCreate] = useState(false)
   const selectedRef = useRef<Complaint | null>(null)
   selectedRef.current = selected
 
   const load = useCallback(async () => {
-    const [cResult, tResult] = await Promise.all([getHotelComplaints(), getTechnicians()])
-    if (cResult.success && cResult.data) setComplaints(cResult.data)
-    if (tResult.success && tResult.data) setTechnicians(tResult.data)
+    const result = await getHotelComplaints()
+    if (result.success && result.data) setComplaints(result.data)
   }, [])
 
   const refreshFromRealtime = useCallback(async () => {
-    const [cResult, tResult] = await Promise.all([getHotelComplaints(), getTechnicians()])
-    if (cResult.success && cResult.data) {
-      setComplaints(cResult.data)
-      const current = selectedRef.current
-      if (current) {
-        const updated = cResult.data.find((c) => c.id === current.id)
-        if (updated) {
-          setSelected(updated)
-          const [evResult, estResult] = await Promise.all([
-            getComplaintEvents(updated.id),
-            fetchComplaintEstimate(updated.id),
-          ])
-          if (evResult.success && evResult.data) setEvents(evResult.data)
-          if (estResult.success) setEstimate(estResult.data ?? null)
-        } else {
-          setSelected(null)
-          setEvents([])
-          setEstimate(null)
-        }
+    const result = await getHotelComplaints()
+    if (!result.success || !result.data) return
+    setComplaints(result.data)
+    const current = selectedRef.current
+    if (current) {
+      const updated = result.data.find((c) => c.id === current.id)
+      if (updated) {
+        setSelected(updated)
+        const [evResult, estResult] = await Promise.all([
+          getComplaintEvents(updated.id),
+          fetchComplaintEstimate(updated.id),
+        ])
+        if (evResult.success && evResult.data) setEvents(evResult.data)
+        if (estResult.success) setEstimate(estResult.data ?? null)
       }
     }
-    if (tResult.success && tResult.data) setTechnicians(tResult.data)
   }, [])
 
   useEffect(() => {
@@ -178,11 +152,7 @@ export function ComplaintsManager() {
   }, [load])
 
   useRealtimeRefresh('complaints', refreshFromRealtime)
-
-  const pending = useMemo(
-    () => complaints.filter((c) => c.status === 'pending_approval'),
-    [complaints],
-  )
+  useRealtimeRefresh('layout', refreshFromRealtime)
 
   const filtered = useMemo(() => {
     if (statusFilter === 'all') return complaints
@@ -191,8 +161,8 @@ export function ComplaintsManager() {
 
   async function openDetail(complaint: Complaint) {
     setSelected(complaint)
-    setRejectNote('')
     setEstimate(null)
+    setEvents([])
     const [evResult, estResult] = await Promise.all([
       getComplaintEvents(complaint.id),
       fetchComplaintEstimate(complaint.id),
@@ -203,98 +173,32 @@ export function ComplaintsManager() {
 
   function closeDetail() {
     setSelected(null)
-    setRejectNote('')
     setEstimate(null)
-  }
-
-  async function handleAssign(techId: string) {
-    if (!selected) return
-    setLoading(true)
-    await assignComplaint(selected.id, techId)
-    setLoading(false)
-    await load()
-    closeDetail()
-  }
-
-  async function handleApprove() {
-    if (!selected) return
-    setLoading(true)
-    await approveComplaint(selected.id, roomStatus)
-    setLoading(false)
-    await load()
-    closeDetail()
-  }
-
-  async function handleReject() {
-    if (!selected || !rejectNote.trim()) return
-    setLoading(true)
-    await rejectComplaint(selected.id, rejectNote)
-    setLoading(false)
-    await load()
-    closeDetail()
+    setEvents([])
   }
 
   const SelectedIcon = selected ? categoryIcons[selected.category] : HelpCircle
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={() => setShowCreate(true)}
-          className="gradient-primary inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white shadow-elevation-2 transition-all hover:-translate-y-0.5 hover:shadow-elevation-3"
-        >
-          <Plus className="h-4 w-4" />
-          Log complaint
-        </button>
-      </div>
-
-      <StaffComplaintModal
-        open={showCreate}
-        onClose={() => setShowCreate(false)}
-        onCreated={load}
-      />
-
-      {pending.length > 0 && (
-        <section className={`${liftCard} bg-gradient-to-br from-white to-[#D85A30]/5 p-5`}>
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#D85A30]/12">
-              <Clock className="h-4 w-4 text-[#D85A30]" />
-            </div>
-            <h3 className="font-semibold text-[#D85A30]">
-              Pending approvals ({pending.length})
-            </h3>
+      {canLog && (
+        <>
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => setShowCreate(true)}
+              className="gradient-primary inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white shadow-elevation-2 transition-all hover:-translate-y-0.5 hover:shadow-elevation-3"
+            >
+              <Plus className="h-4 w-4" />
+              Log complaint
+            </button>
           </div>
-          <div className="mt-4 space-y-2">
-            {pending.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => {
-                  setSelected(c)
-                  setRejectNote('')
-                  void getComplaintEvents(c.id).then((r) => {
-                    if (r.success && r.data) setEvents(r.data)
-                  })
-                  void fetchComplaintEstimate(c.id).then((r) => {
-                    if (r.success) setEstimate(r.data ?? null)
-                  })
-                }}
-                className={`${liftCard} flex w-full items-center justify-between gap-3 p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-elevation-2`}
-              >
-                <div>
-                  <p className="font-semibold text-foreground">
-                    Room {roomNumberOf(c) ?? '—'} · {formatLabel(c.category)}
-                  </p>
-                  <p className="mt-0.5 line-clamp-1 text-sm text-muted-foreground">{c.description}</p>
-                </div>
-                <span className="shrink-0 rounded-full bg-[#D85A30]/12 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-[#D85A30]">
-                  {managerPendingLabel(c)}
-                </span>
-              </button>
-            ))}
-          </div>
-        </section>
+          <StaffComplaintModal
+            open={showCreate}
+            onClose={() => setShowCreate(false)}
+            onCreated={load}
+          />
+        </>
       )}
 
       <div className="flex flex-wrap gap-2">
@@ -397,7 +301,9 @@ export function ComplaintsManager() {
                   {formatLabel(selected.priority ?? 'medium')} priority
                 </span>
                 <span className={`rounded-full px-3 py-1 text-xs font-semibold shadow-sm ${statusBadge(selected.status)}`}>
-                  {formatLabel(selected.status ?? 'open')}
+                  {selected.status === 'pending_approval'
+                    ? managerPendingLabel(selected)
+                    : formatLabel(selected.status ?? 'open')}
                 </span>
               </div>
             </div>
@@ -444,118 +350,9 @@ export function ComplaintsManager() {
 
               {estimate && <ComplaintEstimateCard estimate={estimate} />}
 
-              {selected.status === 'pending_approval' && (
-                <div className="overflow-hidden rounded-2xl bg-gradient-to-b from-[#D85A30]/10 via-white to-white p-5 shadow-elevation-2">
-                  <div className="mb-4 flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-[#D85A30]" />
-                    <h3 className="text-sm font-semibold text-[#D85A30]">
-                      {isPendingEstimate(selected)
-                        ? 'Approve invoice to authorize work'
-                        : 'Approve completed work'}
-                    </h3>
-                  </div>
-                  <div className="space-y-4">
-                    {isPendingEstimate(selected) ? (
-                      <>
-                        <p className="text-sm text-muted-foreground">
-                          Review the invoice below. Once approved, the technician can start the job.
-                        </p>
-                        <button
-                          type="button"
-                          onClick={handleApprove}
-                          disabled={loading}
-                          className="gradient-primary w-full rounded-xl py-3.5 text-sm font-semibold text-white shadow-elevation-2 transition-all hover:-translate-y-0.5 hover:shadow-elevation-3 disabled:opacity-60"
-                        >
-                          {loading ? 'Approving…' : 'Approve invoice & authorize work'}
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <div>
-                          <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                            Room status after approval
-                          </label>
-                          <select
-                            value={roomStatus}
-                            onChange={(e) => setRoomStatus(e.target.value as DbRoomStatus)}
-                            className={softField}
-                          >
-                            <option value="available">Available</option>
-                            <option value="occupied">Occupied</option>
-                            <option value="maintenance">Maintenance</option>
-                            <option value="needs_inspection">Needs inspection</option>
-                            <option value="cleaning">Cleaning</option>
-                          </select>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={handleApprove}
-                          disabled={loading}
-                          className="gradient-primary w-full rounded-xl py-3.5 text-sm font-semibold text-white shadow-elevation-2 transition-all hover:-translate-y-0.5 hover:shadow-elevation-3 disabled:opacity-60"
-                        >
-                          {loading ? 'Approving…' : 'Approve & resolve'}
-                        </button>
-                      </>
-                    )}
-                    <p className="text-center text-xs text-muted-foreground">or send back to technician</p>
-                    <div>
-                      <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                        Rejection note
-                      </label>
-                      <textarea
-                        value={rejectNote}
-                        onChange={(e) => setRejectNote(e.target.value)}
-                        placeholder={
-                          isPendingEstimate(selected)
-                            ? 'Explain what to change on the invoice…'
-                            : 'Explain what still needs to be fixed…'
-                        }
-                        className={`${softField} min-h-24 resize-none`}
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleReject}
-                      disabled={loading || !rejectNote.trim()}
-                      className="w-full rounded-xl bg-red-500/10 py-3.5 text-sm font-semibold text-red-700 shadow-elevation-1 transition-all hover:bg-red-500/15 hover:shadow-elevation-2 disabled:opacity-50"
-                    >
-                      Send back to technician
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {selected.status !== 'pending_approval' && selected.status !== 'resolved' && (
-                <div className={`${liftCard} overflow-hidden`}>
-                  <div className="flex items-center gap-2 px-4 pb-3 pt-4">
-                    <UserPlus className="h-4 w-4 text-[#3C216C]" />
-                    <h3 className="text-sm font-semibold text-[#3C216C]">Assign technician</h3>
-                  </div>
-                  <div className="px-4 pb-4">
-                    <select
-                      className={softField}
-                      defaultValue=""
-                      onChange={(e) => e.target.value && handleAssign(e.target.value)}
-                      disabled={loading}
-                    >
-                      <option value="" disabled>
-                        Select a technician…
-                      </option>
-                      {technicians.map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {t.name}
-                          {t.specialty ? ` · ${t.specialty}` : ''}
-                          {t.phone ? ` · ${t.phone}` : ''}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              )}
-
               <div>
                 <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                  Timeline
+                  Lifecycle
                 </p>
                 {events.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No events recorded yet.</p>

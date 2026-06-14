@@ -118,7 +118,8 @@ You do **not** see technician names, costs, or internal notes.
 
 ### Live updates
 
-- Complaint status updates appear automatically (no need to refresh the page).
+- Status updates appear automatically when staff change your complaint (checks every ~12 seconds).
+- If Realtime is connected, updates can appear sooner.
 - **Reconnect** banner if your connection drops — tap to retry.
 
 ---

@@ -138,7 +138,8 @@ export async function updateSession(request: NextRequest) {
   if (
     pathname.startsWith('/owner') ||
     pathname.startsWith('/manager') ||
-    pathname.startsWith('/technician')
+    pathname.startsWith('/technician') ||
+    pathname.startsWith('/receptionist')
   ) {
     if (!user) {
       const loginUrl = new URL('/login', request.url)

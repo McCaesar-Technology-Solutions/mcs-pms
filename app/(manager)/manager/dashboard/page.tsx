@@ -2,7 +2,7 @@ import { KPICards } from '@/components/dashboard/kpi-cards'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { SectionHeading } from '@/components/dashboard/section-heading'
 import { TasksList } from '@/components/dashboard/tasks-list'
-import { ComplaintsOverview } from '@/components/complaints/complaints-overview'
+import { ComplaintsOverviewLive } from '@/components/complaints/complaints-overview-live'
 import { fetchHotelComplaints } from '@/lib/data/complaints'
 import { getDashboardData } from '@/lib/data/dashboard'
 import { getHousekeepingTasks } from '@/lib/data/housekeeping'
@@ -24,12 +24,12 @@ export default async function ManagerDashboardPage() {
 
       <section className="space-y-4">
         <SectionHeading title="Key Metrics" description="Today's operational snapshot" />
-        <KPICards metrics={metrics} />
+        <KPICards metrics={metrics} showRevenue={false} />
       </section>
 
       <section className="space-y-4">
         <SectionHeading title="Complaints" description="Requires your attention" />
-        <ComplaintsOverview complaints={complaints} limit={5} />
+        <ComplaintsOverviewLive initialComplaints={complaints} limit={5} />
       </section>
 
       <section className="space-y-4">

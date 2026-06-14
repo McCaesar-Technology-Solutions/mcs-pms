@@ -1,5 +1,3 @@
--- Technician cost estimates for assigned complaints (materials + labour).
-
 ALTER TABLE complaint_events DROP CONSTRAINT IF EXISTS complaint_events_event_type_check;
 
 ALTER TABLE complaint_events ADD CONSTRAINT complaint_events_event_type_check

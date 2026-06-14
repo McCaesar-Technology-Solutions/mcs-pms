@@ -30,7 +30,7 @@ export async function updateProfilePhone(phone: string): Promise<ProfileActionRe
     .eq('id', user.id)
     .maybeSingle()
 
-  if (!profile || !['owner', 'manager', 'technician'].includes(profile.role)) {
+  if (!profile || !['owner', 'manager', 'technician', 'receptionist'].includes(profile.role)) {
     return { success: false, error: 'Not authorized.' }
   }
 

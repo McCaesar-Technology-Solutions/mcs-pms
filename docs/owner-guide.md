@@ -37,6 +37,7 @@ You own one or more properties. You handle money, tax compliance, portfolio sett
 | Rooms | `/owner/rooms` | Room inventory, categories, status |
 | Reservations | `/owner/reservations` | Bookings, check-in, check-out |
 | Guests | `/owner/guests` | Guest directory and history |
+| Complaints | `/owner/complaints` | Read-only complaint lifecycle |
 | Staff | `/owner/staff` | Invite managers & technicians |
 | Billing | `/owner/billing` | Invoices and payments *(owner only)* |
 | GRA Reports | `/owner/gra-reports` | Tax filing exports *(owner only)* |
@@ -89,8 +90,6 @@ Sidebar shows today’s occupancy: “X of Y rooms occupied” and a percentage 
 
 - **Channel performance** — Direct, Airbnb, Booking.com, Walk-in, Other.
 - **GRA tax summary** — current period revenue, tax, invoice counts, compliance status.
-
-**Note:** Owners do not have a Complaints page. Managers handle complaints at `/manager/complaints`.
 
 ---
 
@@ -177,7 +176,20 @@ Sidebar shows today’s occupancy: “X of Y rooms occupied” and a percentage 
 
 ---
 
-## 7. Staff
+## 7. Complaints (read-only)
+
+**Path:** `/owner/complaints`
+
+Owners get full visibility into the complaint lifecycle without operating it — assigning technicians and approving work stays with managers.
+
+- **Filters:** all, open, assigned, in_progress, pending_approval, resolved.
+- **Detail panel:** description, guest and technician contacts (tap to call / WhatsApp), the technician’s invoice (materials, labour, total), and the full event timeline.
+- **Sidebar badge:** counts complaints awaiting manager approval.
+- Updates live as managers and technicians make changes.
+
+---
+
+## 8. Staff
 
 **Path:** `/owner/staff`
 
@@ -185,6 +197,7 @@ Sidebar shows today’s occupancy: “X of Y rooms occupied” and a percentage 
 
 1. **Invite staff** → choose role:
    - **Manager** — enter their **email**.
+   - **Receptionist** — enter their **email** (front desk: bookings, check-in/out, room status, complaints).
    - **Technician** — enter their **phone number** (for SMS job alerts).
 2. Share invite link (`/accept-invite?token=...`) via WhatsApp, SMS, or in person.
 
@@ -196,7 +209,7 @@ Sidebar shows today’s occupancy: “X of Y rooms occupied” and a percentage 
 
 ---
 
-## 8. Billing & invoices
+## 9. Billing & invoices
 
 **Path:** `/owner/billing` — owners only
 
@@ -224,7 +237,7 @@ Uses prefix from Settings (e.g. `MOJO-2026-00001`). Sequence resets each January
 
 ---
 
-## 9. GRA tax reports
+## 10. GRA tax reports
 
 **Path:** `/owner/gra-reports` — owners only
 
@@ -234,7 +247,7 @@ Uses prefix from Settings (e.g. `MOJO-2026-00001`). Sequence resets each January
 
 ---
 
-## 10. Analytics
+## 11. Analytics
 
 **Path:** `/owner/analytics` — owners only
 
@@ -242,7 +255,7 @@ Bookings, occupancy, avg stay, revenue growth, 7-day charts, repeat guests, peak
 
 ---
 
-## 11. Settings
+## 12. Settings
 
 **Path:** `/owner/settings` — owners only
 
@@ -254,18 +267,18 @@ Bookings, occupancy, avg stay, revenue growth, 7-day charts, repeat guests, peak
 
 ---
 
-## 12. Owner limitations
+## 13. Owner limitations
 
 | Cannot do in app | Alternative |
 |------------------|-------------|
-| Complaints UI | Manager account |
+| Assign / approve complaints | Manager account (owner view is read-only) |
 | Housekeeping kanban | Manager account |
 | Walk-in button on Guests | Reservations check-in |
 | Online payment gateway | Record payments manually |
 
 ---
 
-## 13. End-to-end workflows
+## 14. End-to-end workflows
 
 **New property:** Settings → Add property → tax fields → Rooms → Staff.
 

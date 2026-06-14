@@ -82,9 +82,15 @@ function statusBadge(status: ComplaintStatus | null | undefined) {
 interface ComplaintsOverviewProps {
   complaints: Complaint[]
   limit?: number
+  /** Where the cards and "view all" link point (role-scoped complaints page). */
+  complaintsHref?: string
 }
 
-export function ComplaintsOverview({ complaints, limit = 5 }: ComplaintsOverviewProps) {
+export function ComplaintsOverview({
+  complaints,
+  limit = 5,
+  complaintsHref = '/manager/complaints',
+}: ComplaintsOverviewProps) {
   const active = complaints.filter((c) => c.status !== 'resolved').slice(0, limit)
   const pendingCount = active.filter((c) => c.status === 'pending_approval').length
 
@@ -96,7 +102,7 @@ export function ComplaintsOverview({ complaints, limit = 5 }: ComplaintsOverview
         </div>
         <p className="text-sm text-muted-foreground">No active complaints right now.</p>
         <Link
-          href="/manager/complaints"
+          href={complaintsHref}
           className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-[#3C216C] hover:underline"
         >
           Open complaints board
@@ -125,7 +131,7 @@ export function ComplaintsOverview({ complaints, limit = 5 }: ComplaintsOverview
           return (
             <Link
               key={c.id}
-              href="/manager/complaints"
+              href={complaintsHref}
               className={`group flex items-center gap-3 rounded-2xl bg-white px-4 py-3.5 shadow-elevation-1 transition-all hover:-translate-y-px hover:shadow-elevation-2 ${
                 priorityAccent[c.priority ?? 'medium']
               } ${isPending ? 'ring-2 ring-[#D85A30]/15' : ''}`}
@@ -170,7 +176,7 @@ export function ComplaintsOverview({ complaints, limit = 5 }: ComplaintsOverview
       </div>
 
       <Link
-        href="/manager/complaints"
+        href={complaintsHref}
         className="flex items-center justify-center gap-2 rounded-2xl bg-white py-3 text-sm font-semibold text-[#3C216C] shadow-elevation-1 transition-all hover:-translate-y-px hover:shadow-elevation-2"
       >
         View all complaints

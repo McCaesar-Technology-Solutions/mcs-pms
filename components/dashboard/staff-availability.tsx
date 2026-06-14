@@ -14,6 +14,7 @@ function getInitials(name: string) {
 const ROLE_LABEL: Record<UserRole, string> = {
   owner: 'Owner',
   manager: 'Manager',
+  receptionist: 'Receptionist',
   technician: 'Technician',
 }
 

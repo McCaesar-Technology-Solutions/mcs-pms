@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus, Trash2 } from 'lucide-react'
-import { createRoom, deleteRoom, updateRoom } from '@/app/actions/rooms'
+import { createRoom, deleteRoom, updateRoom, updateRoomStatus } from '@/app/actions/rooms'
 import { RoomCategoriesPanel } from '@/components/dashboard/room-categories-panel'
 import {
   CenteredModal,
@@ -49,10 +49,18 @@ interface RoomsManagerProps {
   rooms: DbRoom[]
   categories: RoomCategory[]
   canDelete?: boolean
+  /** Front-desk mode: change room status only, no add/edit/delete or pricing. */
+  statusOnly?: boolean
   initialSearch?: string
 }
 
-export function RoomsManager({ rooms, categories, canDelete = false, initialSearch = '' }: RoomsManagerProps) {
+export function RoomsManager({
+  rooms,
+  categories,
+  canDelete = false,
+  statusOnly = false,
+  initialSearch = '',
+}: RoomsManagerProps) {
   const router = useRouter()
   const [editing, setEditing] = useState<DbRoom | null>(null)
   const [creating, setCreating] = useState(false)
@@ -88,7 +96,7 @@ export function RoomsManager({ rooms, categories, canDelete = false, initialSear
 
   return (
     <div className="space-y-6">
-      <RoomCategoriesPanel categories={categories} />
+      {!statusOnly && <RoomCategoriesPanel categories={categories} />}
 
       <div className="surface-card p-6">
         <div className="surface-card-accent" />
@@ -99,15 +107,17 @@ export function RoomsManager({ rooms, categories, canDelete = false, initialSear
               {filteredRooms.length} of {rooms.length} rooms · tap a room to update
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => setCreating(true)}
-            disabled={!canAddRoom}
-            className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-elevation-1 transition-all hover:-translate-y-px hover:shadow-elevation-2 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <Plus className="h-4 w-4" />
-            Add room
-          </button>
+          {!statusOnly && (
+            <button
+              type="button"
+              onClick={() => setCreating(true)}
+              disabled={!canAddRoom}
+              className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-elevation-1 transition-all hover:-translate-y-px hover:shadow-elevation-2 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Plus className="h-4 w-4" />
+              Add room
+            </button>
+          )}
         </div>
 
         <div className="relative mb-4">
@@ -120,7 +130,7 @@ export function RoomsManager({ rooms, categories, canDelete = false, initialSear
           />
         </div>
 
-        {!canAddRoom && (
+        {!statusOnly && !canAddRoom && (
           <p className="mb-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
             Add at least one room category before creating rooms.
           </p>
@@ -170,6 +180,7 @@ export function RoomsManager({ rooms, categories, canDelete = false, initialSear
           room={editing}
           categories={categories}
           canDelete={canDelete}
+          statusOnly={statusOnly}
           onClose={() => setEditing(null)}
           onDone={() => {
             setEditing(null)
@@ -196,11 +207,12 @@ interface RoomModalProps {
   room?: DbRoom
   categories: RoomCategory[]
   canDelete?: boolean
+  statusOnly?: boolean
   onClose: () => void
   onDone: () => void
 }
 
-function RoomModal({ room, categories, canDelete, onClose, onDone }: RoomModalProps) {
+function RoomModal({ room, categories, canDelete, statusOnly = false, onClose, onDone }: RoomModalProps) {
   const isEdit = Boolean(room)
   const defaultCategoryId = room?.category_id ?? categories[0]?.id ?? ''
   const [number, setNumber] = useState(room?.number ?? '')
@@ -232,6 +244,12 @@ function RoomModal({ room, categories, canDelete, onClose, onDone }: RoomModalPr
   function save() {
     setError(null)
     startTransition(async () => {
+      if (statusOnly && isEdit) {
+        const result = await updateRoomStatus(room!.id, status)
+        if (result.success) onDone()
+        else setError(result.error)
+        return
+      }
       const payload = {
         number,
         floor: Number(floor),
@@ -268,55 +286,63 @@ function RoomModal({ room, categories, canDelete, onClose, onDone }: RoomModalPr
           {isEdit ? `Room ${room!.number}` : 'Add room'}
         </h3>
         <p className="mt-0.5 text-sm text-muted-foreground">
-          {isEdit ? 'Update room details and status.' : 'Create a new room for this property.'}
+          {statusOnly
+            ? 'Update the room status.'
+            : isEdit
+              ? 'Update room details and status.'
+              : 'Create a new room for this property.'}
         </p>
       </ModalHeader>
 
       <ModalBody className="space-y-4">
-        <Field label="Room number">
-          <input
-            value={number}
-            onChange={(e) => setNumber(e.target.value)}
-            placeholder="e.g. 204"
-            className={fieldClass}
-          />
-        </Field>
+        {!statusOnly && (
+          <>
+            <Field label="Room number">
+              <input
+                value={number}
+                onChange={(e) => setNumber(e.target.value)}
+                placeholder="e.g. 204"
+                className={fieldClass}
+              />
+            </Field>
 
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Floor">
-            <input
-              type="number"
-              value={floor}
-              onChange={(e) => setFloor(e.target.value)}
-              min={0}
-              className={fieldClass}
-            />
-          </Field>
-          <Field label="Category">
-            <select
-              value={categoryId}
-              onChange={(e) => handleCategoryChange(e.target.value)}
-              className={fieldClass}
-            >
-              {categories.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
-          </Field>
-        </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Floor">
+                <input
+                  type="number"
+                  value={floor}
+                  onChange={(e) => setFloor(e.target.value)}
+                  min={0}
+                  className={fieldClass}
+                />
+              </Field>
+              <Field label="Category">
+                <select
+                  value={categoryId}
+                  onChange={(e) => handleCategoryChange(e.target.value)}
+                  className={fieldClass}
+                >
+                  {categories.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </div>
 
-        <Field label="Nightly rate (₵)">
-          <input
-            type="number"
-            min={0}
-            step="0.01"
-            value={nightlyRate}
-            onChange={(e) => setNightlyRate(e.target.value)}
-            className={fieldClass}
-          />
-        </Field>
+            <Field label="Nightly rate (₵)">
+              <input
+                type="number"
+                min={0}
+                step="0.01"
+                value={nightlyRate}
+                onChange={(e) => setNightlyRate(e.target.value)}
+                className={fieldClass}
+              />
+            </Field>
+          </>
+        )}
 
         {isEdit && (
           <Field label="Status">

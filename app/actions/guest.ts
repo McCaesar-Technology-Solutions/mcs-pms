@@ -209,7 +209,7 @@ export async function getEnrollmentRooms(): Promise<
     .eq('id', user.id)
     .maybeSingle()
 
-  if (!profile?.hotel_id || !['owner', 'manager'].includes(profile.role)) {
+  if (!profile?.hotel_id || !['owner', 'manager', 'receptionist'].includes(profile.role)) {
     return { success: false, error: 'Not authorized.' }
   }
 
@@ -293,7 +293,7 @@ export async function updateGuest(input: {
   }
 
   const manager = await requireHotelManager()
-  if (!manager?.hotel_id || !['owner', 'manager'].includes(manager.role)) {
+  if (!manager?.hotel_id || !['owner', 'manager', 'receptionist'].includes(manager.role)) {
     return { success: false, error: 'Not authorized.' }
   }
 
@@ -356,7 +356,7 @@ async function requireHotelManager(): Promise<{ hotel_id: string; role: string }
     .eq('id', user.id)
     .maybeSingle()
 
-  if (!profile?.hotel_id || !['owner', 'manager'].includes(profile.role)) return null
+  if (!profile?.hotel_id || !['owner', 'manager', 'receptionist'].includes(profile.role)) return null
   return { hotel_id: profile.hotel_id, role: profile.role }
 }
 

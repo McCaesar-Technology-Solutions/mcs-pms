@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   ChevronDown,
   ChevronUp,
@@ -21,6 +21,7 @@ import {
 import { fetchComplaintEstimate } from '@/app/actions/complaint-estimates'
 import { ComplaintEstimateForm } from '@/components/technician/complaint-estimate-form'
 import { ComplaintEstimateCard } from '@/components/complaints/complaint-estimate-card'
+import { PhoneContact } from '@/components/ui/phone-contact'
 import { useRealtimeRefresh } from '@/components/realtime/realtime-refresh-context'
 import {
   canMarkComplete,
@@ -77,6 +78,8 @@ export function TechnicianTasks() {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [estimates, setEstimates] = useState<Record<string, ComplaintEstimate | null>>({})
   const [loading, setLoading] = useState<string | null>(null)
+  const expandedRef = useRef<string | null>(null)
+  expandedRef.current = expandedId
 
   const load = useCallback(async () => {
     const result = await getTechnicianComplaints(tab === 'completed')
@@ -90,11 +93,22 @@ export function TechnicianTasks() {
     }
   }, [tab])
 
+  const refreshFromRealtime = useCallback(async () => {
+    await load()
+    const id = expandedRef.current
+    if (id) {
+      const result = await fetchComplaintEstimate(id)
+      if (result.success) {
+        setEstimates((prev) => ({ ...prev, [id]: result.data ?? null }))
+      }
+    }
+  }, [load])
+
   useEffect(() => {
     load()
   }, [load])
 
-  useRealtimeRefresh('complaints', load)
+  useRealtimeRefresh('complaints', refreshFromRealtime)
 
   async function loadEstimate(complaintId: string) {
     const result = await fetchComplaintEstimate(complaintId)
@@ -214,6 +228,16 @@ export function TechnicianTasks() {
               {expanded && (
                 <div className="mx-4 mb-4 space-y-3 rounded-xl bg-[#F7F4FB] p-4">
                   <p className="text-sm leading-relaxed text-foreground">{c.description}</p>
+
+                  {c.guests?.phone && c.status !== 'resolved' && (
+                    <div className="rounded-xl bg-white p-3 shadow-elevation-1">
+                      <PhoneContact
+                        name={c.guests.name ?? 'Guest'}
+                        phone={c.guests.phone}
+                        label={`Guest${c.guests.name ? ` · ${c.guests.name}` : ''}`}
+                      />
+                    </div>
+                  )}
 
                   {c.rejection_note && (
                     <div className="rounded-xl bg-red-50 px-3 py-2.5 text-sm text-red-700 shadow-elevation-1">

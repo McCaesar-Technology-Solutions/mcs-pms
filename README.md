@@ -1,6 +1,6 @@
 # MOJO APARTMENTS
 
-Property management for Ghana hospitality — hotels, guest houses, and short-stay rentals. Multi-property owners, managers, technicians, and in-house guests share one system backed by **Supabase** (PostgreSQL, Auth, Realtime).
+Property management for Ghana hospitality — hotels, guest houses, and short-stay rentals. Multi-property owners, managers, receptionists, technicians, and in-house guests share one system backed by **Supabase** (PostgreSQL, Auth, Realtime).
 
 ---
 
@@ -10,9 +10,9 @@ The app is a **working PMS** with real persistence, role-based access, and live 
 
 | Area | Status |
 |------|--------|
-| Supabase schema + RLS (migrations `001`–`016`) | Done |
+| Supabase schema + RLS (migrations `001`–`018`) | Done |
 | Auth: owner signup, staff invites, guest portal tokens | Done |
-| Roles: owner, manager, technician, guest | Done |
+| Roles: owner, manager, receptionist, technician, guest | Done |
 | Reservations, check-in/out, walk-ins, guest portal + QR | Done |
 | Rooms, categories, housekeeping kanban | Done |
 | Complaints + two-step approval (invoice → work → completion) | Done |
@@ -40,7 +40,7 @@ Open [http://localhost:3000/login](http://localhost:3000/login).
 
 ### Database
 
-Apply migrations `001`–`016` in `supabase/migrations/`. If the database already exists but `supabase db push` fails on `001`, run only the missing SQL (e.g. `015`, `016`) in the Supabase SQL Editor. See [DEPLOYMENT.md](DEPLOYMENT.md#schema-and-migrations).
+Apply migrations `001`–`018` in `supabase/migrations/`. If the database already exists but `supabase db push` fails on `001`, run only the missing SQL (e.g. `015`–`018`) in the Supabase SQL Editor. See [DEPLOYMENT.md](DEPLOYMENT.md#schema-and-migrations).
 
 Optional seed:
 
@@ -97,7 +97,7 @@ lib/
   data/             server-side data loaders
   supabase/         client, server, middleware, admin
   notifications/    SMS/WhatsApp (Twilio, Hubtel)
-supabase/migrations/  SQL schema (001–015)
+supabase/migrations/  SQL schema (001–018)
 docs/               role-specific user guides
 ```
 

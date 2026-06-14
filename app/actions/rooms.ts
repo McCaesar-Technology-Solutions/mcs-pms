@@ -141,6 +141,45 @@ export async function updateRoom(
   return { success: true }
 }
 
+/** Status-only update — used by front-desk roles that cannot edit prices/inventory. */
+export async function updateRoomStatus(
+  id: string,
+  status: DbRoomStatus,
+): Promise<RoomActionResult> {
+  const validStatuses: DbRoomStatus[] = [
+    'available',
+    'occupied',
+    'cleaning',
+    'needs_inspection',
+    'maintenance',
+  ]
+  if (!validStatuses.includes(status)) {
+    return { success: false, error: 'Invalid room status.' }
+  }
+
+  const { supabase, profile } = await requireStaff()
+  if (
+    !profile ||
+    !['owner', 'manager', 'receptionist'].includes(profile.role) ||
+    !profile.hotel_id
+  ) {
+    return { success: false, error: 'Not authorized.' }
+  }
+
+  const { error } = await supabase
+    .from('rooms')
+    .update({ status, updated_by: profile.id, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .eq('hotel_id', profile.hotel_id)
+
+  if (error) return { success: false, error: error.message }
+
+  revalidateRoomViews()
+  revalidatePath('/receptionist/rooms')
+  revalidatePath('/receptionist/dashboard')
+  return { success: true }
+}
+
 export async function deleteRoom(id: string): Promise<RoomActionResult> {
   const { supabase, profile } = await requireStaff()
   if (!profile || profile.role !== 'owner') {

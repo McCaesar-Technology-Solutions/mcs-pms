@@ -26,6 +26,7 @@ interface StaffManagerProps {
 const ROLE_BADGE: Record<UserRole, { label: string; chip: string }> = {
   owner: { label: 'Owner', chip: 'bg-[#3C216C] text-white' },
   manager: { label: 'Manager', chip: 'bg-[#D4A62E]/20 text-[#9a7615]' },
+  receptionist: { label: 'Receptionist', chip: 'bg-teal-100 text-teal-800' },
   technician: { label: 'Technician', chip: 'bg-slate-100 text-slate-700' },
 }
 
@@ -38,17 +39,23 @@ function getInitials(name: string) {
     .toUpperCase()
 }
 
-function allowedInviteRoles(role: UserRole): ('manager' | 'technician')[] {
-  if (role === 'owner') return ['manager', 'technician']
-  if (role === 'manager') return ['technician']
+type InviteRole = 'manager' | 'technician' | 'receptionist'
+
+function allowedInviteRoles(role: UserRole): InviteRole[] {
+  if (role === 'owner') return ['manager', 'receptionist', 'technician']
+  if (role === 'manager') return ['receptionist', 'technician']
   return []
 }
 
 function canManageMember(actor: Profile, target: Profile): boolean {
   if (actor.id === target.id) return false
   if (target.role === 'owner') return false
-  if (actor.role === 'owner') return target.role === 'manager' || target.role === 'technician'
-  if (actor.role === 'manager') return target.role === 'technician'
+  if (actor.role === 'owner') {
+    return target.role === 'manager' || target.role === 'technician' || target.role === 'receptionist'
+  }
+  if (actor.role === 'manager') {
+    return target.role === 'technician' || target.role === 'receptionist'
+  }
   return false
 }
 
@@ -66,7 +73,7 @@ export function StaffManager({ currentProfile, staff, invites }: StaffManagerPro
 
   const [open, setOpen] = useState(false)
   const [contact, setContact] = useState('')
-  const [role, setRole] = useState<'manager' | 'technician'>(inviteRoles[0] ?? 'technician')
+  const [role, setRole] = useState<InviteRole>(inviteRoles[0] ?? 'technician')
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [createdToken, setCreatedToken] = useState<string | null>(null)
@@ -412,7 +419,7 @@ export function StaffManager({ currentProfile, staff, invites }: StaffManagerPro
                   id="invite-role"
                   value={role}
                   onChange={(e) => {
-                    setRole(e.target.value as 'manager' | 'technician')
+                    setRole(e.target.value as InviteRole)
                     setContact('')
                     setError(null)
                   }}

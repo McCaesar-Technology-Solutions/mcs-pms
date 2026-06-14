@@ -3,9 +3,11 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { PanelLeftClose, PanelLeft, X } from 'lucide-react'
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import { getPendingComplaintApprovalsCount } from '@/app/actions/complaints'
 import { SidebarLogo } from '@/components/brand/sidebar-logo'
 import { PropertySwitcher } from '@/components/dashboard/property-switcher'
+import { useRealtimeRefresh } from '@/components/realtime/realtime-refresh-context'
 import type { NavItem } from '@/lib/navigation'
 import { getNavIcon } from '@/components/dashboard/nav-icons'
 import type { OccupancyToday } from '@/lib/data/occupancy'
@@ -25,6 +27,23 @@ export default function Sidebar({
 }: SidebarProps) {
   const pathname = usePathname()
   const [collapsed, setCollapsed] = useState(false)
+  const [navItems, setNavItems] = useState(navigation)
+
+  useEffect(() => {
+    setNavItems(navigation)
+  }, [navigation])
+
+  const refreshComplaintBadge = useCallback(async () => {
+    const count = await getPendingComplaintApprovalsCount()
+    setNavItems((prev) =>
+      prev.map((item) =>
+        item.href.includes('complaints') ? { ...item, badge: count > 0 ? count : undefined } : item,
+      ),
+    )
+  }, [])
+
+  useRealtimeRefresh('complaints', refreshComplaintBadge)
+  useRealtimeRefresh('layout', refreshComplaintBadge)
 
   const isDrawer = mobileOpen
 
@@ -85,7 +104,7 @@ export default function Sidebar({
               Menu
             </p>
           )}
-          {navigation.map((item) => {
+          {navItems.map((item) => {
             const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
             const Icon = getNavIcon(item.icon)
             return (

@@ -16,7 +16,9 @@ export interface GlobalSearchResult {
 }
 
 function basePath(role: UserRole): string {
-  return role === 'owner' ? '/owner' : '/manager'
+  if (role === 'owner') return '/owner'
+  if (role === 'receptionist') return '/receptionist'
+  return '/manager'
 }
 
 function bookingRef(id: string): string {
@@ -36,7 +38,7 @@ async function requireStaff() {
     .eq('id', user.id)
     .maybeSingle()
 
-  if (!profile?.hotel_id || !['owner', 'manager'].includes(profile.role)) return null
+  if (!profile?.hotel_id || !['owner', 'manager', 'receptionist'].includes(profile.role)) return null
   return profile as { id: string; role: UserRole; hotel_id: string }
 }
 

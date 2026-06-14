@@ -10,6 +10,7 @@ Production features shipped beyond the original UI prototype.
 |------|---------|-------|
 | **Owner** | `/signup` or login | All properties in portfolio; billing, GRA, analytics, settings |
 | **Manager** | Staff invite | One property; daily ops, complaints, housekeeping |
+| **Receptionist** | Staff invite (email) | One property; front desk — bookings, check-in/out, room status, log complaints. No revenue/billing/prices/approvals |
 | **Technician** | Staff invite | Assigned maintenance jobs only |
 | **Guest** | Portal token (no password) | Submit/track complaints for current stay |
 
@@ -19,9 +20,9 @@ Production features shipped beyond the original UI prototype.
 - **Guests** — directory, walk-in check-in (manager), portal link + QR, phone editing.
 - **Rooms** — inventory, categories/rates, status grid; owner can delete rooms.
 - **Housekeeping** — kanban (desktop + `/mobile/housekeeping`); auto clean task on checkout.
-- **Complaints** — guest submit → manager assign → technician invoice → manager approve → work → completion approval → resolved.
-- **Staff** — invite managers by **email**, technicians by **phone**; phone numbers editable on profiles.
-- **Billing / GRA / Analytics** — owner only; invoice numbering, PDF export, tax reports.
+- **Complaints** — guest submit (or staff log on a guest's behalf) → manager assign → technician invoice → manager approve → work → completion approval → resolved. Owners get a **read-only** lifecycle view at `/owner/complaints`; assigned technicians can call/WhatsApp the guest.
+- **Staff** — invite managers and receptionists by **email**, technicians by **phone**; phone numbers editable on profiles.
+- **Billing / GRA / Analytics** — owner only; invoice numbering, PDF export, tax reports. Managers' dashboard hides revenue metrics.
 
 ### Notifications and live updates
 
@@ -64,7 +65,6 @@ Realtime updates require an **open browser tab** — not push when the app is cl
 
 #### 5. Partial features
 
-- **Owner complaints UI** — managers use `/manager/complaints`; owners see bell alerts only.
 - **Technician housekeeping** — toast alerts only; no HK screen on `/technician/tasks`.
 - **File storage** — buckets documented; no guest document upload UI.
 - **Email notifications** — SMS/WhatsApp only (Twilio / Hubtel SMS).

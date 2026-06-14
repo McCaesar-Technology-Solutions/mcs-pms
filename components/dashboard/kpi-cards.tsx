@@ -4,7 +4,13 @@ import { TrendingUp, Users, Percent, Banknote } from 'lucide-react'
 import { DataEmptyState } from '@/components/dashboard/data-empty-state'
 import type { KPIMetrics } from '@/types'
 
-export function KPICards({ metrics }: { metrics?: KPIMetrics }) {
+interface KPICardsProps {
+  metrics?: KPIMetrics
+  /** Hide revenue-related metrics (e.g. for managers). */
+  showRevenue?: boolean
+}
+
+export function KPICards({ metrics, showRevenue = true }: KPICardsProps) {
   if (!metrics) {
     return (
       <DataEmptyState message="Sign in and add reservations to see key metrics." />
@@ -13,15 +19,19 @@ export function KPICards({ metrics }: { metrics?: KPIMetrics }) {
 
   const kpiMetrics = metrics
   const cards = [
-    {
-      icon: Banknote,
-      label: 'Total Revenue',
-      value: `₵${kpiMetrics.totalRevenue.toLocaleString()}`,
-      subtext: `RevPAR ₵${kpiMetrics.reviParMetric.toLocaleString()}`,
-      trend: 'up',
-      tint: 'bg-[#3C216C]/10',
-      iconBg: 'bg-[#3C216C]/15 text-[#3C216C] ring-[#3C216C]/20',
-    },
+    ...(showRevenue
+      ? [
+          {
+            icon: Banknote,
+            label: 'Total Revenue',
+            value: `₵${kpiMetrics.totalRevenue.toLocaleString()}`,
+            subtext: `RevPAR ₵${kpiMetrics.reviParMetric.toLocaleString()}`,
+            trend: 'up',
+            tint: 'bg-[#3C216C]/10',
+            iconBg: 'bg-[#3C216C]/15 text-[#3C216C] ring-[#3C216C]/20',
+          },
+        ]
+      : []),
     {
       icon: Percent,
       label: 'Occupancy Rate',

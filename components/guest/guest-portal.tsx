@@ -53,6 +53,9 @@ export function GuestPortal({ guest, roomNumber, propertyContacts }: GuestPortal
 
   useEffect(() => {
     loadComplaints()
+    // Guests use a cookie session, not Supabase Auth — postgres_changes Realtime won't deliver.
+    const interval = setInterval(loadComplaints, 12000)
+    return () => clearInterval(interval)
   }, [loadComplaints])
 
   useEffect(() => {

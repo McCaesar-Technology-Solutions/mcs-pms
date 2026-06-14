@@ -64,6 +64,7 @@ Sorted: Urgent → High → Medium → Low.
 - Room number, priority, category, description.
 - **Status badge** (see table below).
 - Tap to expand for actions.
+- **Guest contact** — on active jobs the expanded card shows the guest’s name with **call** and **WhatsApp** buttons so you can reach them directly.
 
 ### Status labels
 
@@ -111,7 +112,7 @@ SMS: “Invoice approved — you can now start.”
 
 ### Step 4 — Do the work
 
-Complete repairs. Use **Call manager** if needed.
+Complete repairs. Use **Call manager** if needed, or contact the **guest** directly from the expanded task card (call / WhatsApp) to arrange access.
 
 ### Step 5 — Mark complete
 

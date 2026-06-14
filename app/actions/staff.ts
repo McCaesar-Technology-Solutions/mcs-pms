@@ -15,7 +15,7 @@ export type StaffActionResult<T = void> =
 
 export type InviteStaffResult = {
   token: string
-  role: 'manager' | 'technician'
+  role: 'manager' | 'technician' | 'receptionist'
   email?: string
   phone?: string
 }
@@ -36,9 +36,9 @@ async function requireStaffProfile(): Promise<Profile | null> {
   return (profile as Profile) ?? null
 }
 
-function allowedInviteRoles(role: UserRole): ('manager' | 'technician')[] {
-  if (role === 'owner') return ['manager', 'technician']
-  if (role === 'manager') return ['technician']
+function allowedInviteRoles(role: UserRole): ('manager' | 'technician' | 'receptionist')[] {
+  if (role === 'owner') return ['manager', 'technician', 'receptionist']
+  if (role === 'manager') return ['technician', 'receptionist']
   return []
 }
 
@@ -46,8 +46,12 @@ function canManageMember(actor: Profile, target: Profile): boolean {
   if (actor.id === target.id) return false
   if (actor.hotel_id !== target.hotel_id) return false
   if (target.role === 'owner') return false
-  if (actor.role === 'owner') return target.role === 'manager' || target.role === 'technician'
-  if (actor.role === 'manager') return target.role === 'technician'
+  if (actor.role === 'owner') {
+    return target.role === 'manager' || target.role === 'technician' || target.role === 'receptionist'
+  }
+  if (actor.role === 'manager') {
+    return target.role === 'technician' || target.role === 'receptionist'
+  }
   return false
 }
 
@@ -58,12 +62,12 @@ function technicianAuthEmail(token: string): string {
 
 export async function inviteStaff(
   contact: string,
-  role: 'manager' | 'technician',
+  role: 'manager' | 'technician' | 'receptionist',
 ): Promise<StaffActionResult<InviteStaffResult>> {
   const payload =
-    role === 'manager'
-      ? { role, email: contact.trim() }
-      : { role, phone: contact.trim() }
+    role === 'technician'
+      ? { role, phone: contact.trim() }
+      : { role, email: contact.trim() }
 
   const parsed = inviteStaffSchema.safeParse(payload)
   if (!parsed.success) {
@@ -80,7 +84,9 @@ export async function inviteStaff(
 
   const admin = createAdminClient()
 
-  if (parsed.data.role === 'manager') {
+  // Manager and receptionist invites are email-based.
+  if (parsed.data.role === 'manager' || parsed.data.role === 'receptionist') {
+    const inviteRole = parsed.data.role
     const normalizedEmail = parsed.data.email!.trim().toLowerCase()
 
     const { data: existingProfile } = await admin
@@ -111,7 +117,7 @@ export async function inviteStaff(
       .insert({
         hotel_id: profile.hotel_id,
         email: normalizedEmail,
-        role: 'manager',
+        role: inviteRole,
         invited_by: profile.id,
       })
       .select('token')
@@ -126,7 +132,7 @@ export async function inviteStaff(
 
     return {
       success: true,
-      data: { token: invite.token, email: normalizedEmail, role: 'manager' },
+      data: { token: invite.token, email: normalizedEmail, role: inviteRole },
     }
   }
 

@@ -130,7 +130,7 @@ export async function checkInStay(
   }
 
   const { supabase, profile, userId } = await requireManager()
-  if (!profile?.hotel_id || !userId || !['owner', 'manager'].includes(profile.role)) {
+  if (!profile?.hotel_id || !userId || !['owner', 'manager', 'receptionist'].includes(profile.role)) {
     return { success: false, error: 'Not authorized.' }
   }
 
@@ -248,7 +248,7 @@ export async function walkInCheckIn(input: {
   StayActionResult<{ loginUrl: string; token: string; reservationId: string; guestId: string }>
 > {
   const { profile, userId } = await requireManager()
-  if (!profile?.hotel_id || !userId || !['owner', 'manager'].includes(profile.role)) {
+  if (!profile?.hotel_id || !userId || !['owner', 'manager', 'receptionist'].includes(profile.role)) {
     return { success: false, error: 'Not authorized.' }
   }
 
@@ -323,7 +323,7 @@ export async function checkOutStay(input: {
   markAsPaid?: boolean
 }): Promise<StayActionResult> {
   const { profile, userId } = await requireManager()
-  if (!profile?.hotel_id || !userId || !['owner', 'manager'].includes(profile.role)) {
+  if (!profile?.hotel_id || !userId || !['owner', 'manager', 'receptionist'].includes(profile.role)) {
     return { success: false, error: 'Not authorized.' }
   }
   if (!VALID_PAYMENT_METHODS.includes(input.paymentMethod)) {
@@ -557,7 +557,7 @@ export async function extendStay(
   newCheckOut: string,
 ): Promise<StayActionResult> {
   const { profile } = await requireManager()
-  if (!profile?.hotel_id || !['owner', 'manager'].includes(profile.role)) {
+  if (!profile?.hotel_id || !['owner', 'manager', 'receptionist'].includes(profile.role)) {
     return { success: false, error: 'Not authorized.' }
   }
 
@@ -627,7 +627,7 @@ export async function moveStayRoom(
   newRoomId: string,
 ): Promise<StayActionResult> {
   const { profile, userId } = await requireManager()
-  if (!profile?.hotel_id || !userId || !['owner', 'manager'].includes(profile.role)) {
+  if (!profile?.hotel_id || !userId || !['owner', 'manager', 'receptionist'].includes(profile.role)) {
     return { success: false, error: 'Not authorized.' }
   }
 
@@ -698,7 +698,7 @@ export async function moveStayRoom(
 
 export async function markNoShow(reservationId: string): Promise<StayActionResult> {
   const { supabase, profile } = await requireManager()
-  if (!profile || !['owner', 'manager'].includes(profile.role)) {
+  if (!profile || !['owner', 'manager', 'receptionist'].includes(profile.role)) {
     return { success: false, error: 'Not authorized.' }
   }
 

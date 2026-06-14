@@ -19,12 +19,14 @@ function todayISO(): string {
 }
 
 function basePath(role: UserRole): string {
-  return role === 'owner' ? '/owner' : '/manager'
+  if (role === 'owner') return '/owner'
+  if (role === 'receptionist') return '/receptionist'
+  return '/manager'
 }
 
 export async function getNotifications(): Promise<AppNotification[]> {
   const profile = await getProfile()
-  if (!profile?.hotel_id || !['owner', 'manager'].includes(profile.role)) return []
+  if (!profile?.hotel_id || !['owner', 'manager', 'receptionist'].includes(profile.role)) return []
 
   const supabase = await createClient()
   const hotelId = profile.hotel_id
