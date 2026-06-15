@@ -54,12 +54,12 @@ The app is **operationally usable** for a pilot property (staff workflows, billi
 
 | Area | State |
 |------|--------|
-| Automated tests | None in repo |
+| Automated tests | Vitest unit tests for roles, validations, phone/E.164, complaint workflow (`npm test`) |
 | Error monitoring (Sentry) | Documented, not wired |
 | Rate limiting | Not on server actions |
 | Pagination | Large tables load in bulk |
-| Password reset | Not implemented |
-| 2FA / OAuth | Email + password only |
+| Password reset | Done — email link flow (`/forgot-password` → `/auth/callback` → `/reset-password`) |
+| 2FA / OAuth | TOTP 2FA via Supabase (required: owner + manager; optional: receptionist + technician). OAuth not implemented |
 
 Realtime updates require an **open browser tab** — not push when the app is closed.
 
@@ -73,7 +73,7 @@ Realtime updates require an **open browser tab** — not push when the app is cl
 
 #### Recommended build order
 
-1. Online payments → 2. OTA / iCal → 3. Password reset + tests → 4. SaaS onboarding.
+1. Online payments → 2. OTA / iCal → 3. SaaS onboarding. (Password reset + unit tests: done.)
 
 ---
 

@@ -1,15 +1,19 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { signIn } from '@/app/actions/auth'
+import { resolvePostLoginPath } from '@/lib/auth/mfa-client'
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const resetDone = searchParams.get('reset') === 'success'
+  const linkExpired = searchParams.get('error') === 'link_expired'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -28,7 +32,8 @@ export default function LoginPage() {
       return
     }
 
-    router.push(result.redirectTo)
+    const destination = await resolvePostLoginPath(result.role, result.redirectTo)
+    router.push(destination)
     router.refresh()
   }
 
@@ -44,6 +49,17 @@ export default function LoginPage() {
           </p>
           <p className="mt-2 text-sm text-white/70">Staff sign in</p>
         </div>
+
+        {resetDone && (
+          <p className="mb-5 rounded-lg bg-emerald-500/15 px-3 py-2 text-sm text-emerald-100">
+            Password updated. Sign in with your new password.
+          </p>
+        )}
+        {linkExpired && (
+          <p className="mb-5 rounded-lg bg-amber-500/15 px-3 py-2 text-sm text-amber-100">
+            That reset link has expired. Request a new one below.
+          </p>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="space-y-2">
@@ -62,9 +78,17 @@ export default function LoginPage() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="password" className="text-white/90">
-              Password
-            </Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="password" className="text-white/90">
+                Password
+              </Label>
+              <Link
+                href="/forgot-password"
+                className="text-xs font-semibold text-[#D4A62E] hover:underline"
+              >
+                Forgot password?
+              </Link>
+            </div>
             <Input
               id="password"
               type="password"
@@ -99,5 +123,17 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-dvh items-center justify-center bg-[#22124C] px-4 py-12" />
+      }
+    >
+      <LoginForm />
+    </Suspense>
   )
 }

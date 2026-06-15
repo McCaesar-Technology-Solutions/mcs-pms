@@ -6,6 +6,21 @@ export const signInSchema = z.object({
   password: z.string().min(6, 'Password must be at least 6 characters'),
 })
 
+export const requestResetSchema = z.object({
+  email: z.string().email('Enter a valid email'),
+})
+
+export const resetPasswordSchema = z
+  .object({
+    password: z.string().min(8, 'Password must be at least 8 characters'),
+    confirm: z.string().min(8, 'Please confirm your password'),
+  })
+  .superRefine((data, ctx) => {
+    if (data.password !== data.confirm) {
+      ctx.addIssue({ code: 'custom', message: 'Passwords do not match.', path: ['confirm'] })
+    }
+  })
+
 export const inviteStaffSchema = z
   .object({
     role: z.enum(['manager', 'technician', 'receptionist']),

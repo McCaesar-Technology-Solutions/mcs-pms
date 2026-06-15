@@ -1,16 +1,40 @@
 'use server'
 
+import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { seedDefaultRoomCategories } from '@/lib/data/room-categories'
 import { ROLE_HOME, isStaffRole } from '@/lib/auth/roles'
-import { acceptInviteSchema, signInSchema, signUpOwnerSchema } from '@/lib/validations'
+import {
+  acceptInviteSchema,
+  requestResetSchema,
+  resetPasswordSchema,
+  signInSchema,
+  signUpOwnerSchema,
+} from '@/lib/validations'
 import type { UserRole } from '@/types'
 
 export type AuthActionResult =
   | { success: true; role: UserRole; redirectTo: string }
   | { success: false; error: string }
+
+export type SimpleActionResult =
+  | { success: true }
+  | { success: false; error: string }
+
+/** Resolve the app's public origin for building email redirect links. */
+async function resolveOrigin(): Promise<string> {
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '')
+  }
+  const h = await headers()
+  const origin = h.get('origin')
+  if (origin) return origin
+  const host = h.get('x-forwarded-host') ?? h.get('host')
+  const proto = h.get('x-forwarded-proto') ?? 'https'
+  return host ? `${proto}://${host}` : ''
+}
 
 export async function signIn(
   email: string,
@@ -46,6 +70,60 @@ export async function signIn(
 
   const redirectTo = ROLE_HOME[profile.role]
   return { success: true, role: profile.role, redirectTo }
+}
+
+/**
+ * Send a password-reset email. Always reports success so the response never
+ * reveals whether an email is registered.
+ */
+export async function requestPasswordReset(email: string): Promise<SimpleActionResult> {
+  const parsed = requestResetSchema.safeParse({ email })
+  if (!parsed.success) {
+    return { success: false, error: 'Enter a valid email address.' }
+  }
+
+  const origin = await resolveOrigin()
+  if (!origin) {
+    return { success: false, error: 'Could not determine the site address. Try again later.' }
+  }
+
+  const supabase = await createClient()
+  await supabase.auth.resetPasswordForEmail(parsed.data.email.trim().toLowerCase(), {
+    redirectTo: `${origin}/auth/callback?next=/reset-password`,
+  })
+
+  return { success: true }
+}
+
+/**
+ * Set a new password for the user in the current (recovery) session, then sign
+ * them out so they re-authenticate with the new credentials.
+ */
+export async function updatePassword(
+  password: string,
+  confirm: string,
+): Promise<SimpleActionResult> {
+  const parsed = resetPasswordSchema.safeParse({ password, confirm })
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid password.' }
+  }
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, error: 'Your reset link has expired. Request a new one.' }
+  }
+
+  const { error } = await supabase.auth.updateUser({ password: parsed.data.password })
+  if (error) {
+    return { success: false, error: 'Could not update your password. Try again.' }
+  }
+
+  await supabase.auth.signOut()
+  return { success: true }
 }
 
 export async function signUpOwner(input: {

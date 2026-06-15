@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { signUpOwner } from '@/app/actions/auth'
+import { resolvePostLoginPath } from '@/lib/auth/mfa-client'
 
 export default function SignUpPage() {
   const router = useRouter()
@@ -31,7 +32,8 @@ export default function SignUpPage() {
       return
     }
 
-    router.push(result.redirectTo)
+    const destination = await resolvePostLoginPath(result.role, result.redirectTo)
+    router.push(destination)
     router.refresh()
   }
 

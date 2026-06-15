@@ -7,9 +7,12 @@ import {
   STAFF_ROLES,
 } from '@/lib/auth/roles'
 import { legacyPathForRole } from '@/lib/auth/legacy-redirect'
+import { isMfaPath } from '@/lib/auth/mfa'
+import { mfaRedirectIfNeeded } from '@/lib/auth/mfa-server'
 import type { Database } from '@/lib/supabase/types'
+import type { UserRole } from '@/types'
 
-const PUBLIC_PATHS = ['/login', '/accept-invite', '/signup']
+const PUBLIC_PATHS = ['/login', '/accept-invite', '/signup', '/forgot-password']
 const GUEST_PREFIX = '/guest'
 
 const LEGACY_STAFF_PATHS = [
@@ -59,6 +62,21 @@ export async function updateSession(request: NextRequest) {
     return supabaseResponse
   }
 
+  // Password-recovery flow: the callback exchanges a code for a (recovery)
+  // session, and the reset page must stay reachable while that session is
+  // active — so never redirect these away based on auth state.
+  if (pathname.startsWith('/auth/') || pathname === '/reset-password') {
+    return supabaseResponse
+  }
+
+  if (isMfaPath(pathname)) {
+    if (!user) {
+      const loginUrl = new URL('/login', request.url)
+      return NextResponse.redirect(loginUrl)
+    }
+    return supabaseResponse
+  }
+
   if (PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
     if (user) {
       const { data: profile } = await supabase
@@ -68,6 +86,14 @@ export async function updateSession(request: NextRequest) {
         .maybeSingle()
 
       if (profile?.is_active !== false && isStaffRole(profile?.role)) {
+        const mfaRedirect = await mfaRedirectIfNeeded(
+          supabase,
+          profile.role as UserRole,
+          pathname,
+          request.url,
+        )
+        if (mfaRedirect) return NextResponse.redirect(mfaRedirect)
+
         const home = ROLE_HOME[profile.role]
         return NextResponse.redirect(new URL(home, request.url))
       }
@@ -133,6 +159,14 @@ export async function updateSession(request: NextRequest) {
       }
       return NextResponse.redirect(new URL('/login', request.url))
     }
+
+    const mfaRedirect = await mfaRedirectIfNeeded(
+      supabase,
+      profile.role as UserRole,
+      pathname,
+      request.url,
+    )
+    if (mfaRedirect) return NextResponse.redirect(mfaRedirect)
   }
 
   if (

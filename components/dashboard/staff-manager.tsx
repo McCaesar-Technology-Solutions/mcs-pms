@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Check, Copy, Mail, Phone, Plus, ShieldCheck, UserX, X } from 'lucide-react'
 import { inviteStaff, revokeInvite, setStaffActive, updateStaffPhone } from '@/app/actions/staff'
 import { ProfilePhoneEditor } from '@/components/dashboard/profile-phone-editor'
+import { MfaSettingsCard } from '@/components/dashboard/mfa-settings-card'
 import { hasPhoneNumber } from '@/lib/phone'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -263,14 +264,26 @@ export function StaffManager({ currentProfile, staff, invites }: StaffManagerPro
     )
   }
 
+  const staffReturnPath =
+    currentProfile.role === 'owner' ? '/owner/staff' : '/manager/staff'
+
   return (
     <>
       {currentProfile.role !== 'technician' && (
-        <ProfilePhoneEditor
-          initialPhone={currentProfile.phone}
-          roleLabel={currentProfile.role === 'owner' ? 'property owner' : 'manager'}
-          variant="card"
-        />
+        <div className="space-y-6">
+          <ProfilePhoneEditor
+            initialPhone={currentProfile.phone}
+            roleLabel={
+              currentProfile.role === 'owner'
+                ? 'property owner'
+                : currentProfile.role === 'manager'
+                  ? 'manager'
+                  : 'staff member'
+            }
+            variant="card"
+          />
+          <MfaSettingsCard role={currentProfile.role} returnPath={staffReturnPath} />
+        </div>
       )}
 
       <div className="surface-card overflow-hidden">

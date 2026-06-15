@@ -156,6 +156,26 @@ In **Authentication → URL Configuration**, add:
 - Site URL: `https://yourdomain.com` (production)
 - Redirect URLs: `http://localhost:3000/**`, `https://yourdomain.com/**`, Vercel preview URLs
 
+Make sure `https://yourdomain.com/auth/callback` is covered by the redirect URL patterns above — the password-reset flow returns the user there.
+
+### 5. Password reset (email)
+
+Flow: `/forgot-password` → Supabase emails a recovery link → `/auth/callback` exchanges the code for a session → `/reset-password` sets the new password → back to `/login`.
+
+Requirements:
+
+- **SMTP** configured in **Authentication → Emails** (Supabase's built-in sender is rate-limited; use a real SMTP/provider for production).
+- `NEXT_PUBLIC_APP_URL` set to the public origin so the email link points to the right host (falls back to request headers when unset).
+- The **Reset Password** email template should use the default confirmation URL.
+- Technician accounts sign in by phone with a synthetic email, so they cannot self-serve reset — an owner/manager re-invites or resets them.
+
+### 6. Two-factor authentication (TOTP)
+
+- **Required** for **owner** and **manager** — must enroll an authenticator app (Google Authenticator, Authy, 1Password) before accessing the dashboard.
+- **Optional** for **receptionist** and **technician** — enable from owner Settings or manager Staff page, or visit `/enroll-mfa` while signed in.
+- Supabase Auth → **Authentication → MFA** — TOTP is enabled by default on all projects.
+- Flow: sign in → `/enroll-mfa` (first time) or `/verify-mfa` (each new session) → dashboard.
+
 ## Authentication Setup
 
 ### Supabase Auth + Next.js (Recommended)

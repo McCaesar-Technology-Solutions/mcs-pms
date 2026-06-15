@@ -10,6 +10,7 @@ import { AddPropertyDialog } from '@/components/dashboard/add-property-dialog'
 import type { HotelSettings } from '@/lib/data/settings'
 import type { Profile } from '@/types'
 import { ProfilePhoneEditor } from '@/components/dashboard/profile-phone-editor'
+import { MfaSettingsCard } from '@/components/dashboard/mfa-settings-card'
 
 const GHANA_REGIONS = [
   'Greater Accra',
@@ -108,12 +109,13 @@ export function SettingsPanel({ hotelSettings, staffHref = '/owner/staff', profi
   return (
     <>
       {profile && (
-        <div className="mb-6">
+        <div className="mb-6 space-y-6">
           <ProfilePhoneEditor
             initialPhone={profile.phone}
             roleLabel="property owner"
             variant="card"
           />
+          <MfaSettingsCard role={profile.role} returnPath="/owner/settings" />
         </div>
       )}
 

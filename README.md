@@ -125,7 +125,7 @@ docs/               role-specific user guides
 
 ## What's next (roadmap)
 
-Priority order: **payments → OTA/iCal → auth recovery + tests → SaaS onboarding**. Details in [FEATURES.md](FEATURES.md#what-is-incomplete).
+Priority order: **payments → OTA/iCal → SaaS onboarding**. (Password reset + unit tests are done.) Details in [FEATURES.md](FEATURES.md#what-is-incomplete).
 
 ---
 
