@@ -27,17 +27,25 @@ export function MfaVerifyForm({ nextPath }: MfaVerifyFormProps) {
 
     async function loadFactor() {
       const supabase = createClient()
-      const { data: factors } = await supabase.auth.mfa.listFactors()
-      const verified = (factors?.totp ?? []).find((f) => f.status === 'verified')
+      const { data: factors, error: listError } = await supabase.auth.mfa.listFactors()
 
       if (cancelled) return
 
-      if (!verified) {
+      if (listError) {
+        setError(listError.message)
+        setBootstrapping(false)
+        return
+      }
+
+      const verified = (factors?.totp ?? []).filter((f) => f.status === 'verified')
+
+      if (verified.length === 0) {
         router.replace(`/enroll-mfa?next=${encodeURIComponent(destination)}`)
         return
       }
 
-      setFactorId(verified.id)
+      // Prefer the most recently created verified factor.
+      setFactorId(verified[verified.length - 1]!.id)
       setBootstrapping(false)
     }
 
@@ -58,7 +66,7 @@ export function MfaVerifyForm({ nextPath }: MfaVerifyFormProps) {
 
     if (challengeError || !challenge) {
       setLoading(false)
-      setError(challengeError?.message ?? 'Could not verify the code. Try again.')
+      setError(challengeError?.message ?? 'Could not start verification. Try again.')
       return
     }
 
@@ -71,7 +79,12 @@ export function MfaVerifyForm({ nextPath }: MfaVerifyFormProps) {
     setLoading(false)
 
     if (verifyError) {
-      setError('Invalid code. Check your authenticator app and try again.')
+      setError(
+        verifyError.message.includes('Invalid') ||
+          verifyError.message.toLowerCase().includes('code')
+          ? 'Invalid code. Wait for a fresh code in your app (codes change every 30s), check your device clock is correct, then try again.'
+          : verifyError.message,
+      )
       return
     }
 

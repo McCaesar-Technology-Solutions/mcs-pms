@@ -1,12 +1,38 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { createClient } from '@/lib/supabase/client'
 import { safeMfaNext } from '@/lib/auth/mfa'
+
+const PENDING_ENROLL_KEY = 'mojo_mfa_pending_enroll'
+
+interface PendingEnroll {
+  factorId: string
+  qrCode: string
+  secret: string
+}
+
+function readPendingEnroll(): PendingEnroll | null {
+  try {
+    const raw = sessionStorage.getItem(PENDING_ENROLL_KEY)
+    if (!raw) return null
+    return JSON.parse(raw) as PendingEnroll
+  } catch {
+    return null
+  }
+}
+
+function writePendingEnroll(data: PendingEnroll) {
+  sessionStorage.setItem(PENDING_ENROLL_KEY, JSON.stringify(data))
+}
+
+function clearPendingEnroll() {
+  sessionStorage.removeItem(PENDING_ENROLL_KEY)
+}
 
 interface MfaEnrollFormProps {
   nextPath: string
@@ -15,6 +41,7 @@ interface MfaEnrollFormProps {
 
 export function MfaEnrollForm({ nextPath, required = false }: MfaEnrollFormProps) {
   const router = useRouter()
+  const bootstrapStarted = useRef(false)
   const [factorId, setFactorId] = useState<string | null>(null)
   const [qrCode, setQrCode] = useState<string | null>(null)
   const [secret, setSecret] = useState<string | null>(null)
@@ -25,49 +52,67 @@ export function MfaEnrollForm({ nextPath, required = false }: MfaEnrollFormProps
 
   const destination = safeMfaNext(nextPath, '/')
 
-  useEffect(() => {
-    let cancelled = false
+  const startEnrollment = useCallback(async (forceNew: boolean) => {
+    setError(null)
+    setBootstrapping(true)
+    setCode('')
 
-    async function bootstrap() {
-      const supabase = createClient()
-      const { data: factors } = await supabase.auth.mfa.listFactors()
-      const verified = (factors?.totp ?? []).find((f) => f.status === 'verified')
-      if (verified) {
-        router.replace(destination)
-        return
-      }
+    const supabase = createClient()
+    const { data: factors } = await supabase.auth.mfa.listFactors()
+    const verified = (factors?.totp ?? []).find((f) => f.status === 'verified')
+    if (verified) {
+      clearPendingEnroll()
+      router.replace(destination)
+      return
+    }
 
-      // Drop stale in-progress enrollments (e.g. user refreshed mid-setup).
-      for (const factor of factors?.totp ?? []) {
-        if (factor.status !== 'verified') {
-          await supabase.auth.mfa.unenroll({ factorId: factor.id })
-        }
-      }
-
-      const { data, error: enrollError } = await supabase.auth.mfa.enroll({
-        factorType: 'totp',
-        friendlyName: 'Authenticator app',
-      })
-
-      if (cancelled) return
-
-      if (enrollError || !data) {
-        setError(enrollError?.message ?? 'Could not start MFA enrollment.')
+    if (!forceNew) {
+      const pending = readPendingEnroll()
+      const unverified = (factors?.totp ?? []).find((f) => f.status !== 'verified')
+      if (pending && unverified && pending.factorId === unverified.id) {
+        setFactorId(pending.factorId)
+        setQrCode(pending.qrCode)
+        setSecret(pending.secret)
         setBootstrapping(false)
         return
       }
+    }
 
-      setFactorId(data.id)
-      setQrCode(data.totp.qr_code)
-      setSecret(data.totp.secret)
+    for (const factor of factors?.totp ?? []) {
+      if (factor.status !== 'verified') {
+        await supabase.auth.mfa.unenroll({ factorId: factor.id })
+      }
+    }
+    clearPendingEnroll()
+
+    const { data, error: enrollError } = await supabase.auth.mfa.enroll({
+      factorType: 'totp',
+      friendlyName: 'Authenticator app',
+    })
+
+    if (enrollError || !data) {
+      setError(enrollError?.message ?? 'Could not start MFA enrollment.')
       setBootstrapping(false)
+      return
     }
 
-    bootstrap()
-    return () => {
-      cancelled = true
+    const pending: PendingEnroll = {
+      factorId: data.id,
+      qrCode: data.totp.qr_code,
+      secret: data.totp.secret,
     }
+    writePendingEnroll(pending)
+    setFactorId(pending.factorId)
+    setQrCode(pending.qrCode)
+    setSecret(pending.secret)
+    setBootstrapping(false)
   }, [destination, router])
+
+  useEffect(() => {
+    if (bootstrapStarted.current) return
+    bootstrapStarted.current = true
+    startEnrollment(false)
+  }, [startEnrollment])
 
   async function handleVerify(e: React.FormEvent) {
     e.preventDefault()
@@ -83,7 +128,7 @@ export function MfaEnrollForm({ nextPath, required = false }: MfaEnrollFormProps
 
     if (challengeError || !challenge) {
       setLoading(false)
-      setError(challengeError?.message ?? 'Could not verify the code. Try again.')
+      setError(challengeError?.message ?? 'Could not start verification. Try again.')
       return
     }
 
@@ -96,10 +141,15 @@ export function MfaEnrollForm({ nextPath, required = false }: MfaEnrollFormProps
     setLoading(false)
 
     if (verifyError) {
-      setError('Invalid code. Check your authenticator app and try again.')
+      setError(
+        verifyError.message.includes('Invalid')
+          ? 'Invalid code. Wait for a fresh code in your app (codes change every 30s), check your device clock is correct, then try again.'
+          : verifyError.message,
+      )
       return
     }
 
+    clearPendingEnroll()
     router.push(destination)
     router.refresh()
   }
@@ -117,9 +167,11 @@ export function MfaEnrollForm({ nextPath, required = false }: MfaEnrollFormProps
       </p>
 
       {qrCode && (
-        <div
-          className="mx-auto w-fit rounded-xl bg-white p-4"
-          dangerouslySetInnerHTML={{ __html: qrCode }}
+        // Supabase returns a data-URL SVG — use <img>, not raw HTML injection.
+        <img
+          src={qrCode}
+          alt="Scan this QR code with your authenticator app"
+          className="mx-auto block w-48 rounded-xl bg-white p-4"
         />
       )}
 
@@ -163,6 +215,15 @@ export function MfaEnrollForm({ nextPath, required = false }: MfaEnrollFormProps
           {loading ? 'Verifying…' : 'Enable two-factor authentication'}
         </Button>
       </form>
+
+      <button
+        type="button"
+        onClick={() => startEnrollment(true)}
+        disabled={loading || bootstrapping}
+        className="w-full text-center text-xs font-semibold text-white/50 hover:text-white/80 disabled:opacity-50"
+      >
+        Generate a new QR code
+      </button>
     </div>
   )
 }
