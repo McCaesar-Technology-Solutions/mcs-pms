@@ -1,6 +1,7 @@
 'use client'
 
 import { Receipt } from 'lucide-react'
+import { ComplaintInvoiceFileLink } from '@/components/complaints/complaint-invoice-file-link'
 import type { ComplaintEstimate } from '@/types'
 
 function formatMoney(n: number) {
@@ -15,7 +16,7 @@ export function ComplaintEstimateCard({ estimate }: { estimate: ComplaintEstimat
       <div className="flex items-center gap-2 border-b border-[#3C216C]/10 px-4 py-3">
         <Receipt className="h-4 w-4 text-[#3C216C]" />
         <div>
-          <h3 className="text-sm font-semibold text-[#3C216C]">Technician cost estimate</h3>
+          <h3 className="text-sm font-semibold text-[#3C216C]">Technician invoice</h3>
           {estimate.technician?.name && (
             <p className="text-xs text-muted-foreground">From {estimate.technician.name}</p>
           )}
@@ -28,6 +29,13 @@ export function ComplaintEstimateCard({ estimate }: { estimate: ComplaintEstimat
       </div>
 
       <div className="p-4 space-y-4">
+        {estimate.invoice_file_name && (
+          <ComplaintInvoiceFileLink
+            complaintId={estimate.complaint_id}
+            fileName={estimate.invoice_file_name}
+          />
+        )}
+
         {estimate.note && (
           <div className="rounded-xl bg-white/80 px-3 py-2.5 text-sm leading-relaxed text-foreground shadow-sm">
             <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
@@ -64,24 +72,28 @@ export function ComplaintEstimateCard({ estimate }: { estimate: ComplaintEstimat
               </tbody>
             </table>
           </div>
-        ) : (
+        ) : estimate.total_cost > 0 ? (
           <p className="text-sm text-muted-foreground">No materials listed — labour only.</p>
+        ) : estimate.invoice_file_name ? null : (
+          <p className="text-sm text-muted-foreground">No line items — see uploaded file.</p>
         )}
 
-        <div className="rounded-xl bg-white px-4 py-3 text-sm shadow-sm">
-          <div className="flex justify-between text-muted-foreground">
-            <span>Materials subtotal</span>
-            <span>{formatMoney(estimate.materials_total)}</span>
+        {(estimate.total_cost > 0 || items.length > 0) && (
+          <div className="rounded-xl bg-white px-4 py-3 text-sm shadow-sm">
+            <div className="flex justify-between text-muted-foreground">
+              <span>Materials subtotal</span>
+              <span>{formatMoney(estimate.materials_total)}</span>
+            </div>
+            <div className="mt-1 flex justify-between text-muted-foreground">
+              <span>Labour</span>
+              <span>{formatMoney(estimate.labour_cost)}</span>
+            </div>
+            <div className="mt-2 flex justify-between border-t border-[#E9ECEF] pt-2 text-base font-bold text-[#3C216C]">
+              <span>Total</span>
+              <span>{formatMoney(estimate.total_cost)}</span>
+            </div>
           </div>
-          <div className="mt-1 flex justify-between text-muted-foreground">
-            <span>Labour</span>
-            <span>{formatMoney(estimate.labour_cost)}</span>
-          </div>
-          <div className="mt-2 flex justify-between border-t border-[#E9ECEF] pt-2 text-base font-bold text-[#3C216C]">
-            <span>Total estimate</span>
-            <span>{formatMoney(estimate.total_cost)}</span>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   )

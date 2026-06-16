@@ -3,6 +3,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getGuestSessionId } from '@/lib/guest-session'
 import { submitComplaintSchema } from '@/lib/validations'
+import { canGuestApproveCompletion } from '@/lib/complaints/workflow'
 import { walkInCheckIn, checkOutStay } from '@/app/actions/stays'
 import { getOccupancySpans } from '@/lib/data/occupancy'
 import type { Complaint, Guest } from '@/types'
@@ -179,6 +180,59 @@ export async function getGuestComplaints(): Promise<GuestActionResult<Complaint[
   }
 
   return { success: true, data: (data ?? []) as Complaint[] }
+}
+
+export async function approveGuestComplaintCompletion(
+  complaintId: string,
+): Promise<GuestActionResult> {
+  const session = await getGuestFromSession()
+  if (!session.success) {
+    return { success: false, error: session.error ?? 'Not authorized.' }
+  }
+  if (!session.data) {
+    return { success: false, error: 'Not authorized.' }
+  }
+
+  const admin = createAdminClient()
+  const { data: complaint } = await admin
+    .from('complaints')
+    .select('*')
+    .eq('id', complaintId)
+    .eq('guest_id', session.data.guest.id)
+    .maybeSingle()
+
+  if (!complaint || !canGuestApproveCompletion(complaint)) {
+    return { success: false, error: 'This complaint is not ready for your approval.' }
+  }
+
+  const now = new Date().toISOString()
+
+  const { error } = await admin
+    .from('complaints')
+    .update({
+      status: 'resolved',
+      approval_stage: null,
+      guest_completion_approved_at: now,
+      resolved_at: now,
+      rejection_note: null,
+    })
+    .eq('id', complaintId)
+
+  if (error) {
+    return { success: false, error: 'Could not confirm completion. Try again.' }
+  }
+
+  await admin.from('complaint_events').insert({
+    complaint_id: complaintId,
+    actor_role: 'guest',
+    event_type: 'guest_completion_approved',
+  })
+
+  void import('@/lib/notifications/complaints').then(({ notifyGuestApprovedCompletion }) =>
+    notifyGuestApprovedCompletion(complaintId).catch(() => undefined),
+  )
+
+  return { success: true }
 }
 
 export interface EnrollRoomOption {

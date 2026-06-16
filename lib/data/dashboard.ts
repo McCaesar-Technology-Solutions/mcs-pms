@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { getProfile } from '@/lib/auth/get-profile'
 import { getOccupancySpans, type OccupancySpan } from '@/lib/data/occupancy'
+import { calculateStayTotal } from '@/lib/pricing/stay-totals'
 import type {
   Availability,
   DbInvoice,
@@ -17,6 +18,7 @@ export interface RoomOption {
   id: string
   number: string
   nightlyRate: number
+  monthlyRate: number
 }
 
 export interface DashboardData {
@@ -86,9 +88,15 @@ interface ReservationRow extends DbReservation {
 
 function mapReservation(row: ReservationRow): Reservation {
   const nights = nightsBetween(row.check_in, row.check_out)
-  const total = row.total_amount ?? (row.nightly_rate ?? 0) * nights
+  const rateType = (row.rate_type ?? 'nightly') as Reservation['rateType']
+  const nightlyRate = Number(row.nightly_rate ?? 0)
+  const monthlyRate = Number(row.monthly_rate ?? 0)
+  const total =
+    row.total_amount ??
+    calculateStayTotal(rateType, row.check_in, row.check_out, nightlyRate, monthlyRate)
   const status = (row.status ?? 'confirmed') as Reservation['status']
   const paidAmount = status === 'checked_in' || status === 'checked_out' ? total : 0
+  const channel = (row.channel ?? 'direct') as Reservation['channel']
 
   return {
     id: row.id,
@@ -107,7 +115,11 @@ function mapReservation(row: ReservationRow): Reservation {
     totalPrice: total,
     paidAmount,
     currency: 'GHS',
-    source: CHANNEL_SOURCE_MAP[row.channel ?? 'direct'] ?? 'other',
+    source: CHANNEL_SOURCE_MAP[channel] ?? 'other',
+    channel,
+    rateType,
+    nightlyRate,
+    monthlyRate,
     createdAt: row.created_at ?? new Date().toISOString(),
     updatedAt: row.created_at ?? new Date().toISOString(),
   }
@@ -212,7 +224,7 @@ export async function getDashboardData(): Promise<DashboardData> {
   const [roomsRes, reservationsRes, invoicesRes, occupancySpans] = await Promise.all([
     supabase
       .from('rooms')
-      .select('*, room_categories(name, default_nightly_rate)')
+      .select('*, room_categories(name, default_nightly_rate, default_monthly_rate)')
       .eq('hotel_id', hotelId)
       .order('number'),
     supabase
@@ -245,6 +257,10 @@ export async function getDashboardData(): Promise<DashboardData> {
         r.nightly_rate != null
           ? Number(r.nightly_rate)
           : Number(r.room_categories?.default_nightly_rate ?? 0),
+      monthlyRate:
+        r.monthly_rate != null
+          ? Number(r.monthly_rate)
+          : Number(r.room_categories?.default_monthly_rate ?? 0),
     })),
     occupancySpans,
   }

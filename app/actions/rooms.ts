@@ -49,6 +49,7 @@ export async function createRoom(input: {
   floor: number
   categoryId: string
   nightlyRate: number
+  monthlyRate?: number | ''
 }): Promise<RoomActionResult> {
   const parsed = createRoomSchema.safeParse(input)
   if (!parsed.success) {
@@ -64,12 +65,18 @@ export async function createRoom(input: {
     return { success: false, error: 'Invalid room category.' }
   }
 
+  const monthlyRate =
+    parsed.data.monthlyRate === '' || parsed.data.monthlyRate === undefined
+      ? null
+      : parsed.data.monthlyRate
+
   const { error } = await supabase.from('rooms').insert({
     hotel_id: profile.hotel_id,
     number: parsed.data.number.trim(),
     floor: parsed.data.floor,
     category_id: parsed.data.categoryId,
     nightly_rate: parsed.data.nightlyRate,
+    monthly_rate: monthlyRate,
     status: 'available',
     updated_by: profile.id,
   })
@@ -90,6 +97,7 @@ export async function updateRoom(
     floor?: number
     categoryId?: string
     nightlyRate?: number
+    monthlyRate?: number | ''
     status?: DbRoomStatus
   },
 ): Promise<RoomActionResult> {
@@ -115,6 +123,7 @@ export async function updateRoom(
     floor?: number
     category_id?: string
     nightly_rate?: number
+    monthly_rate?: number | null
     status?: DbRoomStatus
     updated_by: string
     updated_at: string
@@ -124,6 +133,9 @@ export async function updateRoom(
   if (parsed.data.floor !== undefined) payload.floor = parsed.data.floor
   if (parsed.data.categoryId !== undefined) payload.category_id = parsed.data.categoryId
   if (parsed.data.nightlyRate !== undefined) payload.nightly_rate = parsed.data.nightlyRate
+  if (parsed.data.monthlyRate !== undefined) {
+    payload.monthly_rate = parsed.data.monthlyRate === '' ? null : parsed.data.monthlyRate
+  }
   if (parsed.data.status !== undefined) payload.status = parsed.data.status
 
   const { error } = await supabase

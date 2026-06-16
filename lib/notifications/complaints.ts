@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { notifyPhones } from '@/lib/notifications/send'
+import { formatComplaintVisit } from '@/lib/complaints/visit'
 import type { ComplaintCategory } from '@/types'
 
 const CATEGORY_LABELS: Record<ComplaintCategory, string> = {
@@ -54,20 +55,22 @@ interface ComplaintNotifyContext {
   priority: string | null
   description: string
   guestName?: string | null
+  guestPhone?: string | null
+  assignedTo?: string | null
 }
 
 async function loadComplaintContext(complaintId: string): Promise<ComplaintNotifyContext | null> {
   const admin = createAdminClient()
   const { data } = await admin
     .from('complaints')
-    .select('id, hotel_id, category, priority, description, rooms(number), guests(name)')
+    .select('id, hotel_id, category, priority, description, assigned_to, rooms(number), guests(name, phone)')
     .eq('id', complaintId)
     .maybeSingle()
 
   if (!data) return null
 
   const room = data.rooms as { number?: string } | null
-  const guest = data.guests as { name?: string } | null
+  const guest = data.guests as { name?: string; phone?: string | null } | null
 
   return {
     hotelId: data.hotel_id,
@@ -77,6 +80,8 @@ async function loadComplaintContext(complaintId: string): Promise<ComplaintNotif
     priority: data.priority,
     description: data.description,
     guestName: guest?.name ?? null,
+    guestPhone: guest?.phone ?? null,
+    assignedTo: data.assigned_to ?? null,
   }
 }
 
@@ -135,24 +140,106 @@ export async function notifyComplaintAssigned(
   })
 }
 
-/** Technician marked job complete — alert manager. */
+/** Technician marked job complete — alert manager and guest (when linked). */
 export async function notifyComplaintCompletionRequested(complaintId: string): Promise<void> {
+  const ctx = await loadComplaintContext(complaintId)
+  if (!ctx) return
+
+  const phones = await managerPhones(ctx.hotelId)
+  if (phones.length > 0) {
+    const body = [
+      'MOJO: Job ready for approval',
+      refLine(ctx),
+      'Technician marked work complete. Review in the dashboard.',
+      appUrl('/manager/complaints'),
+    ].join('\n')
+
+    await notifyPhones(phones, body, {
+      hotelId: ctx.hotelId,
+      templateKey: 'complaint_completion_requested',
+      includeWhatsApp: true,
+    })
+  }
+
+  if (ctx.guestPhone) {
+    const body = [
+      'MOJO: Maintenance update',
+      refLine(ctx),
+      'Work is complete. Please confirm in your guest portal.',
+      appUrl('/guest'),
+    ].join('\n')
+
+    await notifyPhones([ctx.guestPhone], body, {
+      hotelId: ctx.hotelId,
+      templateKey: 'complaint_guest_signoff',
+      includeWhatsApp: true,
+    })
+  }
+}
+
+/** Visit time agreed with guest — alert guest and front desk. */
+export async function notifyComplaintVisitScheduled(
+  complaintId: string,
+  visitAtIso: string,
+): Promise<void> {
+  const ctx = await loadComplaintContext(complaintId)
+  if (!ctx) return
+
+  const when = formatComplaintVisit(visitAtIso)
+  const appointment = when ? `Appointment: ${when}` : 'A visit time was set.'
+
+  if (ctx.guestPhone) {
+    const body = [
+      'MOJO: Maintenance visit confirmed',
+      refLine(ctx),
+      appointment,
+      'Your technician agreed this time with you.',
+      appUrl('/guest'),
+    ].join('\n')
+
+    await notifyPhones([ctx.guestPhone], body, {
+      hotelId: ctx.hotelId,
+      templateKey: 'complaint_visit_scheduled',
+      includeWhatsApp: true,
+    })
+  }
+
+  const managerPhonesList = await managerPhones(ctx.hotelId)
+  if (managerPhonesList.length > 0) {
+    const body = [
+      'MOJO: Maintenance visit scheduled',
+      refLine(ctx),
+      appointment,
+      appUrl('/manager/complaints'),
+    ].join('\n')
+
+    await notifyPhones(managerPhonesList, body, {
+      hotelId: ctx.hotelId,
+      templateKey: 'complaint_visit_scheduled',
+      includeWhatsApp: true,
+    })
+  }
+}
+
+/** Guest confirmed work is complete — alert manager. */
+export async function notifyGuestApprovedCompletion(complaintId: string): Promise<void> {
   const ctx = await loadComplaintContext(complaintId)
   if (!ctx) return
 
   const phones = await managerPhones(ctx.hotelId)
   if (phones.length === 0) return
 
+  const guest = ctx.guestName ? `${ctx.guestName} confirmed` : 'Guest confirmed'
   const body = [
-    'MOJO: Job ready for approval',
+    'MOJO: Guest sign-off received',
     refLine(ctx),
-    'Technician marked work complete. Review in the dashboard.',
+    `${guest} the work is complete. Complaint resolved.`,
     appUrl('/manager/complaints'),
   ].join('\n')
 
   await notifyPhones(phones, body, {
     hotelId: ctx.hotelId,
-    templateKey: 'complaint_completion_requested',
+    templateKey: 'complaint_guest_approved',
     includeWhatsApp: true,
   })
 }

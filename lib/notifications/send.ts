@@ -1,6 +1,12 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { toE164 } from '@/lib/notifications/e164'
+import {
+  resolveArkeselSenderId,
+  toArkeselRecipient,
+  validateArkeselSenderId,
+} from '@/lib/notifications/arkesel-sender'
 import { resolveHubtelSenderId, validateHubtelSenderId } from '@/lib/notifications/hubtel-sender'
+import { isSmsConfigured, resolveSmsProvider, type SmsProvider } from '@/lib/notifications/sms-provider'
 
 export type NotificationChannel = 'sms' | 'whatsapp'
 
@@ -27,9 +33,63 @@ function channelsEnabled(): NotificationChannel[] {
 }
 
 function isConfigured(): boolean {
-  if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) return true
-  if (process.env.HUBTEL_CLIENT_ID && process.env.HUBTEL_CLIENT_SECRET) return true
-  return false
+  return isSmsConfigured()
+}
+
+async function sendArkeselSms(to: string, body: string): Promise<SendResult> {
+  const apiKey = process.env.ARKESEL_API_KEY
+  const sender = resolveArkeselSenderId()
+  if (!apiKey) {
+    return { channel: 'sms', success: false, error: 'Arkesel SMS not configured' }
+  }
+
+  const senderCheck = validateArkeselSenderId(sender)
+  if (!senderCheck.ok) {
+    return { channel: 'sms', success: false, error: senderCheck.error }
+  }
+
+  const res = await fetch('https://sms.arkesel.com/api/v2/sms/send', {
+    method: 'POST',
+    headers: {
+      'api-key': apiKey,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      sender,
+      message: body,
+      recipients: [toArkeselRecipient(to)],
+    }),
+  })
+
+  const data = (await res.json()) as {
+    status?: string
+    message?: string
+    data?: Array<{ id?: string; recipient?: string }>
+  }
+
+  if (!res.ok || data.status !== 'success') {
+    return {
+      channel: 'sms',
+      success: false,
+      error: data.message ?? `Arkesel HTTP ${res.status}`,
+    }
+  }
+
+  const messageId = data.data?.[0]?.id
+  return { channel: 'sms', success: true, providerId: messageId }
+}
+
+async function sendSmsViaProvider(provider: SmsProvider, to: string, body: string): Promise<SendResult> {
+  switch (provider) {
+    case 'arkesel':
+      return sendArkeselSms(to, body)
+    case 'hubtel':
+      return sendHubtelSms(to, body)
+    case 'twilio':
+      return sendTwilioSms(to, body)
+    default:
+      return { channel: 'sms', success: false, error: 'No SMS provider configured' }
+  }
 }
 
 async function sendTwilioSms(to: string, body: string): Promise<SendResult> {
@@ -152,11 +212,7 @@ async function logNotification(
       channel,
       template_key: opts.templateKey,
       body,
-      provider: process.env.TWILIO_ACCOUNT_SID
-        ? 'twilio'
-        : process.env.HUBTEL_CLIENT_ID
-          ? 'hubtel'
-          : 'none',
+      provider: resolveSmsProvider(),
       provider_id: result.providerId ?? null,
       status: result.success ? 'sent' : 'failed',
       error_message: result.error ?? null,
@@ -186,10 +242,8 @@ export async function sendToPhone(
   const useWhatsApp = opts.includeWhatsApp !== false && enabled.includes('whatsapp')
 
   if (enabled.includes('sms')) {
-    const smsResult =
-      process.env.HUBTEL_CLIENT_ID && !process.env.TWILIO_ACCOUNT_SID
-        ? await sendHubtelSms(e164, body)
-        : await sendTwilioSms(e164, body)
+    const provider = resolveSmsProvider()
+    const smsResult = await sendSmsViaProvider(provider, e164, body)
     results.push(smsResult)
     await logNotification(opts, e164, 'sms', body, smsResult)
   }

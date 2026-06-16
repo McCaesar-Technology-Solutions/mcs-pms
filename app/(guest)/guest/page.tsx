@@ -35,7 +35,10 @@ function messageForError(error?: string): string {
   if (error === 'expired') {
     return 'This link has expired. Please contact the front desk for a new one.'
   }
-  return 'Please use the link provided by the front desk.'
+  if (error === 'missing') {
+    return 'Scan the property QR code or use the link from the front desk.'
+  }
+  return 'Please scan the property QR code or use the link from the front desk.'
 }
 
 function GuestExpiredPage({ message }: { message?: string }) {

@@ -1,5 +1,6 @@
 import { GuestsTable } from '@/components/dashboard/guests-table'
 import { PageHeader } from '@/components/dashboard/page-header'
+import { PropertyPortalQrPanel } from '@/components/guest/property-portal-qr-panel'
 import { getGuestsData } from '@/lib/data/guests'
 
 export default async function OwnerGuestsPage({
@@ -17,6 +18,7 @@ export default async function OwnerGuestsPage({
         title="Guests"
         description="View guest directory and stay history across your property."
       />
+      <PropertyPortalQrPanel />
       <GuestsTable guests={guests} initialSearch={q} />
     </div>
   )

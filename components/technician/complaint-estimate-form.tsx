@@ -5,7 +5,7 @@ import { Plus, Trash2, Send, Receipt } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   fetchComplaintEstimate,
-  submitComplaintEstimate,
+  submitComplaintEstimateWithFile,
 } from '@/app/actions/complaint-estimates'
 import type { ComplaintEstimate } from '@/types'
 
@@ -52,6 +52,8 @@ export function ComplaintEstimateForm({
   const [error, setError] = useState<string | null>(null)
   const [savedAt, setSavedAt] = useState<string | null>(null)
   const [hasExisting, setHasExisting] = useState(false)
+  const [existingFileName, setExistingFileName] = useState<string | null>(null)
+  const [invoiceFile, setInvoiceFile] = useState<File | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -64,6 +66,7 @@ export function ComplaintEstimateForm({
         setNote(est.note ?? '')
         setLabourCost(String(est.labour_cost))
         setSavedAt(est.updated_at ?? est.created_at)
+        setExistingFileName(est.invoice_file_name ?? null)
         if (est.items && est.items.length > 0) {
           setRows(
             est.items.map((item) => ({
@@ -125,12 +128,14 @@ export function ComplaintEstimateForm({
         unitCost: parseFloat(r.unitCost) || 0,
       }))
 
-    const result = await submitComplaintEstimate({
-      complaintId,
-      note,
-      labourCost: parseFloat(labourCost) || 0,
-      materials,
-    })
+    const formData = new FormData()
+    formData.set('complaintId', complaintId)
+    formData.set('note', note)
+    formData.set('labourCost', String(parseFloat(labourCost) || 0))
+    formData.set('materials', JSON.stringify(materials))
+    if (invoiceFile) formData.set('invoiceFile', invoiceFile)
+
+    const result = await submitComplaintEstimateWithFile(formData)
 
     setSaving(false)
 
@@ -141,7 +146,11 @@ export function ComplaintEstimateForm({
 
     setHasExisting(true)
     setSavedAt(new Date().toISOString())
-    toast.success('Invoice sent — manager must approve before you can start work.')
+    if (invoiceFile) {
+      setExistingFileName(invoiceFile.name)
+      setInvoiceFile(null)
+    }
+    toast.success('Invoice sent to manager.')
     if (result.data) onSubmitted?.(result.data)
   }
 
@@ -157,7 +166,7 @@ export function ComplaintEstimateForm({
     <form onSubmit={handleSubmit} className="space-y-4 rounded-xl bg-white p-4 shadow-elevation-1">
       <div className="flex items-center gap-2">
         <Receipt className="h-4 w-4 text-[#3C216C]" />
-        <h3 className="text-sm font-semibold text-[#3C216C]">Submit invoice to manager</h3>
+        <h3 className="text-sm font-semibold text-[#3C216C]">Send invoice to manager</h3>
       </div>
       {(roomNumber || category) && (
         <p className="text-xs font-semibold text-[#3C216C]">
@@ -167,14 +176,36 @@ export function ComplaintEstimateForm({
         </p>
       )}
       <p className="text-xs leading-relaxed text-muted-foreground">
-        Step 1: List materials and labour, then submit for manager approval. You can only start
-        work after the invoice is approved.
+        Optional — upload a PDF or photo, and/or enter materials and labour below. Send anytime
+        before or after work.
       </p>
+
+      <div>
+        <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Upload invoice file
+        </label>
+        <input
+          type="file"
+          accept=".pdf,image/jpeg,image/png,image/webp"
+          disabled={disabled || saving}
+          onChange={(e) => setInvoiceFile(e.target.files?.[0] ?? null)}
+          className="mt-1.5 block w-full text-sm text-muted-foreground file:mr-3 file:rounded-lg file:border-0 file:bg-[#3C216C]/10 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-[#3C216C]"
+        />
+        {existingFileName && !invoiceFile && (
+          <p className="mt-1.5 text-xs text-muted-foreground">
+            Current file: <span className="font-medium text-foreground">{existingFileName}</span>
+            {' — choose a new file to replace it.'}
+          </p>
+        )}
+        {invoiceFile && (
+          <p className="mt-1.5 text-xs text-emerald-700">Ready to upload: {invoiceFile.name}</p>
+        )}
+      </div>
 
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Materials
+            Line items (optional)
           </label>
           <button
             type="button"
@@ -183,7 +214,7 @@ export function ComplaintEstimateForm({
             className="inline-flex items-center gap-1 text-xs font-semibold text-[#3C216C] disabled:opacity-50"
           >
             <Plus className="h-3.5 w-3.5" />
-            Add row
+            Add material row
           </button>
         </div>
 
@@ -312,7 +343,7 @@ export function ComplaintEstimateForm({
 
       {hasExisting && savedAt && !error && (
         <p className="text-center text-xs text-emerald-700">
-          Invoice submitted · manager notified · {new Date(savedAt).toLocaleString()}
+          Invoice sent · manager notified · {new Date(savedAt).toLocaleString()}
         </p>
       )}
 
@@ -326,7 +357,7 @@ export function ComplaintEstimateForm({
           ? 'Submitting…'
           : hasExisting
             ? 'Update & resubmit invoice'
-            : 'Submit invoice to manager'}
+            : 'Send invoice to manager'}
       </button>
     </form>
   )

@@ -23,6 +23,7 @@ export type Database = {
           invoice_prefix: string
           invoice_next_seq: number
           invoice_seq_year: number | null
+          guest_portal_slug: string | null
           created_at: string | null
         }
         Insert: {
@@ -38,6 +39,7 @@ export type Database = {
           invoice_prefix?: string
           invoice_next_seq?: number
           invoice_seq_year?: number | null
+          guest_portal_slug?: string | null
           created_at?: string | null
         }
         Update: {
@@ -53,6 +55,7 @@ export type Database = {
           invoice_prefix?: string
           invoice_next_seq?: number
           invoice_seq_year?: number | null
+          guest_portal_slug?: string | null
           created_at?: string | null
         }
         Relationships: [
@@ -74,6 +77,7 @@ export type Database = {
           email: string
           phone: string | null
           specialty: string | null
+          mfa_sms_enabled: boolean | null
           invited_by: string | null
           is_active: boolean | null
           created_at: string | null
@@ -86,6 +90,7 @@ export type Database = {
           email: string
           phone?: string | null
           specialty?: string | null
+          mfa_sms_enabled?: boolean | null
           invited_by?: string | null
           is_active?: boolean | null
           created_at?: string | null
@@ -98,6 +103,7 @@ export type Database = {
           email?: string
           phone?: string | null
           specialty?: string | null
+          mfa_sms_enabled?: boolean | null
           invited_by?: string | null
           is_active?: boolean | null
           created_at?: string | null
@@ -120,6 +126,7 @@ export type Database = {
           floor: number | null
           category_id: string | null
           nightly_rate: number | null
+          monthly_rate: number | null
           status:
             | 'available'
             | 'occupied'
@@ -137,6 +144,7 @@ export type Database = {
           floor?: number | null
           category_id?: string | null
           nightly_rate?: number | null
+          monthly_rate?: number | null
           status?:
             | 'available'
             | 'occupied'
@@ -154,6 +162,7 @@ export type Database = {
           floor?: number | null
           category_id?: string | null
           nightly_rate?: number | null
+          monthly_rate?: number | null
           status?:
             | 'available'
             | 'occupied'
@@ -187,6 +196,7 @@ export type Database = {
           hotel_id: string
           name: string
           default_nightly_rate: number
+          default_monthly_rate: number | null
           created_at: string | null
         }
         Insert: {
@@ -194,6 +204,7 @@ export type Database = {
           hotel_id: string
           name: string
           default_nightly_rate?: number
+          default_monthly_rate?: number | null
           created_at?: string | null
         }
         Update: {
@@ -201,6 +212,7 @@ export type Database = {
           hotel_id?: string
           name?: string
           default_nightly_rate?: number
+          default_monthly_rate?: number | null
           created_at?: string | null
         }
         Relationships: [
@@ -280,7 +292,9 @@ export type Database = {
           check_out: string
           status: 'confirmed' | 'checked_in' | 'checked_out' | 'cancelled' | null
           channel: 'airbnb' | 'booking_com' | 'direct' | 'walk_in' | 'other' | null
+          rate_type: 'nightly' | 'monthly' | null
           nightly_rate: number | null
+          monthly_rate: number | null
           total_amount: number | null
           created_by: string | null
           created_at: string | null
@@ -295,7 +309,9 @@ export type Database = {
           check_out: string
           status?: 'confirmed' | 'checked_in' | 'checked_out' | 'cancelled' | null
           channel?: 'airbnb' | 'booking_com' | 'direct' | 'walk_in' | 'other' | null
+          rate_type?: 'nightly' | 'monthly' | null
           nightly_rate?: number | null
+          monthly_rate?: number | null
           total_amount?: number | null
           created_by?: string | null
           created_at?: string | null
@@ -310,7 +326,9 @@ export type Database = {
           check_out?: string
           status?: 'confirmed' | 'checked_in' | 'checked_out' | 'cancelled' | null
           channel?: 'airbnb' | 'booking_com' | 'direct' | 'walk_in' | 'other' | null
+          rate_type?: 'nightly' | 'monthly' | null
           nightly_rate?: number | null
+          monthly_rate?: number | null
           total_amount?: number | null
           created_by?: string | null
           created_at?: string | null
@@ -352,6 +370,9 @@ export type Database = {
           assigned_to: string | null
           approval_stage: 'estimate' | 'completion' | null
           estimate_approved_at: string | null
+          scheduled_visit_at: string | null
+          scheduled_visit_by: 'guest' | 'manager' | 'owner' | 'technician' | null
+          guest_completion_approved_at: string | null
           rejection_note: string | null
           submitted_at: string | null
           resolved_at: string | null
@@ -382,6 +403,9 @@ export type Database = {
           assigned_to?: string | null
           approval_stage?: 'estimate' | 'completion' | null
           estimate_approved_at?: string | null
+          scheduled_visit_at?: string | null
+          scheduled_visit_by?: 'guest' | 'manager' | 'owner' | 'technician' | null
+          guest_completion_approved_at?: string | null
           rejection_note?: string | null
           submitted_at?: string | null
           resolved_at?: string | null
@@ -412,6 +436,9 @@ export type Database = {
           assigned_to?: string | null
           approval_stage?: 'estimate' | 'completion' | null
           estimate_approved_at?: string | null
+          scheduled_visit_at?: string | null
+          scheduled_visit_by?: 'guest' | 'manager' | 'owner' | 'technician' | null
+          guest_completion_approved_at?: string | null
           rejection_note?: string | null
           submitted_at?: string | null
           resolved_at?: string | null
@@ -441,6 +468,8 @@ export type Database = {
             | 'resolved'
             | 'estimate_submitted'
             | 'estimate_approved'
+            | 'visit_scheduled'
+            | 'guest_completion_approved'
           note: string | null
           created_at: string | null
         }
@@ -458,6 +487,8 @@ export type Database = {
             | 'resolved'
             | 'estimate_submitted'
             | 'estimate_approved'
+            | 'visit_scheduled'
+            | 'guest_completion_approved'
           note?: string | null
           created_at?: string | null
         }
@@ -498,6 +529,9 @@ export type Database = {
           labour_cost: number
           materials_total: number
           total_cost: number
+          invoice_file_path: string | null
+          invoice_file_name: string | null
+          invoice_file_mime: string | null
           created_at: string | null
           updated_at: string | null
         }
@@ -510,6 +544,9 @@ export type Database = {
           labour_cost?: number
           materials_total?: number
           total_cost?: number
+          invoice_file_path?: string | null
+          invoice_file_name?: string | null
+          invoice_file_mime?: string | null
           created_at?: string | null
           updated_at?: string | null
         }
@@ -522,6 +559,9 @@ export type Database = {
           labour_cost?: number
           materials_total?: number
           total_cost?: number
+          invoice_file_path?: string | null
+          invoice_file_name?: string | null
+          invoice_file_mime?: string | null
           created_at?: string | null
           updated_at?: string | null
         }
@@ -767,6 +807,73 @@ export type Database = {
             columns: ['hotel_id']
             isOneToOne: false
             referencedRelation: 'hotels'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      mfa_otp_challenges: {
+        Row: {
+          id: string
+          user_id: string
+          code_hash: string
+          expires_at: string
+          consumed_at: string | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          code_hash: string
+          expires_at: string
+          consumed_at?: string | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          code_hash?: string
+          expires_at?: string
+          consumed_at?: string | null
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'mfa_otp_challenges_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      mfa_verified_sessions: {
+        Row: {
+          id: string
+          user_id: string
+          session_key: string
+          verified_at: string
+          expires_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          session_key: string
+          verified_at?: string
+          expires_at: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          session_key?: string
+          verified_at?: string
+          expires_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'mfa_verified_sessions_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
             referencedColumns: ['id']
           },
         ]

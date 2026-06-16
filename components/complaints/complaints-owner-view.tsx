@@ -58,6 +58,8 @@ const timelineLabels: Record<ComplaintEventType, string> = {
   resolved: 'Resolved',
   estimate_submitted: 'Invoice submitted',
   estimate_approved: 'Invoice approved — work authorized',
+  visit_scheduled: 'Visit scheduled',
+  guest_completion_approved: 'Guest confirmed completion',
 }
 
 function formatLabel(value: string) {

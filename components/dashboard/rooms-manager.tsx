@@ -221,6 +221,13 @@ function RoomModal({ room, categories, canDelete, statusOnly = false, onClose, o
   const [nightlyRate, setNightlyRate] = useState(
     String(room?.nightly_rate ?? categories.find((c) => c.id === defaultCategoryId)?.default_nightly_rate ?? ''),
   )
+  const [monthlyRate, setMonthlyRate] = useState(
+    String(
+      room?.monthly_rate ??
+        categories.find((c) => c.id === defaultCategoryId)?.default_monthly_rate ??
+        '',
+    ),
+  )
   const [status, setStatus] = useState<DbRoomStatus>((room?.status ?? 'available') as DbRoomStatus)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
@@ -230,6 +237,9 @@ function RoomModal({ room, categories, canDelete, statusOnly = false, onClose, o
     const category = categories.find((c) => c.id === categoryId)
     if (category) {
       setNightlyRate(String(category.default_nightly_rate))
+      setMonthlyRate(
+        category.default_monthly_rate != null ? String(category.default_monthly_rate) : '',
+      )
     }
   }, [categoryId, categories, isEdit])
 
@@ -238,6 +248,9 @@ function RoomModal({ room, categories, canDelete, statusOnly = false, onClose, o
     const category = categories.find((c) => c.id === nextCategoryId)
     if (category) {
       setNightlyRate(String(category.default_nightly_rate))
+      setMonthlyRate(
+        category.default_monthly_rate != null ? String(category.default_monthly_rate) : '',
+      )
     }
   }
 
@@ -250,11 +263,14 @@ function RoomModal({ room, categories, canDelete, statusOnly = false, onClose, o
         else setError(result.error)
         return
       }
+      const monthlyRateValue: number | '' =
+        monthlyRate.trim() === '' ? '' : Number(monthlyRate)
       const payload = {
         number,
         floor: Number(floor),
         categoryId,
         nightlyRate: Number(nightlyRate),
+        monthlyRate: monthlyRateValue,
       }
       const result = isEdit
         ? await updateRoom(room!.id, { ...payload, status })
@@ -338,6 +354,18 @@ function RoomModal({ room, categories, canDelete, statusOnly = false, onClose, o
                 step="0.01"
                 value={nightlyRate}
                 onChange={(e) => setNightlyRate(e.target.value)}
+                className={fieldClass}
+              />
+            </Field>
+
+            <Field label="Monthly rate (₵, optional)">
+              <input
+                type="number"
+                min={0}
+                step="0.01"
+                value={monthlyRate}
+                onChange={(e) => setMonthlyRate(e.target.value)}
+                placeholder="Prorated ÷ 30 per night"
                 className={fieldClass}
               />
             </Field>

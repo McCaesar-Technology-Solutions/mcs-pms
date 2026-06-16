@@ -34,6 +34,7 @@ async function requireStaff() {
 export async function createRoomCategory(input: {
   name: string
   defaultNightlyRate: number
+  defaultMonthlyRate?: number | ''
 }): Promise<RoomCategoryActionResult> {
   const parsed = createRoomCategorySchema.safeParse(input)
   if (!parsed.success) {
@@ -45,12 +46,18 @@ export async function createRoomCategory(input: {
     return { success: false, error: 'Not authorized.' }
   }
 
+  const monthlyRate =
+    parsed.data.defaultMonthlyRate === '' || parsed.data.defaultMonthlyRate === undefined
+      ? null
+      : parsed.data.defaultMonthlyRate
+
   const { data, error } = await supabase
     .from('room_categories')
     .insert({
       hotel_id: profile.hotel_id,
       name: parsed.data.name.trim(),
       default_nightly_rate: parsed.data.defaultNightlyRate,
+      default_monthly_rate: monthlyRate,
     })
     .select('id')
     .single()
@@ -68,7 +75,7 @@ export async function createRoomCategory(input: {
 
 export async function updateRoomCategory(
   id: string,
-  input: { name?: string; defaultNightlyRate?: number },
+  input: { name?: string; defaultNightlyRate?: number; defaultMonthlyRate?: number | '' },
 ): Promise<RoomCategoryActionResult> {
   const parsed = updateRoomCategorySchema.safeParse(input)
   if (!parsed.success) {
@@ -80,10 +87,15 @@ export async function updateRoomCategory(
     return { success: false, error: 'Not authorized.' }
   }
 
-  const payload: { name?: string; default_nightly_rate?: number } = {}
+  const payload: { name?: string; default_nightly_rate?: number; default_monthly_rate?: number | null } =
+    {}
   if (parsed.data.name !== undefined) payload.name = parsed.data.name.trim()
   if (parsed.data.defaultNightlyRate !== undefined) {
     payload.default_nightly_rate = parsed.data.defaultNightlyRate
+  }
+  if (parsed.data.defaultMonthlyRate !== undefined) {
+    payload.default_monthly_rate =
+      parsed.data.defaultMonthlyRate === '' ? null : parsed.data.defaultMonthlyRate
   }
 
   const { error } = await supabase

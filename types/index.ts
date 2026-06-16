@@ -17,6 +17,7 @@ export interface Profile {
   email: string
   phone: string | null
   specialty: string | null
+  mfa_sms_enabled: boolean | null
   invited_by: string | null
   is_active: boolean | null
   created_at: string | null
@@ -35,6 +36,7 @@ export interface Hotel {
   invoice_prefix: string | null
   invoice_next_seq: number | null
   invoice_seq_year: number | null
+  guest_portal_slug: string | null
   created_at: string | null
 }
 
@@ -82,10 +84,16 @@ export interface Reservation {
   paidAmount: number
   currency: string
   source: 'website' | 'airbnb' | 'booking' | 'walk_in' | 'other'
+  channel: ReservationChannel
+  rateType: RateType
+  nightlyRate: number
+  monthlyRate: number
   notes?: string
   createdAt: string
   updatedAt: string
 }
+
+export type RateType = 'nightly' | 'monthly'
 
 // Housekeeping
 export type TaskStatus = 'todo' | 'in_progress' | 'done'
@@ -188,6 +196,7 @@ export interface RoomCategory {
   hotel_id: string
   name: string
   default_nightly_rate: number
+  default_monthly_rate: number | null
   created_at: string | null
 }
 
@@ -223,6 +232,10 @@ export type ComplaintEventType =
   | 'resolved'
   | 'estimate_submitted'
   | 'estimate_approved'
+  | 'visit_scheduled'
+  | 'guest_completion_approved'
+
+export type ScheduledVisitBy = 'guest' | 'manager' | 'owner' | 'technician'
 
 export type ApprovalStage = 'estimate' | 'completion'
 
@@ -245,6 +258,9 @@ export interface ComplaintEstimate {
   labour_cost: number
   materials_total: number
   total_cost: number
+  invoice_file_path: string | null
+  invoice_file_name: string | null
+  invoice_file_mime: string | null
   created_at: string | null
   updated_at: string | null
   items?: ComplaintEstimateItem[]
@@ -269,10 +285,14 @@ export interface DbRoom {
   floor: number | null
   category_id: string | null
   nightly_rate: number | null
+  monthly_rate: number | null
   status: DbRoomStatus | null
   updated_at: string | null
   updated_by: string | null
-  room_categories?: Pick<RoomCategory, 'name' | 'default_nightly_rate'> | null
+  room_categories?: Pick<
+    RoomCategory,
+    'name' | 'default_nightly_rate' | 'default_monthly_rate'
+  > | null
 }
 
 export interface Guest {
@@ -301,7 +321,9 @@ export interface DbReservation {
   check_out: string
   status: ReservationStatus | null
   channel: ReservationChannel | null
+  rate_type: RateType | null
   nightly_rate: number | null
+  monthly_rate: number | null
   total_amount: number | null
   created_by: string | null
   created_at: string | null
@@ -319,6 +341,9 @@ export interface Complaint {
   assigned_to: string | null
   approval_stage: ApprovalStage | null
   estimate_approved_at: string | null
+  scheduled_visit_at: string | null
+  scheduled_visit_by: ScheduledVisitBy | null
+  guest_completion_approved_at: string | null
   rejection_note: string | null
   submitted_at: string | null
   resolved_at: string | null

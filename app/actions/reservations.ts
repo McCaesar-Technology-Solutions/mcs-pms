@@ -1,9 +1,15 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
-import { checkOutStay } from '@/app/actions/stays'
+import { checkInStay } from '@/app/actions/stays'
 import { findAvailableRooms, roomHasClash } from '@/lib/data/occupancy'
+import { calculateStayTotal, type RateType } from '@/lib/pricing/stay-totals'
+import { getRoomRates } from '@/lib/pricing/room-rates'
+import { createReservationSchema, updateReservationSchema } from '@/lib/validations'
+import { phoneSchema } from '@/lib/phone'
+import { createAdminClient } from '@/lib/supabase/admin'
 import type { PaymentMethod, ReservationChannel, ReservationStatus } from '@/types'
 
 export type ReservationActionResult = { success: true } | { success: false; error: string }
@@ -14,8 +20,20 @@ export interface RoomSuggestion {
 }
 
 export type CreateReservationResult =
-  | { success: true }
+  | { success: true; id: string }
   | { success: false; error: string; suggestions?: RoomSuggestion[] }
+
+export type BookAndCheckInResult =
+  | {
+      success: true
+      data: { loginUrl: string; token: string; guestId: string; reservationId: string }
+    }
+  | { success: false; error: string; suggestions?: RoomSuggestion[] }
+
+const bookAndCheckInSchema = createReservationSchema.extend({
+  phone: phoneSchema,
+  email: z.string().email().optional().or(z.literal('')),
+})
 
 const VALID_CHANNELS: ReservationChannel[] = [
   'airbnb',
@@ -44,12 +62,15 @@ async function requireManager() {
 function revalidateReservationViews() {
   revalidatePath('/owner/reservations')
   revalidatePath('/manager/reservations')
+  revalidatePath('/receptionist/reservations')
   revalidatePath('/owner/dashboard')
   revalidatePath('/manager/dashboard')
+  revalidatePath('/receptionist/dashboard')
   revalidatePath('/owner/billing')
   revalidatePath('/owner/gra-reports')
   revalidatePath('/owner/guests')
   revalidatePath('/manager/guests')
+  revalidatePath('/receptionist/guests')
 }
 
 const VALID_PAYMENT_METHODS: PaymentMethod[] = [
@@ -62,39 +83,33 @@ const VALID_PAYMENT_METHODS: PaymentMethod[] = [
   'bank_transfer',
 ]
 
-function nights(checkIn: string, checkOut: string): number {
-  const start = new Date(checkIn + 'T00:00:00')
-  const end = new Date(checkOut + 'T00:00:00')
-  return Math.max(1, Math.round((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000)))
-}
+export async function createReservation(input: unknown): Promise<CreateReservationResult> {
+  const parsed = createReservationSchema.safeParse(input)
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid input.' }
+  }
 
-export async function createReservation(input: {
-  room_id: string
-  guest_name: string
-  check_in: string
-  check_out: string
-  channel: ReservationChannel
-  nightly_rate: number
-  guest_id?: string
-}): Promise<CreateReservationResult> {
   const { supabase, profile } = await requireManager()
   if (!profile || !['owner', 'manager', 'receptionist'].includes(profile.role) || !profile.hotel_id) {
     return { success: false, error: 'Not authorized.' }
   }
-  if (!input.guest_name.trim()) return { success: false, error: 'Guest name is required.' }
-  if (!input.room_id) return { success: false, error: 'Select a room.' }
-  if (!input.check_in || !input.check_out) return { success: false, error: 'Dates are required.' }
-  if (input.check_out <= input.check_in) {
+
+  const data = parsed.data
+  if (data.checkOut <= data.checkIn) {
     return { success: false, error: 'Check-out must be after check-in.' }
   }
-  if (!VALID_CHANNELS.includes(input.channel)) return { success: false, error: 'Invalid channel.' }
 
-  if (await roomHasClash(supabase, profile.hotel_id, input.room_id, input.check_in, input.check_out)) {
+  const rateType = data.rateType as RateType
+  if (rateType === 'monthly' && (data.monthlyRate ?? 0) <= 0) {
+    return { success: false, error: 'Enter a monthly rate.' }
+  }
+
+  if (await roomHasClash(supabase, profile.hotel_id, data.roomId, data.checkIn, data.checkOut)) {
     const suggestions = await findAvailableRooms(
       supabase,
       profile.hotel_id,
-      input.check_in,
-      input.check_out,
+      data.checkIn,
+      data.checkOut,
     )
     return {
       success: false,
@@ -103,115 +118,161 @@ export async function createReservation(input: {
     }
   }
 
-  const total = input.nightly_rate * nights(input.check_in, input.check_out)
+  const admin = createAdminClient()
+  const roomRates = await getRoomRates(admin, data.roomId)
+  const nightlyRate = rateType === 'nightly' ? data.nightlyRate : roomRates.nightlyRate
+  const monthlyRate =
+    rateType === 'monthly' ? (data.monthlyRate ?? roomRates.monthlyRate) : roomRates.monthlyRate
 
-  const { error } = await supabase.from('reservations').insert({
-    hotel_id: profile.hotel_id,
-    room_id: input.room_id,
-    guest_id: input.guest_id ?? null,
-    guest_name: input.guest_name.trim(),
-    check_in: input.check_in,
-    check_out: input.check_out,
-    status: 'confirmed',
-    channel: input.channel,
-    nightly_rate: input.nightly_rate,
-    total_amount: total,
-    created_by: profile.id,
-  })
+  const total = calculateStayTotal(rateType, data.checkIn, data.checkOut, nightlyRate, monthlyRate)
 
-  if (error) return { success: false, error: error.message }
+  const { data: row, error } = await supabase
+    .from('reservations')
+    .insert({
+      hotel_id: profile.hotel_id,
+      room_id: data.roomId,
+      guest_id: data.guestId ?? null,
+      guest_name: data.guestName.trim(),
+      check_in: data.checkIn,
+      check_out: data.checkOut,
+      status: 'confirmed',
+      channel: data.channel,
+      rate_type: rateType,
+      nightly_rate: nightlyRate,
+      monthly_rate: monthlyRate,
+      total_amount: total,
+      created_by: profile.id,
+    })
+    .select('id')
+    .single()
+
+  if (error || !row) {
+    return { success: false, error: error?.message ?? 'Could not create reservation.' }
+  }
 
   revalidateReservationViews()
-  return { success: true }
+  return { success: true, id: row.id }
 }
 
-export async function updateReservation(
-  id: string,
-  input: {
-    room_id?: string
-    guest_name?: string
-    check_in?: string
-    check_out?: string
-    channel?: ReservationChannel
-    nightly_rate?: number
-  },
-): Promise<CreateReservationResult> {
+export async function bookAndCheckIn(input: unknown): Promise<BookAndCheckInResult> {
+  const parsed = bookAndCheckInSchema.safeParse(input)
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid input.' }
+  }
+
+  const createResult = await createReservation(parsed.data)
+  if (!createResult.success) {
+    return createResult
+  }
+
+  const checkInResult = await checkInStay(createResult.id, {
+    phone: parsed.data.phone.trim(),
+    email: parsed.data.email || undefined,
+    guestId: parsed.data.guestId ?? undefined,
+    guestName: parsed.data.guestName,
+  })
+
+  if (!checkInResult.success || !checkInResult.data) {
+    const admin = createAdminClient()
+    await admin.from('reservations').delete().eq('id', createResult.id)
+    return {
+      success: false,
+      error: checkInResult.success ? 'Check-in failed.' : checkInResult.error,
+    }
+  }
+
+  revalidateReservationViews()
+  return {
+    success: true,
+    data: {
+      ...checkInResult.data,
+      reservationId: createResult.id,
+    },
+  }
+}
+
+export async function updateReservation(id: string, input: unknown): Promise<CreateReservationResult> {
+  const parsed = updateReservationSchema.safeParse(input)
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid input.' }
+  }
+
   const { supabase, profile } = await requireManager()
   if (!profile || !['owner', 'manager', 'receptionist'].includes(profile.role) || !profile.hotel_id) {
     return { success: false, error: 'Not authorized.' }
   }
 
-  const payload: {
-    room_id?: string
-    guest_name?: string
-    check_in?: string
-    check_out?: string
-    channel?: ReservationChannel
-    nightly_rate?: number
-    total_amount?: number
-  } = {}
-  if (input.room_id !== undefined) payload.room_id = input.room_id
-  if (input.guest_name !== undefined) {
-    if (!input.guest_name.trim()) return { success: false, error: 'Guest name is required.' }
-    payload.guest_name = input.guest_name.trim()
-  }
-  if (input.check_in !== undefined) payload.check_in = input.check_in
-  if (input.check_out !== undefined) payload.check_out = input.check_out
-  if (input.channel !== undefined) payload.channel = input.channel
-  if (input.nightly_rate !== undefined) payload.nightly_rate = input.nightly_rate
+  const { data: existing } = await supabase
+    .from('reservations')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle()
 
-  const checkIn = payload.check_in
-  const checkOut = payload.check_out
-  if (checkIn && checkOut && checkOut <= checkIn) {
+  if (!existing) return { success: false, error: 'Reservation not found.' }
+  if (existing.status !== 'confirmed') {
+    return { success: false, error: 'Only confirmed reservations can be edited.' }
+  }
+
+  const checkIn = parsed.data.checkIn ?? existing.check_in
+  const checkOut = parsed.data.checkOut ?? existing.check_out
+  const roomId = parsed.data.roomId ?? existing.room_id ?? undefined
+
+  if (!roomId) return { success: false, error: 'Select a room.' }
+  if (checkOut <= checkIn) {
     return { success: false, error: 'Check-out must be after check-in.' }
   }
 
-  if (payload.room_id || payload.check_in || payload.check_out) {
-    const { data: existing } = await supabase
-      .from('reservations')
-      .select('room_id, check_in, check_out, guest_id, status')
-      .eq('id', id)
-      .maybeSingle()
+  const rateType = (parsed.data.rateType ?? existing.rate_type ?? 'nightly') as RateType
+  const admin = createAdminClient()
+  const roomRates = await getRoomRates(admin, roomId)
 
-    const effectiveRoom = payload.room_id ?? existing?.room_id ?? undefined
-    const effectiveIn = payload.check_in ?? existing?.check_in ?? undefined
-    const effectiveOut = payload.check_out ?? existing?.check_out ?? undefined
+  const nightlyRate =
+    parsed.data.nightlyRate ??
+    (existing.nightly_rate != null ? Number(existing.nightly_rate) : roomRates.nightlyRate)
+  const monthlyRate =
+    parsed.data.monthlyRate ??
+    (existing.monthly_rate != null ? Number(existing.monthly_rate) : roomRates.monthlyRate)
 
-    if (effectiveRoom && effectiveIn && effectiveOut) {
-      if (effectiveOut <= effectiveIn) {
-        return { success: false, error: 'Check-out must be after check-in.' }
-      }
-      if (
-        await roomHasClash(supabase, profile.hotel_id, effectiveRoom, effectiveIn, effectiveOut, {
-          excludeReservationId: id,
-          excludeGuestId: existing?.guest_id ?? undefined,
-        })
-      ) {
-        const suggestions = await findAvailableRooms(
-          supabase,
-          profile.hotel_id,
-          effectiveIn,
-          effectiveOut,
-          { excludeReservationId: id },
-        )
-        return {
-          success: false,
-          error: 'That room is already booked or occupied for these dates.',
-          suggestions,
-        }
-      }
+  if (rateType === 'monthly' && monthlyRate <= 0) {
+    return { success: false, error: 'Enter a monthly rate.' }
+  }
+
+  if (
+    await roomHasClash(supabase, profile.hotel_id, roomId, checkIn, checkOut, {
+      excludeReservationId: id,
+      excludeGuestId: existing.guest_id ?? undefined,
+    })
+  ) {
+    const suggestions = await findAvailableRooms(supabase, profile.hotel_id, checkIn, checkOut, {
+      excludeReservationId: id,
+    })
+    return {
+      success: false,
+      error: 'That room is already booked or occupied for these dates.',
+      suggestions,
     }
   }
 
-  if (input.nightly_rate !== undefined && checkIn && checkOut) {
-    payload.total_amount = input.nightly_rate * nights(checkIn, checkOut)
-  }
+  const total = calculateStayTotal(rateType, checkIn, checkOut, nightlyRate, monthlyRate)
 
-  const { error } = await supabase.from('reservations').update(payload).eq('id', id)
+  const { error } = await supabase
+    .from('reservations')
+    .update({
+      room_id: roomId,
+      guest_name: parsed.data.guestName?.trim() ?? existing.guest_name,
+      check_in: checkIn,
+      check_out: checkOut,
+      channel: (parsed.data.channel ?? existing.channel) as ReservationChannel,
+      rate_type: rateType,
+      nightly_rate: nightlyRate,
+      monthly_rate: monthlyRate,
+      total_amount: total,
+    })
+    .eq('id', id)
   if (error) return { success: false, error: error.message }
 
   revalidateReservationViews()
-  return { success: true }
+  return { success: true, id }
 }
 
 async function setReservationStatus(
@@ -253,6 +314,7 @@ export async function checkOutReservation(
   if (!VALID_PAYMENT_METHODS.includes(paymentMethod)) {
     return { success: false, error: 'Invalid payment method.' }
   }
+  const { checkOutStay } = await import('@/app/actions/stays')
   const result = await checkOutStay({ reservationId: id, paymentMethod, earlyCheckout, markAsPaid })
   if (!result.success) return { success: false, error: result.error }
   return { success: true }

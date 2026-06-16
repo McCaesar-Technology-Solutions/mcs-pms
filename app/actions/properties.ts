@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { ensureGuestPortalSlug } from '@/lib/guest-portal'
 import { seedDefaultRoomCategories } from '@/lib/data/room-categories'
 import { getOwnerProperties, ownerOwnsHotel } from '@/lib/data/properties'
 import { createPropertySchema } from '@/lib/validations'
@@ -126,6 +127,8 @@ export async function createProperty(input: {
   if (hotelError || !hotel) {
     return { success: false, error: hotelError?.message ?? 'Could not create property.' }
   }
+
+  await ensureGuestPortalSlug(hotel.id)
 
   try {
     await seedRooms(hotel.id, parsed.data.totalRooms, userId)

@@ -58,14 +58,20 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 NEXT_PUBLIC_APP_URL=https://yourdomain.com
 
 # Notifications (optional — logs to console when unset)
+# Arkesel (recommended for Ghana SMS):
+# ARKESEL_API_KEY=
+# ARKESEL_SENDER_ID=MOJO
+# SMS_PROVIDER=arkesel
 # TWILIO_ACCOUNT_SID=
 # TWILIO_AUTH_TOKEN=
 # TWILIO_SMS_FROM=+1...
 # TWILIO_WHATSAPP_FROM=whatsapp:+14155238886
+# Hubtel (fallback):
 # HUBTEL_CLIENT_ID=
 # HUBTEL_CLIENT_SECRET=
 # HUBTEL_SENDER_ID=MOJO
 # NOTIFICATION_CHANNELS=sms,whatsapp
+# MFA_OTP_SECRET=long-random-string
 
 # Payments (not yet integrated)
 # PAYSTACK_SECRET_KEY=sk_live_...
@@ -112,6 +118,7 @@ Migrations live in `supabase/migrations/` (`001` through `018`). Every tenant ta
 | `016` | `staff_invites.phone` for technician invites |
 | `017` | `REPLICA IDENTITY FULL` for richer realtime UPDATE payloads |
 | `018` | Receptionist role: role constraints + front-desk RLS policies |
+| `019` | SMS OTP two-factor authentication tables + `profiles.mfa_sms_enabled` |
 
 **Fresh database** — Supabase CLI:
 
@@ -146,6 +153,7 @@ Create private buckets in the Supabase dashboard (or via migration):
 | `guest-documents` | ID scans, registration forms |
 | `property-assets` | Property photos, logos |
 | `invoices` | Generated invoice PDFs |
+| `complaint-invoices` | Technician-uploaded complaint invoices (PDF/image) |
 
 Access via Storage RLS policies tied to `organization_id`.
 
@@ -169,12 +177,15 @@ Requirements:
 - The **Reset Password** email template should use the default confirmation URL.
 - Technician accounts sign in by phone with a synthetic email, so they cannot self-serve reset — an owner/manager re-invites or resets them.
 
-### 6. Two-factor authentication (TOTP)
+### 6. Two-factor authentication (SMS)
 
-- **Required** for **owner** and **manager** — must enroll an authenticator app (Google Authenticator, Authy, 1Password) before accessing the dashboard.
-- **Optional** for **receptionist** and **technician** — enable from owner Settings or manager Staff page, or visit `/enroll-mfa` while signed in.
-- Supabase Auth → **Authentication → MFA** — TOTP is enabled by default on all projects.
-- Flow: sign in → `/enroll-mfa` (first time) or `/verify-mfa` (each new session) → dashboard.
+- **Method:** 6-digit code sent by **SMS** (Arkesel, Hubtel, or Twilio — same providers as job alerts).
+- **Required** for **owner** and **manager** at every sign-in.
+- **Optional** for **receptionist** and **technician** (enable in Settings / Staff).
+- Run migration **`019_mfa_sms_otp.sql`** in the Supabase SQL Editor.
+- Set **`MFA_OTP_SECRET`** in production (random string; used to hash codes and session keys).
+- **Dev without SMS:** codes are logged to the terminal and shown on the verify screen when no SMS provider is configured.
+- Flow: sign in → add phone if missing (`/enroll-mfa`) → enter SMS code (`/verify-mfa`) → dashboard.
 
 ## Authentication Setup
 

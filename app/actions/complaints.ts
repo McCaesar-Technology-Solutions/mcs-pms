@@ -3,6 +3,9 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { fetchHotelComplaints } from '@/lib/data/complaints'
+import { isVisitTimeValid, parseVisitDateTime } from '@/lib/complaints/visit'
+import { canManagerApproveCompletion, canTechnicianScheduleVisit } from '@/lib/complaints/workflow'
+import { scheduleComplaintVisitSchema } from '@/lib/validations'
 import type { Complaint, ComplaintEvent, ComplaintPriority, DbRoomStatus } from '@/types'
 
 export type ComplaintActionResult<T = void> =
@@ -281,7 +284,7 @@ export async function approveComplaint(
   const supabase = await createClient()
   const { data: complaint } = await supabase
     .from('complaints')
-    .select('room_id, status, approval_stage, assigned_to')
+    .select('room_id, status, approval_stage, assigned_to, guest_id, guest_completion_approved_at')
     .eq('id', complaintId)
     .maybeSingle()
 
@@ -291,13 +294,24 @@ export async function approveComplaint(
 
   const isEstimate = complaint.approval_stage === 'estimate'
 
+  if (!isEstimate && complaint.guest_id && !complaint.guest_completion_approved_at) {
+    return {
+      success: false,
+      error: 'Waiting for the guest to confirm the work is complete.',
+    }
+  }
+
+  if (!isEstimate && !canManagerApproveCompletion(complaint)) {
+    return { success: false, error: 'This complaint cannot be approved yet.' }
+  }
+
   if (isEstimate) {
+    // Legacy rows stuck in estimate approval — release back to the technician.
     const { error } = await supabase
       .from('complaints')
       .update({
         status: 'assigned',
         approval_stage: null,
-        estimate_approved_at: new Date().toISOString(),
         rejection_note: null,
       })
       .eq('id', complaintId)
@@ -309,14 +323,8 @@ export async function approveComplaint(
       actor_id: profile.id,
       actor_role: profile.role,
       event_type: 'estimate_approved',
-      note: 'Invoice approved — technician may start work.',
+      note: 'Legacy invoice queue cleared — technician may proceed.',
     })
-
-    if (complaint.assigned_to) {
-      void import('@/lib/notifications/complaints').then(({ notifyComplaintEstimateApproved }) =>
-        notifyComplaintEstimateApproved(complaintId, complaint.assigned_to!).catch(() => undefined),
-      )
-    }
   } else {
     const { error } = await supabase
       .from('complaints')
@@ -347,6 +355,79 @@ export async function approveComplaint(
 
   revalidatePath('/manager/complaints')
   revalidatePath('/technician/tasks')
+  return { success: true }
+}
+
+export async function scheduleTechnicianComplaintVisit(
+  input: unknown,
+): Promise<ComplaintActionResult> {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Not authorized.' }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  if (profile?.role !== 'technician') {
+    return { success: false, error: 'Not authorized.' }
+  }
+
+  const parsed = scheduleComplaintVisitSchema.safeParse(input)
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid visit time.' }
+  }
+
+  const visitAt = parseVisitDateTime(parsed.data.visitAt)
+  if (!visitAt) {
+    return { success: false, error: 'Invalid date and time.' }
+  }
+  if (!isVisitTimeValid(visitAt)) {
+    return { success: false, error: 'Visit must be at least 30 minutes from now.' }
+  }
+
+  const { data: complaint } = await supabase
+    .from('complaints')
+    .select('status')
+    .eq('id', parsed.data.complaintId)
+    .eq('assigned_to', user.id)
+    .maybeSingle()
+
+  if (!complaint || !canTechnicianScheduleVisit(complaint)) {
+    return { success: false, error: 'This job is not ready to schedule.' }
+  }
+
+  const visitIso = visitAt.toISOString()
+
+  const { error } = await supabase
+    .from('complaints')
+    .update({
+      scheduled_visit_at: visitIso,
+      scheduled_visit_by: 'technician',
+    })
+    .eq('id', parsed.data.complaintId)
+    .eq('assigned_to', user.id)
+
+  if (error) return { success: false, error: error.message }
+
+  await supabase.from('complaint_events').insert({
+    complaint_id: parsed.data.complaintId,
+    actor_id: user.id,
+    actor_role: 'technician',
+    event_type: 'visit_scheduled',
+    note: visitIso,
+  })
+
+  void import('@/lib/notifications/complaints').then(({ notifyComplaintVisitScheduled }) =>
+    notifyComplaintVisitScheduled(parsed.data.complaintId, visitIso).catch(() => undefined),
+  )
+
+  revalidatePath('/technician/tasks')
+  revalidatePath('/manager/complaints')
   return { success: true }
 }
 
@@ -381,7 +462,7 @@ export async function rejectComplaint(
     .from('complaints')
     .update(
       isEstimate
-        ? { status: 'rejected', approval_stage: null, rejection_note: note }
+        ? { status: 'assigned', approval_stage: null, rejection_note: note }
         : { status: 'in_progress', approval_stage: null, rejection_note: note },
     )
     .eq('id', complaintId)
@@ -420,13 +501,13 @@ export async function startTechnicianComplaint(complaintId: string): Promise<Com
 
   const { data: complaint } = await supabase
     .from('complaints')
-    .select('status, estimate_approved_at')
+    .select('status')
     .eq('id', complaintId)
     .eq('assigned_to', user.id)
     .maybeSingle()
 
-  if (!complaint || complaint.status !== 'assigned' || !complaint.estimate_approved_at) {
-    return { success: false, error: 'Invoice must be approved before you can start this job.' }
+  if (!complaint || complaint.status !== 'assigned') {
+    return { success: false, error: 'This job is not ready to start.' }
   }
 
   const { error } = await supabase
@@ -473,8 +554,20 @@ export async function markComplaintComplete(complaintId: string): Promise<Compla
     .eq('assigned_to', user.id)
     .maybeSingle()
 
-  if (!complaint || complaint.status !== 'in_progress') {
-    return { success: false, error: 'You can only mark in-progress jobs as complete.' }
+  if (
+    !complaint ||
+    !['assigned', 'in_progress', 'rejected'].includes(complaint.status ?? '')
+  ) {
+    return { success: false, error: 'This job cannot be marked complete yet.' }
+  }
+
+  if (complaint.status === 'assigned') {
+    await supabase.from('complaint_events').insert({
+      complaint_id: complaintId,
+      actor_id: user.id,
+      actor_role: 'technician',
+      event_type: 'started',
+    })
   }
 
   const { error } = await supabase

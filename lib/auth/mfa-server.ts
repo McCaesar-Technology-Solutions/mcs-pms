@@ -1,48 +1,40 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { buildMfaStatus } from '@/lib/auth/mfa-status'
 import { ROLE_HOME } from '@/lib/auth/roles'
 import {
   isMfaPath,
   mfaGateForRole,
   mfaRedirectPath,
-  type MfaStatus,
+  safeMfaNext,
 } from '@/lib/auth/mfa'
 import type { UserRole } from '@/types'
 
-export async function fetchMfaStatusServer(
-  supabase: SupabaseClient,
-): Promise<MfaStatus> {
-  const [{ data: factors }, { data: aal }] = await Promise.all([
-    supabase.auth.mfa.listFactors(),
-    supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
-  ])
-
-  const verified = (factors?.totp ?? []).filter((f) => f.status === 'verified')
-
-  return {
-    hasVerifiedTotp: verified.length > 0,
-    currentLevel: (aal?.currentLevel as MfaStatus['currentLevel']) ?? null,
-    nextLevel: (aal?.nextLevel as MfaStatus['nextLevel']) ?? null,
-  }
+interface StaffMfaProfile {
+  role: UserRole
+  phone: string | null
+  mfa_sms_enabled: boolean | null
 }
 
 /**
- * When a staff session must enroll or verify MFA, return the redirect URL.
+ * When a staff session must add a phone or verify SMS, return the redirect URL.
  * Returns null when the user may proceed to `pathname`.
  */
 export async function mfaRedirectIfNeeded(
   supabase: SupabaseClient,
-  role: UserRole,
+  userId: string,
+  profile: StaffMfaProfile,
   pathname: string,
   requestUrl: string,
 ): Promise<string | null> {
   if (isMfaPath(pathname)) return null
 
-  const status = await fetchMfaStatusServer(supabase)
-  const gate = mfaGateForRole(role, status)
+  const status = await buildMfaStatus(supabase, userId, profile)
+  const gate = mfaGateForRole(profile.role, status)
   if (gate === 'ok') return null
 
-  const home = ROLE_HOME[role]
-  const target = mfaRedirectPath(role, status, home, pathname)
+  const home = ROLE_HOME[profile.role]
+  const intended = safeMfaNext(pathname, home)
+  const target = mfaRedirectPath(profile.role, status, home, intended)
   const targetPath = target.split('?')[0]
   if (targetPath === pathname) return null
 

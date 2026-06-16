@@ -9,6 +9,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import { usePathname } from 'next/navigation'
 import {
   createProperty,
   fetchOwnerProperties,
@@ -48,7 +49,23 @@ const emptyProperty: Property = {
   totalRooms: 0,
 }
 
+/** Skip property fetches on auth/MFA routes — avoids racing server actions on the same page URL. */
+function isAuthOrMfaPath(pathname: string): boolean {
+  return (
+    pathname === '/login' ||
+    pathname === '/signup' ||
+    pathname === '/forgot-password' ||
+    pathname === '/reset-password' ||
+    pathname === '/accept-invite' ||
+    pathname === '/enroll-mfa' ||
+    pathname === '/verify-mfa' ||
+    pathname.startsWith('/auth/')
+  )
+}
+
 export function PropertyProvider({ children }: { children: ReactNode }) {
+  const pathname = usePathname()
+  const skipPropertyLoad = isAuthOrMfaPath(pathname)
   const [propertiesList, setPropertiesList] = useState<Property[]>([])
   const [activePropertyId, setActivePropertyIdState] = useState('')
   const [profile, setProfile] = useState<Profile | null>(null)
@@ -96,6 +113,11 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => {
+    if (skipPropertyLoad) {
+      setLoading(false)
+      return
+    }
+
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
       setLoading(false)
       return
@@ -118,7 +140,7 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
       await loadProperties(prof as Profile)
       setLoading(false)
     })
-  }, [loadProperties])
+  }, [loadProperties, skipPropertyLoad])
 
   const activeProperty = useMemo(() => {
     return propertiesList.find((p) => p.id === activePropertyId) ?? propertiesList[0] ?? emptyProperty

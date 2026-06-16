@@ -131,8 +131,11 @@ Subscribers call `useRealtimeRefresh('complaints', callback)` to refetch client 
 
 `lib/notifications/send.ts` sends SMS and optional WhatsApp:
 
+- **Arkesel** — preferred for Ghana SMS (`ARKESEL_API_KEY`, `ARKESEL_SENDER_ID`); sender ID validated in `lib/notifications/arkesel-sender.ts`.
 - **Twilio** — if `TWILIO_*` env vars are set (SMS + WhatsApp).
 - **Hubtel** — SMS fallback for Ghana (`HUBTEL_*`); sender ID validated in `lib/notifications/hubtel-sender.ts`.
+
+Provider resolution is in `lib/notifications/sms-provider.ts` (auto: Arkesel → Hubtel → Twilio, or set `SMS_PROVIDER`).
 
 Triggers are wired from complaint assign, estimate submit/approve, and related flows in `lib/notifications/complaints.ts`. Without credentials, messages log to the server console in development.
 
@@ -140,11 +143,11 @@ Triggers are wired from complaint assign, estimate submit/approve, and related f
 
 ## Complaint workflow
 
-Two approval stages (`approval_stage`: `estimate` | `completion`):
+Two approval stages (`approval_stage`: `estimate` | `completion`) — **legacy estimate approval is disabled**. Technicians may complete jobs **without** an invoice; managers only **sign off on completion** (guest sign-off planned separately).
 
-1. Technician submits invoice → `pending_approval` + `estimate`
-2. Manager approves → `assigned` + `estimate_approved_at` → technician can start
-3. Technician marks complete → `pending_approval` + `completion`
+1. Technician may start work when assigned (optional) or request sign-off directly from assigned
+2. Invoice + note are optional before, during, or after work (including while awaiting sign-off)
+3. Technician requests sign-off → `pending_approval` + `completion`
 4. Manager approves → `resolved`
 
 Logic is centralized in `lib/complaints/workflow.ts` and enforced in `app/actions/complaints.ts` / `complaint-estimates.ts`.
@@ -183,7 +186,7 @@ Copy `.env.example` → `.env.local`. Required:
 - `SUPABASE_SERVICE_ROLE_KEY` (server only)
 - `NEXT_PUBLIC_APP_URL`
 
-Optional: Twilio or Hubtel for outbound notifications.
+Optional: Arkesel, Twilio, or Hubtel for outbound notifications.
 
 ---
 

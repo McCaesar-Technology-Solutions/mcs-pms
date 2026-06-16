@@ -59,7 +59,7 @@ The app is **operationally usable** for a pilot property (staff workflows, billi
 | Rate limiting | Not on server actions |
 | Pagination | Large tables load in bulk |
 | Password reset | Done — email link flow (`/forgot-password` → `/auth/callback` → `/reset-password`) |
-| 2FA / OAuth | TOTP 2FA via Supabase (required: owner + manager; optional: receptionist + technician). OAuth not implemented |
+| 2FA / OAuth | SMS OTP 2FA (required: owner + manager; optional: receptionist + technician). OAuth not implemented |
 
 Realtime updates require an **open browser tab** — not push when the app is closed.
 

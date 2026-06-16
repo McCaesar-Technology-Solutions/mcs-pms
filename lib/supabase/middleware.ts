@@ -81,14 +81,19 @@ export async function updateSession(request: NextRequest) {
     if (user) {
       const { data: profile } = await supabase
         .from('profiles')
-        .select('role, is_active')
+        .select('role, is_active, phone, mfa_sms_enabled')
         .eq('id', user.id)
         .maybeSingle()
 
       if (profile?.is_active !== false && isStaffRole(profile?.role)) {
         const mfaRedirect = await mfaRedirectIfNeeded(
           supabase,
-          profile.role as UserRole,
+          user.id,
+          {
+            role: profile.role as UserRole,
+            phone: profile.phone,
+            mfa_sms_enabled: profile.mfa_sms_enabled,
+          },
           pathname,
           request.url,
         )
@@ -135,7 +140,7 @@ export async function updateSession(request: NextRequest) {
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('role, is_active')
+      .select('role, is_active, phone, mfa_sms_enabled')
       .eq('id', user.id)
       .maybeSingle()
 
@@ -162,7 +167,12 @@ export async function updateSession(request: NextRequest) {
 
     const mfaRedirect = await mfaRedirectIfNeeded(
       supabase,
-      profile.role as UserRole,
+      user.id,
+      {
+        role: profile.role as UserRole,
+        phone: profile.phone,
+        mfa_sms_enabled: profile.mfa_sms_enabled,
+      },
       pathname,
       request.url,
     )

@@ -1,9 +1,8 @@
 import { redirect } from 'next/navigation'
-import { Suspense } from 'react'
 import { getProfile } from '@/lib/auth/get-profile'
 import { safeMfaNext } from '@/lib/auth/mfa'
 import { ROLE_HOME, isStaffRole } from '@/lib/auth/roles'
-import { VerifyMfaClient } from '@/components/auth/verify-mfa-client'
+import { MfaSmsForm } from '@/components/auth/mfa-sms-form'
 
 export default async function VerifyMfaPage({
   searchParams,
@@ -28,11 +27,9 @@ export default async function VerifyMfaPage({
           >
             MOJO APARTMENTS
           </p>
-          <p className="mt-2 text-sm text-white/70">Two-factor verification</p>
+          <p className="mt-2 text-sm text-white/70">Check your phone for a code</p>
         </div>
-        <Suspense fallback={<p className="text-sm text-white/70">Loading…</p>}>
-          <VerifyMfaClient nextPath={nextPath} />
-        </Suspense>
+        <MfaSmsForm nextPath={nextPath} mode="verify" />
       </div>
     </div>
   )

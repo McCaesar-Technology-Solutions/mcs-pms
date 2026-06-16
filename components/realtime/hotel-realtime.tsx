@@ -88,11 +88,9 @@ function HotelRealtimeChannel({ hotelId, children }: HotelRealtimeProviderProps)
           const row = payload.new as { status?: string; approval_stage?: string | null }
           if (row.status === 'pending_approval') {
             import('sonner').then(({ toast }) => {
-              const label =
-                row.approval_stage === 'estimate'
-                  ? 'Technician invoice awaiting approval'
-                  : 'Job ready for approval'
-              toast.success(label)
+              if (row.approval_stage !== 'estimate') {
+                toast.success('Job ready for approval')
+              }
             })
           }
           refreshComplaints()

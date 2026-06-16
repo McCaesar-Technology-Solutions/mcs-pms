@@ -7,6 +7,8 @@ import { allocateInvoiceNumber } from '@/lib/invoices/numbering'
 import { createPostCheckoutCleanTask } from '@/lib/housekeeping/checkout-task'
 import { phoneSchema } from '@/lib/phone'
 import { findAvailableRooms, roomHasClash } from '@/lib/data/occupancy'
+import { calculateStayTotal, type RateType } from '@/lib/pricing/stay-totals'
+import { getRoomRates } from '@/lib/pricing/room-rates'
 import {
   buildGuestLoginUrl,
   revalidateStayViews,
@@ -244,6 +246,9 @@ export async function walkInCheckIn(input: {
   email?: string
   roomId: string
   checkOut: string
+  rateType?: RateType
+  nightlyRate?: number
+  monthlyRate?: number
 }): Promise<
   StayActionResult<{ loginUrl: string; token: string; reservationId: string; guestId: string }>
 > {
@@ -268,8 +273,13 @@ export async function walkInCheckIn(input: {
     }
   }
 
-  const nightlyRate = await getRoomNightlyRate(admin, input.roomId)
-  const total = nightlyRate * stayNights(checkIn, input.checkOut)
+  const rateType = input.rateType ?? 'nightly'
+  const roomRates = await getRoomRates(admin, input.roomId)
+  const nightlyRate =
+    rateType === 'nightly' ? (input.nightlyRate ?? roomRates.nightlyRate) : roomRates.nightlyRate
+  const monthlyRate =
+    rateType === 'monthly' ? (input.monthlyRate ?? roomRates.monthlyRate) : roomRates.monthlyRate
+  const total = calculateStayTotal(rateType, checkIn, input.checkOut, nightlyRate, monthlyRate)
 
   const { data: reservation, error: resError } = await admin
     .from('reservations')
@@ -281,7 +291,9 @@ export async function walkInCheckIn(input: {
       check_out: input.checkOut,
       status: 'confirmed',
       channel: 'walk_in' as ReservationChannel,
+      rate_type: rateType,
       nightly_rate: nightlyRate,
+      monthly_rate: monthlyRate,
       total_amount: total,
       created_by: userId,
     })
@@ -602,8 +614,22 @@ export async function extendStay(
     }
   }
 
-  const nightlyRate = reservation.nightly_rate ?? (await getRoomNightlyRate(admin, reservation.room_id))
-  const total = nightlyRate * stayNights(reservation.check_in, newCheckOut)
+  const rateType = (reservation.rate_type ?? 'nightly') as RateType
+  const nightlyRate =
+    reservation.nightly_rate != null
+      ? Number(reservation.nightly_rate)
+      : await getRoomNightlyRate(admin, reservation.room_id)
+  const monthlyRate =
+    reservation.monthly_rate != null
+      ? Number(reservation.monthly_rate)
+      : (await getRoomRates(admin, reservation.room_id)).monthlyRate
+  const total = calculateStayTotal(
+    rateType,
+    reservation.check_in,
+    newCheckOut,
+    nightlyRate,
+    monthlyRate,
+  )
   const tokenExpiresAt = tokenExpiryISO(newCheckOut)
 
   await admin
@@ -725,7 +751,7 @@ export async function markNoShow(reservationId: string): Promise<StayActionResul
 }
 
 export async function getRoomsWithRates(): Promise<
-  StayActionResult<{ id: string; number: string; nightlyRate: number }[]>
+  StayActionResult<{ id: string; number: string; nightlyRate: number; monthlyRate: number }[]>
 > {
   const { profile } = await requireManager()
   if (!profile?.hotel_id) return { success: false, error: 'Not authorized.' }
@@ -733,17 +759,24 @@ export async function getRoomsWithRates(): Promise<
   const admin = createAdminClient()
   const { data, error } = await admin
     .from('rooms')
-    .select('id, number, nightly_rate, room_categories(default_nightly_rate)')
+    .select('id, number, nightly_rate, monthly_rate, room_categories(default_nightly_rate, default_monthly_rate)')
     .eq('hotel_id', profile.hotel_id)
     .order('number')
 
   if (error) return { success: false, error: error.message }
 
   const rooms = (data ?? []).map((r) => {
-    const cat = r.room_categories as { default_nightly_rate?: number } | null
+    const cat = r.room_categories as {
+      default_nightly_rate?: number
+      default_monthly_rate?: number | null
+    } | null
     const nightlyRate =
       r.nightly_rate != null ? Number(r.nightly_rate) : Number(cat?.default_nightly_rate ?? 0)
-    return { id: r.id, number: r.number, nightlyRate }
+    const monthlyRate =
+      r.monthly_rate != null
+        ? Number(r.monthly_rate)
+        : Number(cat?.default_monthly_rate ?? 0)
+    return { id: r.id, number: r.number, nightlyRate, monthlyRate }
   })
 
   return { success: true, data: rooms }

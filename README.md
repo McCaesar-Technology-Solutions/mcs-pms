@@ -17,7 +17,7 @@ The app is a **working PMS** with real persistence, role-based access, and live 
 | Rooms, categories, housekeeping kanban | Done |
 | Complaints + two-step approval (invoice → work → completion) | Done |
 | Billing, GRA exports, analytics (owner) | Done |
-| SMS/WhatsApp notifications (Twilio / Hubtel SMS) | Done |
+| SMS/WhatsApp notifications (Arkesel / Twilio / Hubtel SMS) | Done |
 | Live updates via Supabase Realtime | Done (run migration `015`) |
 | Online payments (Paystack / Hubtel pay) | Not started |
 | OTA / channel manager | Not started |
@@ -73,7 +73,7 @@ Mobile housekeeping: `/mobile/housekeeping` (owner/manager).
 | Auth | Supabase Auth + `@supabase/ssr` middleware |
 | Mutations | Next.js Server Actions (`app/actions/`) |
 | Realtime | Supabase Realtime (`components/realtime/`) |
-| Notifications | Twilio (SMS + WhatsApp) or Hubtel (SMS, Ghana) |
+| Notifications | Arkesel (SMS, Ghana), Twilio (SMS + WhatsApp), or Hubtel (SMS fallback) |
 | Hosting | Vercel |
 
 ---
@@ -96,7 +96,7 @@ components/
 lib/
   data/             server-side data loaders
   supabase/         client, server, middleware, admin
-  notifications/    SMS/WhatsApp (Twilio, Hubtel)
+  notifications/    SMS/WhatsApp (Arkesel, Twilio, Hubtel)
 supabase/migrations/  SQL schema (001–018)
 docs/               role-specific user guides
 ```

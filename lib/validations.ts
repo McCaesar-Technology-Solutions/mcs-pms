@@ -60,6 +60,27 @@ export const submitComplaintSchema = z.object({
   priority: z.enum(['medium', 'urgent']).default('medium'),
 })
 
+export const scheduleComplaintVisitSchema = z.object({
+  complaintId: z.string().uuid(),
+  visitAt: z
+    .string()
+    .min(1, 'Pick a date and time')
+    .refine((value) => !Number.isNaN(Date.parse(value)), 'Invalid date and time'),
+})
+
+export const guestRoomEntrySchema = z.object({
+  slug: z
+    .string()
+    .min(3, 'Invalid property link')
+    .max(48)
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Invalid property link'),
+  roomNumber: z
+    .string()
+    .trim()
+    .min(1, 'Enter your room number')
+    .max(20, 'Room number is too long'),
+})
+
 export const staffComplaintSchema = z.object({
   category: z.enum([
     'plumbing',
@@ -77,13 +98,25 @@ export const staffComplaintSchema = z.object({
 })
 
 export const createReservationSchema = z.object({
-  guestName: z.string().min(2),
-  roomId: z.string().uuid().optional(),
+  guestName: z.string().min(2, 'Guest name is required'),
+  roomId: z.string().uuid('Select a room'),
   checkIn: z.string().min(1),
   checkOut: z.string().min(1),
-  channel: z.enum(['airbnb', 'booking_com', 'direct', 'walk_in', 'other']).optional(),
-  nightlyRate: z.number().positive().optional(),
+  channel: z.enum(['airbnb', 'booking_com', 'direct', 'walk_in', 'other']),
+  rateType: z.enum(['nightly', 'monthly']).default('nightly'),
+  nightlyRate: z.coerce.number().min(0, 'Rate cannot be negative'),
+  monthlyRate: z.coerce.number().min(0, 'Rate cannot be negative').optional(),
+  guestId: z.string().uuid().optional(),
 })
+
+export const updateReservationSchema = createReservationSchema
+  .partial()
+  .extend({
+    guestName: z.string().min(2, 'Guest name is required').optional(),
+    roomId: z.string().uuid().optional(),
+    checkIn: z.string().min(1).optional(),
+    checkOut: z.string().min(1).optional(),
+  })
 
 export const createHousekeepingTaskSchema = z.object({
   roomId: z.string().uuid(),
@@ -143,6 +176,7 @@ export const submitComplaintEstimateSchema = z.object({
 export const createRoomCategorySchema = z.object({
   name: z.string().min(1, 'Category name is required').max(80),
   defaultNightlyRate: z.coerce.number().min(0, 'Rate cannot be negative'),
+  defaultMonthlyRate: z.coerce.number().min(0, 'Rate cannot be negative').optional().or(z.literal('')),
 })
 
 export const updateRoomCategorySchema = createRoomCategorySchema.partial()
@@ -152,6 +186,7 @@ export const createRoomSchema = z.object({
   floor: z.coerce.number().int().min(0),
   categoryId: z.string().uuid('Select a room category'),
   nightlyRate: z.coerce.number().min(0, 'Price cannot be negative'),
+  monthlyRate: z.coerce.number().min(0, 'Price cannot be negative').optional().or(z.literal('')),
 })
 
 export const updateRoomSchema = createRoomSchema

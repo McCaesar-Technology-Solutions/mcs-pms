@@ -1,9 +1,8 @@
 import { redirect } from 'next/navigation'
-import { Suspense } from 'react'
 import { getProfile } from '@/lib/auth/get-profile'
-import { canEnrollMfa, isMfaRequired, safeMfaNext } from '@/lib/auth/mfa'
+import { canEnrollMfa, safeMfaNext } from '@/lib/auth/mfa'
 import { ROLE_HOME } from '@/lib/auth/roles'
-import { EnrollMfaClient } from '@/components/auth/enroll-mfa-client'
+import { MfaSmsForm } from '@/components/auth/mfa-sms-form'
 
 export default async function EnrollMfaPage({
   searchParams,
@@ -16,8 +15,7 @@ export default async function EnrollMfaPage({
   }
 
   const { next } = await searchParams
-  const defaultHome = ROLE_HOME[profile.role]
-  const nextPath = safeMfaNext(next, defaultHome)
+  const nextPath = safeMfaNext(next, ROLE_HOME[profile.role])
 
   return (
     <div className="flex min-h-dvh items-center justify-center bg-[#22124C] px-4 py-12">
@@ -29,11 +27,9 @@ export default async function EnrollMfaPage({
           >
             MOJO APARTMENTS
           </p>
-          <p className="mt-2 text-sm text-white/70">Secure your account</p>
+          <p className="mt-2 text-sm text-white/70">Verify your phone number</p>
         </div>
-        <Suspense fallback={<p className="text-sm text-white/70">Loading…</p>}>
-          <EnrollMfaClient nextPath={nextPath} required={isMfaRequired(profile.role)} />
-        </Suspense>
+        <MfaSmsForm nextPath={nextPath} mode="setup" />
       </div>
     </div>
   )

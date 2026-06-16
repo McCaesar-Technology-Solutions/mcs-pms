@@ -28,6 +28,7 @@ import {
 } from '@/app/actions/complaints'
 import { fetchComplaintEstimate } from '@/app/actions/complaint-estimates'
 import { ComplaintEstimateCard } from '@/components/complaints/complaint-estimate-card'
+import { ScheduledVisitDisplay } from '@/components/complaints/schedule-visit-form'
 import { StaffComplaintModal } from '@/components/complaints/staff-complaint-modal'
 import { PhoneContact } from '@/components/ui/phone-contact'
 import { useRealtimeRefresh } from '@/components/realtime/realtime-refresh-context'
@@ -35,6 +36,8 @@ import {
   isPendingCompletion,
   isPendingEstimate,
   managerPendingLabel,
+  needsGuestCompletionApproval,
+  canManagerApproveCompletion,
 } from '@/lib/complaints/workflow'
 import type {
   Complaint,
@@ -124,6 +127,8 @@ const timelineLabels: Record<ComplaintEventType, string> = {
   resolved: 'Resolved',
   estimate_submitted: 'Invoice submitted',
   estimate_approved: 'Invoice approved — work authorized',
+  visit_scheduled: 'Visit scheduled',
+  guest_completion_approved: 'Guest confirmed completion',
 }
 
 export function ComplaintsManager() {
@@ -444,59 +449,79 @@ export function ComplaintsManager() {
 
               {estimate && <ComplaintEstimateCard estimate={estimate} />}
 
-              {selected.status === 'pending_approval' && (
+              {(selected.scheduled_visit_at ||
+                ['open', 'assigned', 'in_progress', 'rejected'].includes(selected.status ?? '')) && (
+                <div className={`${liftCard} p-4`}>
+                  <ScheduledVisitDisplay
+                    scheduledVisitAt={selected.scheduled_visit_at}
+                    pendingMessage={
+                      !selected.scheduled_visit_at
+                        ? 'Technician will contact the guest to agree a visit time.'
+                        : undefined
+                    }
+                  />
+                </div>
+              )}
+
+              {selected.status === 'pending_approval' && isPendingEstimate(selected) && (
+                <div className="overflow-hidden rounded-2xl bg-amber-500/10 p-5 shadow-elevation-1">
+                  <p className="text-sm font-semibold text-amber-900">Legacy invoice queue</p>
+                  <p className="mt-2 text-sm text-amber-950/80">
+                    Invoices no longer require approval. Release this job so the technician can
+                    continue.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleApprove}
+                    disabled={loading}
+                    className="mt-4 w-full rounded-xl bg-[#3C216C] py-3 text-sm font-semibold text-white shadow-elevation-1 disabled:opacity-60"
+                  >
+                    {loading ? 'Releasing…' : 'Release to technician'}
+                  </button>
+                </div>
+              )}
+
+              {selected.status === 'pending_approval' && isPendingCompletion(selected) && (
                 <div className="overflow-hidden rounded-2xl bg-gradient-to-b from-[#D85A30]/10 via-white to-white p-5 shadow-elevation-2">
                   <div className="mb-4 flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-[#D85A30]" />
                     <h3 className="text-sm font-semibold text-[#D85A30]">
-                      {isPendingEstimate(selected)
-                        ? 'Approve invoice to authorize work'
-                        : 'Approve completed work'}
+                      {needsGuestCompletionApproval(selected)
+                        ? 'Awaiting guest sign-off'
+                        : 'Manager sign-off'}
                     </h3>
                   </div>
+                  {needsGuestCompletionApproval(selected) ? (
+                    <p className="text-sm leading-relaxed text-muted-foreground">
+                      The technician has finished. The guest will confirm in their portal. You will
+                      be notified once they approve.
+                    </p>
+                  ) : (
                   <div className="space-y-4">
-                    {isPendingEstimate(selected) ? (
-                      <>
-                        <p className="text-sm text-muted-foreground">
-                          Review the invoice below. Once approved, the technician can start the job.
-                        </p>
-                        <button
-                          type="button"
-                          onClick={handleApprove}
-                          disabled={loading}
-                          className="gradient-primary w-full rounded-xl py-3.5 text-sm font-semibold text-white shadow-elevation-2 transition-all hover:-translate-y-0.5 hover:shadow-elevation-3 disabled:opacity-60"
-                        >
-                          {loading ? 'Approving…' : 'Approve invoice & authorize work'}
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <div>
-                          <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                            Room status after approval
-                          </label>
-                          <select
-                            value={roomStatus}
-                            onChange={(e) => setRoomStatus(e.target.value as DbRoomStatus)}
-                            className={softField}
-                          >
-                            <option value="available">Available</option>
-                            <option value="occupied">Occupied</option>
-                            <option value="maintenance">Maintenance</option>
-                            <option value="needs_inspection">Needs inspection</option>
-                            <option value="cleaning">Cleaning</option>
-                          </select>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={handleApprove}
-                          disabled={loading}
-                          className="gradient-primary w-full rounded-xl py-3.5 text-sm font-semibold text-white shadow-elevation-2 transition-all hover:-translate-y-0.5 hover:shadow-elevation-3 disabled:opacity-60"
-                        >
-                          {loading ? 'Approving…' : 'Approve & resolve'}
-                        </button>
-                      </>
-                    )}
+                    <div>
+                      <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Room status after approval
+                      </label>
+                      <select
+                        value={roomStatus}
+                        onChange={(e) => setRoomStatus(e.target.value as DbRoomStatus)}
+                        className={softField}
+                      >
+                        <option value="available">Available</option>
+                        <option value="occupied">Occupied</option>
+                        <option value="maintenance">Maintenance</option>
+                        <option value="needs_inspection">Needs inspection</option>
+                        <option value="cleaning">Cleaning</option>
+                      </select>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleApprove}
+                      disabled={loading || !canManagerApproveCompletion(selected)}
+                      className="gradient-primary w-full rounded-xl py-3.5 text-sm font-semibold text-white shadow-elevation-2 transition-all hover:-translate-y-0.5 hover:shadow-elevation-3 disabled:opacity-60"
+                    >
+                      {loading ? 'Approving…' : 'Approve & close job'}
+                    </button>
                     <p className="text-center text-xs text-muted-foreground">or send back to technician</p>
                     <div>
                       <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -505,11 +530,7 @@ export function ComplaintsManager() {
                       <textarea
                         value={rejectNote}
                         onChange={(e) => setRejectNote(e.target.value)}
-                        placeholder={
-                          isPendingEstimate(selected)
-                            ? 'Explain what to change on the invoice…'
-                            : 'Explain what still needs to be fixed…'
-                        }
+                        placeholder="Explain what still needs to be fixed…"
                         className={`${softField} min-h-24 resize-none`}
                       />
                     </div>
@@ -522,6 +543,33 @@ export function ComplaintsManager() {
                       Send back to technician
                     </button>
                   </div>
+                  )}
+                  {needsGuestCompletionApproval(selected) && (
+                    <>
+                      <p className="mt-4 text-center text-xs text-muted-foreground">
+                        or send back to technician
+                      </p>
+                      <div className="mt-3">
+                        <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          Rejection note
+                        </label>
+                        <textarea
+                          value={rejectNote}
+                          onChange={(e) => setRejectNote(e.target.value)}
+                          placeholder="Explain what still needs to be fixed…"
+                          className={`${softField} min-h-24 resize-none`}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleReject}
+                        disabled={loading || !rejectNote.trim()}
+                        className="mt-3 w-full rounded-xl bg-red-500/10 py-3.5 text-sm font-semibold text-red-700 shadow-elevation-1 transition-all hover:bg-red-500/15 hover:shadow-elevation-2 disabled:opacity-50"
+                      >
+                        Send back to technician
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
 

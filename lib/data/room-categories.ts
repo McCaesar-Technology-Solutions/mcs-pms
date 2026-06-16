@@ -23,6 +23,8 @@ export async function getRoomCategories(): Promise<RoomCategory[]> {
     hotel_id: row.hotel_id,
     name: row.name,
     default_nightly_rate: Number(row.default_nightly_rate),
+    default_monthly_rate:
+      row.default_monthly_rate != null ? Number(row.default_monthly_rate) : null,
     created_at: row.created_at,
   }))
 }

@@ -56,15 +56,10 @@ function TechnicianRealtimeChannel({ userId, children }: TechnicianRealtimeProps
           filter: `assigned_to=eq.${userId}`,
         },
         (payload) => {
-          const row = payload.new as {
-            status?: string
-            estimate_approved_at?: string | null
-          }
+          const row = payload.new as { status?: string }
           const prev = payload.old as { status?: string } | undefined
           import('sonner').then(({ toast }) => {
-            if (row.status === 'assigned' && row.estimate_approved_at) {
-              toast.success('Invoice approved — you can start the job')
-            } else if (row.status === 'assigned' && prev?.status !== 'assigned') {
+            if (row.status === 'assigned' && prev?.status !== 'assigned') {
               toast.info('New task assigned')
             } else if (row.status === 'rejected') {
               toast.warning('Job sent back — check manager notes')

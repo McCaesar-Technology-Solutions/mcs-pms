@@ -12,25 +12,31 @@ import {
   Volume2,
   HelpCircle,
   ClipboardList,
+  CalendarClock,
 } from 'lucide-react'
 import {
   getTechnicianComplaints,
   markComplaintComplete,
+  scheduleTechnicianComplaintVisit,
   startTechnicianComplaint,
 } from '@/app/actions/complaints'
 import { fetchComplaintEstimate } from '@/app/actions/complaint-estimates'
-import { ComplaintEstimateForm } from '@/components/technician/complaint-estimate-form'
+import { OptionalInvoicePanel } from '@/components/technician/optional-invoice-panel'
 import { ComplaintEstimateCard } from '@/components/complaints/complaint-estimate-card'
+import { ScheduleVisitForm } from '@/components/complaints/schedule-visit-form'
 import { PhoneContact } from '@/components/ui/phone-contact'
 import { useRealtimeRefresh } from '@/components/realtime/realtime-refresh-context'
 import {
   canMarkComplete,
   canStartJob,
   canSubmitInvoice,
+  canTechnicianScheduleVisit,
   isPendingCompletion,
   isPendingEstimate,
+  needsGuestCompletionApproval,
   technicianStatusLabel,
 } from '@/lib/complaints/workflow'
+import { formatComplaintVisit } from '@/lib/complaints/visit'
 import type { Complaint, ComplaintCategory, ComplaintEstimate } from '@/types'
 
 const priorityOrder: Record<string, number> = {
@@ -239,41 +245,38 @@ export function TechnicianTasks() {
                     </div>
                   )}
 
+                  {canTechnicianScheduleVisit(c) && (
+                    <div className="rounded-xl bg-white p-3 shadow-elevation-1">
+                      <ScheduleVisitForm
+                        complaintId={c.id}
+                        scheduledVisitAt={c.scheduled_visit_at}
+                        onSchedule={scheduleTechnicianComplaintVisit}
+                        onSuccess={load}
+                        title="Agree visit with guest"
+                        hint="Call the guest first, then enter the time you both agreed on."
+                      />
+                    </div>
+                  )}
+
+                  {c.scheduled_visit_at && !canTechnicianScheduleVisit(c) && (
+                    <div className="flex items-start gap-2 rounded-xl bg-white p-3 shadow-elevation-1">
+                      <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-[#3C216C]" />
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          Agreed visit
+                        </p>
+                        <p className="mt-1 text-sm font-medium text-foreground">
+                          {formatComplaintVisit(c.scheduled_visit_at)}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
                   {c.rejection_note && (
                     <div className="rounded-xl bg-red-50 px-3 py-2.5 text-sm text-red-700 shadow-elevation-1">
                       <p className="font-semibold">Manager note</p>
                       <p className="mt-1">{c.rejection_note}</p>
                     </div>
-                  )}
-
-                  {canSubmitInvoice(c) && (
-                    <>
-                      <p className="text-xs leading-relaxed text-muted-foreground">
-                        Step 1: Submit your invoice. The manager must approve it before you can
-                        start work.
-                      </p>
-                      <ComplaintEstimateForm
-                        complaintId={c.id}
-                        roomNumber={c.rooms?.number ?? c.room?.number ?? null}
-                        category={c.category}
-                        onSubmitted={() => load()}
-                      />
-                    </>
-                  )}
-
-                  {canStartJob(c) && (
-                    <button
-                      type="button"
-                      disabled={loading === c.id}
-                      onClick={() => handleStart(c.id)}
-                      className="w-full rounded-xl bg-[#D4A62E] py-3 text-sm font-semibold text-gray-900 shadow-elevation-1 transition-all hover:shadow-elevation-2 disabled:opacity-60"
-                    >
-                      {loading === c.id ? 'Starting…' : 'Start job'}
-                    </button>
-                  )}
-
-                  {(c.status === 'in_progress' || isPendingCompletion(c)) && estimate && (
-                    <ComplaintEstimateCard estimate={estimate} />
                   )}
 
                   {canMarkComplete(c) && (
@@ -283,19 +286,58 @@ export function TechnicianTasks() {
                       onClick={() => handleComplete(c.id)}
                       className="w-full rounded-xl bg-[#3C216C] py-3 text-sm font-semibold text-white shadow-elevation-1 transition-all hover:shadow-elevation-2 disabled:opacity-60"
                     >
-                      {loading === c.id ? 'Submitting…' : 'Mark job complete'}
+                      {loading === c.id ? 'Submitting…' : 'Request manager sign-off'}
                     </button>
                   )}
 
+                  {canStartJob(c) && (
+                    <button
+                      type="button"
+                      disabled={loading === c.id}
+                      onClick={() => handleStart(c.id)}
+                      className="w-full rounded-xl border border-[#D4A62E]/40 bg-[#D4A62E]/10 py-2.5 text-sm font-semibold text-[#8B6914] shadow-elevation-1 transition-all hover:shadow-elevation-2 disabled:opacity-60"
+                    >
+                      {loading === c.id ? 'Starting…' : 'Mark as started (optional)'}
+                    </button>
+                  )}
+
+                  {canSubmitInvoice(c) && (
+                    <OptionalInvoicePanel
+                      complaintId={c.id}
+                      roomNumber={c.rooms?.number ?? c.room?.number ?? null}
+                      category={c.category}
+                      onSubmitted={() => {
+                        void loadEstimate(c.id)
+                        void load()
+                      }}
+                    />
+                  )}
+
+                  {isPendingCompletion(c) && canSubmitInvoice(c) && (
+                    <p className="text-center text-xs text-muted-foreground">
+                      You can still send an invoice while waiting for sign-off.
+                    </p>
+                  )}
+
+                  {estimate &&
+                    (c.status === 'assigned' ||
+                      c.status === 'in_progress' ||
+                      isPendingCompletion(c)) && (
+                      <ComplaintEstimateCard estimate={estimate} />
+                    )}
+
                   {isPendingEstimate(c) && (
-                    <p className="rounded-xl bg-white px-3 py-2.5 text-center text-sm font-medium text-muted-foreground shadow-elevation-1">
-                      Invoice sent — awaiting manager approval to start work
+                    <p className="rounded-xl bg-amber-500/10 px-3 py-2.5 text-center text-sm font-medium text-amber-900 shadow-elevation-1">
+                      This job is in a legacy approval queue — ask your manager to release it, or
+                      refresh after they acknowledge.
                     </p>
                   )}
 
                   {isPendingCompletion(c) && (
                     <p className="rounded-xl bg-white px-3 py-2.5 text-center text-sm font-medium text-muted-foreground shadow-elevation-1">
-                      Work complete — awaiting manager sign-off
+                      {needsGuestCompletionApproval(c)
+                        ? 'Work complete — awaiting guest sign-off'
+                        : 'Work complete — awaiting manager sign-off'}
                     </p>
                   )}
 

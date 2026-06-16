@@ -3,11 +3,13 @@
 import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { ChevronRight, LogIn, LogOut, Plus, Search, X, XCircle, CalendarPlus, ArrowRightLeft, UserX } from 'lucide-react'
+import { ChevronRight, LogIn, LogOut, Plus, Search, X, XCircle, CalendarPlus, ArrowRightLeft, UserX, Pencil } from 'lucide-react'
 import {
+  bookAndCheckIn,
   cancelReservation,
   checkOutReservation,
   createReservation,
+  updateReservation,
 } from '@/app/actions/reservations'
 import {
   checkInStay,
@@ -23,10 +25,11 @@ import {
   ModalFooter,
   ModalHeader,
 } from '@/components/ui/centered-modal'
-import type { PaymentMethod, Reservation, ReservationChannel } from '@/types'
+import type { PaymentMethod, Reservation, ReservationChannel, RateType } from '@/types'
 import type { RoomOption } from '@/lib/data/dashboard'
 import type { OccupancySpan } from '@/lib/data/occupancy'
 import { PAYMENT_METHOD_LABELS } from '@/lib/tax'
+import { calculateStayTotal, rateTypeLabel } from '@/lib/pricing/stay-totals'
 
 const STATUS_FILTERS = ['all', 'checked_in', 'confirmed', 'checked_out', 'cancelled'] as const
 
@@ -329,14 +332,23 @@ function ReservationDrawer({ reservation, roomOptions, onClose, onMutated }: Res
   const [pending, startTransition] = useTransition()
   const [checkingOut, setCheckingOut] = useState(false)
   const [checkingIn, setCheckingIn] = useState(false)
+  const [editing, setEditing] = useState(false)
   const [extending, setExtending] = useState(false)
   const [moving, setMoving] = useState(false)
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
   const [earlyCheckout, setEarlyCheckout] = useState(false)
   const [markAsPaid, setMarkAsPaid] = useState(true)
-  const [phone, setPhone] = useState('')
-  const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState(reservation.guestPhone)
+  const [email, setEmail] = useState(reservation.guestEmail)
   const [guestName, setGuestName] = useState(reservation.guestName)
+  const [editGuestName, setEditGuestName] = useState(reservation.guestName)
+  const [editRoomId, setEditRoomId] = useState(reservation.roomId)
+  const [editCheckIn, setEditCheckIn] = useState(reservation.checkInDate)
+  const [editCheckOut, setEditCheckOut] = useState(reservation.checkOutDate)
+  const [editChannel, setEditChannel] = useState<ReservationChannel>(reservation.channel)
+  const [editRateType, setEditRateType] = useState<RateType>(reservation.rateType)
+  const [editNightlyRate, setEditNightlyRate] = useState(String(reservation.nightlyRate))
+  const [editMonthlyRate, setEditMonthlyRate] = useState(String(reservation.monthlyRate))
   const [guestQuery, setGuestQuery] = useState('')
   const [guestMatches, setGuestMatches] = useState<
     { id: string; name: string; phone: string | null; email: string | null }[]
@@ -377,6 +389,22 @@ function ReservationDrawer({ reservation, roomOptions, onClose, onMutated }: Res
   const today = new Date().toISOString().slice(0, 10)
   const canNoShow =
     reservation.status === 'confirmed' && reservation.checkInDate <= today
+  const editDatesValid = editCheckOut > editCheckIn
+  const editNights = Math.max(
+    1,
+    Math.round(
+      (new Date(editCheckOut + 'T00:00:00').getTime() -
+        new Date(editCheckIn + 'T00:00:00').getTime()) /
+        (24 * 60 * 60 * 1000),
+    ),
+  )
+  const editTotal = calculateStayTotal(
+    editRateType,
+    editCheckIn,
+    editCheckOut,
+    Number(editNightlyRate || 0),
+    Number(editMonthlyRate || 0),
+  )
 
   return (
     <CenteredModal
@@ -448,7 +476,9 @@ function ReservationDrawer({ reservation, roomOptions, onClose, onMutated }: Res
             <p className="mb-3 text-xs font-semibold uppercase text-muted-foreground">Payment</p>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Total ({reservation.numberOfNights}n)</span>
+                <span className="text-muted-foreground">
+                  {rateTypeLabel(reservation.rateType)} · {reservation.numberOfNights}n
+                </span>
                 <span className="font-bold text-foreground">₵{reservation.totalPrice}</span>
               </div>
               <div className="flex justify-between">
@@ -472,7 +502,156 @@ function ReservationDrawer({ reservation, roomOptions, onClose, onMutated }: Res
 
           {reservation.status !== 'checked_out' && reservation.status !== 'cancelled' && (
             <div className="space-y-2">
-              {reservation.status === 'confirmed' && !checkingIn && (
+              {reservation.status === 'confirmed' && !checkingIn && !editing && (
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() => setEditing(true)}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-white py-3 text-sm font-semibold text-foreground shadow-elevation-1 transition-all hover:shadow-elevation-2 disabled:opacity-50"
+                >
+                  <Pencil className="h-4 w-4" />
+                  Edit reservation
+                </button>
+              )}
+
+              {reservation.status === 'confirmed' && editing && (
+                <div className="space-y-3 rounded-xl surface-inset p-4">
+                  <p className="text-sm font-semibold text-foreground">Edit reservation</p>
+                  <Field label="Guest name">
+                    <input
+                      value={editGuestName}
+                      onChange={(e) => setEditGuestName(e.target.value)}
+                      className={fieldClass}
+                    />
+                  </Field>
+                  <Field label="Room">
+                    <select
+                      value={editRoomId}
+                      onChange={(e) => {
+                        const nextId = e.target.value
+                        setEditRoomId(nextId)
+                        const room = roomOptions.find((r) => r.id === nextId)
+                        if (room) {
+                          setEditNightlyRate(String(room.nightlyRate))
+                          setEditMonthlyRate(String(room.monthlyRate))
+                        }
+                      }}
+                      className={fieldClass}
+                    >
+                      {roomOptions.map((r) => (
+                        <option key={r.id} value={r.id}>Room {r.number}</option>
+                      ))}
+                    </select>
+                  </Field>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Check-in">
+                      <input
+                        type="date"
+                        value={editCheckIn}
+                        onChange={(e) => setEditCheckIn(e.target.value)}
+                        className={fieldClass}
+                      />
+                    </Field>
+                    <Field label="Check-out">
+                      <input
+                        type="date"
+                        value={editCheckOut}
+                        onChange={(e) => setEditCheckOut(e.target.value)}
+                        className={fieldClass}
+                      />
+                    </Field>
+                  </div>
+                  <Field label="Channel">
+                    <select
+                      value={editChannel}
+                      onChange={(e) => setEditChannel(e.target.value as ReservationChannel)}
+                      className={fieldClass}
+                    >
+                      {(Object.keys(CHANNEL_LABELS) as ReservationChannel[]).map((c) => (
+                        <option key={c} value={c}>{CHANNEL_LABELS[c]}</option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Rate type">
+                    <select
+                      value={editRateType}
+                      onChange={(e) => setEditRateType(e.target.value as RateType)}
+                      className={fieldClass}
+                    >
+                      <option value="nightly">Nightly</option>
+                      <option value="monthly">Monthly (prorated)</option>
+                    </select>
+                  </Field>
+                  {editRateType === 'nightly' ? (
+                    <Field label="Nightly rate (₵)">
+                      <input
+                        type="number"
+                        min={0}
+                        value={editNightlyRate}
+                        onChange={(e) => setEditNightlyRate(e.target.value)}
+                        className={fieldClass}
+                      />
+                    </Field>
+                  ) : (
+                    <Field label="Monthly rate (₵)">
+                      <input
+                        type="number"
+                        min={0}
+                        value={editMonthlyRate}
+                        onChange={(e) => setEditMonthlyRate(e.target.value)}
+                        className={fieldClass}
+                      />
+                    </Field>
+                  )}
+                  <div className="flex items-center justify-between rounded-xl bg-white px-3 py-2 text-sm shadow-elevation-1">
+                    <span className="text-muted-foreground">{editNights} nights</span>
+                    <span className="font-bold">₵{editTotal.toLocaleString()}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() => setEditing(false)}
+                      className="flex-1 rounded-xl bg-white py-2.5 text-sm font-semibold shadow-elevation-1"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      disabled={
+                        pending ||
+                        !editDatesValid ||
+                        !editGuestName.trim() ||
+                        (editRateType === 'monthly' && Number(editMonthlyRate) <= 0)
+                      }
+                      onClick={() =>
+                        run(
+                          () =>
+                            updateReservation(reservation.id, {
+                              guestName: editGuestName,
+                              roomId: editRoomId,
+                              checkIn: editCheckIn,
+                              checkOut: editCheckOut,
+                              channel: editChannel,
+                              rateType: editRateType,
+                              nightlyRate: Number(editNightlyRate || 0),
+                              monthlyRate: Number(editMonthlyRate || 0),
+                            }),
+                          () => {
+                            setEditing(false)
+                            onMutated()
+                          },
+                        )
+                      }
+                      className="flex-[2] rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground"
+                    >
+                      {pending ? 'Saving…' : 'Save changes'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {reservation.status === 'confirmed' && !checkingIn && !editing && (
                 <button
                   type="button"
                   disabled={pending}
@@ -726,7 +905,7 @@ function ReservationDrawer({ reservation, roomOptions, onClose, onMutated }: Res
                 </div>
               )}
 
-              {!checkingOut && !checkingIn && !extending && !moving && (
+              {!checkingOut && !checkingIn && !extending && !moving && !editing && (
                 <>
                   {canNoShow ? (
                     <button
@@ -774,24 +953,42 @@ function ReservationFormModal({
   const today = new Date().toISOString().slice(0, 10)
   const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
 
+  const [flowMode, setFlowMode] = useState<'book_later' | 'check_in_now'>('book_later')
   const [guestName, setGuestName] = useState('')
+  const [phone, setPhone] = useState('')
+  const [email, setEmail] = useState('')
   const [roomId, setRoomId] = useState(roomOptions[0]?.id ?? '')
   const [checkIn, setCheckIn] = useState(today)
   const [checkOut, setCheckOut] = useState(tomorrow)
-  const [channel, setChannel] = useState<ReservationChannel>('direct')
-  const [rate, setRate] = useState(String(roomOptions[0]?.nightlyRate ?? 0))
+  const [channel, setChannel] = useState<ReservationChannel>(
+    flowMode === 'check_in_now' ? 'walk_in' : 'direct',
+  )
+  const [rateType, setRateType] = useState<RateType>('nightly')
+  const [nightlyRate, setNightlyRate] = useState(String(roomOptions[0]?.nightlyRate ?? 0))
+  const [monthlyRate, setMonthlyRate] = useState(String(roomOptions[0]?.monthlyRate ?? 0))
   const [guestQuery, setGuestQuery] = useState('')
   const [guestMatches, setGuestMatches] = useState<
     { id: string; name: string; phone: string | null; email: string | null }[]
   >([])
   const [selectedGuestId, setSelectedGuestId] = useState<string | null>(null)
+  const [portalUrl, setPortalUrl] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
   useEffect(() => {
     const room = roomOptions.find((r) => r.id === roomId)
-    if (room) setRate(String(room.nightlyRate))
+    if (room) {
+      setNightlyRate(String(room.nightlyRate))
+      setMonthlyRate(String(room.monthlyRate))
+    }
   }, [roomId, roomOptions])
+
+  useEffect(() => {
+    if (flowMode === 'check_in_now') {
+      setChannel('walk_in')
+      setCheckIn(today)
+    }
+  }, [flowMode, today])
 
   useEffect(() => {
     if (!guestQuery.trim() || guestQuery.length < 2) {
@@ -833,20 +1030,47 @@ function ReservationFormModal({
         (24 * 60 * 60 * 1000),
     ),
   )
-  const total = Number(rate || 0) * nights
+  const total = calculateStayTotal(
+    rateType,
+    checkIn,
+    checkOut,
+    Number(nightlyRate || 0),
+    Number(monthlyRate || 0),
+  )
 
   function submit() {
     setError(null)
     startTransition(async () => {
-      const result = await createReservation({
-        room_id: roomId,
-        guest_name: guestName,
-        check_in: checkIn,
-        check_out: checkOut,
+      const basePayload = {
+        guestName,
+        roomId,
+        checkIn,
+        checkOut,
         channel,
-        nightly_rate: Number(rate || 0),
-        guest_id: selectedGuestId ?? undefined,
-      })
+        rateType,
+        nightlyRate: Number(nightlyRate || 0),
+        monthlyRate: Number(monthlyRate || 0),
+        guestId: selectedGuestId ?? undefined,
+      }
+
+      if (flowMode === 'check_in_now') {
+        const result = await bookAndCheckIn({
+          ...basePayload,
+          phone: phone.trim(),
+          email: email.trim() || undefined,
+        })
+        if (result.success) {
+          setPortalUrl(result.data.loginUrl)
+        } else {
+          setError(result.error)
+          if (result.suggestions && result.suggestions.length > 0) {
+            setRoomId(result.suggestions[0].id)
+          }
+        }
+        return
+      }
+
+      const result = await createReservation(basePayload)
       if (result.success) {
         onDone()
       } else {
@@ -858,14 +1082,73 @@ function ReservationFormModal({
     })
   }
 
+  const canSubmit =
+    roomOptions.length > 0 &&
+    !selectedRoomClashes &&
+    datesValid &&
+    guestName.trim().length >= 2 &&
+    (flowMode !== 'check_in_now' || phone.trim().length > 0) &&
+    (rateType !== 'monthly' || Number(monthlyRate) > 0)
+
+  if (portalUrl) {
+    return (
+      <CenteredModal open onClose={onClose} aria-label="Guest checked in">
+        <ModalHeader onClose={onDone}>
+          <h3 className="text-lg font-semibold text-foreground">Guest checked in</h3>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            Share the portal link with the guest.
+          </p>
+        </ModalHeader>
+        <ModalBody>
+          <PortalLinkPanel loginUrl={portalUrl} />
+        </ModalBody>
+        <ModalFooter>
+          <button
+            type="button"
+            onClick={onDone}
+            className="rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-elevation-1"
+          >
+            Done
+          </button>
+        </ModalFooter>
+      </CenteredModal>
+    )
+  }
+
   return (
     <CenteredModal open onClose={onClose} aria-label="New reservation">
       <ModalHeader onClose={onClose}>
         <h3 className="text-lg font-semibold text-foreground">New reservation</h3>
-        <p className="mt-0.5 text-sm text-muted-foreground">Book a room for a guest.</p>
+        <p className="mt-0.5 text-sm text-muted-foreground">
+          Book for a future stay or check a guest in now.
+        </p>
       </ModalHeader>
 
       <ModalBody className="space-y-4">
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => setFlowMode('book_later')}
+            className={`rounded-xl px-3 py-2.5 text-sm font-semibold transition-all ${
+              flowMode === 'book_later'
+                ? 'bg-primary text-primary-foreground shadow-elevation-1'
+                : 'bg-secondary text-foreground'
+            }`}
+          >
+            Book for later
+          </button>
+          <button
+            type="button"
+            onClick={() => setFlowMode('check_in_now')}
+            className={`rounded-xl px-3 py-2.5 text-sm font-semibold transition-all ${
+              flowMode === 'check_in_now'
+                ? 'bg-[#D4A62E] text-gray-900 shadow-elevation-1'
+                : 'bg-secondary text-foreground'
+            }`}
+          >
+            Check in now
+          </button>
+        </div>
         <Field label="Guest name">
           <input
             value={guestName}
@@ -891,6 +1174,8 @@ function ReservationFormModal({
                     onClick={() => {
                       setSelectedGuestId(g.id)
                       setGuestName(g.name)
+                      setPhone(g.phone ?? '')
+                      setEmail(g.email ?? '')
                       setGuestQuery(g.name)
                       setGuestMatches([])
                     }}
@@ -964,6 +1249,7 @@ function ReservationFormModal({
               type="date"
               value={checkIn}
               onChange={(e) => setCheckIn(e.target.value)}
+              disabled={flowMode === 'check_in_now'}
               className={fieldClass}
             />
           </Field>
@@ -977,11 +1263,34 @@ function ReservationFormModal({
           </Field>
         </div>
 
+        {flowMode === 'check_in_now' && (
+          <>
+            <Field label="Phone (required)">
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="+233 XX XXX XXXX"
+                className={fieldClass}
+              />
+            </Field>
+            <Field label="Email (optional)">
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className={fieldClass}
+              />
+            </Field>
+          </>
+        )}
+
         <div className="grid grid-cols-2 gap-3">
           <Field label="Channel">
             <select
               value={channel}
               onChange={(e) => setChannel(e.target.value as ReservationChannel)}
+              disabled={flowMode === 'check_in_now'}
               className={fieldClass}
             >
               {(Object.keys(CHANNEL_LABELS) as ReservationChannel[]).map((c) => (
@@ -991,20 +1300,43 @@ function ReservationFormModal({
               ))}
             </select>
           </Field>
+          <Field label="Rate type">
+            <select
+              value={rateType}
+              onChange={(e) => setRateType(e.target.value as RateType)}
+              className={fieldClass}
+            >
+              <option value="nightly">Nightly</option>
+              <option value="monthly">Monthly (prorated)</option>
+            </select>
+          </Field>
+        </div>
+
+        {rateType === 'nightly' ? (
           <Field label="Nightly rate (₵)">
             <input
               type="number"
-              value={rate}
-              onChange={(e) => setRate(e.target.value)}
+              value={nightlyRate}
+              onChange={(e) => setNightlyRate(e.target.value)}
               min={0}
               className={fieldClass}
             />
           </Field>
-        </div>
+        ) : (
+          <Field label="Monthly rate (₵)">
+            <input
+              type="number"
+              value={monthlyRate}
+              onChange={(e) => setMonthlyRate(e.target.value)}
+              min={0}
+              className={fieldClass}
+            />
+          </Field>
+        )}
 
         <div className="flex items-center justify-between rounded-xl surface-inset px-4 py-3 text-sm">
           <span className="text-muted-foreground">
-            {nights} night{nights > 1 ? 's' : ''} total
+            {nights} night{nights > 1 ? 's' : ''} · {rateTypeLabel(rateType)}
           </span>
           <span className="font-bold text-foreground">₵{total.toLocaleString()}</span>
         </div>
@@ -1026,10 +1358,16 @@ function ReservationFormModal({
         <button
           type="button"
           onClick={submit}
-          disabled={pending || roomOptions.length === 0 || selectedRoomClashes || !datesValid}
+          disabled={pending || !canSubmit}
           className="rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-elevation-1 transition-all hover:shadow-elevation-2 disabled:opacity-50"
         >
-          {pending ? 'Creating…' : 'Create reservation'}
+          {pending
+            ? flowMode === 'check_in_now'
+              ? 'Checking in…'
+              : 'Creating…'
+            : flowMode === 'check_in_now'
+              ? 'Book & check in'
+              : 'Create reservation'}
         </button>
       </ModalFooter>
     </CenteredModal>

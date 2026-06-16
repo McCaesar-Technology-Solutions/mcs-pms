@@ -90,7 +90,7 @@ export async function getNotifications(): Promise<AppNotification[]> {
       kind: 'pending_complaint',
       title:
         c.status === 'pending_approval' && c.approval_stage === 'estimate'
-          ? 'Invoice awaiting approval'
+          ? 'Legacy invoice queue'
           : c.status === 'pending_approval'
             ? 'Job awaiting sign-off'
             : 'Open complaint',

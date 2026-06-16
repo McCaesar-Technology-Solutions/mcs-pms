@@ -13,7 +13,7 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { submitGuestComplaint, getGuestComplaints } from '@/app/actions/guest'
 import { GuestPhoneEditor } from '@/components/guest/guest-phone-editor'
-import { guestStatusLabel } from '@/components/complaints/complaints-overview'
+import { GuestComplaintCard } from '@/components/guest/guest-complaint-card'
 import { RealtimeReconnectBanner } from '@/components/realtime/reconnect-banner'
 import { PhoneContactList } from '@/components/ui/phone-contact'
 import type { StaffContact } from '@/lib/data/contacts'
@@ -241,10 +241,7 @@ export function GuestPortal({ guest, roomNumber, propertyContacts }: GuestPortal
           <h2 className="mb-3 text-lg font-semibold">My complaints</h2>
           <ul className="space-y-2">
             {complaints.map((c) => (
-              <li key={c.id} className="rounded-xl bg-white/10 px-4 py-3">
-                <p className="capitalize">{c.category}</p>
-                <p className="text-sm text-[#D4A62E]">{guestStatusLabel(c.status, c.approval_stage)}</p>
-              </li>
+              <GuestComplaintCard key={c.id} complaint={c} onUpdated={loadComplaints} />
             ))}
           </ul>
         </section>
