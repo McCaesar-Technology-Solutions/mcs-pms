@@ -8,7 +8,6 @@ import {
 } from '@/lib/auth/roles'
 import { legacyPathForRole } from '@/lib/auth/legacy-redirect'
 import { isMfaPath } from '@/lib/auth/mfa'
-import { mfaRedirectIfNeeded } from '@/lib/auth/mfa-server'
 import type { Database } from '@/lib/supabase/types'
 import type { UserRole } from '@/types'
 
@@ -74,6 +73,20 @@ export async function updateSession(request: NextRequest) {
       const loginUrl = new URL('/login', request.url)
       return NextResponse.redirect(loginUrl)
     }
+    // Only reachable when user explicitly enabled 2FA in Settings.
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role, mfa_enabled')
+      .eq('id', user.id)
+      .maybeSingle()
+
+    if (profile?.mfa_enabled !== true) {
+      const home = profile?.role && isStaffRole(profile.role)
+        ? ROLE_HOME[profile.role as UserRole]
+        : '/login'
+      return NextResponse.redirect(new URL(home, request.url))
+    }
+
     return supabaseResponse
   }
 
@@ -152,20 +165,7 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(new URL('/login', request.url))
     }
 
-    const mfaRedirect = await mfaRedirectIfNeeded(
-      supabase,
-      user.id,
-      {
-        role: profile.role as UserRole,
-        phone: profile.phone,
-        mfa_enabled: profile.mfa_enabled,
-        mfa_method: profile.mfa_method as import('@/lib/auth/mfa').MfaMethod | null,
-        mfa_totp_secret: profile.mfa_totp_secret,
-      },
-      pathname,
-      request.url,
-    )
-    if (mfaRedirect) return NextResponse.redirect(mfaRedirect)
+    // 2FA is opt-in in Settings — never block navigation here (login/sign-up must stay clean).
   }
 
   if (

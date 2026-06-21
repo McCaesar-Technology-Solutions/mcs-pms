@@ -2,18 +2,19 @@
 
 import { Suspense, useState } from 'react'
 import Link from 'next/link'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { signIn } from '@/app/actions/auth'
-import { resolvePostLoginPath } from '@/lib/auth/mfa-client'
+
+const BLOCKED_LOGIN_NEXT = ['/login', '/signup', '/enroll-mfa', '/verify-mfa', '/accept-invite']
 
 function LoginForm() {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const resetDone = searchParams.get('reset') === 'success'
   const linkExpired = searchParams.get('error') === 'link_expired'
+  const nextParam = searchParams.get('next')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -32,9 +33,14 @@ function LoginForm() {
       return
     }
 
-    const destination = await resolvePostLoginPath(result.role, result.redirectTo)
-    router.push(destination)
-    router.refresh()
+    const safeNext =
+      nextParam &&
+      nextParam.startsWith('/') &&
+      !nextParam.startsWith('//') &&
+      !BLOCKED_LOGIN_NEXT.some((p) => nextParam === p || nextParam.startsWith(`${p}/`))
+        ? nextParam
+        : null
+    window.location.assign(safeNext ?? result.redirectTo)
   }
 
   return (
