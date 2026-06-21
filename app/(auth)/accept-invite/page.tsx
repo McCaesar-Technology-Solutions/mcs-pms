@@ -1,14 +1,13 @@
 'use client'
 
 import { useState, Suspense } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { acceptInvite } from '@/app/actions/auth'
 
 function AcceptInviteForm() {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const token = searchParams.get('token') ?? ''
 
@@ -39,8 +38,7 @@ function AcceptInviteForm() {
       return
     }
 
-    router.push(result.redirectTo)
-    router.refresh()
+    window.location.assign(result.redirectTo)
   }
 
   return (

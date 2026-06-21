@@ -81,26 +81,11 @@ export async function updateSession(request: NextRequest) {
     if (user) {
       const { data: profile } = await supabase
         .from('profiles')
-        .select('role, is_active, phone, mfa_enabled, mfa_method, mfa_totp_secret')
+        .select('role, is_active')
         .eq('id', user.id)
         .maybeSingle()
 
       if (profile?.is_active !== false && isStaffRole(profile?.role)) {
-        const mfaRedirect = await mfaRedirectIfNeeded(
-          supabase,
-          user.id,
-          {
-            role: profile.role as UserRole,
-            phone: profile.phone,
-            mfa_enabled: profile.mfa_enabled,
-            mfa_method: profile.mfa_method as import('@/lib/auth/mfa').MfaMethod | null,
-            mfa_totp_secret: profile.mfa_totp_secret,
-          },
-          pathname,
-          request.url,
-        )
-        if (mfaRedirect) return NextResponse.redirect(mfaRedirect)
-
         const home = ROLE_HOME[profile.role]
         return NextResponse.redirect(new URL(home, request.url))
       }

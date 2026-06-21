@@ -241,6 +241,17 @@ export async function signUpOwner(input: {
     return { success: false, error: 'Account created but sign-in failed. Please log in manually.' }
   }
 
+  await admin
+    .from('profiles')
+    .update({
+      mfa_enabled: false,
+      mfa_method: null,
+      mfa_sms_enabled: false,
+      mfa_totp_secret: null,
+      mfa_totp_pending_secret: null,
+    })
+    .eq('id', userId)
+
   return { success: true, role: 'owner', redirectTo: ROLE_HOME.owner }
 }
 
@@ -315,6 +326,17 @@ export async function acceptInvite(
   if (loginError) {
     return { success: false, error: 'Account created but sign-in failed. Please log in manually.' }
   }
+
+  await admin
+    .from('profiles')
+    .update({
+      mfa_enabled: false,
+      mfa_method: null,
+      mfa_sms_enabled: false,
+      mfa_totp_secret: null,
+      mfa_totp_pending_secret: null,
+    })
+    .eq('id', authUser.user.id)
 
   const role = invite.role as UserRole
   return { success: true, role, redirectTo: ROLE_HOME[role] }
