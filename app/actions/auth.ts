@@ -68,6 +68,31 @@ export async function signIn(
     return { success: false, error: 'Invalid credentials. Please try again.' }
   }
 
+  // Clear stale "required MFA" flags left from the old policy (enabled but never set up).
+  const admin = createAdminClient()
+  const { data: mfaRow } = await admin
+    .from('profiles')
+    .select('mfa_enabled, mfa_method, mfa_totp_secret, phone')
+    .eq('id', data.user.id)
+    .maybeSingle()
+
+  if (mfaRow?.mfa_enabled) {
+    const incompleteTotp = mfaRow.mfa_method === 'totp' && !mfaRow.mfa_totp_secret?.trim()
+    const incompleteSms = mfaRow.mfa_method === 'sms' && !mfaRow.phone?.trim()
+    if (incompleteTotp || incompleteSms || !mfaRow.mfa_method) {
+      await admin
+        .from('profiles')
+        .update({
+          mfa_enabled: false,
+          mfa_method: null,
+          mfa_sms_enabled: false,
+          mfa_totp_secret: null,
+          mfa_totp_pending_secret: null,
+        })
+        .eq('id', data.user.id)
+    }
+  }
+
   const redirectTo = ROLE_HOME[profile.role]
   return { success: true, role: profile.role, redirectTo }
 }

@@ -70,24 +70,19 @@ export async function updateSession(request: NextRequest) {
 
   if (isMfaPath(pathname)) {
     if (!user) {
-      const loginUrl = new URL('/login', request.url)
-      return NextResponse.redirect(loginUrl)
+      return NextResponse.redirect(new URL('/login', request.url))
     }
-    // Only reachable when user explicitly enabled 2FA in Settings.
     const { data: profile } = await supabase
       .from('profiles')
-      .select('role, mfa_enabled')
+      .select('role')
       .eq('id', user.id)
       .maybeSingle()
 
-    if (profile?.mfa_enabled !== true) {
-      const home = profile?.role && isStaffRole(profile.role)
+    const home =
+      profile?.role && isStaffRole(profile.role)
         ? ROLE_HOME[profile.role as UserRole]
-        : '/login'
-      return NextResponse.redirect(new URL(home, request.url))
-    }
-
-    return supabaseResponse
+        : '/owner/dashboard'
+    return NextResponse.redirect(new URL(home, request.url))
   }
 
   if (PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
