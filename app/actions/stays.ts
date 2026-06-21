@@ -12,11 +12,11 @@ import { calculateStayTotal, type RateType } from '@/lib/pricing/stay-totals'
 import { getRoomRates } from '@/lib/pricing/room-rates'
 import {
   buildGuestLoginUrl,
-  revalidateStayViews,
   stayNights,
   todayISO,
   tokenExpiryISO,
 } from '@/lib/stays/helpers'
+import { revalidateStayViews } from '@/lib/stays/revalidate'
 import type { PaymentMethod, ReservationChannel } from '@/types'
 import { z } from 'zod'
 
