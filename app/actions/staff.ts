@@ -130,6 +130,21 @@ export async function inviteStaff(
     revalidatePath('/owner/staff')
     revalidatePath('/manager/staff')
 
+    void import('@/lib/notifications/staff-invite-email').then(async ({ notifyStaffInviteEmail }) => {
+      const { data: hotel } = await admin
+        .from('hotels')
+        .select('name')
+        .eq('id', profile.hotel_id!)
+        .maybeSingle()
+      await notifyStaffInviteEmail({
+        hotelId: profile.hotel_id!,
+        email: normalizedEmail,
+        role: inviteRole,
+        inviteToken: invite.token,
+        hotelName: hotel?.name ?? undefined,
+      })
+    }).catch(() => undefined)
+
     return {
       success: true,
       data: { token: invite.token, email: normalizedEmail, role: inviteRole },

@@ -168,6 +168,9 @@ export async function signUpOwner(input: {
     name: parsed.data.name,
     email: parsed.data.email,
     is_active: true,
+    mfa_enabled: false,
+    mfa_method: null,
+    mfa_sms_enabled: false,
   })
 
   if (profileError) {
@@ -291,6 +294,9 @@ export async function acceptInvite(
     phone: parsed.data.phone.trim(),
     invited_by: invite.invited_by,
     is_active: true,
+    mfa_enabled: false,
+    mfa_method: null,
+    mfa_sms_enabled: false,
   })
 
   if (profileError) {

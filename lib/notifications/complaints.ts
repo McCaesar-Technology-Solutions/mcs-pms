@@ -2,7 +2,8 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { notifyPhones } from '@/lib/notifications/send'
 import { appUrl } from '@/lib/notifications/app-url'
 import { formatComplaintVisit } from '@/lib/complaints/visit'
-import { managerPhones, technicianPhone } from '@/lib/notifications/recipients'
+import { technicianPhone } from '@/lib/notifications/recipients'
+import { notifyManagers } from '@/lib/notifications/manager-notify'
 import type { ComplaintCategory } from '@/types'
 
 const CATEGORY_LABELS: Record<ComplaintCategory, string> = {
@@ -64,24 +65,33 @@ export async function notifyComplaintSubmitted(complaintId: string): Promise<voi
   const ctx = await loadComplaintContext(complaintId)
   if (!ctx) return
 
-  const phones = await managerPhones(ctx.hotelId)
-  if (phones.length === 0) return
-
   const ref = complaintId.slice(0, 8).toUpperCase()
   const urgent = ctx.priority === 'urgent' ? ' [URGENT]' : ''
   const guest = ctx.guestName ? `${ctx.guestName}: ` : ''
+  const dashboardUrl = appUrl('/manager/complaints')
   const body = [
     `MOJO: New guest complaint${urgent}`,
     refLine(ctx),
     `${guest}${ctx.description.slice(0, 120)}`,
     `Ref ${ref}`,
-    appUrl('/manager/complaints'),
+    dashboardUrl,
   ].join('\n')
 
-  await notifyPhones(phones, body, {
+  await notifyManagers({
     hotelId: ctx.hotelId,
     templateKey: 'complaint_submitted',
-    includeWhatsApp: false,
+    smsBody: body,
+    email: {
+      subject: urgent ? `Urgent complaint · ${refLine(ctx)}` : `New guest complaint · ${refLine(ctx)}`,
+      preview: 'A guest reported an issue that needs attention.',
+      lines: [
+        refLine(ctx),
+        `${guest}${ctx.description.slice(0, 200)}`,
+        `Reference: ${ref}`,
+      ],
+      actionUrl: dashboardUrl,
+      actionLabel: 'View complaints',
+    },
   })
 }
 
@@ -133,21 +143,26 @@ export async function notifyComplaintCompletionRequested(complaintId: string): P
   const ctx = await loadComplaintContext(complaintId)
   if (!ctx) return
 
-  const phones = await managerPhones(ctx.hotelId)
-  if (phones.length > 0) {
-    const body = [
-      'MOJO: Job ready for approval',
-      refLine(ctx),
-      'Technician marked work complete. Review in the dashboard.',
-      appUrl('/manager/complaints'),
-    ].join('\n')
+  const dashboardUrl = appUrl('/manager/complaints')
+  const body = [
+    'MOJO: Job ready for approval',
+    refLine(ctx),
+    'Technician marked work complete. Review in the dashboard.',
+    dashboardUrl,
+  ].join('\n')
 
-    await notifyPhones(phones, body, {
-      hotelId: ctx.hotelId,
-      templateKey: 'complaint_completion_requested',
-      includeWhatsApp: false,
-    })
-  }
+  await notifyManagers({
+    hotelId: ctx.hotelId,
+    templateKey: 'complaint_completion_requested',
+    smsBody: body,
+    email: {
+      subject: `Job ready for approval · ${refLine(ctx)}`,
+      preview: 'A technician marked maintenance work as complete.',
+      lines: [refLine(ctx), 'Review and approve in the dashboard.'],
+      actionUrl: dashboardUrl,
+      actionLabel: 'Review job',
+    },
+  })
 
   if (ctx.guestPhone) {
     const body = [
@@ -192,21 +207,26 @@ export async function notifyComplaintVisitScheduled(
     })
   }
 
-  const managerPhonesList = await managerPhones(ctx.hotelId)
-  if (managerPhonesList.length > 0) {
-    const body = [
-      'MOJO: Maintenance visit scheduled',
-      refLine(ctx),
-      appointment,
-      appUrl('/manager/complaints'),
-    ].join('\n')
+  const dashboardUrl = appUrl('/manager/complaints')
+  const body = [
+    'MOJO: Maintenance visit scheduled',
+    refLine(ctx),
+    appointment,
+    dashboardUrl,
+  ].join('\n')
 
-    await notifyPhones(managerPhonesList, body, {
-      hotelId: ctx.hotelId,
-      templateKey: 'complaint_visit_scheduled',
-      includeWhatsApp: false,
-    })
-  }
+  await notifyManagers({
+    hotelId: ctx.hotelId,
+    templateKey: 'complaint_visit_scheduled',
+    smsBody: body,
+    email: {
+      subject: `Visit scheduled · ${refLine(ctx)}`,
+      preview: 'A maintenance visit was scheduled with the guest.',
+      lines: [refLine(ctx), appointment],
+      actionUrl: dashboardUrl,
+      actionLabel: 'View complaint',
+    },
+  })
 }
 
 /** Guest confirmed work is complete — alert manager. */
@@ -214,21 +234,26 @@ export async function notifyGuestApprovedCompletion(complaintId: string): Promis
   const ctx = await loadComplaintContext(complaintId)
   if (!ctx) return
 
-  const phones = await managerPhones(ctx.hotelId)
-  if (phones.length === 0) return
-
   const guest = ctx.guestName ? `${ctx.guestName} confirmed` : 'Guest confirmed'
+  const dashboardUrl = appUrl('/manager/complaints')
   const body = [
     'MOJO: Guest sign-off received',
     refLine(ctx),
     `${guest} the work is complete. Complaint resolved.`,
-    appUrl('/manager/complaints'),
+    dashboardUrl,
   ].join('\n')
 
-  await notifyPhones(phones, body, {
+  await notifyManagers({
     hotelId: ctx.hotelId,
     templateKey: 'complaint_guest_approved',
-    includeWhatsApp: false,
+    smsBody: body,
+    email: {
+      subject: `Guest sign-off · ${refLine(ctx)}`,
+      preview: 'The guest confirmed maintenance work is complete.',
+      lines: [refLine(ctx), `${guest} the work is complete.`],
+      actionUrl: dashboardUrl,
+      actionLabel: 'View complaint',
+    },
   })
 }
 
@@ -241,22 +266,36 @@ export async function notifyComplaintInvoiceSubmitted(
   const ctx = await loadComplaintContext(complaintId)
   if (!ctx) return
 
-  const phones = await managerPhones(ctx.hotelId)
-  if (phones.length === 0) return
-
   const tech = technicianName ? ` from ${technicianName}` : ''
+  const total = totalCost.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
+  const dashboardUrl = appUrl('/manager/complaints')
   const body = [
     `MOJO: Technician invoice${tech}`,
     refLine(ctx),
-    `Total: GHS ${totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+    `Total: GHS ${total}`,
     'Awaiting your approval to start work.',
-    appUrl('/manager/complaints'),
+    dashboardUrl,
   ].join('\n')
 
-  await notifyPhones(phones, body, {
+  await notifyManagers({
     hotelId: ctx.hotelId,
     templateKey: 'complaint_invoice_submitted',
-    includeWhatsApp: false,
+    smsBody: body,
+    email: {
+      subject: `Technician invoice · ${refLine(ctx)}`,
+      preview: 'A technician submitted an invoice for your approval.',
+      lines: [
+        refLine(ctx),
+        technicianName ? `Technician: ${technicianName}` : 'Technician invoice submitted',
+        `Total: GHS ${total}`,
+        'Awaiting your approval to start work.',
+      ],
+      actionUrl: dashboardUrl,
+      actionLabel: 'Review invoice',
+    },
   })
 }
 

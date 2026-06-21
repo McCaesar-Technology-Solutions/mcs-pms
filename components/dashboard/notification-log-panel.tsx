@@ -1,6 +1,6 @@
 'use client'
 
-import { MessageSquare, Smartphone } from 'lucide-react'
+import { MessageSquare, Smartphone, Mail } from 'lucide-react'
 import type { NotificationLogEntry } from '@/lib/data/notification-log'
 
 function formatWhen(value: string) {
@@ -36,7 +36,7 @@ export function NotificationLogPanel({ entries, compact = false }: NotificationL
         <div className="flex items-center gap-2">
           <MessageSquare className="h-5 w-5 text-[#3C216C]" />
           <div>
-            <h3 className="text-lg font-semibold text-foreground">SMS & WhatsApp log</h3>
+            <h3 className="text-lg font-semibold text-foreground">SMS, email & WhatsApp log</h3>
             <p className="mt-0.5 text-sm text-muted-foreground">
               Recent outbound messages from the system.
             </p>
@@ -72,7 +72,7 @@ export function NotificationLogPanel({ entries, compact = false }: NotificationL
                     {formatWhen(entry.createdAt)}
                   </td>
                   <td className="px-4 py-3 font-mono text-xs text-foreground">
-                    {entry.recipientPhone}
+                    {entry.recipientEmail ?? entry.recipientPhone ?? '—'}
                   </td>
                   {!compact && (
                     <td className="px-4 py-3 text-foreground">{entry.templateKey}</td>
@@ -81,6 +81,8 @@ export function NotificationLogPanel({ entries, compact = false }: NotificationL
                     <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground">
                       {entry.channel === 'whatsapp' ? (
                         <MessageSquare className="h-3.5 w-3.5" />
+                      ) : entry.channel === 'email' ? (
+                        <Mail className="h-3.5 w-3.5" />
                       ) : (
                         <Smartphone className="h-3.5 w-3.5" />
                       )}

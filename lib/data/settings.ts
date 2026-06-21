@@ -8,6 +8,11 @@ import {
   NOTIFICATION_TEMPLATE_KEYS,
   type NotificationSmsPrefs,
 } from '@/lib/notifications/preferences'
+import {
+  mergeEmailPrefs,
+  EMAIL_STAFF_TEMPLATE_KEYS,
+  type NotificationEmailPrefs,
+} from '@/lib/notifications/email-preferences'
 
 export interface HotelSettings {
   id: string
@@ -22,6 +27,7 @@ export interface HotelSettings {
   invoice_prefix: string | null
   roomCount: number
   notificationSmsPrefs: NotificationSmsPrefs
+  notificationEmailPrefs: NotificationEmailPrefs
 }
 
 export async function getActiveHotelSettings(): Promise<HotelSettings | null> {
@@ -40,11 +46,18 @@ export async function getActiveHotelSettings(): Promise<HotelSettings | null> {
 
   if (!hotel) return null
 
-  const h = hotel as Hotel & { notification_sms_prefs?: NotificationSmsPrefs | null }
+  const h = hotel as Hotel & {
+    notification_sms_prefs?: NotificationSmsPrefs | null
+    notification_email_prefs?: NotificationEmailPrefs | null
+  }
   const storedPrefs = h.notification_sms_prefs ?? null
+  const storedEmailPrefs = h.notification_email_prefs ?? null
   const notificationSmsPrefs = Object.fromEntries(
     NOTIFICATION_TEMPLATE_KEYS.map((key) => [key, mergeNotificationPrefs(storedPrefs)[key]]),
   ) as NotificationSmsPrefs
+  const notificationEmailPrefs = Object.fromEntries(
+    EMAIL_STAFF_TEMPLATE_KEYS.map((key) => [key, mergeEmailPrefs(storedEmailPrefs)[key]]),
+  ) as NotificationEmailPrefs
 
   return {
     id: h.id,
@@ -59,6 +72,7 @@ export async function getActiveHotelSettings(): Promise<HotelSettings | null> {
     invoice_prefix: h.invoice_prefix,
     roomCount: roomCount ?? 0,
     notificationSmsPrefs,
+    notificationEmailPrefs,
   }
 }
 

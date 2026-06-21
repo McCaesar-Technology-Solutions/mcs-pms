@@ -1,7 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { notifyPhones } from '@/lib/notifications/send'
 import { appUrl } from '@/lib/notifications/app-url'
-import { managerPhones } from '@/lib/notifications/recipients'
+import { notifyManagers } from '@/lib/notifications/manager-notify'
 
 function formatStayDate(isoDate: string): string {
   return new Date(isoDate + 'T12:00:00').toLocaleDateString('en-GB', {
@@ -111,22 +111,32 @@ export async function notifyManagersNewReservation(input: {
   checkOut: string
   channel: string
 }): Promise<void> {
-  const phones = await managerPhones(input.hotelId)
-  if (phones.length === 0) return
-
   const room = input.roomNumber ? `Room ${input.roomNumber}` : 'Room TBC'
+  const reservationsUrl = appUrl('/manager/reservations')
   const body = [
     'MOJO: New reservation',
     `${input.guestName.trim()} · ${room}`,
     `Check-in ${formatStayDate(input.checkIn)} · checkout ${formatStayDate(input.checkOut)}`,
     `Source: ${input.channel.replace(/_/g, ' ')}`,
-    appUrl('/manager/reservations'),
+    reservationsUrl,
   ].join('\n')
 
-  await notifyPhones(phones, body, {
+  await notifyManagers({
     hotelId: input.hotelId,
     templateKey: 'reservation_new_manager',
-    includeWhatsApp: false,
+    smsBody: body,
+    email: {
+      subject: `New booking · ${input.guestName.trim()} · ${room}`,
+      preview: 'A new reservation was created for your property.',
+      lines: [
+        `Guest: ${input.guestName.trim()}`,
+        room,
+        `Check-in ${formatStayDate(input.checkIn)} · checkout ${formatStayDate(input.checkOut)}`,
+        `Source: ${input.channel.replace(/_/g, ' ')}`,
+      ],
+      actionUrl: reservationsUrl,
+      actionLabel: 'View reservations',
+    },
   })
 }
 

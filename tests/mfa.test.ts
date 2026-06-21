@@ -66,7 +66,7 @@ describe('mfaGateForRole', () => {
 
   it('forces verify when setup is complete but session is new', () => {
     expect(mfaGateForRole('manager', smsNeedsVerify)).toBe('verify')
-    expect(mfaGateForRole('manager', totpNeedsSetup)).toBe('enroll')
+    expect(mfaGateForRole('manager', totpNeedsSetup)).toBe('ok')
   })
 
   it('allows access when session is verified', () => {

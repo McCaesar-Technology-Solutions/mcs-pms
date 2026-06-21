@@ -27,6 +27,7 @@ export type Database = {
           vat_mode: string
           profile_image_path: string | null
           notification_sms_prefs: Json
+          notification_email_prefs: Json
           created_at: string | null
         }
         Insert: {
@@ -46,6 +47,7 @@ export type Database = {
           vat_mode?: string
           profile_image_path?: string | null
           notification_sms_prefs?: Json
+          notification_email_prefs?: Json
           created_at?: string | null
         }
         Update: {
@@ -65,6 +67,7 @@ export type Database = {
           vat_mode?: string
           profile_image_path?: string | null
           notification_sms_prefs?: Json
+          notification_email_prefs?: Json
           created_at?: string | null
         }
         Relationships: [
@@ -950,8 +953,9 @@ export type Database = {
         Row: {
           id: string
           hotel_id: string | null
-          recipient_phone: string
-          channel: 'sms' | 'whatsapp'
+          recipient_phone: string | null
+          recipient_email: string | null
+          channel: 'sms' | 'whatsapp' | 'email'
           template_key: string
           body: string
           provider: string | null
@@ -963,8 +967,9 @@ export type Database = {
         Insert: {
           id?: string
           hotel_id?: string | null
-          recipient_phone: string
-          channel: 'sms' | 'whatsapp'
+          recipient_phone?: string | null
+          recipient_email?: string | null
+          channel: 'sms' | 'whatsapp' | 'email'
           template_key: string
           body: string
           provider?: string | null
@@ -976,8 +981,9 @@ export type Database = {
         Update: {
           id?: string
           hotel_id?: string | null
-          recipient_phone?: string
-          channel?: 'sms' | 'whatsapp'
+          recipient_phone?: string | null
+          recipient_email?: string | null
+          channel?: 'sms' | 'whatsapp' | 'email'
           template_key?: string
           body?: string
           provider?: string | null

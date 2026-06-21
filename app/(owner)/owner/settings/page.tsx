@@ -1,5 +1,6 @@
 import { SettingsPanel } from '@/components/dashboard/settings-panel'
 import { NotificationPreferencesPanel } from '@/components/dashboard/notification-preferences-panel'
+import { EmailNotificationPreferencesPanel } from '@/components/dashboard/email-notification-preferences-panel'
 import { NotificationLogPanel } from '@/components/dashboard/notification-log-panel'
 import { AuditLogPanel } from '@/components/dashboard/audit-log-panel'
 import { PageHeader } from '@/components/dashboard/page-header'
@@ -26,10 +27,16 @@ export default async function SettingsPage() {
 
       <SettingsPanel hotelSettings={hotelSettings} profile={profile} />
       {hotelSettings && (
-        <NotificationPreferencesPanel
-          hotelId={hotelSettings.id}
-          initialPrefs={hotelSettings.notificationSmsPrefs}
-        />
+        <>
+          <NotificationPreferencesPanel
+            hotelId={hotelSettings.id}
+            initialPrefs={hotelSettings.notificationSmsPrefs}
+          />
+          <EmailNotificationPreferencesPanel
+            hotelId={hotelSettings.id}
+            initialPrefs={hotelSettings.notificationEmailPrefs}
+          />
+        </>
       )}
       <AuditLogPanel entries={auditLog} />
       <NotificationLogPanel entries={notificationLog} />

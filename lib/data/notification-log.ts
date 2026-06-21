@@ -3,8 +3,9 @@ import { createClient } from '@/lib/supabase/server'
 
 export interface NotificationLogEntry {
   id: string
-  recipientPhone: string
-  channel: 'sms' | 'whatsapp'
+  recipientPhone: string | null
+  recipientEmail: string | null
+  channel: 'sms' | 'whatsapp' | 'email'
   templateKey: string
   body: string
   provider: string | null
@@ -31,6 +32,7 @@ export async function getNotificationLog(limit = 50): Promise<NotificationLogEnt
   return (data ?? []).map((row) => ({
     id: row.id,
     recipientPhone: row.recipient_phone,
+    recipientEmail: row.recipient_email ?? null,
     channel: row.channel,
     templateKey: row.template_key,
     body: row.body,

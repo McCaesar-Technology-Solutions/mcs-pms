@@ -102,10 +102,14 @@ async function markSessionVerified(
   return { success: true }
 }
 
-/** Post-login redirect — enroll, verify, or dashboard. */
+/** Post-login redirect — enroll, verify, or dashboard. Skipped when 2FA is off. */
 export async function getStaffMfaRedirect(intendedPath: string): Promise<string> {
   const { supabase, user, profile } = await requireStaffContext()
   if (!user || !profile) return '/login'
+
+  if (profile.mfa_enabled !== true) {
+    return safeMfaNext(intendedPath, ROLE_HOME[profile.role])
+  }
 
   const status = await buildMfaStatus(supabase, user.id, profileForStatus(profile))
   return mfaRedirectPath(profile.role, status, ROLE_HOME[profile.role], intendedPath)
