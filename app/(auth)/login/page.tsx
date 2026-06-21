@@ -7,8 +7,15 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { signIn } from '@/app/actions/auth'
+import { isMfaPath } from '@/lib/auth/mfa'
 
-const BLOCKED_LOGIN_NEXT = ['/login', '/signup', '/enroll-mfa', '/verify-mfa', '/accept-invite']
+const BLOCKED_LOGIN_NEXT = ['/login', '/signup', '/accept-invite']
+
+function isBlockedLoginNext(next: string): boolean {
+  const pathOnly = next.split('?')[0] ?? next
+  if (isMfaPath(pathOnly)) return true
+  return BLOCKED_LOGIN_NEXT.some((p) => pathOnly === p || pathOnly.startsWith(`${p}/`))
+}
 
 function LoginForm() {
   const searchParams = useSearchParams()
@@ -37,7 +44,7 @@ function LoginForm() {
       nextParam &&
       nextParam.startsWith('/') &&
       !nextParam.startsWith('//') &&
-      !BLOCKED_LOGIN_NEXT.some((p) => nextParam === p || nextParam.startsWith(`${p}/`))
+      !isBlockedLoginNext(nextParam)
         ? nextParam
         : null
     window.location.assign(safeNext ?? result.redirectTo)
