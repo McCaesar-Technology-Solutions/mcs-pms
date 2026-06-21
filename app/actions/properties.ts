@@ -7,6 +7,11 @@ import { ensureGuestPortalSlug } from '@/lib/guest-portal'
 import { seedDefaultRoomCategories } from '@/lib/data/room-categories'
 import { getOwnerProperties, ownerOwnsHotel } from '@/lib/data/properties'
 import { createPropertySchema } from '@/lib/validations'
+import {
+  PROPERTY_IMAGE_BUCKET,
+  propertyImagePublicUrl,
+  propertyImageStoragePath,
+} from '@/lib/properties/image-storage'
 import type { Property } from '@/types'
 
 export type PropertyActionResult<T = void> =
@@ -166,9 +171,73 @@ export async function createProperty(input: {
     city: hotel.city ?? parsed.data.city,
     region: hotel.region ?? parsed.data.region,
     totalRooms: roomCount ?? 0,
+    imageUrl: null,
   }
 
   return { success: true, data: property }
+}
+
+export async function uploadPropertyProfileImage(
+  hotelId: string,
+  formData: FormData,
+): Promise<PropertyActionResult<{ imageUrl: string }>> {
+  const { profile, userId } = await requireOwner()
+  if (!profile || !userId) return { success: false, error: 'Only owners can upload property images.' }
+
+  if (!(await ownerOwnsHotel(userId, hotelId))) {
+    return { success: false, error: 'You do not have access to this property.' }
+  }
+
+  const file = formData.get('file')
+  if (!file || !(file instanceof File)) {
+    return { success: false, error: 'No image file provided.' }
+  }
+
+  const allowed = ['image/jpeg', 'image/png', 'image/webp']
+  if (!allowed.includes(file.type)) {
+    return { success: false, error: 'Use JPEG, PNG, or WebP.' }
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    return { success: false, error: 'Image must be 5 MB or smaller.' }
+  }
+
+  const ext = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg'
+  const path = propertyImageStoragePath(hotelId, ext)
+  const buffer = Buffer.from(await file.arrayBuffer())
+
+  const admin = createAdminClient()
+
+  const { data: existing } = await admin
+    .from('hotels')
+    .select('profile_image_path')
+    .eq('id', hotelId)
+    .maybeSingle()
+
+  const { error: uploadError } = await admin.storage.from(PROPERTY_IMAGE_BUCKET).upload(path, buffer, {
+    contentType: file.type,
+    upsert: false,
+  })
+
+  if (uploadError) {
+    return { success: false, error: uploadError.message ?? 'Could not upload image.' }
+  }
+
+  const { error: updateError } = await admin
+    .from('hotels')
+    .update({ profile_image_path: path })
+    .eq('id', hotelId)
+
+  if (updateError) {
+    await admin.storage.from(PROPERTY_IMAGE_BUCKET).remove([path])
+    return { success: false, error: updateError.message }
+  }
+
+  if (existing?.profile_image_path && existing.profile_image_path !== path) {
+    await admin.storage.from(PROPERTY_IMAGE_BUCKET).remove([existing.profile_image_path])
+  }
+
+  revalidateOwnerViews()
+  return { success: true, data: { imageUrl: propertyImagePublicUrl(path) ?? '' } }
 }
 
 export async function switchActiveProperty(hotelId: string): Promise<PropertyActionResult> {

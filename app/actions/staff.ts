@@ -194,6 +194,21 @@ export async function inviteStaff(
   revalidatePath('/owner/staff')
   revalidatePath('/manager/staff')
 
+  void import('@/lib/notifications/staff').then(async ({ notifyStaffInvite }) => {
+    const { data: hotel } = await admin
+      .from('hotels')
+      .select('name')
+      .eq('id', profile.hotel_id!)
+      .maybeSingle()
+    await notifyStaffInvite({
+      hotelId: profile.hotel_id!,
+      phone: normalizedPhone,
+      role: 'technician',
+      inviteToken: invite.token,
+      hotelName: hotel?.name ?? undefined,
+    })
+  }).catch(() => undefined)
+
   return {
     success: true,
     data: { token: invite.token, phone: normalizedPhone, role: 'technician' },

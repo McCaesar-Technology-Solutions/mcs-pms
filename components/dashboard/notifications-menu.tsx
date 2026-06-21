@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useTransition } from 'react'
 import Link from 'next/link'
-import { Bell, CheckCircle, Clock, FileText, LogOut, Settings } from 'lucide-react'
+import { Bell, CheckCircle, Clock, FileText, LogIn, MessageSquare } from 'lucide-react'
 import { loadNotifications } from '@/app/actions/notifications'
 import { useRealtimeRefresh } from '@/components/realtime/realtime-refresh-context'
 import type { AppNotification } from '@/lib/data/notifications'
@@ -14,6 +14,7 @@ interface NotificationsMenuProps {
 
 const KIND_ICONS: Record<AppNotification['kind'], typeof FileText> = {
   overdue_invoice: FileText,
+  checkin_today: LogIn,
   checkout_today: Clock,
   pending_complaint: Bell,
 }
@@ -92,23 +93,37 @@ export function NotificationsMenu({ profile }: NotificationsMenuProps) {
               <p className="text-sm text-muted-foreground">All clear — nothing needs attention.</p>
             </div>
           ) : (
-            items.map((item) => {
-              const Icon = KIND_ICONS[item.kind]
-              return (
-                <Link
-                  key={item.id}
-                  href={item.href}
-                  onClick={() => setOpen(false)}
-                  className="flex items-start gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-secondary/60"
-                >
-                  <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${item.urgent ? 'text-destructive' : 'text-muted-foreground'}`} />
-                  <span className="min-w-0">
-                    <span className="block font-medium text-foreground">{item.title}</span>
-                    <span className="block truncate text-xs text-muted-foreground">{item.subtitle}</span>
-                  </span>
-                </Link>
-              )
-            })
+            <>
+              {items.map((item) => {
+                const Icon = KIND_ICONS[item.kind]
+                return (
+                  <Link
+                    key={item.id}
+                    href={item.href}
+                    onClick={() => setOpen(false)}
+                    className="flex items-start gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-secondary/60"
+                  >
+                    <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${item.urgent ? 'text-destructive' : 'text-muted-foreground'}`} />
+                    <span className="min-w-0">
+                      <span className="block font-medium text-foreground">{item.title}</span>
+                      <span className="block truncate text-xs text-muted-foreground">{item.subtitle}</span>
+                    </span>
+                  </Link>
+                )
+              })}
+              {profile?.role === 'owner' && (
+                <div className="border-t border-[#E9ECEF] px-4 py-2">
+                  <Link
+                    href="/owner/settings#sms-log"
+                    onClick={() => setOpen(false)}
+                    className="flex items-center gap-2 py-2 text-xs font-semibold text-primary hover:underline"
+                  >
+                    <MessageSquare className="h-3.5 w-3.5" />
+                    View SMS delivery log
+                  </Link>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}

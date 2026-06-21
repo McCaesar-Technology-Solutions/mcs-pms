@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Building2, Check, ChevronDown, Plus } from 'lucide-react'
 import { useProperty } from '@/lib/property-context'
 import { AddPropertyDialog } from '@/components/dashboard/add-property-dialog'
+import { PropertyThumb } from '@/components/dashboard/property-thumb'
 
 interface PropertySwitcherProps {
   collapsed?: boolean
@@ -65,9 +66,7 @@ export function PropertySwitcher({ collapsed = false }: PropertySwitcherProps) {
           collapsed ? 'justify-center' : ''
         }`}
       >
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10 shadow-elevation-2">
-          <Building2 className="h-4 w-4 text-[var(--accent)]" />
-        </div>
+        <PropertyThumb imageUrl={activeProperty.imageUrl} />
         {!collapsed && (
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold text-white">{activeProperty.name}</p>
@@ -153,9 +152,7 @@ export function PropertySwitcher({ collapsed = false }: PropertySwitcherProps) {
                         : 'text-[var(--sidebar-muted)] hover:bg-white/8 hover:text-white'
                     }`}
                   >
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/10 text-xs font-bold text-white">
-                      {property.code.slice(0, 2)}
-                    </div>
+                    <PropertyThumb imageUrl={property.imageUrl} className="h-8 w-8" />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">{property.name}</p>
                       <p className="truncate text-xs opacity-80">

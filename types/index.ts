@@ -18,10 +18,16 @@ export interface Profile {
   phone: string | null
   specialty: string | null
   mfa_sms_enabled: boolean | null
+  mfa_enabled: boolean | null
+  mfa_method: 'sms' | 'totp' | null
+  mfa_totp_secret: string | null
+  mfa_totp_pending_secret: string | null
   invited_by: string | null
   is_active: boolean | null
   created_at: string | null
 }
+
+export type VatMode = 'exclusive' | 'inclusive'
 
 export interface Hotel {
   id: string
@@ -37,6 +43,9 @@ export interface Hotel {
   invoice_next_seq: number | null
   invoice_seq_year: number | null
   guest_portal_slug: string | null
+  vat_mode: VatMode | null
+  profile_image_path: string | null
+  notification_sms_prefs?: Record<string, boolean> | null
   created_at: string | null
 }
 
@@ -49,6 +58,7 @@ export interface Property {
   city: string
   region: string
   totalRooms: number
+  imageUrl: string | null
 }
 
 export type RoomStatus = 'occupied' | 'vacant' | 'maintenance' | 'reserved' | 'dirty'

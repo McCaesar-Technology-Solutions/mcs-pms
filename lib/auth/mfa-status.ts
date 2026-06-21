@@ -1,22 +1,29 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { hashSessionKey } from '@/lib/auth/mfa-crypto'
-import { userNeedsMfa, type MfaStatus } from '@/lib/auth/mfa'
+import { userNeedsMfa, type MfaMethod, type MfaStatus } from '@/lib/auth/mfa'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { Database } from '@/lib/supabase/types'
 import type { UserRole } from '@/types'
+
+export interface MfaProfileFields {
+  role: UserRole
+  phone: string | null
+  mfa_enabled: boolean | null
+  mfa_method: MfaMethod | null
+  mfa_totp_secret: string | null
+}
 
 /** Build MFA gate state for middleware and server actions (Edge-safe). */
 export async function buildMfaStatus(
   supabase: SupabaseClient<Database>,
   userId: string,
-  profile: {
-    role: UserRole
-    phone: string | null
-    mfa_sms_enabled: boolean | null
-  },
+  profile: MfaProfileFields,
 ): Promise<MfaStatus> {
-  const applies = userNeedsMfa(profile.role, profile.mfa_sms_enabled === true)
+  const enabled = profile.mfa_enabled === true
+  const applies = userNeedsMfa(enabled)
+  const method = applies ? profile.mfa_method : null
   const hasPhone = Boolean(profile.phone?.trim())
+  const hasTotp = Boolean(profile.mfa_totp_secret?.trim())
 
   let sessionVerified = false
   if (applies) {
@@ -41,5 +48,5 @@ export async function buildMfaStatus(
     }
   }
 
-  return { applies, hasPhone, sessionVerified }
+  return { applies, method, hasPhone, hasTotp, sessionVerified }
 }

@@ -1,6 +1,8 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { notifyPhones } from '@/lib/notifications/send'
+import { appUrl } from '@/lib/notifications/app-url'
 import { formatComplaintVisit } from '@/lib/complaints/visit'
+import { managerPhones, technicianPhone } from '@/lib/notifications/recipients'
 import type { ComplaintCategory } from '@/types'
 
 const CATEGORY_LABELS: Record<ComplaintCategory, string> = {
@@ -11,40 +13,6 @@ const CATEGORY_LABELS: Record<ComplaintCategory, string> = {
   cleaning: 'Cleaning',
   noise: 'Noise',
   other: 'Other',
-}
-
-function appUrl(path: string): string {
-  const base = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
-  return `${base.replace(/\/$/, '')}${path}`
-}
-
-async function managerPhones(hotelId: string): Promise<string[]> {
-  const admin = createAdminClient()
-  const { data } = await admin
-    .from('profiles')
-    .select('phone, role')
-    .eq('hotel_id', hotelId)
-    .eq('is_active', true)
-    .in('role', ['manager', 'owner'])
-    .not('phone', 'is', null)
-
-  const managers = (data ?? []).filter((p) => p.role === 'manager' && p.phone)
-  const phones = managers.map((p) => p.phone!)
-  if (phones.length > 0) return phones
-
-  return (data ?? [])
-    .filter((p) => p.role === 'owner' && p.phone)
-    .map((p) => p.phone!)
-}
-
-async function technicianPhone(userId: string): Promise<string | null> {
-  const admin = createAdminClient()
-  const { data } = await admin
-    .from('profiles')
-    .select('phone')
-    .eq('id', userId)
-    .maybeSingle()
-  return data?.phone ?? null
 }
 
 interface ComplaintNotifyContext {
@@ -113,7 +81,27 @@ export async function notifyComplaintSubmitted(complaintId: string): Promise<voi
   await notifyPhones(phones, body, {
     hotelId: ctx.hotelId,
     templateKey: 'complaint_submitted',
-    includeWhatsApp: true,
+    includeWhatsApp: false,
+  })
+}
+
+/** Guest filed a complaint — confirmation SMS with reference. */
+export async function notifyGuestComplaintReceived(complaintId: string): Promise<void> {
+  const ctx = await loadComplaintContext(complaintId)
+  if (!ctx?.guestPhone) return
+
+  const ref = complaintId.slice(0, 8).toUpperCase()
+  const body = [
+    'MOJO: Complaint received',
+    refLine(ctx),
+    `Ref ${ref}. Our team will follow up shortly.`,
+    appUrl('/guest'),
+  ].join('\n')
+
+  await notifyPhones([ctx.guestPhone], body, {
+    hotelId: ctx.hotelId,
+    templateKey: 'complaint_guest_received',
+    includeWhatsApp: false,
   })
 }
 
@@ -136,7 +124,7 @@ export async function notifyComplaintAssigned(
   await notifyPhones([phone], body, {
     hotelId: ctx.hotelId,
     templateKey: 'complaint_assigned',
-    includeWhatsApp: true,
+    includeWhatsApp: false,
   })
 }
 
@@ -157,7 +145,7 @@ export async function notifyComplaintCompletionRequested(complaintId: string): P
     await notifyPhones(phones, body, {
       hotelId: ctx.hotelId,
       templateKey: 'complaint_completion_requested',
-      includeWhatsApp: true,
+      includeWhatsApp: false,
     })
   }
 
@@ -172,7 +160,7 @@ export async function notifyComplaintCompletionRequested(complaintId: string): P
     await notifyPhones([ctx.guestPhone], body, {
       hotelId: ctx.hotelId,
       templateKey: 'complaint_guest_signoff',
-      includeWhatsApp: true,
+      includeWhatsApp: false,
     })
   }
 }
@@ -200,7 +188,7 @@ export async function notifyComplaintVisitScheduled(
     await notifyPhones([ctx.guestPhone], body, {
       hotelId: ctx.hotelId,
       templateKey: 'complaint_visit_scheduled',
-      includeWhatsApp: true,
+      includeWhatsApp: false,
     })
   }
 
@@ -216,7 +204,7 @@ export async function notifyComplaintVisitScheduled(
     await notifyPhones(managerPhonesList, body, {
       hotelId: ctx.hotelId,
       templateKey: 'complaint_visit_scheduled',
-      includeWhatsApp: true,
+      includeWhatsApp: false,
     })
   }
 }
@@ -240,7 +228,7 @@ export async function notifyGuestApprovedCompletion(complaintId: string): Promis
   await notifyPhones(phones, body, {
     hotelId: ctx.hotelId,
     templateKey: 'complaint_guest_approved',
-    includeWhatsApp: true,
+    includeWhatsApp: false,
   })
 }
 
@@ -268,7 +256,7 @@ export async function notifyComplaintInvoiceSubmitted(
   await notifyPhones(phones, body, {
     hotelId: ctx.hotelId,
     templateKey: 'complaint_invoice_submitted',
-    includeWhatsApp: true,
+    includeWhatsApp: false,
   })
 }
 
@@ -291,6 +279,31 @@ export async function notifyComplaintEstimateApproved(
   await notifyPhones([phone], body, {
     hotelId: ctx.hotelId,
     templateKey: 'complaint_estimate_approved',
-    includeWhatsApp: true,
+    includeWhatsApp: false,
+  })
+}
+
+/** Manager sent job back — alert technician with note. */
+export async function notifyComplaintRejected(
+  complaintId: string,
+  rejectionNote: string,
+): Promise<void> {
+  const ctx = await loadComplaintContext(complaintId)
+  if (!ctx?.assignedTo) return
+
+  const phone = await technicianPhone(ctx.assignedTo)
+  if (!phone) return
+
+  const body = [
+    'MOJO: Job sent back',
+    refLine(ctx),
+    rejectionNote.slice(0, 160),
+    appUrl('/technician/tasks'),
+  ].join('\n')
+
+  await notifyPhones([phone], body, {
+    hotelId: ctx.hotelId,
+    templateKey: 'complaint_rejected',
+    includeWhatsApp: false,
   })
 }

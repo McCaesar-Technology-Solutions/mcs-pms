@@ -24,6 +24,9 @@ export type Database = {
           invoice_next_seq: number
           invoice_seq_year: number | null
           guest_portal_slug: string | null
+          vat_mode: string
+          profile_image_path: string | null
+          notification_sms_prefs: Json
           created_at: string | null
         }
         Insert: {
@@ -40,6 +43,9 @@ export type Database = {
           invoice_next_seq?: number
           invoice_seq_year?: number | null
           guest_portal_slug?: string | null
+          vat_mode?: string
+          profile_image_path?: string | null
+          notification_sms_prefs?: Json
           created_at?: string | null
         }
         Update: {
@@ -56,6 +62,9 @@ export type Database = {
           invoice_next_seq?: number
           invoice_seq_year?: number | null
           guest_portal_slug?: string | null
+          vat_mode?: string
+          profile_image_path?: string | null
+          notification_sms_prefs?: Json
           created_at?: string | null
         }
         Relationships: [
@@ -78,6 +87,10 @@ export type Database = {
           phone: string | null
           specialty: string | null
           mfa_sms_enabled: boolean | null
+          mfa_enabled: boolean
+          mfa_method: 'sms' | 'totp' | null
+          mfa_totp_secret: string | null
+          mfa_totp_pending_secret: string | null
           invited_by: string | null
           is_active: boolean | null
           created_at: string | null
@@ -91,6 +104,10 @@ export type Database = {
           phone?: string | null
           specialty?: string | null
           mfa_sms_enabled?: boolean | null
+          mfa_enabled?: boolean
+          mfa_method?: 'sms' | 'totp' | null
+          mfa_totp_secret?: string | null
+          mfa_totp_pending_secret?: string | null
           invited_by?: string | null
           is_active?: boolean | null
           created_at?: string | null
@@ -104,6 +121,10 @@ export type Database = {
           phone?: string | null
           specialty?: string | null
           mfa_sms_enabled?: boolean | null
+          mfa_enabled?: boolean
+          mfa_method?: 'sms' | 'totp' | null
+          mfa_totp_secret?: string | null
+          mfa_totp_pending_secret?: string | null
           invited_by?: string | null
           is_active?: boolean | null
           created_at?: string | null
@@ -874,6 +895,53 @@ export type Database = {
             columns: ['user_id']
             isOneToOne: false
             referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      audit_log: {
+        Row: {
+          id: string
+          hotel_id: string
+          actor_id: string | null
+          actor_name: string | null
+          entity_type: string
+          entity_id: string | null
+          action: string
+          summary: string
+          details: Json | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          hotel_id: string
+          actor_id?: string | null
+          actor_name?: string | null
+          entity_type: string
+          entity_id?: string | null
+          action: string
+          summary: string
+          details?: Json | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          hotel_id?: string
+          actor_id?: string | null
+          actor_name?: string | null
+          entity_type?: string
+          entity_id?: string | null
+          action?: string
+          summary?: string
+          details?: Json | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'audit_log_hotel_id_fkey'
+            columns: ['hotel_id']
+            isOneToOne: false
+            referencedRelation: 'hotels'
             referencedColumns: ['id']
           },
         ]

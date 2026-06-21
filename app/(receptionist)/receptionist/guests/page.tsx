@@ -1,6 +1,6 @@
 import { GuestsTable } from '@/components/dashboard/guests-table'
 import { PageHeader } from '@/components/dashboard/page-header'
-import { GuestEnrollment } from '@/components/guest/guest-enrollment'
+import { WalkInCheckInCta } from '@/components/guest/walk-in-check-in-cta'
 import { getGuestsData } from '@/lib/data/guests'
 
 export default async function ReceptionistGuestsPage({
@@ -18,7 +18,7 @@ export default async function ReceptionistGuestsPage({
         title="Guests"
         description="Check in walk-ins and manage active stays."
       />
-      <GuestEnrollment />
+      <WalkInCheckInCta reservationsHref="/receptionist/reservations" />
       <GuestsTable guests={guests} initialSearch={q} />
     </div>
   )

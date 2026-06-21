@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import { getProfile } from '@/lib/auth/get-profile'
 import { canEnrollMfa, safeMfaNext } from '@/lib/auth/mfa'
 import { ROLE_HOME } from '@/lib/auth/roles'
-import { MfaSmsForm } from '@/components/auth/mfa-sms-form'
+import { MfaEnrollForm } from '@/components/auth/mfa-enroll-form'
 
 export default async function EnrollMfaPage({
   searchParams,
@@ -27,9 +27,9 @@ export default async function EnrollMfaPage({
           >
             MOJO APARTMENTS
           </p>
-          <p className="mt-2 text-sm text-white/70">Verify your phone number</p>
+          <p className="mt-2 text-sm text-white/70">Finish two-factor setup</p>
         </div>
-        <MfaSmsForm nextPath={nextPath} mode="setup" />
+        <MfaEnrollForm nextPath={nextPath} />
       </div>
     </div>
   )

@@ -158,9 +158,10 @@ export async function createStaffComplaint(input: unknown): Promise<ComplaintAct
     note: parsed.data.description.slice(0, 200),
   })
 
-  void import('@/lib/notifications/complaints').then(({ notifyComplaintSubmitted }) =>
-    notifyComplaintSubmitted(complaint.id).catch(() => undefined),
-  )
+  void import('@/lib/notifications/complaints').then(({ notifyComplaintSubmitted, notifyGuestComplaintReceived }) => {
+    notifyComplaintSubmitted(complaint.id).catch(() => undefined)
+    notifyGuestComplaintReceived(complaint.id).catch(() => undefined)
+  })
 
   revalidatePath('/manager/complaints')
   revalidatePath('/owner/complaints')
@@ -325,6 +326,12 @@ export async function approveComplaint(
       event_type: 'estimate_approved',
       note: 'Legacy invoice queue cleared — technician may proceed.',
     })
+
+    if (complaint.assigned_to) {
+      void import('@/lib/notifications/complaints').then(({ notifyComplaintEstimateApproved }) =>
+        notifyComplaintEstimateApproved(complaintId, complaint.assigned_to!).catch(() => undefined),
+      )
+    }
   } else {
     const { error } = await supabase
       .from('complaints')
@@ -476,6 +483,10 @@ export async function rejectComplaint(
     event_type: 'rejected',
     note: rejectionNote.trim(),
   })
+
+  void import('@/lib/notifications/complaints').then(({ notifyComplaintRejected }) =>
+    notifyComplaintRejected(complaintId, note).catch(() => undefined),
+  )
 
   revalidatePath('/manager/complaints')
   revalidatePath('/technician/tasks')

@@ -6,9 +6,9 @@ import { getDashboardData } from '@/lib/data/dashboard'
 export default async function ReservationsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; open?: string }>
+  searchParams: Promise<{ q?: string; open?: string; checkIn?: string }>
 }) {
-  const { q, open } = await searchParams
+  const { q, open, checkIn } = await searchParams
   const { reservations, roomOptions, occupancySpans } = await getDashboardData()
 
   return (
@@ -27,6 +27,7 @@ export default async function ReservationsPage({
         occupancySpans={occupancySpans}
         initialSearch={q}
         openReservationId={open}
+        initialNewFlow={checkIn === '1' ? 'check_in' : undefined}
       />
     </div>
   )

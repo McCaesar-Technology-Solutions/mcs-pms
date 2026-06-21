@@ -2,16 +2,22 @@ import { KPICards } from '@/components/dashboard/kpi-cards'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { SectionHeading } from '@/components/dashboard/section-heading'
 import { TasksList } from '@/components/dashboard/tasks-list'
+import { NotificationLogPanel } from '@/components/dashboard/notification-log-panel'
+import { AuditLogPanel } from '@/components/dashboard/audit-log-panel'
 import { ComplaintsOverviewLive } from '@/components/complaints/complaints-overview-live'
 import { fetchHotelComplaints } from '@/lib/data/complaints'
 import { getDashboardData } from '@/lib/data/dashboard'
 import { getHousekeepingTasks } from '@/lib/data/housekeeping'
+import { getNotificationLog } from '@/lib/data/notification-log'
+import { getAuditLog } from '@/lib/data/audit-log'
 
 export default async function ManagerDashboardPage() {
-  const [complaints, { metrics }, tasks] = await Promise.all([
+  const [complaints, { metrics }, tasks, notificationLog, auditLog] = await Promise.all([
     fetchHotelComplaints(),
     getDashboardData(),
     getHousekeepingTasks(),
+    getNotificationLog(20),
+    getAuditLog(20),
   ])
 
   return (
@@ -36,6 +42,9 @@ export default async function ManagerDashboardPage() {
         <SectionHeading title="Tasks" description="Housekeeping and maintenance" />
         <TasksList tasks={tasks} />
       </section>
+
+      <AuditLogPanel entries={auditLog} compact />
+      <NotificationLogPanel entries={notificationLog} compact />
     </div>
   )
 }

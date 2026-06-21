@@ -4,6 +4,7 @@ export interface ExportHotelInfo {
   city: string | null
   region: string | null
   vatRegistrationNumber: string | null
+  vatMode?: 'exclusive' | 'inclusive'
 }
 
 export interface InvoiceExportRow {

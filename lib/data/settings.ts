@@ -1,8 +1,13 @@
 import { getProfile } from '@/lib/auth/get-profile'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { ownerOwnsHotel } from '@/lib/data/properties'
-import type { Hotel } from '@/types'
+import type { Hotel, VatMode } from '@/types'
 import type { ExportHotelInfo } from '@/lib/export/types'
+import {
+  mergeNotificationPrefs,
+  NOTIFICATION_TEMPLATE_KEYS,
+  type NotificationSmsPrefs,
+} from '@/lib/notifications/preferences'
 
 export interface HotelSettings {
   id: string
@@ -13,8 +18,10 @@ export interface HotelSettings {
   gta_license_number: string | null
   gta_license_expiry: string | null
   vat_registration_number: string | null
+  vat_mode: VatMode
   invoice_prefix: string | null
   roomCount: number
+  notificationSmsPrefs: NotificationSmsPrefs
 }
 
 export async function getActiveHotelSettings(): Promise<HotelSettings | null> {
@@ -33,7 +40,12 @@ export async function getActiveHotelSettings(): Promise<HotelSettings | null> {
 
   if (!hotel) return null
 
-  const h = hotel as Hotel
+  const h = hotel as Hotel & { notification_sms_prefs?: NotificationSmsPrefs | null }
+  const storedPrefs = h.notification_sms_prefs ?? null
+  const notificationSmsPrefs = Object.fromEntries(
+    NOTIFICATION_TEMPLATE_KEYS.map((key) => [key, mergeNotificationPrefs(storedPrefs)[key]]),
+  ) as NotificationSmsPrefs
+
   return {
     id: h.id,
     name: h.name,
@@ -43,8 +55,10 @@ export async function getActiveHotelSettings(): Promise<HotelSettings | null> {
     gta_license_number: h.gta_license_number,
     gta_license_expiry: h.gta_license_expiry,
     vat_registration_number: h.vat_registration_number,
+    vat_mode: (h.vat_mode ?? 'exclusive') as VatMode,
     invoice_prefix: h.invoice_prefix,
     roomCount: roomCount ?? 0,
+    notificationSmsPrefs,
   }
 }
 
@@ -55,7 +69,7 @@ export async function getHotelExportInfo(): Promise<ExportHotelInfo | null> {
   const admin = createAdminClient()
   const { data: hotel } = await admin
     .from('hotels')
-    .select('name, address, city, region, vat_registration_number')
+    .select('name, address, city, region, vat_registration_number, vat_mode')
     .eq('id', profile.hotel_id)
     .maybeSingle()
 
@@ -67,5 +81,12 @@ export async function getHotelExportInfo(): Promise<ExportHotelInfo | null> {
     city: hotel.city,
     region: hotel.region,
     vatRegistrationNumber: hotel.vat_registration_number,
+    vatMode: (hotel.vat_mode ?? 'exclusive') as VatMode,
   }
+}
+
+export async function getHotelVatMode(hotelId: string): Promise<VatMode> {
+  const admin = createAdminClient()
+  const { data } = await admin.from('hotels').select('vat_mode').eq('id', hotelId).maybeSingle()
+  return (data?.vat_mode ?? 'exclusive') as VatMode
 }

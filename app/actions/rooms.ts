@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createRoomSchema, updateRoomSchema } from '@/lib/validations'
+import { writeAuditLog, moneyDelta } from '@/lib/audit/log'
 import type { DbRoomStatus } from '@/types'
 
 export type RoomActionResult = { success: true } | { success: false; error: string }
@@ -16,7 +17,7 @@ async function requireStaff() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('id, role, hotel_id')
+    .select('id, role, hotel_id, name')
     .eq('id', user.id)
     .maybeSingle()
 
@@ -138,6 +139,13 @@ export async function updateRoom(
   }
   if (parsed.data.status !== undefined) payload.status = parsed.data.status
 
+  const { data: existing } = await supabase
+    .from('rooms')
+    .select('number, nightly_rate, monthly_rate, status')
+    .eq('id', id)
+    .eq('hotel_id', profile.hotel_id)
+    .maybeSingle()
+
   const { error } = await supabase
     .from('rooms')
     .update(payload)
@@ -147,6 +155,38 @@ export async function updateRoom(
   if (error) {
     if (error.code === '23505') return { success: false, error: 'A room with that number already exists.' }
     return { success: false, error: error.message }
+  }
+
+  if (existing) {
+    const roomLabel = `Room ${existing.number}`
+    const changes: string[] = []
+    if (parsed.data.status !== undefined && parsed.data.status !== existing.status) {
+      changes.push(`Status: ${existing.status} → ${parsed.data.status}`)
+    }
+    const nightlyDelta = moneyDelta(
+      'Nightly rate',
+      existing.nightly_rate,
+      parsed.data.nightlyRate ?? Number(existing.nightly_rate ?? 0),
+    )
+    if (nightlyDelta) changes.push(nightlyDelta)
+    if (parsed.data.monthlyRate !== undefined) {
+      const nextMonthly =
+        parsed.data.monthlyRate === '' ? 0 : Number(parsed.data.monthlyRate ?? 0)
+      const monthlyDelta = moneyDelta('Monthly rate', existing.monthly_rate, nextMonthly)
+      if (monthlyDelta) changes.push(monthlyDelta)
+    }
+
+    if (changes.length > 0) {
+      void writeAuditLog({
+        hotelId: profile.hotel_id,
+        actorId: profile.id,
+        actorName: profile.name,
+        entityType: 'room',
+        entityId: id,
+        action: 'updated',
+        summary: `${roomLabel}: ${changes.join('; ')}`,
+      })
+    }
   }
 
   revalidateRoomViews()
@@ -178,6 +218,13 @@ export async function updateRoomStatus(
     return { success: false, error: 'Not authorized.' }
   }
 
+  const { data: existing } = await supabase
+    .from('rooms')
+    .select('number, status')
+    .eq('id', id)
+    .eq('hotel_id', profile.hotel_id)
+    .maybeSingle()
+
   const { error } = await supabase
     .from('rooms')
     .update({ status, updated_by: profile.id, updated_at: new Date().toISOString() })
@@ -185,6 +232,18 @@ export async function updateRoomStatus(
     .eq('hotel_id', profile.hotel_id)
 
   if (error) return { success: false, error: error.message }
+
+  if (existing && existing.status !== status) {
+    void writeAuditLog({
+      hotelId: profile.hotel_id,
+      actorId: profile.id,
+      actorName: profile.name,
+      entityType: 'room',
+      entityId: id,
+      action: 'status_changed',
+      summary: `Room ${existing.number}: ${existing.status} → ${status}`,
+    })
+  }
 
   revalidateRoomViews()
   revalidatePath('/receptionist/rooms')

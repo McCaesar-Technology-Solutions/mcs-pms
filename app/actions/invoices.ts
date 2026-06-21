@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { allocateInvoiceNumber } from '@/lib/invoices/numbering'
 import { computeInvoiceTaxes } from '@/lib/tax'
+import { getHotelVatMode } from '@/lib/data/settings'
 import type { PaymentMethod } from '@/types'
 
 export type InvoiceActionResult = { success: true } | { success: false; error: string }
@@ -116,7 +117,8 @@ export async function createManualInvoice(
   if (!profile?.hotel_id) return { success: false, error: 'Not authorized.' }
 
   const admin = createAdminClient()
-  const taxes = computeInvoiceTaxes(parsed.data.subtotal)
+  const vatMode = await getHotelVatMode(profile.hotel_id)
+  const taxes = computeInvoiceTaxes(parsed.data.subtotal, vatMode)
   const now = new Date().toISOString()
   const paidNow = parsed.data.markAsPaid
   const invoiceNumber = await allocateInvoiceNumber(profile.hotel_id)

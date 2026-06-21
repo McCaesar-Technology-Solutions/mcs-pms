@@ -9,7 +9,7 @@ export type HousekeepingActionResult<T = void> =
   | { success: true; data?: T }
   | { success: false; error: string }
 
-async function requireManager(): Promise<Profile | null> {
+async function requireStaff(): Promise<Profile | null> {
   const supabase = await createClient()
   const {
     data: { user },
@@ -22,8 +22,14 @@ async function requireManager(): Promise<Profile | null> {
     .eq('id', user.id)
     .maybeSingle()
 
-  if (!profile || !['owner', 'manager'].includes(profile.role)) return null
+  if (!profile) return null
   return profile as Profile
+}
+
+async function requireManager(): Promise<Profile | null> {
+  const profile = await requireStaff()
+  if (!profile || !['owner', 'manager'].includes(profile.role)) return null
+  return profile
 }
 
 function revalidate() {
@@ -33,6 +39,7 @@ function revalidate() {
   revalidatePath('/mobile/housekeeping')
   revalidatePath('/owner/rooms')
   revalidatePath('/manager/rooms')
+  revalidatePath('/technician/tasks')
 }
 
 export async function createHousekeepingTask(input: {
@@ -52,18 +59,28 @@ export async function createHousekeepingTask(input: {
   if (!profile?.hotel_id) return { success: false, error: 'Not authorized.' }
 
   const supabase = await createClient()
-  const { error } = await supabase.from('housekeeping_tasks').insert({
-    hotel_id: profile.hotel_id,
-    room_id: parsed.data.roomId,
-    task_type: parsed.data.taskType,
-    priority: parsed.data.priority,
-    assigned_to: parsed.data.assignedTo ? parsed.data.assignedTo : null,
-    due_date: parsed.data.dueDate ? parsed.data.dueDate : null,
-    notes: parsed.data.notes ? parsed.data.notes : null,
-    created_by: profile.id,
-  })
+  const { data, error } = await supabase
+    .from('housekeeping_tasks')
+    .insert({
+      hotel_id: profile.hotel_id,
+      room_id: parsed.data.roomId,
+      task_type: parsed.data.taskType,
+      priority: parsed.data.priority,
+      assigned_to: parsed.data.assignedTo ? parsed.data.assignedTo : null,
+      due_date: parsed.data.dueDate ? parsed.data.dueDate : null,
+      notes: parsed.data.notes ? parsed.data.notes : null,
+      created_by: profile.id,
+    })
+    .select('id')
+    .single()
 
-  if (error) return { success: false, error: 'Could not create the task.' }
+  if (error || !data) return { success: false, error: 'Could not create the task.' }
+
+  if (parsed.data.assignedTo) {
+    void import('@/lib/notifications/housekeeping').then(({ notifyHousekeepingTaskAssigned }) =>
+      notifyHousekeepingTaskAssigned(data.id).catch(() => undefined),
+    )
+  }
 
   revalidate()
   return { success: true }
@@ -85,6 +102,12 @@ export async function assignHousekeepingTask(
 
   if (error) return { success: false, error: 'Could not assign the task.' }
 
+  if (assigneeId) {
+    void import('@/lib/notifications/housekeeping').then(({ notifyHousekeepingTaskAssigned }) =>
+      notifyHousekeepingTaskAssigned(taskId).catch(() => undefined),
+    )
+  }
+
   revalidate()
   return { success: true }
 }
@@ -93,18 +116,26 @@ export async function setHousekeepingTaskStatus(
   taskId: string,
   status: TaskStatus,
 ): Promise<HousekeepingActionResult> {
-  const profile = await requireManager()
+  const profile = await requireStaff()
   if (!profile?.hotel_id) return { success: false, error: 'Not authorized.' }
 
   const supabase = await createClient()
   const { data: task } = await supabase
     .from('housekeeping_tasks')
-    .select('id, room_id, task_type')
+    .select('id, room_id, task_type, assigned_to')
     .eq('id', taskId)
     .eq('hotel_id', profile.hotel_id)
     .maybeSingle()
 
   if (!task) return { success: false, error: 'Task not found.' }
+
+  if (profile.role === 'technician') {
+    if (task.assigned_to !== profile.id) {
+      return { success: false, error: 'Not authorized.' }
+    }
+  } else if (!['owner', 'manager'].includes(profile.role)) {
+    return { success: false, error: 'Not authorized.' }
+  }
 
   const { error } = await supabase
     .from('housekeeping_tasks')
@@ -117,7 +148,12 @@ export async function setHousekeepingTaskStatus(
 
   if (error) return { success: false, error: 'Could not update the task.' }
 
-  if (status === 'done' && task.task_type === 'clean' && task.room_id) {
+  if (
+    status === 'done' &&
+    task.task_type === 'clean' &&
+    task.room_id &&
+    ['owner', 'manager'].includes(profile.role)
+  ) {
     await supabase
       .from('rooms')
       .update({

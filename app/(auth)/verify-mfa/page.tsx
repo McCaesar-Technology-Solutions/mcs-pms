@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import { getProfile } from '@/lib/auth/get-profile'
 import { safeMfaNext } from '@/lib/auth/mfa'
 import { ROLE_HOME, isStaffRole } from '@/lib/auth/roles'
-import { MfaSmsForm } from '@/components/auth/mfa-sms-form'
+import { MfaVerifyForm } from '@/components/auth/mfa-verify-form'
 
 export default async function VerifyMfaPage({
   searchParams,
@@ -27,9 +27,9 @@ export default async function VerifyMfaPage({
           >
             MOJO APARTMENTS
           </p>
-          <p className="mt-2 text-sm text-white/70">Check your phone for a code</p>
+          <p className="mt-2 text-sm text-white/70">Confirm it&apos;s you</p>
         </div>
-        <MfaSmsForm nextPath={nextPath} mode="verify" />
+        <MfaVerifyForm nextPath={nextPath} />
       </div>
     </div>
   )

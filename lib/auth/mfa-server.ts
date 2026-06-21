@@ -12,7 +12,9 @@ import type { UserRole } from '@/types'
 interface StaffMfaProfile {
   role: UserRole
   phone: string | null
-  mfa_sms_enabled: boolean | null
+  mfa_enabled: boolean | null
+  mfa_method: import('@/lib/auth/mfa').MfaMethod | null
+  mfa_totp_secret: string | null
 }
 
 /**

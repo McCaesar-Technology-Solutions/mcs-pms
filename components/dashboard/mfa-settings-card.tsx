@@ -2,10 +2,15 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Shield, ShieldCheck } from 'lucide-react'
-import { getMfaSmsStatus, setMfaSmsEnabled } from '@/app/actions/mfa'
-import { isMfaRequired } from '@/lib/auth/mfa'
+import { Shield, ShieldCheck, Smartphone, KeyRound } from 'lucide-react'
+import {
+  disableMfa,
+  enableSmsMfa,
+  getMfaStatus,
+} from '@/app/actions/mfa'
+import { MFA_METHOD_LABELS, type MfaMethod } from '@/lib/auth/mfa'
 import { MfaSmsForm } from '@/components/auth/mfa-sms-form'
+import { MfaTotpSetupPanel } from '@/components/auth/mfa-totp-setup-panel'
 import type { UserRole } from '@/types'
 
 interface MfaSettingsCardProps {
@@ -13,24 +18,26 @@ interface MfaSettingsCardProps {
   returnPath: string
 }
 
+type SetupView = 'none' | 'pick-method' | 'sms' | 'totp'
+
 export function MfaSettingsCard({ role, returnPath }: MfaSettingsCardProps) {
   const router = useRouter()
-  const [enabled, setEnabled] = useState<boolean | null>(null)
+  const [enabled, setEnabled] = useState(false)
+  const [method, setMethod] = useState<MfaMethod | null>(null)
   const [hasPhone, setHasPhone] = useState(false)
   const [maskedPhone, setMaskedPhone] = useState<string | null>(null)
-  const [enrolling, setEnrolling] = useState(false)
+  const [setupView, setSetupView] = useState<SetupView>('none')
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
-
-  const required = isMfaRequired(role)
+  const [loading, setLoading] = useState(true)
 
   const refresh = useCallback(async () => {
-    const result = await getMfaSmsStatus()
-    if (!result.success || !result.data) {
-      setEnabled(null)
-      return
-    }
+    setLoading(true)
+    const result = await getMfaStatus()
+    setLoading(false)
+    if (!result.success || !result.data) return
     setEnabled(result.data.enabled)
+    setMethod(result.data.method)
     setHasPhone(result.data.hasPhone)
     setMaskedPhone(result.data.maskedPhone)
   }, [])
@@ -39,61 +46,120 @@ export function MfaSettingsCard({ role, returnPath }: MfaSettingsCardProps) {
     refresh()
   }, [refresh])
 
-  async function handleEnable() {
-    if (required) {
-      setEnrolling(true)
-      return
-    }
-    setError(null)
-    const result = await setMfaSmsEnabled(true)
-    if (!result.success) {
-      setError(result.error)
-      return
-    }
-    setEnrolling(true)
-    await refresh()
-  }
-
   async function handleDisable() {
-    if (required) return
     setError(null)
     setPending(true)
-    const result = await setMfaSmsEnabled(false)
+    const result = await disableMfa()
     setPending(false)
     if (!result.success) {
       setError(result.error)
       return
     }
+    setSetupView('none')
     await refresh()
     router.refresh()
   }
 
-  if (enrolling) {
+  async function startSmsSetup() {
+    setError(null)
+    const result = await enableSmsMfa()
+    if (!result.success) {
+      setError(result.error)
+      return
+    }
+    setSetupView('sms')
+    await refresh()
+  }
+
+  function finishSetup() {
+    setSetupView('none')
+    void refresh()
+    router.refresh()
+  }
+
+  if (setupView === 'sms') {
     return (
       <div className="surface-card overflow-hidden p-6">
         <div className="mb-4 flex items-center gap-2">
-          <Shield className="h-5 w-5 text-[#3C216C]" />
-          <h3 className="text-lg font-semibold text-foreground">Verify your phone</h3>
+          <Smartphone className="h-5 w-5 text-[#3C216C]" />
+          <h3 className="text-lg font-semibold text-foreground">Set up SMS verification</h3>
         </div>
-        <p className="mb-4 text-sm text-muted-foreground">
-          We&apos;ll send a one-time SMS code to confirm your number.
-        </p>
         <div className="rounded-xl bg-[#22124C] p-5">
           <MfaSmsForm nextPath={returnPath} mode="setup" />
         </div>
-        {!required && (
+        <button
+          type="button"
+          onClick={() => {
+            void disableMfa()
+            setSetupView('none')
+            void refresh()
+          }}
+          className="mt-4 text-sm font-semibold text-muted-foreground hover:text-foreground"
+        >
+          Cancel
+        </button>
+      </div>
+    )
+  }
+
+  if (setupView === 'totp') {
+    return (
+      <div className="surface-card overflow-hidden p-6">
+        <div className="mb-4 flex items-center gap-2">
+          <KeyRound className="h-5 w-5 text-[#3C216C]" />
+          <h3 className="text-lg font-semibold text-foreground">Set up authenticator app</h3>
+        </div>
+        <MfaTotpSetupPanel
+          nextPath={returnPath}
+          variant="settings"
+          onComplete={finishSetup}
+          onCancel={() => setSetupView('none')}
+        />
+      </div>
+    )
+  }
+
+  if (setupView === 'pick-method') {
+    return (
+      <div className="surface-card overflow-hidden">
+        <div className="surface-card-accent" />
+        <div className="surface-card-header">
+          <h3 className="text-lg font-semibold text-foreground">Choose a verification method</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Pick how you want to confirm sign-in when two-factor authentication is on.
+          </p>
+        </div>
+        <div className="grid gap-3 p-4 sm:grid-cols-2">
           <button
             type="button"
-            onClick={() => {
-              setEnrolling(false)
-              void setMfaSmsEnabled(false)
-              void refresh()
-            }}
-            className="mt-4 text-sm font-semibold text-muted-foreground hover:text-foreground"
+            onClick={() => void startSmsSetup()}
+            className="surface-inset rounded-xl p-4 text-left transition-shadow hover:shadow-elevation-1"
+          >
+            <Smartphone className="mb-2 h-6 w-6 text-[#3C216C]" />
+            <p className="font-semibold text-foreground">{MFA_METHOD_LABELS.sms}</p>
+            <p className="mt-1 text-xs text-muted-foreground">Receive a one-time code by SMS at sign-in.</p>
+          </button>
+          <button
+            type="button"
+            onClick={() => setSetupView('totp')}
+            className="surface-inset rounded-xl p-4 text-left transition-shadow hover:shadow-elevation-1"
+          >
+            <KeyRound className="mb-2 h-6 w-6 text-[#3C216C]" />
+            <p className="font-semibold text-foreground">{MFA_METHOD_LABELS.totp}</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Use Google Authenticator, Authy, or similar apps.
+            </p>
+          </button>
+        </div>
+        <div className="border-t border-border/60 px-4 py-3">
+          <button
+            type="button"
+            onClick={() => setSetupView('none')}
+            className="text-sm font-semibold text-muted-foreground hover:text-foreground"
           >
             Cancel
           </button>
-        )}
+        </div>
       </div>
     )
   }
@@ -106,56 +172,71 @@ export function MfaSettingsCard({ role, returnPath }: MfaSettingsCardProps) {
           {enabled ? <ShieldCheck className="h-5 w-5" /> : <Shield className="h-5 w-5" />}
         </div>
         <div>
-          <h3 className="text-lg font-semibold text-foreground">SMS verification</h3>
+          <h3 className="text-lg font-semibold text-foreground">Two-factor authentication</h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            {required
-              ? 'Required for your role — we text a code to your phone at each sign-in.'
-              : 'Optional — receive a text message code when you sign in.'}
+            Optional extra sign-in protection. Turn it on here — not required for {role.replace('_', ' ')}{' '}
+            accounts unless you enable it.
           </p>
         </div>
       </div>
 
       <div className="border-t border-border/60 p-4">
-        {enabled === null ? (
+        {loading ? (
           <p className="text-sm text-muted-foreground">Checking status…</p>
-        ) : enabled ? (
+        ) : enabled && method ? (
           <div className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <span className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-3 py-1 text-sm font-semibold text-emerald-700">
                 <ShieldCheck className="h-4 w-4" />
-                {required ? 'Required & active' : 'Enabled'}
+                Enabled · {MFA_METHOD_LABELS[method]}
               </span>
-              {!required && (
-                <button
-                  type="button"
-                  onClick={handleDisable}
-                  disabled={pending}
-                  className="text-sm font-semibold text-red-600 hover:underline disabled:opacity-50"
-                >
-                  Turn off
-                </button>
-              )}
-            </div>
-            {maskedPhone && (
-              <p className="text-sm text-muted-foreground">Codes are sent to {maskedPhone}</p>
-            )}
-            {!hasPhone && (
               <button
                 type="button"
-                onClick={() => setEnrolling(true)}
+                onClick={handleDisable}
+                disabled={pending}
+                className="text-sm font-semibold text-red-600 hover:underline disabled:opacity-50"
+              >
+                Turn off
+              </button>
+            </div>
+            {method === 'sms' && maskedPhone && (
+              <p className="text-sm text-muted-foreground">Codes are sent to {maskedPhone}</p>
+            )}
+            {method === 'sms' && !hasPhone && (
+              <button
+                type="button"
+                onClick={() => setSetupView('sms')}
                 className="text-sm font-semibold text-[#3C216C] hover:underline"
               >
                 Add phone number
+              </button>
+            )}
+            {method === 'totp' && (
+              <button
+                type="button"
+                onClick={() => setSetupView('pick-method')}
+                className="text-sm font-semibold text-[#3C216C] hover:underline"
+              >
+                Switch to SMS instead
+              </button>
+            )}
+            {method === 'sms' && (
+              <button
+                type="button"
+                onClick={() => setSetupView('totp')}
+                className="text-sm font-semibold text-[#3C216C] hover:underline"
+              >
+                Switch to authenticator app
               </button>
             )}
           </div>
         ) : (
           <button
             type="button"
-            onClick={handleEnable}
+            onClick={() => setSetupView('pick-method')}
             className="rounded-xl bg-[#3C216C] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#4c2a85]"
           >
-            Enable SMS verification
+            Enable two-factor authentication
           </button>
         )}
 

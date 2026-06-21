@@ -1,5 +1,6 @@
 'use server'
 
+import QRCode from 'qrcode'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { ROLE_HOME } from '@/lib/auth/roles'
@@ -13,12 +14,9 @@ import {
   MFA_SEND_MAX_PER_15_MIN,
 } from '@/lib/auth/mfa-sms'
 import { buildMfaStatus } from '@/lib/auth/mfa-status'
-import {
-  isMfaRequired,
-  mfaRedirectPath,
-  safeMfaNext,
-  userNeedsMfa,
-} from '@/lib/auth/mfa'
+import { encryptTotpSecret, decryptTotpSecret } from '@/lib/auth/mfa-totp-crypto'
+import { buildTotpUri, createTotpSecret, verifyTotpCode } from '@/lib/auth/mfa-totp'
+import { mfaRedirectPath, safeMfaNext, userNeedsMfa, type MfaMethod } from '@/lib/auth/mfa'
 import { sendToPhone } from '@/lib/notifications/send'
 import { isSmsConfigured } from '@/lib/notifications/sms-provider'
 import { toE164 } from '@/lib/notifications/e164'
@@ -29,37 +27,119 @@ export type MfaActionResult<T = void> =
   | { success: true; data?: T }
   | { success: false; error: string }
 
+interface StaffProfile {
+  id: string
+  role: UserRole
+  hotel_id: string | null
+  phone: string | null
+  email: string
+  mfa_enabled: boolean | null
+  mfa_method: MfaMethod | null
+  mfa_totp_secret: string | null
+  mfa_totp_pending_secret: string | null
+}
+
 async function requireStaffContext() {
   const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (!user) return { supabase, user: null, profile: null }
+  if (!user) return { supabase, user: null, profile: null as StaffProfile | null }
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('id, role, hotel_id, phone, mfa_sms_enabled')
+    .select(
+      'id, role, hotel_id, phone, email, mfa_enabled, mfa_method, mfa_totp_secret, mfa_totp_pending_secret',
+    )
     .eq('id', user.id)
     .maybeSingle()
 
-  return { supabase, user, profile }
+  return {
+    supabase,
+    user,
+    profile: profile ? ({ ...profile, role: profile.role as UserRole } as StaffProfile) : null,
+  }
 }
 
-/** Post-login redirect — enroll (no phone), verify (SMS code), or dashboard. */
+function profileForStatus(profile: StaffProfile) {
+  return {
+    role: profile.role,
+    phone: profile.phone,
+    mfa_enabled: profile.mfa_enabled,
+    mfa_method: profile.mfa_method,
+    mfa_totp_secret: profile.mfa_totp_secret,
+  }
+}
+
+async function markSessionVerified(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+): Promise<MfaActionResult> {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+  if (!session?.refresh_token) {
+    return { success: false, error: 'Your session expired. Sign in again.' }
+  }
+
+  const admin = createAdminClient()
+  const sessionKey = await hashSessionKey(session.refresh_token)
+  const now = new Date().toISOString()
+  const sessionExpires = session.expires_at
+    ? new Date(session.expires_at * 1000).toISOString()
+    : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+
+  await admin.from('mfa_verified_sessions').upsert(
+    {
+      user_id: userId,
+      session_key: sessionKey,
+      verified_at: now,
+      expires_at: sessionExpires,
+    },
+    { onConflict: 'user_id,session_key' },
+  )
+
+  return { success: true }
+}
+
+/** Post-login redirect — enroll, verify, or dashboard. */
 export async function getStaffMfaRedirect(intendedPath: string): Promise<string> {
   const { supabase, user, profile } = await requireStaffContext()
   if (!user || !profile) return '/login'
 
-  const role = profile.role as UserRole
-  const status = await buildMfaStatus(supabase, user.id, {
-    role,
-    phone: profile.phone,
-    mfa_sms_enabled: profile.mfa_sms_enabled,
-  })
-
-  return mfaRedirectPath(role, status, ROLE_HOME[role], intendedPath)
+  const status = await buildMfaStatus(supabase, user.id, profileForStatus(profile))
+  return mfaRedirectPath(profile.role, status, ROLE_HOME[profile.role], intendedPath)
 }
 
+export async function getMfaStatus(): Promise<
+  MfaActionResult<{
+    enabled: boolean
+    method: MfaMethod | null
+    hasPhone: boolean
+    hasTotp: boolean
+    maskedPhone: string | null
+    sessionVerified: boolean
+  }>
+> {
+  const { supabase, user, profile } = await requireStaffContext()
+  if (!user || !profile) return { success: false, error: 'Not signed in.' }
+
+  const status = await buildMfaStatus(supabase, user.id, profileForStatus(profile))
+
+  return {
+    success: true,
+    data: {
+      enabled: profile.mfa_enabled === true,
+      method: profile.mfa_method,
+      hasPhone: status.hasPhone,
+      hasTotp: status.hasTotp,
+      maskedPhone: profile.phone ? maskPhone(profile.phone) : null,
+      sessionVerified: status.sessionVerified,
+    },
+  }
+}
+
+/** @deprecated Use getMfaStatus */
 export async function getMfaSmsStatus(): Promise<
   MfaActionResult<{
     required: boolean
@@ -69,26 +149,66 @@ export async function getMfaSmsStatus(): Promise<
     sessionVerified: boolean
   }>
 > {
-  const { supabase, user, profile } = await requireStaffContext()
-  if (!user || !profile) return { success: false, error: 'Not signed in.' }
-
-  const role = profile.role as UserRole
-  const status = await buildMfaStatus(supabase, user.id, {
-    role,
-    phone: profile.phone,
-    mfa_sms_enabled: profile.mfa_sms_enabled,
-  })
-
+  const result = await getMfaStatus()
+  if (!result.success || !result.data) return result as MfaActionResult<never>
   return {
     success: true,
     data: {
-      required: isMfaRequired(role),
-      enabled: userNeedsMfa(role, profile.mfa_sms_enabled === true),
-      hasPhone: status.hasPhone,
-      maskedPhone: profile.phone ? maskPhone(profile.phone) : null,
-      sessionVerified: status.sessionVerified,
+      required: false,
+      enabled: result.data.enabled,
+      hasPhone: result.data.hasPhone,
+      maskedPhone: result.data.maskedPhone,
+      sessionVerified: result.data.sessionVerified,
     },
   }
+}
+
+export async function disableMfa(): Promise<MfaActionResult> {
+  const { user, profile } = await requireStaffContext()
+  if (!user || !profile) return { success: false, error: 'Not signed in.' }
+
+  const admin = createAdminClient()
+  const { error } = await admin
+    .from('profiles')
+    .update({
+      mfa_enabled: false,
+      mfa_method: null,
+      mfa_sms_enabled: false,
+      mfa_totp_secret: null,
+      mfa_totp_pending_secret: null,
+    })
+    .eq('id', user.id)
+
+  if (error) return { success: false, error: 'Could not turn off two-factor authentication.' }
+
+  await admin.from('mfa_verified_sessions').delete().eq('user_id', user.id)
+  return { success: true }
+}
+
+/** @deprecated Use disableMfa */
+export async function setMfaSmsEnabled(enabled: boolean): Promise<MfaActionResult> {
+  if (!enabled) return disableMfa()
+  return enableSmsMfa()
+}
+
+export async function enableSmsMfa(): Promise<MfaActionResult> {
+  const { user, profile } = await requireStaffContext()
+  if (!user || !profile) return { success: false, error: 'Not signed in.' }
+
+  const admin = createAdminClient()
+  const { error } = await admin
+    .from('profiles')
+    .update({
+      mfa_enabled: true,
+      mfa_method: 'sms',
+      mfa_sms_enabled: true,
+      mfa_totp_secret: null,
+      mfa_totp_pending_secret: null,
+    })
+    .eq('id', user.id)
+
+  if (error) return { success: false, error: 'Could not enable SMS verification.' }
+  return { success: true }
 }
 
 export async function sendMfaSmsCode(): Promise<
@@ -97,8 +217,7 @@ export async function sendMfaSmsCode(): Promise<
   const { supabase, user, profile } = await requireStaffContext()
   if (!user || !profile) return { success: false, error: 'Not signed in.' }
 
-  const role = profile.role as UserRole
-  if (!userNeedsMfa(role, profile.mfa_sms_enabled === true)) {
+  if (!userNeedsMfa(profile.mfa_enabled === true) || profile.mfa_method !== 'sms') {
     return { success: false, error: 'SMS verification is not enabled for this account.' }
   }
 
@@ -190,16 +309,8 @@ export async function verifyMfaSmsCode(
   const { supabase, user, profile } = await requireStaffContext()
   if (!user || !profile) return { success: false, error: 'Not signed in.' }
 
-  const role = profile.role as UserRole
-  if (!userNeedsMfa(role, profile.mfa_sms_enabled === true)) {
-    return { success: false, error: 'SMS verification is not required for this account.' }
-  }
-
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
-  if (!session?.refresh_token) {
-    return { success: false, error: 'Your session expired. Sign in again.' }
+  if (!userNeedsMfa(profile.mfa_enabled === true) || profile.mfa_method !== 'sms') {
+    return { success: false, error: 'SMS verification is not enabled for this account.' }
   }
 
   const admin = createAdminClient()
@@ -221,28 +332,101 @@ export async function verifyMfaSmsCode(
     return { success: false, error: 'Invalid or expired code. Request a new SMS and try again.' }
   }
 
-  await admin
-    .from('mfa_otp_challenges')
-    .update({ consumed_at: now })
-    .eq('id', challenge.id)
+  await admin.from('mfa_otp_challenges').update({ consumed_at: now }).eq('id', challenge.id)
 
-  const sessionKey = await hashSessionKey(session.refresh_token)
-  const sessionExpires = session.expires_at
-    ? new Date(session.expires_at * 1000).toISOString()
-    : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+  const verified = await markSessionVerified(supabase, user.id)
+  if (!verified.success) return verified as MfaActionResult<{ redirectTo: string }>
 
-  await admin.from('mfa_verified_sessions').upsert(
-    {
-      user_id: user.id,
-      session_key: sessionKey,
-      verified_at: now,
-      expires_at: sessionExpires,
-    },
-    { onConflict: 'user_id,session_key' },
-  )
-
-  const next = safeMfaNext(intendedPath, ROLE_HOME[role])
+  const next = safeMfaNext(intendedPath, ROLE_HOME[profile.role])
   return { success: true, data: { redirectTo: next } }
+}
+
+export async function verifyMfaTotpCode(
+  code: string,
+  intendedPath?: string,
+): Promise<MfaActionResult<{ redirectTo: string }>> {
+  const trimmed = code.replace(/\D/g, '')
+  if (trimmed.length !== 6) {
+    return { success: false, error: 'Enter the 6-digit code from your authenticator app.' }
+  }
+
+  const { supabase, user, profile } = await requireStaffContext()
+  if (!user || !profile) return { success: false, error: 'Not signed in.' }
+
+  if (!userNeedsMfa(profile.mfa_enabled === true) || profile.mfa_method !== 'totp') {
+    return { success: false, error: 'Authenticator verification is not enabled for this account.' }
+  }
+
+  const secret = profile.mfa_totp_secret
+    ? await decryptTotpSecret(profile.mfa_totp_secret)
+    : null
+  if (!secret || !verifyTotpCode(secret, trimmed)) {
+    return { success: false, error: 'Invalid code. Check your authenticator app and try again.' }
+  }
+
+  const verified = await markSessionVerified(supabase, user.id)
+  if (!verified.success) return verified as MfaActionResult<{ redirectTo: string }>
+
+  const next = safeMfaNext(intendedPath, ROLE_HOME[profile.role])
+  return { success: true, data: { redirectTo: next } }
+}
+
+export async function beginTotpSetup(): Promise<
+  MfaActionResult<{ qrDataUrl: string; manualSecret: string }>
+> {
+  const { user, profile } = await requireStaffContext()
+  if (!user || !profile) return { success: false, error: 'Not signed in.' }
+
+  const secret = createTotpSecret()
+  const uri = buildTotpUri(secret, profile.email)
+  const qrDataUrl = await QRCode.toDataURL(uri, { margin: 2, width: 220 })
+  const encryptedPending = await encryptTotpSecret(secret)
+
+  const admin = createAdminClient()
+  const { error } = await admin
+    .from('profiles')
+    .update({ mfa_totp_pending_secret: encryptedPending })
+    .eq('id', user.id)
+
+  if (error) return { success: false, error: 'Could not start authenticator setup.' }
+
+  return { success: true, data: { qrDataUrl, manualSecret: secret } }
+}
+
+export async function confirmTotpSetup(code: string): Promise<MfaActionResult> {
+  const trimmed = code.replace(/\D/g, '')
+  if (trimmed.length !== 6) {
+    return { success: false, error: 'Enter the 6-digit code from your authenticator app.' }
+  }
+
+  const { user, profile } = await requireStaffContext()
+  if (!user || !profile) return { success: false, error: 'Not signed in.' }
+
+  const pending = profile.mfa_totp_pending_secret
+    ? await decryptTotpSecret(profile.mfa_totp_pending_secret)
+    : null
+  if (!pending) {
+    return { success: false, error: 'Setup expired. Scan the QR code again.' }
+  }
+  if (!verifyTotpCode(pending, trimmed)) {
+    return { success: false, error: 'Invalid code. Check your authenticator app and try again.' }
+  }
+
+  const admin = createAdminClient()
+  const encrypted = await encryptTotpSecret(pending)
+  const { error } = await admin
+    .from('profiles')
+    .update({
+      mfa_enabled: true,
+      mfa_method: 'totp',
+      mfa_sms_enabled: false,
+      mfa_totp_secret: encrypted,
+      mfa_totp_pending_secret: null,
+    })
+    .eq('id', user.id)
+
+  if (error) return { success: false, error: 'Could not save authenticator setup.' }
+  return { success: true }
 }
 
 export async function saveMfaPhoneAndSend(phone: string): Promise<
@@ -256,36 +440,20 @@ export async function saveMfaPhoneAndSend(phone: string): Promise<
   const { supabase, user, profile } = await requireStaffContext()
   if (!user || !profile) return { success: false, error: 'Not signed in.' }
 
-  const { error } = await supabase
+  const admin = createAdminClient()
+  const { error } = await admin
     .from('profiles')
     .update({ phone: parsed.data.trim() })
     .eq('id', user.id)
 
   if (error) return { success: false, error: 'Could not save your phone number.' }
 
+  if (profile.mfa_method !== 'sms') {
+    await admin
+      .from('profiles')
+      .update({ mfa_enabled: true, mfa_method: 'sms', mfa_sms_enabled: true })
+      .eq('id', user.id)
+  }
+
   return sendMfaSmsCode()
-}
-
-export async function setMfaSmsEnabled(enabled: boolean): Promise<MfaActionResult> {
-  const { user, profile } = await requireStaffContext()
-  if (!user || !profile) return { success: false, error: 'Not signed in.' }
-
-  const role = profile.role as UserRole
-  if (isMfaRequired(role) && !enabled) {
-    return { success: false, error: 'SMS verification is required for your role.' }
-  }
-
-  const admin = createAdminClient()
-  const { error } = await admin
-    .from('profiles')
-    .update({ mfa_sms_enabled: enabled })
-    .eq('id', user.id)
-
-  if (error) return { success: false, error: 'Could not update MFA settings.' }
-
-  if (!enabled) {
-    await admin.from('mfa_verified_sessions').delete().eq('user_id', user.id)
-  }
-
-  return { success: true }
 }

@@ -152,9 +152,10 @@ export async function submitGuestComplaint(
 
   const reference = complaint.id.slice(0, 8).toUpperCase()
 
-  void import('@/lib/notifications/complaints').then(({ notifyComplaintSubmitted }) =>
-    notifyComplaintSubmitted(complaint.id).catch(() => undefined),
-  )
+  void import('@/lib/notifications/complaints').then(({ notifyComplaintSubmitted, notifyGuestComplaintReceived }) => {
+    notifyComplaintSubmitted(complaint.id).catch(() => undefined)
+    notifyGuestComplaintReceived(complaint.id).catch(() => undefined)
+  })
 
   return { success: true, data: { reference } }
 }

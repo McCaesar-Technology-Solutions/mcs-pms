@@ -9,7 +9,7 @@ import { useProperty } from '@/lib/property-context'
 import { AddPropertyDialog } from '@/components/dashboard/add-property-dialog'
 import { PropertyPortalQrPanel } from '@/components/guest/property-portal-qr-panel'
 import type { HotelSettings } from '@/lib/data/settings'
-import type { Profile } from '@/types'
+import type { Profile, VatMode } from '@/types'
 import { ProfilePhoneEditor } from '@/components/dashboard/profile-phone-editor'
 import { MfaSettingsCard } from '@/components/dashboard/mfa-settings-card'
 
@@ -60,6 +60,7 @@ export function SettingsPanel({ hotelSettings, staffHref = '/owner/staff', profi
   const [gtaLicense, setGtaLicense] = useState('')
   const [gtaExpiry, setGtaExpiry] = useState('')
   const [vatNumber, setVatNumber] = useState('')
+  const [vatMode, setVatMode] = useState<VatMode>('exclusive')
   const [invoicePrefix, setInvoicePrefix] = useState('MOJO')
 
   useEffect(() => {
@@ -71,6 +72,7 @@ export function SettingsPanel({ hotelSettings, staffHref = '/owner/staff', profi
     setGtaLicense(hotelSettings.gta_license_number ?? '')
     setGtaExpiry(hotelSettings.gta_license_expiry ?? '')
     setVatNumber(hotelSettings.vat_registration_number ?? '')
+    setVatMode(hotelSettings.vat_mode ?? 'exclusive')
     setInvoicePrefix(hotelSettings.invoice_prefix ?? 'MOJO')
     setError(null)
     setSaved(false)
@@ -92,6 +94,7 @@ export function SettingsPanel({ hotelSettings, staffHref = '/owner/staff', profi
         gta_license_number: gtaLicense,
         gta_license_expiry: gtaExpiry,
         vat_registration_number: vatNumber,
+        vat_mode: vatMode,
         invoice_prefix: invoicePrefix,
       })
 
@@ -158,8 +161,19 @@ export function SettingsPanel({ hotelSettings, staffHref = '/owner/staff', profi
                   isActive ? 'shadow-elevation-1 ring-2 ring-primary/30' : ''
                 }`}
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
+                <div className="flex items-start gap-3">
+                  {property.imageUrl ? (
+                    <img
+                      src={property.imageUrl}
+                      alt=""
+                      className="h-12 w-12 shrink-0 rounded-xl object-cover shadow-elevation-1"
+                    />
+                  ) : (
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                      <Building2 className="h-5 w-5 text-primary" />
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
                     <p className="truncate font-semibold text-foreground">{property.name}</p>
                     <p className="mt-1 text-xs text-muted-foreground">
                       {property.code} · {property.city}, {property.region}
@@ -169,12 +183,14 @@ export function SettingsPanel({ hotelSettings, staffHref = '/owner/staff', profi
                       {property.totalRooms} rooms
                     </p>
                   </div>
+                  <div className="flex shrink-0 flex-col items-end gap-2">
                   {isActive && (
                     <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
                       <Check className="h-3 w-3" />
                       Active
                     </span>
                   )}
+                  </div>
                 </div>
                 {!isActive && isAdmin && (
                   <button
@@ -310,6 +326,40 @@ export function SettingsPanel({ hotelSettings, staffHref = '/owner/staff', profi
                   placeholder="e.g. C0001234567"
                   className="input-soft mt-2"
                 />
+              </div>
+
+              <div>
+                <label className="text-sm font-semibold text-foreground">VAT treatment</label>
+                <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() => setVatMode('exclusive')}
+                    className={`rounded-xl border px-3 py-2.5 text-left text-sm transition-colors ${
+                      vatMode === 'exclusive'
+                        ? 'border-primary bg-primary/5 font-semibold text-foreground'
+                        : 'border-[#E9ECEF] text-muted-foreground hover:bg-[#FAFDFF]'
+                    }`}
+                  >
+                    Taxes added at checkout
+                    <span className="mt-0.5 block text-xs font-normal">
+                      Room rates exclude VAT and levies
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setVatMode('inclusive')}
+                    className={`rounded-xl border px-3 py-2.5 text-left text-sm transition-colors ${
+                      vatMode === 'inclusive'
+                        ? 'border-primary bg-primary/5 font-semibold text-foreground'
+                        : 'border-[#E9ECEF] text-muted-foreground hover:bg-[#FAFDFF]'
+                    }`}
+                  >
+                    Rates include VAT & levies
+                    <span className="mt-0.5 block text-xs font-normal">
+                      Invoice extracts tax from the quoted total
+                    </span>
+                  </button>
+                </div>
               </div>
 
               <div>

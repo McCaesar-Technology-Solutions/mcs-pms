@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createRoomCategorySchema, updateRoomCategorySchema } from '@/lib/validations'
+import { writeAuditLog, moneyDelta } from '@/lib/audit/log'
 
 export type RoomCategoryActionResult =
   | { success: true; id?: string }
@@ -24,7 +25,7 @@ async function requireStaff() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('id, role, hotel_id')
+    .select('id, role, hotel_id, name')
     .eq('id', user.id)
     .maybeSingle()
 
@@ -98,6 +99,13 @@ export async function updateRoomCategory(
       parsed.data.defaultMonthlyRate === '' ? null : parsed.data.defaultMonthlyRate
   }
 
+  const { data: existing } = await supabase
+    .from('room_categories')
+    .select('name, default_nightly_rate, default_monthly_rate')
+    .eq('id', id)
+    .eq('hotel_id', profile.hotel_id)
+    .maybeSingle()
+
   const { error } = await supabase
     .from('room_categories')
     .update(payload)
@@ -109,6 +117,38 @@ export async function updateRoomCategory(
       return { success: false, error: 'A category with this name already exists.' }
     }
     return { success: false, error: error.message }
+  }
+
+  if (existing) {
+    const categoryName = parsed.data.name?.trim() ?? existing.name
+    const changes: string[] = []
+    const nightlyDelta = moneyDelta(
+      'Default nightly rate',
+      existing.default_nightly_rate,
+      parsed.data.defaultNightlyRate ?? Number(existing.default_nightly_rate ?? 0),
+    )
+    if (nightlyDelta) changes.push(nightlyDelta)
+    if (parsed.data.defaultMonthlyRate !== undefined) {
+      const nextMonthly =
+        parsed.data.defaultMonthlyRate === '' ? 0 : Number(parsed.data.defaultMonthlyRate ?? 0)
+      const monthlyDelta = moneyDelta('Default monthly rate', existing.default_monthly_rate, nextMonthly)
+      if (monthlyDelta) changes.push(monthlyDelta)
+    }
+    if (parsed.data.name !== undefined && parsed.data.name.trim() !== existing.name) {
+      changes.push(`Name: ${existing.name} → ${parsed.data.name.trim()}`)
+    }
+
+    if (changes.length > 0) {
+      void writeAuditLog({
+        hotelId: profile.hotel_id,
+        actorId: profile.id,
+        actorName: profile.name,
+        entityType: 'room_category',
+        entityId: id,
+        action: 'updated',
+        summary: `Category ${categoryName}: ${changes.join('; ')}`,
+      })
+    }
   }
 
   revalidateRoomViews()

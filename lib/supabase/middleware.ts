@@ -81,7 +81,7 @@ export async function updateSession(request: NextRequest) {
     if (user) {
       const { data: profile } = await supabase
         .from('profiles')
-        .select('role, is_active, phone, mfa_sms_enabled')
+        .select('role, is_active, phone, mfa_enabled, mfa_method, mfa_totp_secret')
         .eq('id', user.id)
         .maybeSingle()
 
@@ -92,7 +92,9 @@ export async function updateSession(request: NextRequest) {
           {
             role: profile.role as UserRole,
             phone: profile.phone,
-            mfa_sms_enabled: profile.mfa_sms_enabled,
+            mfa_enabled: profile.mfa_enabled,
+            mfa_method: profile.mfa_method as import('@/lib/auth/mfa').MfaMethod | null,
+            mfa_totp_secret: profile.mfa_totp_secret,
           },
           pathname,
           request.url,
@@ -140,7 +142,7 @@ export async function updateSession(request: NextRequest) {
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('role, is_active, phone, mfa_sms_enabled')
+      .select('role, is_active, phone, mfa_enabled, mfa_method, mfa_totp_secret')
       .eq('id', user.id)
       .maybeSingle()
 
@@ -171,7 +173,9 @@ export async function updateSession(request: NextRequest) {
       {
         role: profile.role as UserRole,
         phone: profile.phone,
-        mfa_sms_enabled: profile.mfa_sms_enabled,
+        mfa_enabled: profile.mfa_enabled,
+        mfa_method: profile.mfa_method as import('@/lib/auth/mfa').MfaMethod | null,
+        mfa_totp_secret: profile.mfa_totp_secret,
       },
       pathname,
       request.url,

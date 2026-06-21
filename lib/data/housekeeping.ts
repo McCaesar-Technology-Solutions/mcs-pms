@@ -19,6 +19,21 @@ interface TaskRow extends DbHousekeepingTask {
   rooms?: { number: string } | null
 }
 
+function mapTaskRow(row: TaskRow): HousekeepingTaskView {
+  return {
+    id: row.id,
+    roomId: row.room_id,
+    roomNumber: row.rooms?.number ?? null,
+    taskType: row.task_type,
+    status: row.status,
+    priority: row.priority,
+    assignedTo: row.assigned_to,
+    notes: row.notes,
+    dueDate: row.due_date,
+    createdAt: row.created_at,
+  }
+}
+
 export async function getHousekeepingTasks(): Promise<HousekeepingTaskView[]> {
   const profile = await getProfile()
   if (!profile?.hotel_id) return []
@@ -31,17 +46,22 @@ export async function getHousekeepingTasks(): Promise<HousekeepingTaskView[]> {
     .order('created_at', { ascending: false })
 
   const rows = (data ?? []) as unknown as TaskRow[]
+  return rows.map(mapTaskRow)
+}
 
-  return rows.map((row) => ({
-    id: row.id,
-    roomId: row.room_id,
-    roomNumber: row.rooms?.number ?? null,
-    taskType: row.task_type,
-    status: row.status,
-    priority: row.priority,
-    assignedTo: row.assigned_to,
-    notes: row.notes,
-    dueDate: row.due_date,
-    createdAt: row.created_at,
-  }))
+/** Housekeeping tasks assigned to the current technician (active + recent done). */
+export async function getAssignedHousekeepingTasks(): Promise<HousekeepingTaskView[]> {
+  const profile = await getProfile()
+  if (!profile?.hotel_id || profile.role !== 'technician') return []
+
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('housekeeping_tasks')
+    .select('*, rooms(number)')
+    .eq('hotel_id', profile.hotel_id)
+    .eq('assigned_to', profile.id)
+    .order('created_at', { ascending: false })
+
+  const rows = (data ?? []) as unknown as TaskRow[]
+  return rows.map(mapTaskRow)
 }

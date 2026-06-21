@@ -1,54 +1,72 @@
 import { describe, expect, it } from 'vitest'
 import {
-  MFA_REQUIRED_ROLES,
+  MFA_METHOD_LABELS,
   canEnrollMfa,
-  isMfaRequired,
   mfaGateForRole,
   mfaRedirectPath,
   safeMfaNext,
   userNeedsMfa,
 } from '@/lib/auth/mfa'
+import { verifyTotpCode, createTotpSecret } from '@/lib/auth/mfa-totp'
 import { hashOtp, hashSessionKey } from '@/lib/auth/mfa-sms'
-
-describe('isMfaRequired', () => {
-  it('requires owner and manager only', () => {
-    expect(MFA_REQUIRED_ROLES).toEqual(['owner', 'manager'])
-    expect(isMfaRequired('owner')).toBe(true)
-    expect(isMfaRequired('manager')).toBe(true)
-    expect(isMfaRequired('receptionist')).toBe(false)
-  })
-})
+import { generateSync } from 'otplib'
 
 describe('userNeedsMfa', () => {
-  it('requires owner/manager always; optional roles only when opted in', () => {
-    expect(userNeedsMfa('owner', false)).toBe(true)
-    expect(userNeedsMfa('receptionist', false)).toBe(false)
-    expect(userNeedsMfa('receptionist', true)).toBe(true)
+  it('only applies when the user opted in', () => {
+    expect(userNeedsMfa(false)).toBe(false)
+    expect(userNeedsMfa(true)).toBe(true)
   })
 })
 
 describe('canEnrollMfa', () => {
   it('allows all staff roles', () => {
     expect(canEnrollMfa('technician')).toBe(true)
+    expect(canEnrollMfa('owner')).toBe(true)
   })
 })
 
 describe('mfaGateForRole', () => {
-  const noMfa = { applies: false, hasPhone: true, sessionVerified: false }
-  const needsPhone = { applies: true, hasPhone: false, sessionVerified: false }
-  const needsVerify = { applies: true, hasPhone: true, sessionVerified: false }
-  const done = { applies: true, hasPhone: true, sessionVerified: true }
+  const off = { applies: false, method: null, hasPhone: true, hasTotp: true, sessionVerified: false }
+  const smsNeedsPhone = {
+    applies: true,
+    method: 'sms' as const,
+    hasPhone: false,
+    hasTotp: false,
+    sessionVerified: false,
+  }
+  const smsNeedsVerify = {
+    applies: true,
+    method: 'sms' as const,
+    hasPhone: true,
+    hasTotp: false,
+    sessionVerified: false,
+  }
+  const totpNeedsSetup = {
+    applies: true,
+    method: 'totp' as const,
+    hasPhone: true,
+    hasTotp: false,
+    sessionVerified: false,
+  }
+  const done = {
+    applies: true,
+    method: 'totp' as const,
+    hasPhone: true,
+    hasTotp: true,
+    sessionVerified: true,
+  }
 
-  it('skips when MFA does not apply', () => {
-    expect(mfaGateForRole('receptionist', noMfa)).toBe('ok')
+  it('skips when MFA is off', () => {
+    expect(mfaGateForRole('owner', off)).toBe('ok')
   })
 
-  it('forces phone setup when required but no phone', () => {
-    expect(mfaGateForRole('owner', needsPhone)).toBe('enroll')
+  it('forces phone setup for SMS without a number', () => {
+    expect(mfaGateForRole('owner', smsNeedsPhone)).toBe('enroll')
   })
 
-  it('forces SMS verify when phone exists but session not verified', () => {
-    expect(mfaGateForRole('manager', needsVerify)).toBe('verify')
+  it('forces verify when setup is complete but session is new', () => {
+    expect(mfaGateForRole('manager', smsNeedsVerify)).toBe('verify')
+    expect(mfaGateForRole('manager', totpNeedsSetup)).toBe('enroll')
   })
 
   it('allows access when session is verified', () => {
@@ -61,7 +79,13 @@ describe('mfaRedirectPath', () => {
     expect(
       mfaRedirectPath(
         'owner',
-        { applies: true, hasPhone: false, sessionVerified: false },
+        {
+          applies: true,
+          method: 'sms',
+          hasPhone: false,
+          hasTotp: false,
+          sessionVerified: false,
+        },
         '/owner/dashboard',
         '/owner/billing',
       ),
@@ -70,7 +94,13 @@ describe('mfaRedirectPath', () => {
     expect(
       mfaRedirectPath(
         'manager',
-        { applies: true, hasPhone: true, sessionVerified: false },
+        {
+          applies: true,
+          method: 'totp',
+          hasPhone: true,
+          hasTotp: true,
+          sessionVerified: false,
+        },
         '/manager/dashboard',
       ),
     ).toBe('/verify-mfa?next=%2Fmanager%2Fdashboard')
@@ -78,14 +108,26 @@ describe('mfaRedirectPath', () => {
 })
 
 describe('safeMfaNext', () => {
-  it('rejects open redirects', () => {
+  it('rejects open redirects and auth pages', () => {
     expect(safeMfaNext('https://evil.com', '/home')).toBe('/home')
     expect(safeMfaNext('/owner/settings', '/home')).toBe('/owner/settings')
-  })
-
-  it('rejects auth pages as post-MFA destinations', () => {
-    expect(safeMfaNext('/signup', '/owner/dashboard')).toBe('/owner/dashboard')
     expect(safeMfaNext('/login', '/owner/dashboard')).toBe('/owner/dashboard')
+  })
+})
+
+describe('MFA method labels', () => {
+  it('includes SMS and authenticator options', () => {
+    expect(MFA_METHOD_LABELS.sms).toMatch(/SMS/i)
+    expect(MFA_METHOD_LABELS.totp).toMatch(/Authenticator/i)
+  })
+})
+
+describe('totp verification', () => {
+  it('accepts a valid code from otplib', () => {
+    const secret = createTotpSecret()
+    const token = generateSync({ secret })
+    expect(verifyTotpCode(secret, token)).toBe(true)
+    expect(verifyTotpCode(secret, '000000')).toBe(false)
   })
 })
 

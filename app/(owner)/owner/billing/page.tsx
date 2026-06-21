@@ -19,7 +19,12 @@ export default async function BillingPage({
         description="Manage invoices, track payments, and monitor revenue collection."
       />
 
-      <BillingOverview invoices={invoices} hotel={hotel} initialQuery={q} />
+      <BillingOverview
+        invoices={invoices}
+        hotel={hotel}
+        initialQuery={q}
+        vatMode={hotel?.vatMode ?? 'exclusive'}
+      />
     </div>
   )
 }

@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getProfile } from '@/lib/auth/get-profile'
+import { propertyImagePublicUrl } from '@/lib/properties/image-storage'
 import type { Hotel, Property } from '@/types'
 
 async function getRoomCount(hotelId: string): Promise<number> {
@@ -29,6 +30,7 @@ function hotelToProperty(hotel: Hotel, roomCount: number): Property {
     city: hotel.city ?? 'Accra',
     region: hotel.region ?? 'Greater Accra',
     totalRooms: roomCount,
+    imageUrl: propertyImagePublicUrl(hotel.profile_image_path),
   }
 }
 

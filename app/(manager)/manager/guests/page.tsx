@@ -1,6 +1,6 @@
 import { GuestsTable } from '@/components/dashboard/guests-table'
 import { PageHeader } from '@/components/dashboard/page-header'
-import { GuestEnrollment } from '@/components/guest/guest-enrollment'
+import { WalkInCheckInCta } from '@/components/guest/walk-in-check-in-cta'
 import { PropertyPortalQrPanel } from '@/components/guest/property-portal-qr-panel'
 import { getGuestsData } from '@/lib/data/guests'
 
@@ -20,7 +20,7 @@ export default async function ManagerGuestsPage({
         description="Enroll guests and manage active stays."
       />
       <PropertyPortalQrPanel />
-      <GuestEnrollment />
+      <WalkInCheckInCta reservationsHref="/manager/reservations" />
       <GuestsTable guests={guests} initialSearch={q} />
     </div>
   )

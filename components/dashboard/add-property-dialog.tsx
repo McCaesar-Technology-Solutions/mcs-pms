@@ -10,6 +10,7 @@ import {
   ModalFooter,
   ModalHeader,
 } from '@/components/ui/centered-modal'
+import { PropertyImageCropField } from '@/components/dashboard/property-image-crop-field'
 
 const GHANA_REGIONS = [
   'Greater Accra',
@@ -47,12 +48,14 @@ export function AddPropertyDialog({ open, onClose }: AddPropertyDialogProps) {
   const router = useRouter()
   const { addProperty } = useProperty()
   const [form, setForm] = useState<NewPropertyInput>(emptyForm)
+  const [profileImage, setProfileImage] = useState<Blob | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
   useEffect(() => {
     if (open) {
       setForm(emptyForm)
+      setProfileImage(null)
       setError(null)
     }
   }, [open])
@@ -63,7 +66,7 @@ export function AddPropertyDialog({ open, onClose }: AddPropertyDialogProps) {
 
     setError(null)
     startTransition(async () => {
-      const created = await addProperty(form)
+      const created = await addProperty({ ...form, profileImage })
       if (!created) {
         setError('Could not create property. Please try again.')
         return
@@ -160,6 +163,12 @@ export function AddPropertyDialog({ open, onClose }: AddPropertyDialogProps) {
               Rooms 1–{form.totalRooms} will be created automatically as standard rooms.
             </p>
           </div>
+
+          <PropertyImageCropField
+            value={profileImage}
+            onChange={setProfileImage}
+            disabled={pending}
+          />
 
           {error && (
             <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">

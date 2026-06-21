@@ -3,7 +3,11 @@ import { createClient } from '@/lib/supabase/server'
 import { formatInvoiceNumber } from '@/lib/invoices/numbering'
 import type { UserRole } from '@/types'
 
-export type NotificationKind = 'overdue_invoice' | 'checkout_today' | 'pending_complaint'
+export type NotificationKind =
+  | 'overdue_invoice'
+  | 'checkin_today'
+  | 'checkout_today'
+  | 'pending_complaint'
 
 export interface AppNotification {
   id: string
@@ -34,7 +38,7 @@ export async function getNotifications(): Promise<AppNotification[]> {
   const today = todayISO()
   const items: AppNotification[] = []
 
-  const [invoicesRes, reservationsRes, complaintsRes] = await Promise.all([
+  const [invoicesRes, checkoutsRes, checkinsRes, complaintsRes] = await Promise.all([
     profile.role === 'owner'
       ? supabase
           .from('invoices')
@@ -50,6 +54,12 @@ export async function getNotifications(): Promise<AppNotification[]> {
       .eq('hotel_id', hotelId)
       .eq('status', 'checked_in')
       .eq('check_out', today),
+    supabase
+      .from('reservations')
+      .select('id, guest_name, check_in, rooms(number)')
+      .eq('hotel_id', hotelId)
+      .in('status', ['confirmed', 'checked_in'])
+      .eq('check_in', today),
     supabase
       .from('complaints')
       .select('id, category, status, priority, approval_stage')
@@ -72,7 +82,7 @@ export async function getNotifications(): Promise<AppNotification[]> {
     })
   }
 
-  for (const res of reservationsRes.data ?? []) {
+  for (const res of checkoutsRes.data ?? []) {
     const room = res.rooms as { number?: string } | null
     items.push({
       id: `co-${res.id}`,
@@ -81,6 +91,18 @@ export async function getNotifications(): Promise<AppNotification[]> {
       subtitle: `${res.guest_name}${room?.number ? ` · Room ${room.number}` : ''}`,
       href: `${prefix}/reservations?open=${res.id}`,
       urgent: false,
+    })
+  }
+
+  for (const res of checkinsRes.data ?? []) {
+    const room = res.rooms as { number?: string } | null
+    items.push({
+      id: `ci-${res.id}`,
+      kind: 'checkin_today',
+      title: 'Check-in today',
+      subtitle: `${res.guest_name}${room?.number ? ` · Room ${room.number}` : ''}`,
+      href: `${prefix}/reservations?open=${res.id}`,
+      urgent: true,
     })
   }
 

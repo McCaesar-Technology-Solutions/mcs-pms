@@ -69,14 +69,23 @@ interface HousekeepingKanbanProps {
   rooms: { id: string; number: string }[]
   staff: { id: string; name: string }[]
   canManage?: boolean
+  statusOnly?: boolean
 }
 
-export function HousekeepingKanban({ tasks, rooms, staff, canManage }: HousekeepingKanbanProps) {
+export function HousekeepingKanban({ tasks, rooms, staff, canManage, statusOnly }: HousekeepingKanbanProps) {
   if (tasks.length === 0 && !canManage) {
     return <DataEmptyState message="No housekeeping tasks assigned yet." />
   }
 
-  return <DbKanban tasks={tasks} rooms={rooms} staff={staff} canManage={canManage} />
+  return (
+    <DbKanban
+      tasks={tasks}
+      rooms={rooms}
+      staff={staff}
+      canManage={canManage}
+      statusOnly={statusOnly}
+    />
+  )
 }
 
 function DbKanban({
@@ -84,11 +93,13 @@ function DbKanban({
   rooms,
   staff,
   canManage,
+  statusOnly,
 }: {
   tasks: HousekeepingTaskView[]
   rooms: { id: string; number: string }[]
   staff: { id: string; name: string }[]
   canManage?: boolean
+  statusOnly?: boolean
 }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -197,7 +208,7 @@ function DbKanban({
                           )}
                         </div>
 
-                        {canManage && (
+                        {(canManage || statusOnly) && (
                           <div className="mt-3 flex items-center gap-2 border-t border-[#E9ECEF] pt-3">
                             <select
                               value={task.status}
@@ -212,31 +223,35 @@ function DbKanban({
                               <option value="in_progress">In Progress</option>
                               <option value="done">Done</option>
                             </select>
-                            <select
-                              value={task.assignedTo ?? ''}
-                              onChange={(e) =>
-                                run(() => assignHousekeepingTask(task.id, e.target.value || null))
-                              }
-                              disabled={isPending}
-                              className="min-w-0 flex-1 rounded-lg border border-border bg-white px-2 py-1.5 text-xs"
-                              aria-label="Assign task"
-                            >
-                              <option value="">Unassigned</option>
-                              {staff.map((s) => (
-                                <option key={s.id} value={s.id}>
-                                  {s.name}
-                                </option>
-                              ))}
-                            </select>
-                            <button
-                              type="button"
-                              onClick={() => run(() => deleteHousekeepingTask(task.id))}
-                              disabled={isPending}
-                              className="shrink-0 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
-                              aria-label="Delete task"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
+                            {canManage && (
+                              <>
+                                <select
+                                  value={task.assignedTo ?? ''}
+                                  onChange={(e) =>
+                                    run(() => assignHousekeepingTask(task.id, e.target.value || null))
+                                  }
+                                  disabled={isPending}
+                                  className="min-w-0 flex-1 rounded-lg border border-border bg-white px-2 py-1.5 text-xs"
+                                  aria-label="Assign task"
+                                >
+                                  <option value="">Unassigned</option>
+                                  {staff.map((s) => (
+                                    <option key={s.id} value={s.id}>
+                                      {s.name}
+                                    </option>
+                                  ))}
+                                </select>
+                                <button
+                                  type="button"
+                                  onClick={() => run(() => deleteHousekeepingTask(task.id))}
+                                  disabled={isPending}
+                                  className="shrink-0 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                                  aria-label="Delete task"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </>
+                            )}
                           </div>
                         )}
                       </div>

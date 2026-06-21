@@ -10,6 +10,7 @@ import { getRoomRates } from '@/lib/pricing/room-rates'
 import { createReservationSchema, updateReservationSchema } from '@/lib/validations'
 import { phoneSchema } from '@/lib/phone'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { writeAuditLog, moneyDelta } from '@/lib/audit/log'
 import type { PaymentMethod, ReservationChannel, ReservationStatus } from '@/types'
 
 export type ReservationActionResult = { success: true } | { success: false; error: string }
@@ -52,7 +53,7 @@ async function requireManager() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('id, role, hotel_id')
+    .select('id, role, hotel_id, name')
     .eq('id', user.id)
     .maybeSingle()
 
@@ -148,6 +149,41 @@ export async function createReservation(input: unknown): Promise<CreateReservati
 
   if (error || !row) {
     return { success: false, error: error?.message ?? 'Could not create reservation.' }
+  }
+
+  void import('@/lib/notifications/stays').then(async ({ notifyManagersNewReservation }) => {
+    const admin = createAdminClient()
+    const { data: room } = await admin.from('rooms').select('number').eq('id', data.roomId).maybeSingle()
+    await notifyManagersNewReservation({
+      hotelId: profile.hotel_id!,
+      guestName: data.guestName,
+      roomNumber: room?.number ?? null,
+      checkIn: data.checkIn,
+      checkOut: data.checkOut,
+      channel: data.channel,
+    })
+  }).catch(() => undefined)
+
+  if (data.guestId) {
+    void import('@/lib/notifications/stays').then(async ({ notifyGuestReservationConfirmed }) => {
+      const admin = createAdminClient()
+      const { data: guest } = await admin
+        .from('guests')
+        .select('phone')
+        .eq('id', data.guestId!)
+        .maybeSingle()
+      const { data: room } = await admin.from('rooms').select('number').eq('id', data.roomId).maybeSingle()
+      const phone = guest?.phone?.trim()
+      if (!phone) return
+      await notifyGuestReservationConfirmed({
+        hotelId: profile.hotel_id!,
+        phone,
+        guestName: data.guestName,
+        roomNumber: room?.number ?? null,
+        checkIn: data.checkIn,
+        checkOut: data.checkOut,
+      })
+    }).catch(() => undefined)
   }
 
   revalidateReservationViews()
@@ -271,6 +307,58 @@ export async function updateReservation(id: string, input: unknown): Promise<Cre
     .eq('id', id)
   if (error) return { success: false, error: error.message }
 
+  const guestName = parsed.data.guestName?.trim() ?? existing.guest_name
+  const changes: string[] = []
+  if (existing.guest_name !== guestName) changes.push(`Guest: ${existing.guest_name} → ${guestName}`)
+  if (existing.check_in !== checkIn || existing.check_out !== checkOut) {
+    changes.push(`Dates: ${existing.check_in}–${existing.check_out} → ${checkIn}–${checkOut}`)
+  }
+  if (existing.room_id !== roomId) changes.push('Room changed')
+  const nightlyDelta = moneyDelta('Nightly rate', existing.nightly_rate, nightlyRate)
+  if (nightlyDelta) changes.push(nightlyDelta)
+  const monthlyDelta = moneyDelta('Monthly rate', existing.monthly_rate, monthlyRate)
+  if (monthlyDelta) changes.push(monthlyDelta)
+  if ((existing.rate_type ?? 'nightly') !== rateType) {
+    changes.push(`Rate type: ${existing.rate_type ?? 'nightly'} → ${rateType}`)
+  }
+  const totalDelta = moneyDelta('Total', existing.total_amount, total)
+  if (totalDelta) changes.push(totalDelta)
+
+  void writeAuditLog({
+    hotelId: profile.hotel_id,
+    actorId: profile.id,
+    actorName: profile.name,
+    entityType: 'reservation',
+    entityId: id,
+    action: 'updated',
+    summary:
+      changes.length > 0
+        ? `Reservation for ${guestName}: ${changes.join('; ')}`
+        : `Reservation updated for ${guestName}`,
+    details: {
+      before: {
+        guestName: existing.guest_name,
+        checkIn: existing.check_in,
+        checkOut: existing.check_out,
+        roomId: existing.room_id,
+        nightlyRate: existing.nightly_rate,
+        monthlyRate: existing.monthly_rate,
+        rateType: existing.rate_type,
+        total: existing.total_amount,
+      },
+      after: {
+        guestName,
+        checkIn,
+        checkOut,
+        roomId,
+        nightlyRate,
+        monthlyRate,
+        rateType,
+        total,
+      },
+    },
+  })
+
   revalidateReservationViews()
   return { success: true, id }
 }
@@ -321,5 +409,38 @@ export async function checkOutReservation(
 }
 
 export async function cancelReservation(id: string): Promise<ReservationActionResult> {
-  return setReservationStatus(id, 'cancelled')
+  const { supabase, profile } = await requireManager()
+  if (!profile || !['owner', 'manager', 'receptionist'].includes(profile.role)) {
+    return { success: false, error: 'Not authorized.' }
+  }
+
+  const { data: reservation } = await supabase
+    .from('reservations')
+    .select('hotel_id, guest_name, check_in, check_out, status, guest_id, guests(phone)')
+    .eq('id', id)
+    .maybeSingle()
+
+  if (!reservation) return { success: false, error: 'Reservation not found.' }
+  if (reservation.status === 'cancelled') {
+    return { success: false, error: 'This reservation is already cancelled.' }
+  }
+
+  const result = await setReservationStatus(id, 'cancelled')
+  if (!result.success) return result
+
+  const guest = reservation.guests as { phone?: string | null } | null
+  const phone = guest?.phone?.trim()
+  if (phone && reservation.guest_id) {
+    void import('@/lib/notifications/stays').then(({ notifyGuestReservationCancelled }) =>
+      notifyGuestReservationCancelled({
+        hotelId: reservation.hotel_id,
+        phone,
+        guestName: reservation.guest_name,
+        checkIn: reservation.check_in,
+        checkOut: reservation.check_out,
+      }).catch(() => undefined),
+    )
+  }
+
+  return { success: true }
 }

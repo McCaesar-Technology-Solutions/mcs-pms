@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { computeInvoiceTaxes } from '@/lib/tax'
+import { getHotelVatMode } from '@/lib/data/settings'
 import { allocateInvoiceNumber } from '@/lib/invoices/numbering'
 import { createPostCheckoutCleanTask } from '@/lib/housekeeping/checkout-task'
 import { phoneSchema } from '@/lib/phone'
@@ -69,6 +70,42 @@ async function getRoomNightlyRate(
   if (data?.nightly_rate != null) return Number(data.nightly_rate)
   const cat = data?.room_categories as { default_nightly_rate?: number } | null
   return Number(cat?.default_nightly_rate ?? 0)
+}
+
+async function computeCheckoutTaxes(
+  admin: ReturnType<typeof createAdminClient>,
+  hotelId: string,
+  checkIn: string,
+  effectiveCheckOut: string,
+  roomId: string | null | undefined,
+  rateTypeInput?: string | null,
+  nightlyRateInput?: number | null,
+  monthlyRateInput?: number | null,
+  totalAmountInput?: number | null,
+  plannedCheckOut?: string | null,
+) {
+  const vatMode = await getHotelVatMode(hotelId)
+
+  let chargeAmount = 0
+  if (
+    totalAmountInput != null &&
+    plannedCheckOut &&
+    effectiveCheckOut === plannedCheckOut
+  ) {
+    chargeAmount = Number(totalAmountInput)
+  } else if (roomId) {
+    const rateType = (rateTypeInput ?? 'nightly') as RateType
+    const nightlyRate =
+      nightlyRateInput != null ? Number(nightlyRateInput) : await getRoomNightlyRate(admin, roomId)
+    const monthlyRate =
+      monthlyRateInput != null
+        ? Number(monthlyRateInput)
+        : (await getRoomRates(admin, roomId)).monthlyRate
+    chargeAmount = calculateStayTotal(rateType, checkIn, effectiveCheckOut, nightlyRate, monthlyRate)
+  }
+
+  const taxes = computeInvoiceTaxes(chargeAmount, vatMode)
+  return { chargeAmount, taxes, vatMode }
 }
 
 async function findInHouseGuestByPhone(
@@ -236,6 +273,24 @@ export async function checkInStay(
     .eq('id', reservation.room_id)
 
   const loginUrl = await buildGuestLoginUrl(token)
+
+  const { data: roomRow } = await admin
+    .from('rooms')
+    .select('number')
+    .eq('id', reservation.room_id)
+    .maybeSingle()
+
+  void import('@/lib/notifications/stays').then(({ notifyGuestCheckedIn }) =>
+    notifyGuestCheckedIn({
+      hotelId: profile.hotel_id!,
+      phone: parsed.data.phone.trim(),
+      guestName,
+      roomNumber: roomRow?.number ?? null,
+      checkOut: reservation.check_out,
+      loginUrl,
+    }).catch(() => undefined),
+  )
+
   revalidateStayViews()
   return { success: true, data: { loginUrl, token, guestId } }
 }
@@ -353,6 +408,8 @@ export async function checkOutStay(input: {
     guest_id: string | null
     guest_name: string
     nightly_rate: number | null
+    monthly_rate: number | null
+    rate_type: string | null
     total_amount: number | null
     check_in: string
     check_out: string
@@ -402,8 +459,18 @@ export async function checkOutStay(input: {
     }
 
     const nightlyRate = await getRoomNightlyRate(admin, guest.room_id)
-    const subtotal = nightlyRate * stayNights(guest.check_in, effectiveCheckOut)
-    const taxes = computeInvoiceTaxes(subtotal)
+    const { taxes } = await computeCheckoutTaxes(
+      admin,
+      profile.hotel_id,
+      guest.check_in,
+      effectiveCheckOut,
+      guest.room_id,
+      'nightly',
+      nightlyRate,
+      null,
+      null,
+      guest.check_out,
+    )
     const now = new Date().toISOString()
     const paidNow = input.markAsPaid !== false
     const dueAt = paidNow
@@ -422,7 +489,7 @@ export async function checkOutStay(input: {
         status: 'checked_out',
         channel: 'walk_in',
         nightly_rate: nightlyRate,
-        total_amount: subtotal,
+        total_amount: taxes.total,
         created_by: userId,
       })
       .select('id')
@@ -481,16 +548,33 @@ export async function checkOutStay(input: {
     return { success: false, error: 'Only checked-in stays can be checked out.' }
   }
 
+  let guestPhone: string | null = null
+  if (reservation.guest_id) {
+    const { data: guestRow } = await admin
+      .from('guests')
+      .select('phone')
+      .eq('id', reservation.guest_id)
+      .maybeSingle()
+    guestPhone = guestRow?.phone?.trim() ?? null
+  }
+
   const effectiveCheckOut = input.earlyCheckout ? today : reservation.check_out
   if (effectiveCheckOut <= reservation.check_in) {
     return { success: false, error: 'Check-out must be after check-in.' }
   }
 
-  const nightlyRate =
-    reservation.nightly_rate ??
-    (reservation.room_id ? await getRoomNightlyRate(admin, reservation.room_id) : 0)
-  const subtotal = nightlyRate * stayNights(reservation.check_in, effectiveCheckOut)
-  const taxes = computeInvoiceTaxes(subtotal)
+  const { taxes } = await computeCheckoutTaxes(
+    admin,
+    reservation.hotel_id,
+    reservation.check_in,
+    effectiveCheckOut,
+    reservation.room_id,
+    reservation.rate_type,
+    reservation.nightly_rate,
+    reservation.monthly_rate,
+    reservation.total_amount,
+    reservation.check_out,
+  )
   const now = new Date().toISOString()
   const paidNow = input.markAsPaid !== false
   const dueAt = paidNow
@@ -531,7 +615,7 @@ export async function checkOutStay(input: {
     .update({
       status: 'checked_out',
       check_out: effectiveCheckOut,
-      total_amount: subtotal,
+      total_amount: taxes.total,
     })
     .eq('id', reservation.id)
 
@@ -558,6 +642,18 @@ export async function checkOutStay(input: {
       guestName: reservation.guest_name,
       createdBy: userId,
     })
+  }
+
+  if (guestPhone) {
+    void import('@/lib/notifications/stays').then(({ notifyGuestCheckedOut }) =>
+      notifyGuestCheckedOut({
+        hotelId: reservation.hotel_id,
+        phone: guestPhone,
+        guestName: reservation.guest_name,
+        totalGhs: taxes.total,
+        paid: paidNow,
+      }).catch(() => undefined),
+    )
   }
 
   revalidateStayViews()

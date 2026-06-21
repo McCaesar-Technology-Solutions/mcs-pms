@@ -7,6 +7,7 @@ import {
 } from '@/lib/notifications/arkesel-sender'
 import { resolveHubtelSenderId, validateHubtelSenderId } from '@/lib/notifications/hubtel-sender'
 import { isSmsConfigured, resolveSmsProvider, type SmsProvider } from '@/lib/notifications/sms-provider'
+import { shouldSendHotelNotification } from '@/lib/notifications/recipients'
 
 export type NotificationChannel = 'sms' | 'whatsapp'
 
@@ -25,11 +26,22 @@ export interface NotifyOptions {
 }
 
 function channelsEnabled(): NotificationChannel[] {
-  const raw = process.env.NOTIFICATION_CHANNELS ?? 'sms,whatsapp'
-  return raw
-    .split(',')
-    .map((c) => c.trim().toLowerCase())
-    .filter((c): c is NotificationChannel => c === 'sms' || c === 'whatsapp')
+  const raw = process.env.NOTIFICATION_CHANNELS?.trim()
+  if (raw) {
+    return raw
+      .split(',')
+      .map((c) => c.trim().toLowerCase())
+      .filter((c): c is NotificationChannel => c === 'sms' || c === 'whatsapp')
+  }
+
+  // Arkesel/Hubtel are SMS-only — include WhatsApp only when Twilio is configured.
+  const hasTwilio = Boolean(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN)
+  return hasTwilio ? ['sms', 'whatsapp'] : ['sms']
+}
+
+/** Exposed for tests — which outbound channels are active. */
+export function resolveNotificationChannels(): NotificationChannel[] {
+  return channelsEnabled()
 }
 
 function isConfigured(): boolean {
@@ -229,6 +241,13 @@ export async function sendToPhone(
 ): Promise<SendResult[]> {
   const e164 = toE164(rawPhone)
   if (!e164) return []
+
+  if (!(await shouldSendHotelNotification(opts.hotelId, opts.templateKey))) {
+    if (process.env.NODE_ENV === 'development') {
+      console.info(`[notify:${opts.templateKey}] skipped (disabled for hotel)`)
+    }
+    return [{ channel: 'sms', success: true, providerId: 'skipped-pref' }]
+  }
 
   if (!isConfigured()) {
     if (process.env.NODE_ENV === 'development') {

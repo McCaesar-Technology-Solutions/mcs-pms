@@ -77,6 +77,7 @@ interface ReservationsManagerProps {
   occupancySpans: OccupancySpan[]
   initialSearch?: string
   openReservationId?: string
+  initialNewFlow?: 'book' | 'check_in'
 }
 
 export function ReservationsManager({
@@ -85,12 +86,13 @@ export function ReservationsManager({
   occupancySpans,
   initialSearch = '',
   openReservationId,
+  initialNewFlow,
 }: ReservationsManagerProps) {
   const router = useRouter()
   const [selectedId, setSelectedId] = useState<string | null>(openReservationId ?? null)
   const [search, setSearch] = useState(initialSearch)
   const [statusFilter, setStatusFilter] = useState<(typeof STATUS_FILTERS)[number]>('all')
-  const [creating, setCreating] = useState(false)
+  const [creating, setCreating] = useState(Boolean(initialNewFlow))
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase()
@@ -292,6 +294,7 @@ export function ReservationsManager({
         <ReservationFormModal
           roomOptions={roomOptions}
           occupancySpans={occupancySpans}
+          initialFlowMode={initialNewFlow === 'check_in' ? 'check_in_now' : 'book_later'}
           onClose={() => setCreating(false)}
           onDone={() => {
             setCreating(false)
@@ -940,6 +943,7 @@ function ReservationDrawer({ reservation, roomOptions, onClose, onMutated }: Res
 interface ReservationFormModalProps {
   roomOptions: RoomOption[]
   occupancySpans: OccupancySpan[]
+  initialFlowMode?: 'book_later' | 'check_in_now'
   onClose: () => void
   onDone: () => void
 }
@@ -947,13 +951,14 @@ interface ReservationFormModalProps {
 function ReservationFormModal({
   roomOptions,
   occupancySpans,
+  initialFlowMode = 'book_later',
   onClose,
   onDone,
 }: ReservationFormModalProps) {
   const today = new Date().toISOString().slice(0, 10)
   const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
 
-  const [flowMode, setFlowMode] = useState<'book_later' | 'check_in_now'>('book_later')
+  const [flowMode, setFlowMode] = useState<'book_later' | 'check_in_now'>(initialFlowMode)
   const [guestName, setGuestName] = useState('')
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')

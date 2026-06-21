@@ -143,6 +143,7 @@ export const updateHotelSettingsSchema = z.object({
   gta_license_number: z.string().max(80).optional().or(z.literal('')),
   gta_license_expiry: z.string().optional().or(z.literal('')),
   vat_registration_number: z.string().max(80).optional().or(z.literal('')),
+  vat_mode: z.enum(['exclusive', 'inclusive']).optional(),
   invoice_prefix: z
     .string()
     .min(2, 'Prefix must be at least 2 characters')
@@ -150,6 +151,11 @@ export const updateHotelSettingsSchema = z.object({
     .regex(/^[A-Za-z0-9-]+$/, 'Use letters, numbers, or hyphens only')
     .optional()
     .or(z.literal('')),
+})
+
+export const updateNotificationPrefsSchema = z.object({
+  hotelId: z.string().uuid(),
+  prefs: z.record(z.string(), z.boolean()),
 })
 
 export const createPropertySchema = z.object({

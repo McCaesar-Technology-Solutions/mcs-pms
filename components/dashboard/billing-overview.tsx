@@ -6,7 +6,7 @@ import { Download, Plus, TrendingUp } from 'lucide-react'
 import { toast } from 'sonner'
 import { createManualInvoice, recordInvoicePayment } from '@/app/actions/invoices'
 import { CenteredModal, ModalBody, ModalFooter, ModalHeader } from '@/components/ui/centered-modal'
-import { PAYMENT_METHOD_LABELS, computeInvoiceTaxes } from '@/lib/tax'
+import { PAYMENT_METHOD_LABELS, computeInvoiceTaxes, type VatMode } from '@/lib/tax'
 import { formatInvoiceNumber } from '@/lib/invoices/numbering'
 import { downloadInvoicePdf } from '@/lib/export/invoice-pdf'
 import type { ExportHotelInfo } from '@/lib/export/types'
@@ -90,9 +90,15 @@ interface BillingOverviewProps {
   invoices: InvoiceWithRoom[]
   hotel: ExportHotelInfo | null
   initialQuery?: string
+  vatMode?: VatMode
 }
 
-export function BillingOverview({ invoices, hotel, initialQuery = '' }: BillingOverviewProps) {
+export function BillingOverview({
+  invoices,
+  hotel,
+  initialQuery = '',
+  vatMode = 'exclusive',
+}: BillingOverviewProps) {
   const router = useRouter()
   const [statusFilter, setStatusFilter] = useState<string | null>(null)
   const [textFilter, setTextFilter] = useState(initialQuery)
@@ -135,7 +141,9 @@ export function BillingOverview({ invoices, hotel, initialQuery = '' }: BillingO
   }
 
   const newSubtotalNum = parseFloat(newSubtotal) || 0
-  const newTaxPreview = newSubtotalNum > 0 ? computeInvoiceTaxes(newSubtotalNum) : null
+  const newTaxPreview = newSubtotalNum > 0 ? computeInvoiceTaxes(newSubtotalNum, vatMode) : null
+  const amountFieldLabel =
+    vatMode === 'inclusive' ? 'Gross amount (includes tax)' : 'Subtotal (before tax)'
 
   function submitNewInvoice() {
     startTransition(async () => {
@@ -466,7 +474,7 @@ export function BillingOverview({ invoices, hotel, initialQuery = '' }: BillingO
             />
           </div>
           <div>
-            <label className="text-sm font-semibold">Subtotal (GHS, before tax)</label>
+            <label className="text-sm font-semibold">{amountFieldLabel} (GHS)</label>
             <input
               type="number"
               min="0"

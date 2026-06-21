@@ -14,11 +14,16 @@ import {
   createProperty,
   fetchOwnerProperties,
   switchActiveProperty,
+  uploadPropertyProfileImage,
 } from '@/app/actions/properties'
 import { createClient } from '@/lib/supabase/client'
+import { propertyImagePublicUrl } from '@/lib/properties/image-storage'
 import type { Profile, Property } from '@/types'
 
-export type NewPropertyInput = Omit<Property, 'id' | 'code'> & { code?: string }
+export type NewPropertyInput = Omit<Property, 'id' | 'code' | 'imageUrl'> & {
+  code?: string
+  profileImage?: Blob | null
+}
 
 interface PropertyContextValue {
   properties: Property[]
@@ -47,6 +52,7 @@ const emptyProperty: Property = {
   city: '',
   region: '',
   totalRooms: 0,
+  imageUrl: null,
 }
 
 /** Skip property fetches on auth/MFA routes — avoids racing server actions on the same page URL. */
@@ -105,6 +111,7 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
           city: hotel.city ?? 'Accra',
           region: hotel.region ?? 'Greater Accra',
           totalRooms: roomCount ?? 0,
+          imageUrl: propertyImagePublicUrl(hotel.profile_image_path),
         }
         setPropertiesList([mapped])
         setActivePropertyIdState(mapped.id)
@@ -190,6 +197,16 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
       if (!result.success || !result.data) return null
 
       const property = result.data
+
+      if (input.profileImage) {
+        const formData = new FormData()
+        formData.append('file', input.profileImage, 'profile.jpg')
+        const upload = await uploadPropertyProfileImage(property.id, formData)
+        if (upload.success && upload.data?.imageUrl) {
+          property.imageUrl = upload.data.imageUrl
+        }
+      }
+
       setProfile((prev) => (prev ? { ...prev, hotel_id: property.id } : prev))
       await refreshOwnerProperties(property.id)
       return property

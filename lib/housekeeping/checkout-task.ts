@@ -41,15 +41,25 @@ export async function createPostCheckoutCleanTask(
 
   if (existing && existing.length > 0) return
 
-  await admin.from('housekeeping_tasks').insert({
-    hotel_id: input.hotelId,
-    room_id: input.roomId,
-    task_type: 'clean',
-    status: 'todo',
-    priority: 'high',
-    assigned_to: assignee,
-    notes: `Post checkout — ${input.guestName}`,
-    created_by: input.createdBy,
-    due_date: todayISO(),
-  })
+  const { data: inserted } = await admin
+    .from('housekeeping_tasks')
+    .insert({
+      hotel_id: input.hotelId,
+      room_id: input.roomId,
+      task_type: 'clean',
+      status: 'todo',
+      priority: 'high',
+      assigned_to: assignee,
+      notes: `Post checkout — ${input.guestName}`,
+      created_by: input.createdBy,
+      due_date: todayISO(),
+    })
+    .select('id')
+    .single()
+
+  if (assignee && inserted?.id) {
+    void import('@/lib/notifications/housekeeping').then(({ notifyHousekeepingTaskAssigned }) =>
+      notifyHousekeepingTaskAssigned(inserted.id).catch(() => undefined),
+    )
+  }
 }
