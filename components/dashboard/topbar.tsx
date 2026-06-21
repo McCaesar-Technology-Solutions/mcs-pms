@@ -3,7 +3,6 @@
 import Link from 'next/link'
 import { ChevronDown, LogOut, Menu, Phone } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { HeaderSearch } from '@/components/dashboard/header-search'
 import { NotificationsMenu, settingsHref } from '@/components/dashboard/notifications-menu'
 import { AccountPhoneDialog } from '@/components/dashboard/account-phone-dialog'
 import { signOut } from '@/app/actions/auth'
@@ -77,14 +76,6 @@ export default function Topbar({ onMenuOpen, profile }: TopbarProps) {
           >
             <Menu className="h-5 w-5" />
           </button>
-
-          <div className="absolute left-1/2 hidden w-full max-w-xl -translate-x-1/2 px-4 md:block">
-            <HeaderSearch role={profile?.role} />
-          </div>
-
-          <div className="min-w-0 flex-1 md:hidden">
-            <HeaderSearch role={profile?.role} />
-          </div>
 
           <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2 md:gap-3">
             {canManagePhone && !hasPhoneNumber(profile?.phone) && (
