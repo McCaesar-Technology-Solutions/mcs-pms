@@ -151,6 +151,20 @@ export async function createReservation(input: unknown): Promise<CreateReservati
     return { success: false, error: error?.message ?? 'Could not create reservation.' }
   }
 
+  void (async () => {
+    const admin = createAdminClient()
+    const { data: room } = await admin.from('rooms').select('number').eq('id', data.roomId).maybeSingle()
+    await writeAuditLog({
+      hotelId: profile.hotel_id!,
+      actorId: profile.id,
+      actorName: profile.name,
+      entityType: 'reservation',
+      entityId: row.id,
+      action: 'created',
+      summary: `Booking for ${data.guestName.trim()}${room?.number ? ` — Room ${room.number}` : ''} (${data.checkIn} → ${data.checkOut}, ${data.channel})`,
+    })
+  })()
+
   void import('@/lib/notifications/stays').then(async ({ notifyManagersNewReservation }) => {
     const admin = createAdminClient()
     const { data: room } = await admin.from('rooms').select('number').eq('id', data.roomId).maybeSingle()
@@ -427,6 +441,16 @@ export async function cancelReservation(id: string): Promise<ReservationActionRe
 
   const result = await setReservationStatus(id, 'cancelled')
   if (!result.success) return result
+
+  void writeAuditLog({
+    hotelId: profile.hotel_id!,
+    actorId: profile.id,
+    actorName: profile.name,
+    entityType: 'reservation',
+    entityId: id,
+    action: 'cancelled',
+    summary: `Cancelled booking for ${reservation.guest_name} (${reservation.check_in} → ${reservation.check_out})`,
+  })
 
   const guest = reservation.guests as { phone?: string | null } | null
   const phone = guest?.phone?.trim()

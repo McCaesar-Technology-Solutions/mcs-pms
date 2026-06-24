@@ -77,22 +77,30 @@ export function AddPropertyDialog({ open, onClose }: AddPropertyDialogProps) {
   }
 
   return (
-    <CenteredModal open={open} onClose={onClose} className="max-w-lg" aria-label="Add property">
-      <ModalHeader onClose={onClose}>
-        <div className="flex items-center gap-3">
-          <div className="gradient-primary flex h-10 w-10 items-center justify-center rounded-xl shadow-elevation-2">
-            <Building2 className="h-5 w-5 text-white" />
+    <CenteredModal
+      open={open}
+      onClose={onClose}
+      className="flex max-h-[min(90dvh,calc(100dvh-2rem))] max-w-lg flex-col"
+      aria-label="Add property"
+    >
+      <form
+        onSubmit={handleSubmit}
+        className="flex min-h-0 flex-1 flex-col overflow-hidden"
+      >
+        <ModalHeader onClose={onClose}>
+          <div className="flex items-center gap-3">
+            <div className="gradient-primary flex h-10 w-10 items-center justify-center rounded-xl shadow-elevation-2">
+              <Building2 className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold">Add property</h2>
+              <p className="modal-panel-subtle mt-0.5 text-sm">
+                Register a new hotel or rental in your portfolio
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-lg font-semibold">Add property</h2>
-            <p className="modal-panel-subtle mt-0.5 text-sm">
-              Register a new hotel or rental in your portfolio
-            </p>
-          </div>
-        </div>
-      </ModalHeader>
+        </ModalHeader>
 
-      <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
         <ModalBody className="space-y-4">
           <div>
             <label className="text-sm font-semibold">Property name</label>
@@ -177,8 +185,8 @@ export function AddPropertyDialog({ open, onClose }: AddPropertyDialogProps) {
           )}
         </ModalBody>
 
-        <ModalFooter>
-          <div className="flex gap-3">
+        <ModalFooter className="border-t border-[#E9ECEF]">
+          <div className="flex flex-col-reverse gap-3 sm:flex-row">
             <button
               type="button"
               onClick={onClose}
@@ -189,10 +197,10 @@ export function AddPropertyDialog({ open, onClose }: AddPropertyDialogProps) {
             </button>
             <button
               type="submit"
-              disabled={pending}
-              className="flex-1 rounded-lg bg-primary py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 hover:shadow-elevation-2 disabled:opacity-50"
+              disabled={pending || !form.name.trim() || !form.city.trim() || !form.address.trim()}
+              className="flex-1 rounded-lg bg-[#3C216C] py-2.5 text-sm font-semibold text-white shadow-elevation-1 transition-all hover:bg-[#4c2a85] hover:shadow-elevation-2 disabled:opacity-50"
             >
-              {pending ? 'Creating…' : 'Add property'}
+              {pending ? 'Adding…' : 'Add property'}
             </button>
           </div>
         </ModalFooter>

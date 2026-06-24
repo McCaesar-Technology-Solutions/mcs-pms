@@ -17,6 +17,7 @@ import {
   tokenExpiryISO,
 } from '@/lib/stays/helpers'
 import { revalidateStayViews } from '@/lib/stays/revalidate'
+import { writeAuditLog, logRoomStatusChange } from '@/lib/audit/log'
 import type { PaymentMethod, ReservationChannel } from '@/types'
 import { z } from 'zod'
 
@@ -50,7 +51,7 @@ async function requireManager() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('id, role, hotel_id')
+    .select('id, role, hotel_id, name')
     .eq('id', user.id)
     .maybeSingle()
 
@@ -263,6 +264,12 @@ export async function checkInStay(
 
   if (resError) return { success: false, error: resError.message }
 
+  const { data: roomBeforeCheckIn } = await admin
+    .from('rooms')
+    .select('number, status')
+    .eq('id', reservation.room_id)
+    .maybeSingle()
+
   await admin
     .from('rooms')
     .update({
@@ -274,11 +281,20 @@ export async function checkInStay(
 
   const loginUrl = await buildGuestLoginUrl(token)
 
-  const { data: roomRow } = await admin
-    .from('rooms')
-    .select('number')
-    .eq('id', reservation.room_id)
-    .maybeSingle()
+  const roomRow = roomBeforeCheckIn
+
+  if (roomBeforeCheckIn && roomBeforeCheckIn.status !== 'occupied') {
+    void logRoomStatusChange({
+      hotelId: profile.hotel_id,
+      actorId: userId,
+      actorName: profile.name,
+      roomId: reservation.room_id,
+      roomNumber: roomBeforeCheckIn.number,
+      from: roomBeforeCheckIn.status,
+      to: 'occupied',
+      reason: 'check-in',
+    })
+  }
 
   void import('@/lib/notifications/stays').then(({ notifyGuestCheckedIn }) =>
     notifyGuestCheckedIn({
@@ -292,6 +308,17 @@ export async function checkInStay(
   )
 
   revalidateStayViews()
+
+  void writeAuditLog({
+    hotelId: profile.hotel_id,
+    actorId: userId,
+    actorName: profile.name,
+    entityType: 'reservation',
+    entityId: reservationId,
+    action: 'checked_in',
+    summary: `${guestName} checked in${roomRow?.number ? ` — Room ${roomRow.number}` : ''} (${reservation.check_in} → ${reservation.check_out})`,
+  })
+
   return { success: true, data: { loginUrl, token, guestId } }
 }
 
@@ -358,6 +385,22 @@ export async function walkInCheckIn(input: {
   if (resError || !reservation) {
     return { success: false, error: resError?.message ?? 'Could not create stay.' }
   }
+
+  const { data: walkInRoom } = await admin
+    .from('rooms')
+    .select('number')
+    .eq('id', input.roomId)
+    .maybeSingle()
+
+  void writeAuditLog({
+    hotelId: profile.hotel_id,
+    actorId: userId,
+    actorName: profile.name,
+    entityType: 'reservation',
+    entityId: reservation.id,
+    action: 'created',
+    summary: `Walk-in booking for ${input.name.trim()}${walkInRoom?.number ? ` — Room ${walkInRoom.number}` : ''} (${checkIn} → ${input.checkOut})`,
+  })
 
   const checkInResult = await checkInStay(reservation.id, {
     phone: input.phone,
@@ -526,10 +569,29 @@ export async function checkOutStay(input: {
       .eq('id', guest.id)
 
     if (guest.room_id) {
+      const { data: roomBeforeCheckout } = await admin
+        .from('rooms')
+        .select('number, status')
+        .eq('id', guest.room_id)
+        .maybeSingle()
+
       await admin
         .from('rooms')
         .update({ status: 'cleaning', updated_by: userId, updated_at: now })
         .eq('id', guest.room_id)
+
+      if (roomBeforeCheckout && roomBeforeCheckout.status !== 'cleaning') {
+        void logRoomStatusChange({
+          hotelId: profile.hotel_id,
+          actorId: userId,
+          actorName: profile.name,
+          roomId: guest.room_id,
+          roomNumber: roomBeforeCheckout.number,
+          from: roomBeforeCheckout.status,
+          to: 'cleaning',
+          reason: 'check-out',
+        })
+      }
 
       await createPostCheckoutCleanTask(admin, {
         hotelId: profile.hotel_id,
@@ -540,6 +602,17 @@ export async function checkOutStay(input: {
     }
 
     revalidateStayViews()
+
+    void writeAuditLog({
+      hotelId: profile.hotel_id,
+      actorId: userId,
+      actorName: profile.name,
+      entityType: 'reservation',
+      entityId: newRes?.id ?? null,
+      action: 'checked_out',
+      summary: `${guest.name} checked out (legacy guest record) — ${input.paymentMethod.replace(/_/g, ' ')}`,
+    })
+
     return { success: true }
   }
 
@@ -631,10 +704,29 @@ export async function checkOutStay(input: {
   }
 
   if (reservation.room_id) {
+    const { data: roomBeforeCheckout } = await admin
+      .from('rooms')
+      .select('number, status')
+      .eq('id', reservation.room_id)
+      .maybeSingle()
+
     await admin
       .from('rooms')
       .update({ status: 'cleaning', updated_by: userId, updated_at: now })
       .eq('id', reservation.room_id)
+
+    if (roomBeforeCheckout && roomBeforeCheckout.status !== 'cleaning') {
+      void logRoomStatusChange({
+        hotelId: profile.hotel_id,
+        actorId: userId,
+        actorName: profile.name,
+        roomId: reservation.room_id,
+        roomNumber: roomBeforeCheckout.number,
+        from: roomBeforeCheckout.status,
+        to: 'cleaning',
+        reason: 'check-out',
+      })
+    }
 
     await createPostCheckoutCleanTask(admin, {
       hotelId: reservation.hotel_id,
@@ -657,6 +749,17 @@ export async function checkOutStay(input: {
   }
 
   revalidateStayViews()
+
+  void writeAuditLog({
+    hotelId: profile.hotel_id,
+    actorId: userId,
+    actorName: profile.name,
+    entityType: 'reservation',
+    entityId: reservation.id,
+    action: 'checked_out',
+    summary: `${reservation.guest_name} checked out — ₵${taxes.total.toLocaleString()} (${input.paymentMethod.replace(/_/g, ' ')}, ${paidNow ? 'paid' : 'pending'})`,
+  })
+
   return { success: true }
 }
 
@@ -741,6 +844,17 @@ export async function extendStay(
   }
 
   revalidateStayViews()
+
+  void writeAuditLog({
+    hotelId: profile.hotel_id,
+    actorId: profile.id,
+    actorName: profile.name,
+    entityType: 'reservation',
+    entityId: reservationId,
+    action: 'extended',
+    summary: `${reservation.guest_name}: stay extended ${reservation.check_out} → ${newCheckOut}`,
+  })
+
   return { success: true }
 }
 
@@ -796,6 +910,13 @@ export async function moveStayRoom(
   const oldRoomId = reservation.room_id
   const now = new Date().toISOString()
 
+  const [{ data: oldRoom }, { data: newRoom }] = await Promise.all([
+    oldRoomId
+      ? admin.from('rooms').select('number, status').eq('id', oldRoomId).maybeSingle()
+      : Promise.resolve({ data: null }),
+    admin.from('rooms').select('number, status').eq('id', newRoomId).maybeSingle(),
+  ])
+
   await admin.from('reservations').update({ room_id: newRoomId }).eq('id', reservationId)
 
   if (reservation.guest_id) {
@@ -807,6 +928,19 @@ export async function moveStayRoom(
       .from('rooms')
       .update({ status: 'cleaning', updated_by: userId, updated_at: now })
       .eq('id', oldRoomId)
+
+    if (oldRoom && oldRoom.status !== 'cleaning') {
+      void logRoomStatusChange({
+        hotelId: profile.hotel_id,
+        actorId: userId,
+        actorName: profile.name,
+        roomId: oldRoomId,
+        roomNumber: oldRoom.number,
+        from: oldRoom.status,
+        to: 'cleaning',
+        reason: 'guest moved',
+      })
+    }
   }
 
   await admin
@@ -814,7 +948,31 @@ export async function moveStayRoom(
     .update({ status: 'occupied', updated_by: userId, updated_at: now })
     .eq('id', newRoomId)
 
+  if (newRoom && newRoom.status !== 'occupied') {
+    void logRoomStatusChange({
+      hotelId: profile.hotel_id,
+      actorId: userId,
+      actorName: profile.name,
+      roomId: newRoomId,
+      roomNumber: newRoom.number,
+      from: newRoom.status,
+      to: 'occupied',
+      reason: 'guest moved in',
+    })
+  }
+
   revalidateStayViews()
+
+  void writeAuditLog({
+    hotelId: profile.hotel_id,
+    actorId: userId,
+    actorName: profile.name,
+    entityType: 'reservation',
+    entityId: reservationId,
+    action: 'room_moved',
+    summary: `${reservation.guest_name}: Room ${oldRoom?.number ?? '?'} → ${newRoom?.number ?? '?'}`,
+  })
+
   return { success: true }
 }
 
@@ -826,7 +984,7 @@ export async function markNoShow(reservationId: string): Promise<StayActionResul
 
   const { data: reservation } = await supabase
     .from('reservations')
-    .select('id, status, check_in')
+    .select('id, status, check_in, guest_name')
     .eq('id', reservationId)
     .maybeSingle()
 
@@ -843,6 +1001,17 @@ export async function markNoShow(reservationId: string): Promise<StayActionResul
   if (error) return { success: false, error: error.message }
 
   revalidateStayViews()
+
+  void writeAuditLog({
+    hotelId: profile.hotel_id!,
+    actorId: profile.id,
+    actorName: profile.name,
+    entityType: 'reservation',
+    entityId: reservationId,
+    action: 'no_show',
+    summary: `${reservation.guest_name}: marked no-show (arrival ${reservation.check_in})`,
+  })
+
   return { success: true }
 }
 

@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createRoomSchema, updateRoomSchema } from '@/lib/validations'
-import { writeAuditLog, moneyDelta } from '@/lib/audit/log'
+import { writeAuditLog, moneyDelta, logRoomStatusChange } from '@/lib/audit/log'
 import type { DbRoomStatus } from '@/types'
 
 export type RoomActionResult = { success: true } | { success: false; error: string }
@@ -234,14 +234,15 @@ export async function updateRoomStatus(
   if (error) return { success: false, error: error.message }
 
   if (existing && existing.status !== status) {
-    void writeAuditLog({
+    void logRoomStatusChange({
       hotelId: profile.hotel_id,
       actorId: profile.id,
       actorName: profile.name,
-      entityType: 'room',
-      entityId: id,
-      action: 'status_changed',
-      summary: `Room ${existing.number}: ${existing.status} → ${status}`,
+      roomId: id,
+      roomNumber: existing.number,
+      from: existing.status,
+      to: status,
+      reason: 'manual update',
     })
   }
 

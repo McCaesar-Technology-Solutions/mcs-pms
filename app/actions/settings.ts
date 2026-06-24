@@ -8,6 +8,7 @@ import type { NotificationSmsPrefs } from '@/lib/notifications/preferences'
 import { NOTIFICATION_TEMPLATE_KEYS } from '@/lib/notifications/preferences'
 import type { NotificationEmailPrefs } from '@/lib/notifications/email-preferences'
 import { EMAIL_STAFF_TEMPLATE_KEYS } from '@/lib/notifications/email-preferences'
+import { writeAuditLog } from '@/lib/audit/log'
 
 export type SettingsActionResult = { success: true } | { success: false; error: string }
 
@@ -43,7 +44,7 @@ export async function updateHotelSettings(input: {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role')
+    .select('role, name')
     .eq('id', user.id)
     .maybeSingle()
 
@@ -54,6 +55,12 @@ export async function updateHotelSettings(input: {
   if (!(await ownerOwnsHotel(user.id, parsed.data.hotelId))) {
     return { success: false, error: 'You do not have access to this property.' }
   }
+
+  const { data: before } = await supabase
+    .from('hotels')
+    .select('name, vat_mode, invoice_prefix')
+    .eq('id', parsed.data.hotelId)
+    .maybeSingle()
 
   const { error } = await supabase
     .from('hotels')
@@ -73,6 +80,30 @@ export async function updateHotelSettings(input: {
     .eq('id', parsed.data.hotelId)
 
   if (error) return { success: false, error: error.message }
+
+  const changes: string[] = []
+  const trimmedName = parsed.data.name.trim()
+  if (before?.name !== trimmedName) changes.push(`Name: ${before?.name ?? '—'} → ${trimmedName}`)
+  if (parsed.data.vat_mode && before?.vat_mode !== parsed.data.vat_mode) {
+    changes.push(`VAT mode: ${before?.vat_mode ?? 'exclusive'} → ${parsed.data.vat_mode}`)
+  }
+  const nextPrefix = parsed.data.invoice_prefix?.trim().toUpperCase()
+  if (nextPrefix && before?.invoice_prefix !== nextPrefix) {
+    changes.push(`Invoice prefix: ${before?.invoice_prefix ?? '—'} → ${nextPrefix}`)
+  }
+
+  void writeAuditLog({
+    hotelId: parsed.data.hotelId,
+    actorId: user.id,
+    actorName: profile?.name,
+    entityType: 'hotel',
+    entityId: parsed.data.hotelId,
+    action: 'settings_updated',
+    summary:
+      changes.length > 0
+        ? `Property settings: ${changes.join('; ')}`
+        : 'Property settings saved',
+  })
 
   revalidateSettingsViews()
   return { success: true }

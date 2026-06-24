@@ -1,6 +1,14 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 
-export type AuditEntityType = 'reservation' | 'room' | 'room_category'
+export type AuditEntityType =
+  | 'reservation'
+  | 'room'
+  | 'room_category'
+  | 'hotel'
+  | 'staff'
+  | 'guest'
+  | 'invoice'
+  | 'complaint'
 
 export interface AuditLogInput {
   hotelId: string
@@ -30,6 +38,30 @@ export async function writeAuditLog(input: AuditLogInput): Promise<void> {
   } catch {
     // audit should never block primary workflows
   }
+}
+
+/** Room grid + automatic status from stays (check-in, checkout, move). */
+export async function logRoomStatusChange(input: {
+  hotelId: string
+  actorId: string
+  actorName?: string | null
+  roomId: string
+  roomNumber: string | number
+  from: string
+  to: string
+  reason?: string
+}): Promise<void> {
+  if (input.from === input.to) return
+  const suffix = input.reason ? ` (${input.reason})` : ''
+  await writeAuditLog({
+    hotelId: input.hotelId,
+    actorId: input.actorId,
+    actorName: input.actorName,
+    entityType: 'room',
+    entityId: input.roomId,
+    action: 'status_changed',
+    summary: `Room ${input.roomNumber}: ${input.from} → ${input.to}${suffix}`,
+  })
 }
 
 export function moneyDelta(label: string, before: number | null | undefined, after: number): string | null {

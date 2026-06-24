@@ -20,6 +20,16 @@ function entityLabel(type: string) {
       return 'Room'
     case 'room_category':
       return 'Category'
+    case 'hotel':
+      return 'Property'
+    case 'staff':
+      return 'Staff'
+    case 'guest':
+      return 'Guest'
+    case 'invoice':
+      return 'Invoice'
+    case 'complaint':
+      return 'Complaint'
     default:
       return type
   }
@@ -40,7 +50,7 @@ export function AuditLogPanel({ entries, compact = false }: AuditLogPanelProps) 
           <div>
             <h3 className="text-lg font-semibold text-foreground">Activity log</h3>
             <p className="mt-0.5 text-sm text-muted-foreground">
-              Who changed reservations, rates, and room status.
+              Check-ins, bookings, rate changes, room updates, and property settings.
             </p>
           </div>
         </div>
@@ -48,7 +58,7 @@ export function AuditLogPanel({ entries, compact = false }: AuditLogPanelProps) 
 
       {entries.length === 0 ? (
         <p className="px-6 py-10 text-center text-sm text-muted-foreground">
-          No activity recorded yet. Edits to reservations, room rates, and room status appear here.
+          No activity recorded yet. Check-ins, reservations, room changes, and settings updates appear here.
         </p>
       ) : (
         <div className="overflow-x-auto">
