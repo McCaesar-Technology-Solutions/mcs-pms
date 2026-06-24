@@ -122,21 +122,22 @@ export async function submitGuestComplaint(
   const { guest } = session.data
   const admin = createAdminClient()
 
-  const { count: totalCount } = await admin
-    .from('complaints')
-    .select('*', { count: 'exact', head: true })
-    .eq('guest_id', guest.id)
+  const windowStart = new Date(Date.now() - RATE_WINDOW_MS).toISOString()
+  const [{ count: totalCount }, { count: recentCount }] = await Promise.all([
+    admin
+      .from('complaints')
+      .select('*', { count: 'exact', head: true })
+      .eq('guest_id', guest.id),
+    admin
+      .from('complaints')
+      .select('*', { count: 'exact', head: true })
+      .eq('guest_id', guest.id)
+      .gte('submitted_at', windowStart),
+  ])
 
   if ((totalCount ?? 0) >= MAX_PER_STAY) {
     return { success: false, error: 'Please wait before submitting another complaint.' }
   }
-
-  const windowStart = new Date(Date.now() - RATE_WINDOW_MS).toISOString()
-  const { count: recentCount } = await admin
-    .from('complaints')
-    .select('*', { count: 'exact', head: true })
-    .eq('guest_id', guest.id)
-    .gte('submitted_at', windowStart)
 
   if ((recentCount ?? 0) >= MAX_PER_WINDOW) {
     return { success: false, error: 'Please wait before submitting another complaint.' }
@@ -162,7 +163,7 @@ export async function submitGuestComplaint(
     return { success: false, error: 'Could not submit complaint. Try again.' }
   }
 
-  await admin.from('complaint_events').insert({
+  void admin.from('complaint_events').insert({
     complaint_id: complaint.id,
     actor_role: 'guest',
     event_type: 'submitted',
@@ -176,7 +177,10 @@ export async function submitGuestComplaint(
     notifyGuestComplaintReceived(complaint.id).catch(() => undefined)
   })
 
-  return { success: true, data: { reference } }
+  return {
+    success: true,
+    data: { reference, complaintId: complaint.id, hotelId: guest.hotel_id },
+  }
 }
 
 export async function getGuestComplaints(): Promise<GuestActionResult<Complaint[]>> {

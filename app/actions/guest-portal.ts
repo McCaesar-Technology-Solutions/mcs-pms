@@ -2,6 +2,7 @@
 
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
+import { after } from 'next/server'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -19,11 +20,11 @@ import { stayNights, tokenExpiryISO } from '@/lib/stays/helpers'
 import { formatInvoiceNumber } from '@/lib/invoices/numbering'
 import type { ExportHotelInfo, InvoiceExportRow } from '@/lib/export/types'
 import { guestNeedsRulesAcceptance } from '@/app/actions/guest-rules'
-import { getGuestFromSession } from '@/app/actions/guest'
+import { getGuestFromSession, submitGuestComplaint } from '@/app/actions/guest'
 import {
   GUEST_COMPLAINT_PHOTO_BUCKET,
   guestComplaintPhotoMime,
-  guestComplaintPhotoPath,
+  uploadGuestComplaintPhoto,
 } from '@/lib/guest/complaint-photos'
 import { notifyGuestRequestCreated } from '@/lib/notifications/guest-requests'
 import { loadGuestPortalContext } from '@/lib/data/guest-portal'
@@ -331,9 +332,6 @@ export async function postGuestComplaintMessage(input: unknown): Promise<GuestPo
 export async function submitGuestComplaintWithPhoto(
   formData: FormData,
 ): Promise<GuestPortalActionResult<{ reference: string }>> {
-  const auth = await requireGuestWithRules()
-  if (!auth.ok) return { success: false, error: auth.error }
-
   const parsed = submitComplaintSchema.safeParse({
     category: formData.get('category'),
     description: formData.get('description'),
@@ -343,48 +341,32 @@ export async function submitGuestComplaintWithPhoto(
     return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid submission.' }
   }
 
-  const { submitGuestComplaint } = await import('@/app/actions/guest')
+  const photo = formData.get('photo')
+  let photoMime: string | null = null
+  if (photo instanceof File && photo.size > 0) {
+    photoMime = guestComplaintPhotoMime(photo)
+    if (!photoMime) return { success: false, error: 'Photo must be JPEG, PNG, or WebP.' }
+    if (photo.size > 5 * 1024 * 1024) return { success: false, error: 'Photo must be under 5 MB.' }
+  }
+
   const result = await submitGuestComplaint(parsed.data)
   if (!result.success || !result.data) {
     return result as GuestPortalActionResult<{ reference: string }>
   }
 
-  const photo = formData.get('photo')
-  if (!(photo instanceof File) || photo.size === 0) {
-    return result
+  if (photo instanceof File && photo.size > 0 && photoMime) {
+    const { complaintId, hotelId } = result.data
+    after(async () => {
+      try {
+        const buffer = Buffer.from(await photo.arrayBuffer())
+        await uploadGuestComplaintPhoto(hotelId, complaintId, buffer, photoMime)
+      } catch {
+        // Photo is optional — complaint is already saved.
+      }
+    })
   }
 
-  const mime = guestComplaintPhotoMime(photo)
-  if (!mime) return { success: false, error: 'Photo must be JPEG, PNG, or WebP.' }
-  if (photo.size > 5 * 1024 * 1024) return { success: false, error: 'Photo must be under 5 MB.' }
-
-  const admin = createAdminClient()
-  const { data: complaint } = await admin
-    .from('complaints')
-    .select('id')
-    .eq('guest_id', auth.guest.id)
-    .order('submitted_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-
-  if (!complaint) return result
-
-  const ext = mime.split('/')[1] ?? 'jpg'
-  const path = guestComplaintPhotoPath(auth.guest.hotel_id, complaint.id, ext)
-  const buffer = Buffer.from(await photo.arrayBuffer())
-
-  const { error: uploadError } = await admin.storage
-    .from(GUEST_COMPLAINT_PHOTO_BUCKET)
-    .upload(path, buffer, { contentType: mime, upsert: true })
-
-  if (uploadError) return result
-
-  await admin
-    .from('complaints')
-    .update({ guest_photo_path: path, guest_photo_mime: mime })
-    .eq('id', complaint.id)
-
-  return result
+  return { success: true, data: { reference: result.data.reference } }
 }
 
 export async function getGuestInvoiceReceiptData(

@@ -225,7 +225,7 @@ export function GuestPortal({ guest, roomNumber, propertyContacts, context }: Gu
     setCategory(null)
     setUrgent(false)
     setPhoto(null)
-    await loadComplaints()
+    void loadComplaints()
   }
 
   async function handleFeedback(e: React.FormEvent) {
