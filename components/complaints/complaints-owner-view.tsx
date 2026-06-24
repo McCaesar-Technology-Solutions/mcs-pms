@@ -19,6 +19,7 @@ import { fetchComplaintEstimate } from '@/app/actions/complaint-estimates'
 import { ComplaintEstimateCard } from '@/components/complaints/complaint-estimate-card'
 import { StaffComplaintModal } from '@/components/complaints/staff-complaint-modal'
 import { StaffComplaintMessageThread } from '@/components/complaints/staff-complaint-message-thread'
+import { DataEmptyState } from '@/components/dashboard/data-empty-state'
 import { PhoneContact } from '@/components/ui/phone-contact'
 import { useRealtimeRefresh } from '@/components/realtime/realtime-refresh-context'
 import { managerPendingLabel } from '@/lib/complaints/workflow'
@@ -48,7 +49,7 @@ const priorityAccent: Record<string, string> = {
   low: 'shadow-[inset_4px_0_0_0_#cbd5e1]',
 }
 
-const liftCard = 'rounded-2xl bg-white shadow-elevation-1'
+const staffPanelInset = 'staff-panel-inset'
 
 const timelineLabels: Record<ComplaintEventType, string> = {
   submitted: 'Submitted',
@@ -212,6 +213,7 @@ export function ComplaintsOwnerView({ canLog = false, canMessage = false }: Comp
             <button
               key={s}
               type="button"
+              aria-pressed={statusFilter === s}
               onClick={() => setStatusFilter(s)}
               className={`rounded-full px-3.5 py-1.5 text-xs font-semibold capitalize transition-all ${
                 statusFilter === s
@@ -261,9 +263,11 @@ export function ComplaintsOwnerView({ canLog = false, canMessage = false }: Comp
           )
         })}
         {filtered.length === 0 && (
-          <div className={`${liftCard} p-10 text-center text-sm text-muted-foreground`}>
-            No complaints match this filter.
-          </div>
+          <DataEmptyState
+            borderless
+            title="No matches"
+            message="No complaints match this filter."
+          />
         )}
       </div>
 
@@ -314,7 +318,7 @@ export function ComplaintsOwnerView({ canLog = false, canMessage = false }: Comp
             </div>
 
             <SheetContent className="space-y-4">
-              <div className={`${liftCard} p-4`}>
+              <div className={`${staffPanelInset} p-4`}>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
                   Description
                 </p>
@@ -330,8 +334,15 @@ export function ComplaintsOwnerView({ canLog = false, canMessage = false }: Comp
                 />
               )}
 
+              {!canLog && !canMessage && selected.status !== 'resolved' && (
+                <div className="rounded-2xl border border-[#3C216C]/10 bg-[#3C216C]/5 p-4 text-sm text-muted-foreground">
+                  Need something done on this issue? Contact your manager to assign a technician or
+                  message the guest.
+                </div>
+              )}
+
               {(guestPhoneOf(selected) || selected.assignee?.phone) && (
-                <div className={`${liftCard} space-y-3 p-4`}>
+                <div className={`${staffPanelInset} space-y-3 p-4`}>
                   <p className="flex items-center gap-2 text-sm font-semibold text-[#3C216C]">
                     <Phone className="h-4 w-4" />
                     Contact
@@ -380,7 +391,7 @@ export function ComplaintsOwnerView({ canLog = false, canMessage = false }: Comp
                             <span className="mt-1 w-px flex-1 min-h-6 bg-gradient-to-b from-[#D4A62E]/35 to-transparent" />
                           )}
                         </div>
-                        <div className={`${liftCard} mb-1 flex-1 px-4 py-3`}>
+                        <div className={`${staffPanelInset} mb-1 flex-1 px-4 py-3`}>
                           <p className="text-sm font-semibold text-foreground">
                             {timelineLabels[ev.event_type] ?? formatLabel(ev.event_type)}
                           </p>

@@ -136,6 +136,7 @@ export function ReservationsManager({
             <Search className="h-5 w-5 shrink-0 text-muted-foreground" />
             <input
               type="search"
+              aria-label="Search reservations"
               placeholder="Search guest, ref, room..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -148,6 +149,7 @@ export function ReservationsManager({
               <button
                 key={status}
                 type="button"
+                aria-pressed={statusFilter === status}
                 onClick={() => setStatusFilter(status)}
                 className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold transition-all ${
                   statusFilter === status

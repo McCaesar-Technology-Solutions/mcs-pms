@@ -58,6 +58,7 @@ import { guestStatusLabel } from '@/components/complaints/complaints-overview'
 import { GuestComplaintChat } from '@/components/guest/guest-complaint-chat'
 import { GuestPreArrivalForm } from '@/components/guest/guest-pre-arrival-form'
 import { GuestStatusAlerts } from '@/components/guest/guest-status-alerts'
+import { FormError } from '@/components/ui/form-error'
 import { RealtimeReconnectBanner } from '@/components/realtime/reconnect-banner'
 import { PhoneContactList } from '@/components/ui/phone-contact'
 import type { GuestPortalContext } from '@/lib/data/guest-portal'
@@ -369,7 +370,10 @@ export function GuestPortal({ guest, roomNumber, propertyContacts, context }: Gu
   return (
     <div className="relative min-h-dvh bg-gradient-to-b from-[#1a0f3d] via-[#22124C] to-[#12082a] pb-28 text-white">
       {disconnected && (
-        <RealtimeReconnectBanner onReconnect={() => setRetryKey((k) => k + 1)} />
+        <RealtimeReconnectBanner
+          onReconnect={() => setRetryKey((k) => k + 1)}
+          offset="guest-nav"
+        />
       )}
 
       <header className="relative overflow-hidden px-5 pb-6 pt-10">
@@ -409,14 +413,14 @@ export function GuestPortal({ guest, roomNumber, propertyContacts, context }: Gu
         )}
       </header>
 
-      <main className="space-y-4 px-4">
+      <main className="mx-auto w-full max-w-lg space-y-4 px-4">
         <GuestStatusAlerts
           complaints={complaints}
           requests={portalRequests}
           onOpenHelp={() => setActiveTab('help')}
         />
         {activeTab === 'home' && (
-          <>
+          <div role="tabpanel" id="guest-panel-home" aria-labelledby="guest-tab-home">
             <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
@@ -561,11 +565,11 @@ export function GuestPortal({ guest, roomNumber, propertyContacts, context }: Gu
                 variant="dark"
               />
             )}
-          </>
+          </div>
         )}
 
         {activeTab === 'stay' && (
-          <>
+          <div role="tabpanel" id="guest-panel-stay" aria-labelledby="guest-tab-stay">
             {requestSuccess && (
               <div
                 role="status"
@@ -643,7 +647,7 @@ export function GuestPortal({ guest, roomNumber, propertyContacts, context }: Gu
                     placeholder="Optional note for the front desk…"
                     className="w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm placeholder:text-white/35"
                   />
-                  {requestError && <p className="text-sm text-red-200">{requestError}</p>}
+                  {requestError && <FormError message={requestError} variant="dark" />}
                   <button
                     type="button"
                     disabled={requestLoading === showRequestForm}
@@ -744,11 +748,11 @@ export function GuestPortal({ guest, roomNumber, propertyContacts, context }: Gu
                 <p className="text-xs text-[#D4A62E]">{emailReceiptMessage}</p>
               )}
             </PortalCard>
-          </>
+          </div>
         )}
 
         {activeTab === 'help' && (
-          <>
+          <div role="tabpanel" id="guest-panel-help" aria-labelledby="guest-tab-help">
             <form onSubmit={handleComplaintSubmit} className="space-y-4">
               <PortalCard>
                 <p className="text-sm font-semibold">Report an issue</p>
@@ -810,9 +814,7 @@ export function GuestPortal({ guest, roomNumber, propertyContacts, context }: Gu
                     )
                   })}
                 </div>
-                {complaintError && (
-                  <p className="mt-2 text-sm text-red-200">{complaintError}</p>
-                )}
+                {complaintError && <FormError message={complaintError} variant="dark" className="mt-2" />}
                 <button
                   type="submit"
                   disabled={complaintLoading || !category || description.length < 10}
@@ -868,11 +870,11 @@ export function GuestPortal({ guest, roomNumber, propertyContacts, context }: Gu
                 </ol>
               </PortalCard>
             )}
-          </>
+          </div>
         )}
 
         {activeTab === 'account' && (
-          <>
+          <div role="tabpanel" id="guest-panel-account" aria-labelledby="guest-tab-account">
             <PortalCard>
               <p className="mb-3 text-sm font-semibold">Your phone</p>
               <GuestPhoneEditor initialPhone={guest.phone} />
@@ -906,7 +908,7 @@ export function GuestPortal({ guest, roomNumber, propertyContacts, context }: Gu
                     placeholder="Tell us more (optional)…"
                     className="w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm placeholder:text-white/35"
                   />
-                  {feedbackError && <p className="text-sm text-red-200">{feedbackError}</p>}
+                  {feedbackError && <FormError message={feedbackError} variant="dark" />}
                   <button
                     type="submit"
                     disabled={feedbackLoading || rating < 1}
@@ -922,11 +924,15 @@ export function GuestPortal({ guest, roomNumber, propertyContacts, context }: Gu
                 <p className="mt-2 text-sm font-medium">Thanks for your feedback!</p>
               </PortalCard>
             )}
-          </>
+          </div>
         )}
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 z-20 border-t border-white/10 bg-[#12082a]/90 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl">
+      <nav
+        className="fixed bottom-0 left-0 right-0 z-20 border-t border-white/10 bg-[#12082a]/90 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl"
+        role="tablist"
+        aria-label="Guest portal sections"
+      >
         <div className="mx-auto flex max-w-lg justify-around">
           {tabs.map(({ id, label, icon: Icon }) => {
             const active = activeTab === id
@@ -934,6 +940,11 @@ export function GuestPortal({ guest, roomNumber, propertyContacts, context }: Gu
               <button
                 key={id}
                 type="button"
+                role="tab"
+                id={`guest-tab-${id}`}
+                aria-selected={active}
+                aria-controls={`guest-panel-${id}`}
+                tabIndex={active ? 0 : -1}
                 onClick={() => setActiveTab(id)}
                 className={`flex flex-1 flex-col items-center gap-1 rounded-xl py-2 text-[10px] font-semibold transition ${
                   active ? 'text-[#D4A62E]' : 'text-white/45'

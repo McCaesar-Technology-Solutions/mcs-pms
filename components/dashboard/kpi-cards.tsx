@@ -23,7 +23,7 @@ export function KPICards({ metrics, showRevenue = true }: KPICardsProps) {
       ? [
           {
             icon: Banknote,
-            label: 'Total Revenue',
+            label: 'Total revenue',
             value: `₵${kpiMetrics.totalRevenue.toLocaleString()}`,
             subtext: `RevPAR ₵${kpiMetrics.reviParMetric.toLocaleString()}`,
             trend: 'up',
@@ -34,7 +34,7 @@ export function KPICards({ metrics, showRevenue = true }: KPICardsProps) {
       : []),
     {
       icon: Percent,
-      label: 'Occupancy Rate',
+      label: 'Occupancy rate',
       value: `${(kpiMetrics.occupancyRate * 100).toFixed(0)}%`,
       subtext: 'Rooms occupied now',
       trend: 'up',
@@ -43,16 +43,16 @@ export function KPICards({ metrics, showRevenue = true }: KPICardsProps) {
     },
     {
       icon: Banknote,
-      label: 'Avg. Nightly Rate',
+      label: showRevenue ? 'Avg. nightly rate' : 'Typical room rate',
       value: `₵${kpiMetrics.averageNightlyRate}`,
-      subtext: 'Per available room',
+      subtext: showRevenue ? 'Per available room' : 'List price benchmark',
       trend: 'neutral',
       tint: 'bg-[#3C216C]/10',
       iconBg: 'bg-[#3C216C]/15 text-[#3C216C] ring-[#3C216C]/20',
     },
     {
       icon: Users,
-      label: 'Total Bookings',
+      label: 'Total bookings',
       value: kpiMetrics.totalBookings.toString(),
       subtext: `${kpiMetrics.totalGuests} guests`,
       trend: 'up',

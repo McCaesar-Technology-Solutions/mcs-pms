@@ -11,10 +11,23 @@ const ALLOWED_MIMES = new Set([
 
 const MAX_BYTES = 5 * 1024 * 1024
 
+export const GUEST_ID_DOCUMENT_MAX_MB = MAX_BYTES / (1024 * 1024)
+
 export function guestIdDocumentMime(file: File): string | null {
   if (!ALLOWED_MIMES.has(file.type)) return null
   if (file.size > MAX_BYTES) return null
   return file.type
+}
+
+/** Client-safe validation — returns an error message or null if valid. */
+export function validateGuestIdDocument(file: File): string | null {
+  if (!ALLOWED_MIMES.has(file.type)) {
+    return 'Please upload a JPG, PNG, WebP, or PDF file.'
+  }
+  if (file.size > MAX_BYTES) {
+    return `File must be ${GUEST_ID_DOCUMENT_MAX_MB} MB or smaller.`
+  }
+  return null
 }
 
 export async function uploadGuestIdDocument(

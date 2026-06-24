@@ -115,7 +115,8 @@ export function GuestsTable({ guests, initialSearch = '', readOnly = false }: Gu
           <div className="flex items-center gap-3 surface-inset rounded-xl px-4 py-2.5">
             <Search className="h-5 w-5 text-muted-foreground" />
             <input
-              type="text"
+              type="search"
+              aria-label="Search guests"
               placeholder="Search by name, email, or phone..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -125,6 +126,8 @@ export function GuestsTable({ guests, initialSearch = '', readOnly = false }: Gu
 
           <div className="flex items-center gap-2 overflow-x-auto pb-2">
             <button
+              type="button"
+              aria-pressed={selectedStatus === null}
               onClick={() => setSelectedStatus(null)}
               className={`px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-all ${
                 selectedStatus === null
@@ -137,6 +140,8 @@ export function GuestsTable({ guests, initialSearch = '', readOnly = false }: Gu
             {(['active', 'returning', 'vip', 'new'] as GuestStatus[]).map((status) => (
               <button
                 key={status}
+                type="button"
+                aria-pressed={selectedStatus === status}
                 onClick={() => setSelectedStatus(status)}
                 className={`px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-all ${
                   selectedStatus === status

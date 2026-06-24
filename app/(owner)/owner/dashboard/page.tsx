@@ -7,6 +7,8 @@ import { GRATaxSummary } from '@/components/dashboard/gra-tax-summary'
 import { GuestFeedbackPanel } from '@/components/dashboard/guest-feedback-panel'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { SectionHeading } from '@/components/dashboard/section-heading'
+import Link from 'next/link'
+import { ChevronRight } from 'lucide-react'
 import { getDashboardData } from '@/lib/data/dashboard'
 import { loadHotelGuestFeedback } from '@/lib/data/guest-feedback'
 import { getHousekeepingTasks } from '@/lib/data/housekeeping'
@@ -30,12 +32,12 @@ export default async function DashboardPage() {
       />
 
       <section className="space-y-4">
-        <SectionHeading title="Key Metrics" description="Real-time overview of your performance" />
+        <SectionHeading title="Key metrics" description="Real-time overview of your performance" />
         <KPICards metrics={metrics} />
       </section>
 
       <section className="space-y-4">
-        <SectionHeading title="Room Availability" description="See how many rooms are free to sell over the next 14 days" />
+        <SectionHeading title="Room availability" description="See how many rooms are free to sell over the next 14 days" />
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2">
             <AvailabilityStrip data={availability} />
@@ -47,7 +49,16 @@ export default async function DashboardPage() {
       </section>
 
       <section className="space-y-4">
-        <SectionHeading title="Operations" description="Housekeeping and maintenance tasks" />
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <SectionHeading title="Operations" description="Housekeeping and maintenance tasks" />
+          <Link
+            href="/owner/housekeeping"
+            className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:text-primary/80"
+          >
+            Housekeeping board
+            <ChevronRight className="h-4 w-4" />
+          </Link>
+        </div>
         <TasksList tasks={tasks} />
       </section>
 
@@ -59,7 +70,7 @@ export default async function DashboardPage() {
       )}
 
       <section className="space-y-4">
-        <SectionHeading title="Business Intelligence" description="Revenue sources and tax compliance" />
+        <SectionHeading title="Business intelligence" description="Revenue sources and tax compliance" />
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <ChannelPerformanceWidget channels={channels} />
           <GRATaxSummary summary={graSummary} />

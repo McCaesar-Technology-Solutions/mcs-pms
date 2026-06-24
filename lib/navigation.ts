@@ -25,6 +25,7 @@ export const ownerNavigation: NavItem[] = [
   { name: 'Reservations', href: '/owner/reservations', icon: 'calendar' },
   { name: 'Guests', href: '/owner/guests', icon: 'users' },
   { name: 'Complaints', href: '/owner/complaints', icon: 'wrench' },
+  { name: 'Housekeeping', href: '/owner/housekeeping', icon: 'briefcase' },
   { name: 'Staff', href: '/owner/staff', icon: 'user-cog' },
   { name: 'Billing', href: '/owner/billing', icon: 'banknote' },
   { name: 'GRA Reports', href: '/owner/gra-reports', icon: 'file-text' },

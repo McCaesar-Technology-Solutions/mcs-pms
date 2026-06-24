@@ -1,6 +1,7 @@
 'use client'
 
 import { TrendingUp } from 'lucide-react'
+import { DataEmptyState } from '@/components/dashboard/data-empty-state'
 import type { ChannelPerf } from '@/lib/data/overview'
 import type { Reservation } from '@/types'
 
@@ -27,12 +28,12 @@ export function ChannelPerformanceWidget({ channels }: ChannelPerformanceWidgetP
     <div className="surface-card">
       <div className="surface-card-accent" />
       <div className="surface-card-header">
-        <h3 className="text-lg font-semibold text-foreground">Channel Performance</h3>
+        <h3 className="text-lg font-semibold text-foreground">Channel performance</h3>
         <p className="text-sm text-muted-foreground mt-1">Revenue and booking distribution by source</p>
       </div>
 
       {data.length === 0 ? (
-        <p className="px-6 py-10 text-center text-sm text-muted-foreground">No bookings yet.</p>
+        <DataEmptyState borderless message="No bookings yet — channel mix appears after your first reservations." />
       ) : (
         <>
           <div className="p-6 space-y-5">

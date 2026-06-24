@@ -65,7 +65,7 @@ export function PageTabShell({
 
   return (
     <div className={className}>
-      <nav className="page-tab-nav" aria-label="Page sections">
+      <nav className="page-tab-nav" role="tablist" aria-label="Page sections">
         {tabs.map((tab) => {
           const selected = active === tab.id
           return (
@@ -73,7 +73,10 @@ export function PageTabShell({
               key={tab.id}
               type="button"
               role="tab"
+              id={`tab-${tab.id}`}
               aria-selected={selected}
+              aria-controls={`tabpanel-${tab.id}`}
+              tabIndex={selected ? 0 : -1}
               onClick={() => selectTab(tab.id)}
               className={`page-tab-nav__item ${selected ? 'page-tab-nav__item--active' : ''}`}
             >
@@ -86,7 +89,12 @@ export function PageTabShell({
         })}
       </nav>
 
-      <div role="tabpanel" className="mt-6 space-y-6">
+      <div
+        role="tabpanel"
+        id={`tabpanel-${active}`}
+        aria-labelledby={`tab-${active}`}
+        className="mt-6 space-y-6"
+      >
         {panels[active]}
       </div>
     </div>

@@ -33,6 +33,7 @@ import { ComplaintEstimateCard } from '@/components/complaints/complaint-estimat
 import { ScheduledVisitDisplay } from '@/components/complaints/schedule-visit-form'
 import { StaffComplaintModal } from '@/components/complaints/staff-complaint-modal'
 import { StaffComplaintMessageThread } from '@/components/complaints/staff-complaint-message-thread'
+import { DataEmptyState } from '@/components/dashboard/data-empty-state'
 import { getStaffComplaintPhotoUrl } from '@/app/actions/guest-portal-staff'
 import { PhoneContact } from '@/components/ui/phone-contact'
 import { useRealtimeRefresh } from '@/components/realtime/realtime-refresh-context'
@@ -73,7 +74,7 @@ const priorityAccent: Record<string, string> = {
 const softField =
   'mt-2 w-full appearance-none rounded-xl border-0 bg-white px-4 py-3 text-sm text-foreground shadow-elevation-1 outline-none transition-[box-shadow,transform] focus:shadow-elevation-2 focus:ring-2 focus:ring-[#3C216C]/10'
 
-const liftCard = 'rounded-2xl bg-white shadow-elevation-1'
+const staffPanelInset = 'staff-panel-inset'
 
 function formatLabel(value: string) {
   return value.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
@@ -333,7 +334,7 @@ function ComplaintsManagerContent() {
       />
 
       {pending.length > 0 && (
-        <section className={`${liftCard} bg-gradient-to-br from-white to-[#D85A30]/5 p-5`}>
+        <section className={`${staffPanelInset} bg-gradient-to-br from-white to-[#D85A30]/5 p-5`}>
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#D85A30]/12">
               <Clock className="h-4 w-4 text-[#D85A30]" />
@@ -357,7 +358,7 @@ function ComplaintsManagerContent() {
                     if (r.success) setEstimate(r.data ?? null)
                   })
                 }}
-                className={`${liftCard} flex w-full items-center justify-between gap-3 p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-elevation-2`}
+                className={`${staffPanelInset} flex w-full items-center justify-between gap-3 p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-elevation-2`}
               >
                 <div>
                   <p className="font-semibold text-foreground">
@@ -380,6 +381,7 @@ function ComplaintsManagerContent() {
             <button
               key={s}
               type="button"
+              aria-pressed={statusFilter === s}
               onClick={() => setStatusFilter(s)}
               className={`rounded-full px-3.5 py-1.5 text-xs font-semibold capitalize transition-all ${
                 statusFilter === s
@@ -429,9 +431,11 @@ function ComplaintsManagerContent() {
           )
         })}
         {filtered.length === 0 && (
-          <div className={`${liftCard} p-10 text-center text-sm text-muted-foreground`}>
-            No complaints match this filter.
-          </div>
+          <DataEmptyState
+            borderless
+            title="No matches"
+            message="No complaints match this filter."
+          />
         )}
       </div>
 
@@ -480,7 +484,7 @@ function ComplaintsManagerContent() {
             </div>
 
             <SheetContent className="space-y-4">
-              <div className={`${liftCard} p-4`}>
+              <div className={`${staffPanelInset} p-4`}>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
                   Description
                 </p>
@@ -488,7 +492,7 @@ function ComplaintsManagerContent() {
               </div>
 
               {guestPhotoUrl && (
-                <div className={`${liftCard} overflow-hidden p-4`}>
+                <div className={`${staffPanelInset} overflow-hidden p-4`}>
                   <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
                     Guest photo
                   </p>
@@ -513,7 +517,7 @@ function ComplaintsManagerContent() {
               )}
 
               {(guestPhoneOf(selected) || selected.assignee?.phone) && (
-                <div className={`${liftCard} space-y-3 p-4`}>
+                <div className={`${staffPanelInset} space-y-3 p-4`}>
                   <p className="flex items-center gap-2 text-sm font-semibold text-[#3C216C]">
                     <Phone className="h-4 w-4" />
                     Contact
@@ -548,7 +552,7 @@ function ComplaintsManagerContent() {
 
               {(selected.scheduled_visit_at ||
                 ['open', 'assigned', 'in_progress', 'rejected'].includes(selected.status ?? '')) && (
-                <div className={`${liftCard} p-4`}>
+                <div className={`${staffPanelInset} p-4`}>
                   <ScheduledVisitDisplay
                     scheduledVisitAt={selected.scheduled_visit_at}
                     pendingMessage={
@@ -671,7 +675,7 @@ function ComplaintsManagerContent() {
               )}
 
               {selected.status !== 'pending_approval' && selected.status !== 'resolved' && (
-                <div className={`${liftCard} overflow-hidden`}>
+                <div className={`${staffPanelInset} overflow-hidden`}>
                   <div className="flex items-center gap-2 px-4 pb-3 pt-4">
                     <UserPlus className="h-4 w-4 text-[#3C216C]" />
                     <h3 className="text-sm font-semibold text-[#3C216C]">Assign technician</h3>
@@ -714,7 +718,7 @@ function ComplaintsManagerContent() {
                             <span className="mt-1 w-px flex-1 min-h-6 bg-gradient-to-b from-[#D4A62E]/35 to-transparent" />
                           )}
                         </div>
-                        <div className={`${liftCard} mb-1 flex-1 px-4 py-3`}>
+                        <div className={`${staffPanelInset} mb-1 flex-1 px-4 py-3`}>
                           <p className="text-sm font-semibold text-foreground">
                             {timelineLabels[ev.event_type] ?? formatLabel(ev.event_type)}
                           </p>

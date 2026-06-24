@@ -6,7 +6,7 @@ import { getDashboardData } from '@/lib/data/dashboard'
 import { getStaffData } from '@/lib/data/staff'
 import { getHousekeepingTasks } from '@/lib/data/housekeeping'
 
-export default async function HousekeepingPage() {
+export default async function OwnerHousekeepingPage() {
   const [{ rooms, roomOptions }, { staff }, tasks] = await Promise.all([
     getDashboardData(),
     getStaffData(),
@@ -29,7 +29,7 @@ export default async function HousekeepingPage() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <RoomStatusGrid rooms={rooms} title="Room Status" />
+          <RoomStatusGrid rooms={rooms} title="Room status" />
         </div>
         <StaffAvailability staff={staff} />
       </div>

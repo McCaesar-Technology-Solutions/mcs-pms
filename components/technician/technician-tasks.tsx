@@ -14,6 +14,7 @@ import {
   HelpCircle,
   ClipboardList,
   CalendarClock,
+  RefreshCw,
 } from 'lucide-react'
 import {
   getTechnicianComplaints,
@@ -99,6 +100,7 @@ export function TechnicianTasks() {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [estimates, setEstimates] = useState<Record<string, ComplaintEstimate | null>>({})
   const [loading, setLoading] = useState<string | null>(null)
+  const [listRefreshing, setListRefreshing] = useState(false)
   const expandedRef = useRef<string | null>(null)
   expandedRef.current = expandedId
 
@@ -162,6 +164,12 @@ export function TechnicianTasks() {
     await load()
   }
 
+  async function refreshList() {
+    setListRefreshing(true)
+    await load()
+    setListRefreshing(false)
+  }
+
   function toggleExpanded(c: Complaint) {
     const next = expandedId === c.id ? null : c.id
     setExpandedId(next)
@@ -198,11 +206,30 @@ export function TechnicianTasks() {
 
   return (
     <div className="mx-auto flex w-full max-w-lg flex-1 flex-col px-4 pb-8 pt-4">
-      <div className="mb-5 flex rounded-2xl bg-white p-1 shadow-elevation-1">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <p className="text-sm font-semibold text-foreground">Your jobs</p>
+        <button
+          type="button"
+          onClick={() => void refreshList()}
+          disabled={listRefreshing}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-[#3C216C] shadow-elevation-1 hover:shadow-elevation-2 disabled:opacity-50"
+          aria-label="Refresh task list"
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${listRefreshing ? 'animate-spin' : ''}`} />
+          Refresh
+        </button>
+      </div>
+
+      <div className="mb-5 flex rounded-2xl bg-white p-1 shadow-elevation-1" role="tablist" aria-label="Task list">
         {(['active', 'completed'] as const).map((t) => (
           <button
             key={t}
             type="button"
+            role="tab"
+            id={t === 'active' ? 'technician-tab-active' : 'technician-tab-completed'}
+            aria-selected={tab === t}
+            aria-controls={t === 'active' ? 'technician-panel-active' : 'technician-panel-completed'}
+            tabIndex={tab === t ? 0 : -1}
             onClick={() => setTab(t)}
             className={`flex-1 rounded-xl py-2.5 text-sm font-semibold transition-all ${
               tab === t
@@ -215,7 +242,12 @@ export function TechnicianTasks() {
         ))}
       </div>
 
-      <div className="space-y-3">
+      <div
+        className="space-y-3"
+        role="tabpanel"
+        id={tab === 'active' ? 'technician-panel-active' : 'technician-panel-completed'}
+        aria-labelledby={tab === 'active' ? 'technician-tab-active' : 'technician-tab-completed'}
+      >
         {complaints.map((c) => {
           const expanded = expandedId === c.id
           const Icon = categoryIcons[c.category]

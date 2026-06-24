@@ -9,7 +9,7 @@ export default async function ManagerStaffPage() {
     <div className="page-shell space-y-6">
       <PageHeader
         badge="Team"
-        title="Technicians"
+        title="Team"
         description="Invite technicians and manage their access."
       />
       {profile ? (

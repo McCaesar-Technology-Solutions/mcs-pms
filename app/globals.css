@@ -55,38 +55,11 @@
   --sidebar-border: rgba(212, 166, 46, 0.22);
   --sidebar-ring: #d4a62e;
   --surface-glow: rgba(60, 33, 108, 0.1);
-}
 
-.dark {
-  --background: #1a0e3a;
-  --foreground: #ffffff;
-  --card: #2d215b;
-  --card-foreground: #ffffff;
-  --popover: #2d215b;
-  --popover-foreground: #ffffff;
-  --primary: #3c216c;
-  --primary-foreground: #ffffff;
-  --secondary: #3c216c;
-  --secondary-foreground: #ffffff;
-  --muted: #2d215b;
-  --muted-foreground: rgba(255, 255, 255, 0.65);
-  --accent: #d4a62e;
-  --accent-foreground: #22124c;
-  --destructive: #ef4444;
-  --border: rgba(212, 166, 46, 0.18);
-  --input: #2d215b;
-  --ring: #d4a62e;
-  --sidebar: #22124c;
-  --sidebar-foreground: #ffffff;
-  --sidebar-muted: rgba(255, 255, 255, 0.68);
-  --sidebar-subtle: rgba(255, 255, 255, 0.45);
-  --sidebar-primary: #3c216c;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: rgba(255, 255, 255, 0.06);
-  --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: rgba(212, 166, 46, 0.22);
-  --sidebar-ring: #d4a62e;
-  --surface-glow: rgba(60, 33, 108, 0.2);
+  /* Overlay stack — sheet < modal < reconnect banner */
+  --z-sheet: 9998;
+  --z-modal: 9999;
+  --z-reconnect: 10000;
 }
 
 @layer base {
@@ -346,6 +319,14 @@
   .page-tab-nav__item--active .page-tab-nav__badge {
     background: rgba(255, 255, 255, 0.22);
     color: white;
+  }
+
+  .staff-panel-inset {
+    border-radius: var(--radius);
+    background: var(--card);
+    box-shadow:
+      0 2px 8px rgba(var(--shadow-tint), 0.04),
+      0 8px 24px rgba(var(--glow-purple), 0.06);
   }
 
   .surface-inset {

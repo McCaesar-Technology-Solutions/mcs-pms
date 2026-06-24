@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { getUpcomingBookings } from '@/lib/data/overview'
+import { DataEmptyState } from '@/components/dashboard/data-empty-state'
 import { ChevronRight } from 'lucide-react'
 import type { Reservation } from '@/types'
 
@@ -30,7 +31,7 @@ export function BookingsList({ reservations, viewAllHref = '/owner/reservations'
       <div className="surface-card-header">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-semibold text-foreground">Upcoming Bookings</h3>
+            <h3 className="text-lg font-semibold text-foreground">Upcoming bookings</h3>
             <p className="text-sm text-muted-foreground mt-1">Next 5 reservations</p>
           </div>
           <Link
@@ -44,7 +45,10 @@ export function BookingsList({ reservations, viewAllHref = '/owner/reservations'
 
       <div className="p-4">
         {upcomingBookings.length === 0 ? (
-          <p className="px-2 py-8 text-center text-sm text-muted-foreground">No upcoming bookings.</p>
+          <DataEmptyState
+            borderless
+            message="No upcoming bookings."
+          />
         ) : (
           <div className="card-list-tray space-y-3">
             {upcomingBookings.map((booking) => (

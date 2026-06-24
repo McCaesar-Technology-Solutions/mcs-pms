@@ -48,7 +48,7 @@ export function Sheet({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[9998]"
+      className="fixed inset-0 z-[var(--z-sheet)]"
       role="dialog"
       aria-modal="true"
       aria-label={ariaLabel}

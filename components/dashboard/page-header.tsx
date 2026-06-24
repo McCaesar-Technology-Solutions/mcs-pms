@@ -6,7 +6,8 @@ interface PageHeaderProps {
 
 export function PageHeader({ title, description, badge }: PageHeaderProps) {
   return (
-    <div className="relative mb-2 overflow-hidden rounded-2xl bg-white p-6 shadow-elevation-2 md:p-8">
+    <div className="surface-card relative mb-2 overflow-hidden p-6 md:p-8">
+      <div className="surface-card-accent" />
       <div className="relative">
         {badge && (
           <span className="mb-3 inline-flex items-center rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-primary shadow-elevation-1">

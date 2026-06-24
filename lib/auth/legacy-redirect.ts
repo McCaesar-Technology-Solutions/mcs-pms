@@ -5,7 +5,7 @@ const PATH_MAP: Record<string, Partial<Record<UserRole, string>>> = {
   '/reservations': { owner: '/owner/reservations', manager: '/manager/reservations' },
   '/bookings': { owner: '/owner/reservations', manager: '/manager/reservations' },
   '/guests': { manager: '/manager/guests' },
-  '/housekeeping': { manager: '/manager/housekeeping' },
+  '/housekeeping': { owner: '/owner/housekeeping', manager: '/manager/housekeeping' },
   '/billing': { owner: '/owner/billing' },
   '/gra-reports': { owner: '/owner/gra-reports' },
   '/analytics': { owner: '/owner/analytics' },

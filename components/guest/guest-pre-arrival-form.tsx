@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { Upload, Check } from 'lucide-react'
 import { submitGuestPreArrival, updateGuestContactEmail } from '@/app/actions/guest-portal'
+import { validateGuestIdDocument } from '@/lib/guest/id-documents'
+import { FormError } from '@/components/ui/form-error'
 
 interface GuestPreArrivalFormProps {
   initialEmail: string | null
@@ -21,6 +23,7 @@ export function GuestPreArrivalForm({
   const [eta, setEta] = useState(initialEta ?? '')
   const [notes, setNotes] = useState(initialNotes ?? '')
   const [idFile, setIdFile] = useState<File | null>(null)
+  const [idFileError, setIdFileError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState(Boolean(submittedAt))
@@ -92,10 +95,27 @@ export function GuestPreArrivalForm({
           type="file"
           accept="image/jpeg,image/png,image/webp,application/pdf"
           className="sr-only"
-          onChange={(e) => setIdFile(e.target.files?.[0] ?? null)}
+          onChange={(e) => {
+            const file = e.target.files?.[0] ?? null
+            if (!file) {
+              setIdFile(null)
+              setIdFileError(null)
+              return
+            }
+            const validationError = validateGuestIdDocument(file)
+            if (validationError) {
+              setIdFile(null)
+              setIdFileError(validationError)
+              e.target.value = ''
+              return
+            }
+            setIdFile(file)
+            setIdFileError(null)
+          }}
         />
       </label>
-      {error && <p className="text-sm text-red-200">{error}</p>}
+      <FormError message={idFileError} variant="dark" />
+      <FormError message={error} variant="dark" />
       <button
         type="submit"
         disabled={loading}
