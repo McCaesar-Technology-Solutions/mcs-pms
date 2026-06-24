@@ -5,6 +5,7 @@ import { getGuestFromSession } from '@/app/actions/guest'
 import { guestNeedsRulesAcceptance } from '@/app/actions/guest-rules'
 import { getGuestPropertyContacts } from '@/lib/data/contacts'
 import { getHotelGuestRules } from '@/lib/data/guest-rules'
+import { loadGuestPortalContext } from '@/lib/data/guest-portal'
 
 export default async function GuestPage({
   searchParams,
@@ -37,13 +38,21 @@ export default async function GuestPage({
     }
   }
 
-  const propertyContacts = await getGuestPropertyContacts(session.data.guest.hotel_id)
+  const [propertyContacts, context] = await Promise.all([
+    getGuestPropertyContacts(session.data.guest.hotel_id),
+    loadGuestPortalContext(session.data.guest),
+  ])
+
+  if (!context) {
+    return <GuestExpiredPage message="Property not found. Please contact the front desk." />
+  }
 
   return (
     <GuestPortal
       guest={session.data.guest}
       roomNumber={session.data.roomNumber}
       propertyContacts={propertyContacts}
+      context={context}
     />
   )
 }

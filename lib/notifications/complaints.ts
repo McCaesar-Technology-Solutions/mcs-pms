@@ -346,3 +346,31 @@ export async function notifyComplaintRejected(
     includeWhatsApp: false,
   })
 }
+
+/** Guest replied on a complaint thread — alert managers. */
+export async function notifyComplaintGuestMessage(
+  complaintId: string,
+  messagePreview: string,
+): Promise<void> {
+  const ctx = await loadComplaintContext(complaintId)
+  if (!ctx) return
+
+  const preview = messagePreview.slice(0, 120)
+  await notifyManagers({
+    hotelId: ctx.hotelId,
+    templateKey: 'complaint_guest_message',
+    smsBody: [
+      'MOJO: Guest message',
+      refLine(ctx),
+      preview,
+      appUrl('/manager/complaints'),
+    ].join('\n'),
+    email: {
+      subject: `Guest message — ${refLine(ctx)}`,
+      preview: `${ctx.guestName ?? 'Guest'} sent a message about their issue.`,
+      lines: [preview],
+      actionUrl: appUrl('/manager/complaints'),
+      actionLabel: 'View complaint',
+    },
+  })
+}

@@ -30,6 +30,8 @@ import { fetchComplaintEstimate } from '@/app/actions/complaint-estimates'
 import { ComplaintEstimateCard } from '@/components/complaints/complaint-estimate-card'
 import { ScheduledVisitDisplay } from '@/components/complaints/schedule-visit-form'
 import { StaffComplaintModal } from '@/components/complaints/staff-complaint-modal'
+import { StaffComplaintMessageThread } from '@/components/complaints/staff-complaint-message-thread'
+import { getStaffComplaintPhotoUrl } from '@/app/actions/guest-portal-staff'
 import { PhoneContact } from '@/components/ui/phone-contact'
 import { useRealtimeRefresh } from '@/components/realtime/realtime-refresh-context'
 import {
@@ -144,6 +146,7 @@ export function ComplaintsManager() {
   const [roomStatus, setRoomStatus] = useState<DbRoomStatus>('available')
   const [loading, setLoading] = useState(false)
   const [showCreate, setShowCreate] = useState(false)
+  const [guestPhotoUrl, setGuestPhotoUrl] = useState<string | null>(null)
   const selectedRef = useRef<Complaint | null>(null)
   selectedRef.current = selected
 
@@ -198,18 +201,24 @@ export function ComplaintsManager() {
     setSelected(complaint)
     setRejectNote('')
     setEstimate(null)
-    const [evResult, estResult] = await Promise.all([
+    setGuestPhotoUrl(null)
+    const [evResult, estResult, photoResult] = await Promise.all([
       getComplaintEvents(complaint.id),
       fetchComplaintEstimate(complaint.id),
+      complaint.guest_photo_path
+        ? getStaffComplaintPhotoUrl(complaint.id)
+        : Promise.resolve({ success: false as const, error: '' }),
     ])
     if (evResult.success && evResult.data) setEvents(evResult.data)
     if (estResult.success) setEstimate(estResult.data ?? null)
+    if (photoResult.success && photoResult.data) setGuestPhotoUrl(photoResult.data.url)
   }
 
   function closeDetail() {
     setSelected(null)
     setRejectNote('')
     setEstimate(null)
+    setGuestPhotoUrl(null)
   }
 
   async function handleAssign(techId: string) {
@@ -414,6 +423,24 @@ export function ComplaintsManager() {
                 </p>
                 <p className="mt-2 text-sm leading-relaxed text-foreground">{selected.description}</p>
               </div>
+
+              {guestPhotoUrl && (
+                <div className={`${liftCard} overflow-hidden p-4`}>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                    Guest photo
+                  </p>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={guestPhotoUrl}
+                    alt="Guest attachment"
+                    className="mt-3 max-h-64 w-full rounded-xl object-contain"
+                  />
+                </div>
+              )}
+
+              {selected.guest_id && (
+                <StaffComplaintMessageThread complaintId={selected.id} />
+              )}
 
               {(guestPhoneOf(selected) || selected.assignee?.phone) && (
                 <div className={`${liftCard} space-y-3 p-4`}>

@@ -4,6 +4,7 @@ import { EmailNotificationPreferencesPanel } from '@/components/dashboard/email-
 import { NotificationLogPanel } from '@/components/dashboard/notification-log-panel'
 import { AuditLogPanel } from '@/components/dashboard/audit-log-panel'
 import { GuestRulesPanel } from '@/components/dashboard/guest-rules-panel'
+import { GuestPortalSettingsPanel } from '@/components/dashboard/guest-portal-settings-panel'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { getActiveHotelSettings } from '@/lib/data/settings'
 import { getNotificationLog } from '@/lib/data/notification-log'
@@ -30,6 +31,7 @@ export default async function SettingsPage() {
       {hotelSettings && (
         <>
           <GuestRulesPanel hotelId={hotelSettings.id} propertyName={hotelSettings.name} />
+          <GuestPortalSettingsPanel hotelId={hotelSettings.id} propertyName={hotelSettings.name} />
           <NotificationPreferencesPanel
             hotelId={hotelSettings.id}
             initialPrefs={hotelSettings.notificationSmsPrefs}

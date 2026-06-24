@@ -320,6 +320,7 @@ export interface Guest {
   check_in: string | null
   check_out: string | null
   guest_rules_accepted_version: number | null
+  do_not_disturb?: boolean | null
   enrolled_by: string | null
   created_at: string | null
 }
@@ -360,6 +361,8 @@ export interface Complaint {
   rejection_note: string | null
   submitted_at: string | null
   resolved_at: string | null
+  guest_photo_path?: string | null
+  guest_photo_mime?: string | null
   room?: DbRoom | null
   guest?: Guest | null
   assignee?: Pick<Profile, 'id' | 'name' | 'phone' | 'specialty'> | null

@@ -15,6 +15,7 @@ export const NOTIFICATION_TEMPLATE_KEYS = [
   'complaint_invoice_submitted',
   'complaint_estimate_approved',
   'complaint_rejected',
+  'guest_request',
   'housekeeping_assigned',
   'staff_invite',
 ] as const
@@ -56,6 +57,11 @@ export const NOTIFICATION_PREF_GROUPS: {
     ],
   },
   {
+    title: 'Guest portal',
+    description: 'Requests from the in-room guest app.',
+    keys: ['guest_request'],
+  },
+  {
     title: 'Housekeeping & staff',
     description: 'Task assignments and team invites.',
     keys: ['housekeeping_assigned', 'staff_invite'],
@@ -78,6 +84,7 @@ export const NOTIFICATION_PREF_LABELS: Record<NotificationTemplateKey, string> =
   complaint_invoice_submitted: 'Technician invoice submitted (managers)',
   complaint_estimate_approved: 'Invoice approved (technician)',
   complaint_rejected: 'Job sent back (technician)',
+  guest_request: 'Guest portal request (managers)',
   housekeeping_assigned: 'Housekeeping task assigned',
   staff_invite: 'Staff invite link (technician SMS)',
 }

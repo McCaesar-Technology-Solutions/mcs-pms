@@ -1,7 +1,9 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { fetchHotelComplaints } from '@/lib/data/complaints'
 import { isVisitTimeValid, parseVisitDateTime } from '@/lib/complaints/visit'
 import { canManagerApproveCompletion, canTechnicianScheduleVisit } from '@/lib/complaints/workflow'
@@ -649,4 +651,90 @@ export async function getHotelRooms(): Promise<
   const { data, error } = await supabase.from('rooms').select('id, number').order('number')
   if (error) return { success: false, error: error.message }
   return { success: true, data: data ?? [] }
+}
+
+const complaintMessageSchema = z.object({
+  complaintId: z.string().uuid(),
+  body: z.string().min(1).max(2000),
+})
+
+export async function getStaffComplaintMessages(
+  complaintId: string,
+): Promise<
+  ComplaintActionResult<
+    { id: string; authorRole: string; body: string; createdAt: string; authorName: string | null }[]
+  >
+> {
+  const profile = await requireStaffProfile()
+  if (!profile?.hotel_id) return { success: false, error: 'Not authorized.' }
+
+  const supabase = await createClient()
+  const { data: complaint } = await supabase
+    .from('complaints')
+    .select('id')
+    .eq('id', complaintId)
+    .eq('hotel_id', profile.hotel_id)
+    .maybeSingle()
+
+  if (!complaint) return { success: false, error: 'Complaint not found.' }
+
+  const admin = createAdminClient()
+  const { data } = await admin
+    .from('complaint_messages')
+    .select('id, author_role, body, created_at, author_id, profiles(name)')
+    .eq('complaint_id', complaintId)
+    .order('created_at', { ascending: true })
+
+  return {
+    success: true,
+    data: (data ?? []).map((m) => {
+      const author =
+        m.profiles && typeof m.profiles === 'object' && 'name' in m.profiles
+          ? (m.profiles as { name: string }).name
+          : null
+      return {
+        id: m.id,
+        authorRole: m.author_role,
+        body: m.body,
+        createdAt: m.created_at,
+        authorName: author,
+      }
+    }),
+  }
+}
+
+export async function postStaffComplaintMessage(
+  input: unknown,
+): Promise<ComplaintActionResult> {
+  const profile = await requireStaffProfile()
+  if (!profile?.hotel_id) return { success: false, error: 'Not authorized.' }
+
+  const parsed = complaintMessageSchema.safeParse(input)
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid message.' }
+  }
+
+  const supabase = await createClient()
+  const { data: complaint } = await supabase
+    .from('complaints')
+    .select('id')
+    .eq('id', parsed.data.complaintId)
+    .eq('hotel_id', profile.hotel_id)
+    .maybeSingle()
+
+  if (!complaint) return { success: false, error: 'Complaint not found.' }
+
+  const admin = createAdminClient()
+  const { error } = await admin.from('complaint_messages').insert({
+    complaint_id: parsed.data.complaintId,
+    author_role: 'staff',
+    author_id: profile.id,
+    body: parsed.data.body.trim(),
+  })
+
+  if (error) return { success: false, error: 'Could not send message.' }
+
+  revalidatePath('/manager/complaints')
+  revalidatePath('/guest')
+  return { success: true }
 }

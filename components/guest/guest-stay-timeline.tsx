@@ -7,6 +7,7 @@ interface GuestStayTimelineProps {
   checkIn: string
   checkOut: string
   roomNumber: string | null
+  checkOutTime?: string
 }
 
 function formatShortDate(dateStr: string) {
@@ -16,7 +17,12 @@ function formatShortDate(dateStr: string) {
   })
 }
 
-export function GuestStayTimeline({ checkIn, checkOut, roomNumber }: GuestStayTimelineProps) {
+export function GuestStayTimeline({
+  checkIn,
+  checkOut,
+  roomNumber,
+  checkOutTime = '11:00 AM',
+}: GuestStayTimelineProps) {
   const todayStr = new Date().toISOString().split('T')[0]
   const nights = nightsBetween(checkIn, checkOut)
   const dates = useMemo(() => stayDates(checkIn, checkOut), [checkIn, checkOut])
@@ -88,7 +94,7 @@ export function GuestStayTimeline({ checkIn, checkOut, roomNumber }: GuestStayTi
 
       {portalActive && (
         <p className="mt-3 text-center text-xs text-white/55">
-          Check-out {checkoutLabel} — please vacate by 11:00 AM unless late checkout was approved.
+          Check-out {checkoutLabel} — please vacate by {checkOutTime} unless late checkout was approved.
         </p>
       )}
     </section>

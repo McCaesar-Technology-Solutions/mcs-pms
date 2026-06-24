@@ -5,6 +5,9 @@ import { TasksList } from '@/components/dashboard/tasks-list'
 import { NotificationLogPanel } from '@/components/dashboard/notification-log-panel'
 import { AuditLogPanel } from '@/components/dashboard/audit-log-panel'
 import { GuestRulesPanel } from '@/components/dashboard/guest-rules-panel'
+import { GuestPortalSettingsPanel } from '@/components/dashboard/guest-portal-settings-panel'
+import { GuestRequestsPanel } from '@/components/dashboard/guest-requests-panel'
+import { loadHotelGuestRequests } from '@/lib/data/guest-portal'
 import { ComplaintsOverviewLive } from '@/components/complaints/complaints-overview-live'
 import { fetchHotelComplaints } from '@/lib/data/complaints'
 import { getDashboardData } from '@/lib/data/dashboard'
@@ -24,10 +27,15 @@ export default async function ManagerDashboardPage() {
   ])
 
   let propertyName = 'Property'
+  let guestRequests: Awaited<ReturnType<typeof loadHotelGuestRequests>> = []
   if (hotelId) {
     const admin = createAdminClient()
-    const { data: hotel } = await admin.from('hotels').select('name').eq('id', hotelId).maybeSingle()
+    const [{ data: hotel }, requests] = await Promise.all([
+      admin.from('hotels').select('name').eq('id', hotelId).maybeSingle(),
+      loadHotelGuestRequests(hotelId),
+    ])
     propertyName = hotel?.name ?? propertyName
+    guestRequests = requests
   }
 
   return (
@@ -54,7 +62,11 @@ export default async function ManagerDashboardPage() {
       </section>
 
       {hotelId && (
-        <GuestRulesPanel hotelId={hotelId} propertyName={propertyName} />
+        <>
+          <GuestRequestsPanel hotelId={hotelId} initialRequests={guestRequests} />
+          <GuestPortalSettingsPanel hotelId={hotelId} propertyName={propertyName} />
+          <GuestRulesPanel hotelId={hotelId} propertyName={propertyName} />
+        </>
       )}
 
       <AuditLogPanel entries={auditLog} compact />

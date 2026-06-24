@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { CheckCircle2 } from 'lucide-react'
+import { CheckCircle2, MessageCircle } from 'lucide-react'
 import { approveGuestComplaintCompletion } from '@/app/actions/guest'
 import { ScheduledVisitDisplay } from '@/components/complaints/schedule-visit-form'
 import { guestStatusLabel } from '@/components/complaints/complaints-overview'
@@ -11,9 +11,10 @@ import type { Complaint } from '@/types'
 interface GuestComplaintCardProps {
   complaint: Complaint
   onUpdated: () => void
+  onOpenChat?: () => void
 }
 
-export function GuestComplaintCard({ complaint, onUpdated }: GuestComplaintCardProps) {
+export function GuestComplaintCard({ complaint, onUpdated, onOpenChat }: GuestComplaintCardProps) {
   const [approveLoading, setApproveLoading] = useState(false)
   const [approveError, setApproveError] = useState<string | null>(null)
 
@@ -58,8 +59,19 @@ export function GuestComplaintCard({ complaint, onUpdated }: GuestComplaintCardP
         </div>
       )}
 
+      {onOpenChat && complaint.status !== 'resolved' && (
+        <button
+          type="button"
+          onClick={onOpenChat}
+          className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 py-2.5 text-sm font-medium text-white/80"
+        >
+          <MessageCircle className="h-4 w-4" />
+          Message staff
+        </button>
+      )}
+
       {canApprove && (
-        <div className="mt-3 border-t border-white/10 pt-3 space-y-2">
+        <div className="mt-3 space-y-2 border-t border-white/10 pt-3">
           <div className="flex items-center gap-2">
             <CheckCircle2 className="h-4 w-4 text-[#D4A62E]" />
             <p className="text-sm font-medium text-white">Confirm work is complete</p>
