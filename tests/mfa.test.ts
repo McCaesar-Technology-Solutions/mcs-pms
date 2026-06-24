@@ -7,9 +7,7 @@ import {
   safeMfaNext,
   userNeedsMfa,
 } from '@/lib/auth/mfa'
-import { verifyTotpCode, createTotpSecret } from '@/lib/auth/mfa-totp'
 import { hashOtp, hashSessionKey } from '@/lib/auth/mfa-sms'
-import { generateSync } from 'otplib'
 
 describe('userNeedsMfa', () => {
   it('only applies when the user opted in', () => {
@@ -26,7 +24,7 @@ describe('canEnrollMfa', () => {
 })
 
 describe('mfaGateForRole', () => {
-  const off = { applies: false, method: null, hasPhone: true, hasTotp: true, sessionVerified: false }
+  const off = { applies: false, method: null, hasPhone: true, hasTotp: false, sessionVerified: false }
   const smsNeedsPhone = {
     applies: true,
     method: 'sms' as const,
@@ -41,18 +39,11 @@ describe('mfaGateForRole', () => {
     hasTotp: false,
     sessionVerified: false,
   }
-  const totpNeedsSetup = {
-    applies: true,
-    method: 'totp' as const,
-    hasPhone: true,
-    hasTotp: false,
-    sessionVerified: false,
-  }
   const done = {
     applies: true,
-    method: 'totp' as const,
+    method: 'sms' as const,
     hasPhone: true,
-    hasTotp: true,
+    hasTotp: false,
     sessionVerified: true,
   }
 
@@ -66,7 +57,6 @@ describe('mfaGateForRole', () => {
 
   it('forces verify when setup is complete but session is new', () => {
     expect(mfaGateForRole('manager', smsNeedsVerify)).toBe('verify')
-    expect(mfaGateForRole('manager', totpNeedsSetup)).toBe('ok')
   })
 
   it('allows access when session is verified', () => {
@@ -96,9 +86,9 @@ describe('mfaRedirectPath', () => {
         'manager',
         {
           applies: true,
-          method: 'totp',
+          method: 'sms',
           hasPhone: true,
-          hasTotp: true,
+          hasTotp: false,
           sessionVerified: false,
         },
         '/manager/dashboard',
@@ -116,24 +106,8 @@ describe('safeMfaNext', () => {
 })
 
 describe('MFA method labels', () => {
-  it('includes SMS and authenticator options', () => {
+  it('includes SMS option', () => {
     expect(MFA_METHOD_LABELS.sms).toMatch(/SMS/i)
-    expect(MFA_METHOD_LABELS.totp).toMatch(/Authenticator/i)
-  })
-})
-
-describe('totp verification', () => {
-  it('accepts a valid code from otplib', () => {
-    const secret = createTotpSecret()
-    const token = generateSync({ secret })
-    expect(verifyTotpCode(secret, token)).toBe(true)
-    expect(verifyTotpCode(secret, '000000')).toBe(false)
-  })
-
-  it('allows adjacent time windows (clock skew)', () => {
-    const secret = createTotpSecret()
-    const token = generateSync({ secret, epoch: Math.floor(Date.now() / 1000) - 25 })
-    expect(verifyTotpCode(secret, token)).toBe(true)
   })
 })
 

@@ -1,6 +1,5 @@
 'use server'
 
-import QRCode from 'qrcode'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { ROLE_HOME } from '@/lib/auth/roles'
@@ -14,8 +13,6 @@ import {
   MFA_SEND_MAX_PER_15_MIN,
 } from '@/lib/auth/mfa-sms'
 import { buildMfaStatus } from '@/lib/auth/mfa-status'
-import { encryptTotpSecret, decryptTotpSecret } from '@/lib/auth/mfa-totp-crypto'
-import { buildTotpUri, createTotpSecret, verifyTotpCode } from '@/lib/auth/mfa-totp'
 import { mfaRedirectPath, safeMfaNext, userNeedsMfa, type MfaMethod } from '@/lib/auth/mfa'
 import { sendToPhone } from '@/lib/notifications/send'
 import { isSmsConfigured } from '@/lib/notifications/sms-provider'
@@ -71,21 +68,45 @@ function profileForStatus(profile: StaffProfile) {
   }
 }
 
-async function loadTotpSecrets(userId: string) {
+async function loadStaffProfile(userId: string) {
   const admin = createAdminClient()
   const { data } = await admin
     .from('profiles')
-    .select('mfa_enabled, mfa_method, mfa_totp_secret, mfa_totp_pending_secret, role')
+    .select(
+      'id, role, hotel_id, phone, email, mfa_enabled, mfa_method, mfa_totp_secret, mfa_totp_pending_secret',
+    )
     .eq('id', userId)
     .maybeSingle()
-  return data
+  return data ? ({ ...data, role: data.role as UserRole } as StaffProfile) : null
 }
 
-async function decryptStoredTotpSecret(
-  encrypted: string | null | undefined,
-): Promise<string | null> {
-  if (!encrypted?.trim()) return null
-  return decryptTotpSecret(encrypted)
+/** Authenticator apps are no longer supported — move legacy rows to SMS or disable. */
+export async function migrateLegacyTotpMfa(userId: string): Promise<void> {
+  const admin = createAdminClient()
+  const { data } = await admin
+    .from('profiles')
+    .select('mfa_method, mfa_totp_secret, mfa_totp_pending_secret, phone')
+    .eq('id', userId)
+    .maybeSingle()
+
+  if (!data) return
+  const hasTotp =
+    data.mfa_method === 'totp' ||
+    Boolean(data.mfa_totp_secret?.trim()) ||
+    Boolean(data.mfa_totp_pending_secret?.trim())
+  if (!hasTotp) return
+
+  const hasPhone = Boolean(data.phone?.trim())
+  await admin
+    .from('profiles')
+    .update({
+      mfa_enabled: hasPhone,
+      mfa_method: hasPhone ? 'sms' : null,
+      mfa_sms_enabled: hasPhone,
+      mfa_totp_secret: null,
+      mfa_totp_pending_secret: null,
+    })
+    .eq('id', userId)
 }
 
 async function markSessionVerified(
@@ -136,18 +157,22 @@ export async function getMfaStatus(): Promise<
     sessionVerified: boolean
   }>
 > {
-  const { supabase, user, profile } = await requireStaffContext()
-  if (!user || !profile) return { success: false, error: 'Not signed in.' }
+  const { supabase, user } = await requireStaffContext()
+  if (!user) return { success: false, error: 'Not signed in.' }
+
+  await migrateLegacyTotpMfa(user.id)
+  const profile = (await loadStaffProfile(user.id)) ?? null
+  if (!profile) return { success: false, error: 'Not signed in.' }
 
   const status = await buildMfaStatus(supabase, user.id, profileForStatus(profile))
 
   return {
     success: true,
     data: {
-      enabled: profile.mfa_enabled === true,
-      method: profile.mfa_method,
+      enabled: profile.mfa_enabled === true && profile.mfa_method === 'sms',
+      method: profile.mfa_method === 'sms' ? 'sms' : null,
       hasPhone: status.hasPhone,
-      hasTotp: status.hasTotp,
+      hasTotp: false,
       maskedPhone: profile.phone ? maskPhone(profile.phone) : null,
       sessionVerified: status.sessionVerified,
     },
@@ -354,118 +379,6 @@ export async function verifyMfaSmsCode(
 
   const next = safeMfaNext(intendedPath, ROLE_HOME[profile.role])
   return { success: true, data: { redirectTo: next } }
-}
-
-export async function verifyMfaTotpCode(
-  code: string,
-  intendedPath?: string,
-): Promise<MfaActionResult<{ redirectTo: string }>> {
-  const trimmed = code.replace(/\D/g, '')
-  if (trimmed.length !== 6) {
-    return { success: false, error: 'Enter the 6-digit code from your authenticator app.' }
-  }
-
-  const { supabase, user, profile } = await requireStaffContext()
-  if (!user || !profile) return { success: false, error: 'Not signed in.' }
-
-  const mfaRow = await loadTotpSecrets(user.id)
-  if (!userNeedsMfa(mfaRow?.mfa_enabled === true) || mfaRow?.mfa_method !== 'totp') {
-    return { success: false, error: 'Authenticator verification is not enabled for this account.' }
-  }
-
-  const secret = await decryptStoredTotpSecret(mfaRow?.mfa_totp_secret)
-  if (!secret) {
-    return {
-      success: false,
-      error:
-        'Authenticator setup could not be read. Turn off 2FA in Settings and set it up again.',
-    }
-  }
-  if (!verifyTotpCode(secret, trimmed)) {
-    return { success: false, error: 'Invalid code. Check your authenticator app and try again.' }
-  }
-
-  const verified = await markSessionVerified(supabase, user.id)
-  if (!verified.success) return verified as MfaActionResult<{ redirectTo: string }>
-
-  const next = safeMfaNext(intendedPath, ROLE_HOME[profile.role])
-  return { success: true, data: { redirectTo: next } }
-}
-
-export async function beginTotpSetup(): Promise<
-  MfaActionResult<{ qrDataUrl: string; manualSecret: string }>
-> {
-  const { user, profile } = await requireStaffContext()
-  if (!user || !profile) return { success: false, error: 'Not signed in.' }
-
-  const admin = createAdminClient()
-  const mfaRow = await loadTotpSecrets(user.id)
-  const existingPending = await decryptStoredTotpSecret(mfaRow?.mfa_totp_pending_secret)
-
-  let secret = existingPending
-  if (!secret) {
-    secret = createTotpSecret()
-    const encryptedPending = await encryptTotpSecret(secret)
-    const { error } = await admin
-      .from('profiles')
-      .update({ mfa_totp_pending_secret: encryptedPending })
-      .eq('id', user.id)
-
-    if (error) return { success: false, error: 'Could not start authenticator setup.' }
-  }
-
-  const uri = buildTotpUri(secret, profile.email)
-  const qrDataUrl = await QRCode.toDataURL(uri, { margin: 2, width: 220 })
-
-  return { success: true, data: { qrDataUrl, manualSecret: secret } }
-}
-
-export async function confirmTotpSetup(
-  code: string,
-  intendedPath?: string,
-): Promise<MfaActionResult<{ redirectTo?: string }>> {
-  const trimmed = code.replace(/\D/g, '')
-  if (trimmed.length !== 6) {
-    return { success: false, error: 'Enter the 6-digit code from your authenticator app.' }
-  }
-
-  const { supabase, user, profile } = await requireStaffContext()
-  if (!user || !profile) return { success: false, error: 'Not signed in.' }
-
-  const mfaRow = await loadTotpSecrets(user.id)
-  const pending = await decryptStoredTotpSecret(mfaRow?.mfa_totp_pending_secret)
-  if (!pending) {
-    return { success: false, error: 'Setup expired. Scan the QR code again.' }
-  }
-  if (!verifyTotpCode(pending, trimmed)) {
-    return { success: false, error: 'Invalid code. Check your authenticator app and try again.' }
-  }
-
-  const admin = createAdminClient()
-  const encrypted = await encryptTotpSecret(pending)
-  const { error } = await admin
-    .from('profiles')
-    .update({
-      mfa_enabled: true,
-      mfa_method: 'totp',
-      mfa_sms_enabled: false,
-      mfa_totp_secret: encrypted,
-      mfa_totp_pending_secret: null,
-    })
-    .eq('id', user.id)
-
-  if (error) return { success: false, error: 'Could not save authenticator setup.' }
-
-  if (intendedPath !== undefined) {
-    const verified = await markSessionVerified(supabase, user.id)
-    if (!verified.success) return verified as MfaActionResult<{ redirectTo?: string }>
-    return {
-      success: true,
-      data: { redirectTo: safeMfaNext(intendedPath, ROLE_HOME[profile.role]) },
-    }
-  }
-
-  return { success: true }
 }
 
 export async function saveMfaPhoneAndSend(phone: string): Promise<

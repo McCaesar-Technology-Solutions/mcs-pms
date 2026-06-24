@@ -9,7 +9,7 @@ interface MfaEnrollFormProps {
   nextPath: string
 }
 
-/** Complete SMS 2FA setup when enabled but no phone on file. TOTP is configured in Settings only. */
+/** Complete SMS 2FA setup when enabled but no phone on file. */
 export function MfaEnrollForm({ nextPath }: MfaEnrollFormProps) {
   const router = useRouter()
   const [ready, setReady] = useState(false)
@@ -26,20 +26,8 @@ export function MfaEnrollForm({ nextPath }: MfaEnrollFormProps) {
         return
       }
 
-      if (!result.data.enabled) {
+      if (!result.data.enabled || result.data.method !== 'sms') {
         router.replace(nextPath)
-        return
-      }
-
-      if (result.data.method === 'totp') {
-        const settingsPath = nextPath.startsWith('/manager')
-          ? '/manager/staff'
-          : nextPath.startsWith('/receptionist')
-            ? '/receptionist/staff'
-            : nextPath.startsWith('/technician')
-              ? '/technician/dashboard'
-              : '/owner/settings'
-        router.replace(settingsPath)
         return
       }
 

@@ -84,10 +84,20 @@ export async function signIn(
     .eq('id', data.user.id)
     .maybeSingle()
 
-  if (mfaRow?.mfa_enabled) {
-    const incompleteTotp = mfaRow.mfa_method === 'totp' && !mfaRow.mfa_totp_secret?.trim()
-    const incompleteSms = mfaRow.mfa_method === 'sms' && !mfaRow.phone?.trim()
-    if (incompleteTotp || incompleteSms || !mfaRow.mfa_method) {
+  // Legacy authenticator MFA is migrated to SMS (or disabled) on sign-in.
+  if (mfaRow) {
+    const { migrateLegacyTotpMfa } = await import('@/app/actions/mfa')
+    await migrateLegacyTotpMfa(data.user.id)
+
+    const { data: refreshed } = await admin
+      .from('profiles')
+      .select('mfa_enabled, mfa_method, phone')
+      .eq('id', data.user.id)
+      .maybeSingle()
+
+    const row = refreshed ?? mfaRow
+    const incompleteSms = row.mfa_enabled && row.mfa_method === 'sms' && !row.phone?.trim()
+    if (incompleteSms || (row.mfa_enabled && !row.mfa_method)) {
       await admin
         .from('profiles')
         .update({

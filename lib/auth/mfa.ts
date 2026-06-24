@@ -1,10 +1,9 @@
 import type { UserRole } from '@/types'
 
-export type MfaMethod = 'sms' | 'totp'
+export type MfaMethod = 'sms'
 
 export const MFA_METHOD_LABELS: Record<MfaMethod, string> = {
   sms: 'Text message (SMS)',
-  totp: 'Authenticator app',
 }
 
 /** All staff may enable 2FA in profile settings; guests use the token portal only. */
@@ -61,8 +60,6 @@ export function mfaGateForRole(_role: UserRole, status: MfaStatus): MfaGate {
   if (!status.applies || !status.method) return 'ok'
 
   if (status.method === 'sms' && !status.hasPhone) return 'enroll'
-  // TOTP setup belongs in account settings — do not block sign-in for incomplete setup.
-  if (status.method === 'totp' && !status.hasTotp) return 'ok'
   if (!status.sessionVerified) return 'verify'
   return 'ok'
 }
