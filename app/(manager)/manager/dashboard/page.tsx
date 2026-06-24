@@ -10,6 +10,7 @@ import { GuestRequestsPanel } from '@/components/dashboard/guest-requests-panel'
 import { GuestFeedbackPanel } from '@/components/dashboard/guest-feedback-panel'
 import { ManagerNotificationSummary } from '@/components/dashboard/manager-notification-summary'
 import { OpsInboxPanel } from '@/components/dashboard/ops-inbox-panel'
+import { PageTabShell } from '@/components/dashboard/page-tab-shell'
 import { loadHotelGuestRequests } from '@/lib/data/guest-portal'
 import { loadHotelGuestFeedback } from '@/lib/data/guest-feedback'
 import { loadOpsInbox } from '@/lib/data/ops-inbox'
@@ -21,15 +22,23 @@ import { getNotificationLog } from '@/lib/data/notification-log'
 import { getAuditLog } from '@/lib/data/audit-log'
 import { createAdminClient } from '@/lib/supabase/admin'
 
+const MANAGER_HASH_TO_TAB: Record<string, string> = {
+  'ops-inbox': 'overview',
+  'guest-feedback': 'guest-portal',
+  'guest-requests': 'guest-portal',
+  'audit-log': 'activity',
+  'sms-log': 'activity',
+}
+
 export default async function ManagerDashboardPage() {
   const [complaints, { metrics, hotelId }, tasks, notificationLog, auditLog] =
     await Promise.all([
-    fetchHotelComplaints(),
-    getDashboardData(),
-    getHousekeepingTasks(),
-    getNotificationLog(20),
-    getAuditLog(20),
-  ])
+      fetchHotelComplaints(),
+      getDashboardData(),
+      getHousekeepingTasks(),
+      getNotificationLog(20),
+      getAuditLog(20),
+    ])
 
   let propertyName = 'Property'
   let guestRequests: Awaited<ReturnType<typeof loadHotelGuestRequests>> = []
@@ -58,46 +67,79 @@ export default async function ManagerDashboardPage() {
     emailPrefs = (hotelPrefs.data?.notification_email_prefs as Record<string, boolean>) ?? null
   }
 
+  const pendingGuestRequests = guestRequests.filter((r) => r.status === 'pending').length
+  const overviewBadge = opsInbox.length
+  const guestPortalBadge = pendingGuestRequests
+
   return (
-    <div className="page-shell space-y-8">
+    <div className="page-shell space-y-6">
       <PageHeader
         badge="Operations"
         title="Manager Dashboard"
         description="Monitor guest complaints, room status, and daily operations."
       />
 
-      <section className="space-y-4">
-        <SectionHeading title="Key Metrics" description="Today's operational snapshot" />
-        <KPICards metrics={metrics} showRevenue={false} />
-      </section>
+      <PageTabShell
+        hashToTab={MANAGER_HASH_TO_TAB}
+        defaultTab="overview"
+        tabs={[
+          { id: 'overview', label: 'Overview', badge: overviewBadge },
+          { id: 'guest-portal', label: 'Guest portal', badge: guestPortalBadge },
+          { id: 'activity', label: 'Activity' },
+        ]}
+        panels={{
+          overview: (
+            <>
+              <section className="space-y-4">
+                <SectionHeading
+                  title="Key metrics"
+                  description="Today's operational snapshot"
+                />
+                <KPICards metrics={metrics} showRevenue={false} />
+              </section>
 
-      <section className="space-y-4">
-        <SectionHeading title="Operations inbox" description="Needs your attention now" />
-        <OpsInboxPanel items={opsInbox} />
-      </section>
+              <OpsInboxPanel items={opsInbox} />
 
-      <section className="space-y-4">
-        <SectionHeading title="Complaints" description="Requires your attention" />
-        <ComplaintsOverviewLive initialComplaints={complaints} limit={5} />
-      </section>
+              <div className="grid gap-6 xl:grid-cols-2">
+                <section className="space-y-4">
+                  <SectionHeading
+                    title="Complaints"
+                    description="Open and in-progress issues"
+                  />
+                  <ComplaintsOverviewLive initialComplaints={complaints} limit={5} />
+                </section>
 
-      <section className="space-y-4">
-        <SectionHeading title="Tasks" description="Housekeeping and maintenance" />
-        <TasksList tasks={tasks} />
-      </section>
-
-      {hotelId && (
-        <>
-          <GuestRequestsPanel hotelId={hotelId} initialRequests={guestRequests} />
-          {guestFeedback && <GuestFeedbackPanel summary={guestFeedback} />}
-          <ManagerNotificationSummary smsPrefs={smsPrefs} emailPrefs={emailPrefs} />
-          <GuestPortalSettingsPanel hotelId={hotelId} propertyName={propertyName} />
-          <GuestRulesPanel hotelId={hotelId} propertyName={propertyName} />
-        </>
-      )}
-
-      <AuditLogPanel entries={auditLog} compact />
-      <NotificationLogPanel entries={notificationLog} compact />
+                <section className="space-y-4">
+                  <SectionHeading
+                    title="Tasks"
+                    description="Housekeeping and maintenance"
+                  />
+                  <TasksList tasks={tasks} />
+                </section>
+              </div>
+            </>
+          ),
+          'guest-portal': hotelId ? (
+            <>
+              <GuestRequestsPanel hotelId={hotelId} initialRequests={guestRequests} />
+              {guestFeedback && guestFeedback.totalCount > 0 && (
+                <GuestFeedbackPanel summary={guestFeedback} />
+              )}
+              <ManagerNotificationSummary smsPrefs={smsPrefs} emailPrefs={emailPrefs} />
+              <GuestPortalSettingsPanel hotelId={hotelId} propertyName={propertyName} />
+              <GuestRulesPanel hotelId={hotelId} propertyName={propertyName} />
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground">No property linked to this account.</p>
+          ),
+          activity: (
+            <div className="grid gap-6 xl:grid-cols-2">
+              <AuditLogPanel entries={auditLog} compact />
+              <NotificationLogPanel entries={notificationLog} compact />
+            </div>
+          ),
+        }}
+      />
     </div>
   )
 }

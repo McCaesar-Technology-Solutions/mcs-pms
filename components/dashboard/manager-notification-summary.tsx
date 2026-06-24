@@ -82,8 +82,8 @@ export function ManagerNotificationSummary({
       </div>
       <div className="border-t border-border/60 px-4 py-3 text-xs text-muted-foreground">
         Owners manage full notification preferences in{' '}
-        <Link href="/owner/settings" className="font-semibold text-[#3C216C] hover:underline">
-          Settings
+        <Link href="/owner/settings#alerts" className="font-semibold text-[#3C216C] hover:underline">
+          Settings → Alerts
         </Link>
         .
       </div>
