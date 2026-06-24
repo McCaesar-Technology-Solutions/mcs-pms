@@ -3,7 +3,11 @@
 import Link from 'next/link'
 import { ChevronDown, LogOut, Menu, Phone } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { NotificationsMenu, settingsHref } from '@/components/dashboard/notifications-menu'
+import {
+  NotificationsMenu,
+  settingsHref,
+  settingsMenuLabel,
+} from '@/components/dashboard/notifications-menu'
 import { AccountPhoneDialog } from '@/components/dashboard/account-phone-dialog'
 import { signOut } from '@/app/actions/auth'
 import { hasPhoneNumber } from '@/lib/phone'
@@ -140,7 +144,7 @@ export default function Topbar({ onMenuOpen, profile }: TopbarProps) {
                     onClick={() => setShowUserMenu(false)}
                     className="flex w-full items-center gap-2 px-4 py-2.5 text-sm transition-colors hover:bg-secondary/60"
                   >
-                    Settings
+                    {settingsMenuLabel(profile?.role)}
                   </Link>
                   <button
                     type="button"

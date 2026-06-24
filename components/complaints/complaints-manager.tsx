@@ -2,6 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { toast } from 'sonner'
 import {
   Droplets,
   Zap,
@@ -271,8 +272,13 @@ function ComplaintsManagerContent() {
   async function handleAssign(techId: string) {
     if (!selected) return
     setLoading(true)
-    await assignComplaint(selected.id, techId)
+    const result = await assignComplaint(selected.id, techId)
     setLoading(false)
+    if (!result.success) {
+      toast.error(result.error ?? 'Could not assign technician.')
+      return
+    }
+    toast.success('Technician assigned.')
     await load()
     closeDetail()
   }
@@ -280,8 +286,13 @@ function ComplaintsManagerContent() {
   async function handleApprove() {
     if (!selected) return
     setLoading(true)
-    await approveComplaint(selected.id, roomStatus)
+    const result = await approveComplaint(selected.id, roomStatus)
     setLoading(false)
+    if (!result.success) {
+      toast.error(result.error ?? 'Could not approve complaint.')
+      return
+    }
+    toast.success('Complaint approved and closed.')
     await load()
     closeDetail()
   }
@@ -289,8 +300,13 @@ function ComplaintsManagerContent() {
   async function handleReject() {
     if (!selected || !rejectNote.trim()) return
     setLoading(true)
-    await rejectComplaint(selected.id, rejectNote)
+    const result = await rejectComplaint(selected.id, rejectNote)
     setLoading(false)
+    if (!result.success) {
+      toast.error(result.error ?? 'Could not reject complaint.')
+      return
+    }
+    toast.success('Sent back to technician.')
     await load()
     closeDetail()
   }

@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { toast } from 'sonner'
 import {
   ChevronDown,
   ChevronUp,
@@ -139,16 +140,32 @@ export function TechnicianTasks() {
 
   async function handleStart(id: string) {
     setLoading(id)
-    await startTechnicianComplaint(id)
+    const result = await startTechnicianComplaint(id)
     setLoading(null)
+    if (!result.success) {
+      toast.error(result.error ?? 'Could not start job.')
+      return
+    }
+    toast.success('Job marked as started.')
     await load()
   }
 
   async function handleComplete(id: string) {
     setLoading(id)
-    await markComplaintComplete(id)
+    const result = await markComplaintComplete(id)
     setLoading(null)
+    if (!result.success) {
+      toast.error(result.error ?? 'Could not mark job complete.')
+      return
+    }
+    toast.success('Job sent to manager for approval.')
     await load()
+  }
+
+  function toggleExpanded(c: Complaint) {
+    const next = expandedId === c.id ? null : c.id
+    setExpandedId(next)
+    if (next && !estimates[c.id]) void loadEstimate(c.id)
   }
 
   function scrollToElement(id: string) {
@@ -230,15 +247,7 @@ export function TechnicianTasks() {
                 expanded ? 'shadow-elevation-2' : 'hover:-translate-y-px hover:shadow-elevation-2'
               } ${isRejected ? 'ring-2 ring-red-500/10' : ''} ${isPending ? 'ring-2 ring-[#D85A30]/10' : ''}`}
             >
-              <button
-                type="button"
-                className="flex w-full items-start gap-3 p-4 text-left"
-                onClick={() => {
-                  const next = expanded ? null : c.id
-                  setExpandedId(next)
-                  if (next && !estimates[c.id]) void loadEstimate(c.id)
-                }}
-              >
+              <div className="flex w-full items-start gap-3 p-4">
                 <div
                   className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${
                     isRejected
@@ -260,33 +269,37 @@ export function TechnicianTasks() {
                 </div>
 
                 <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-lg font-bold text-[#3C216C]">Room {roomsJoin}</p>
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${priorityBadge(c.priority)}`}
-                    >
-                      {c.priority ?? 'medium'}
-                    </span>
-                  </div>
-                  <p className="mt-0.5 text-sm font-medium capitalize text-foreground">
-                    {c.category}
-                    <span className="ml-2 font-mono text-[10px] text-muted-foreground">
-                      {guestComplaintReference(c.id)}
-                    </span>
-                  </p>
-                  <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{c.description}</p>
-                  <span
-                    className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${statusBadge(c)}`}
+                  <button
+                    type="button"
+                    aria-expanded={expanded}
+                    className="w-full text-left"
+                    onClick={() => toggleExpanded(c)}
                   >
-                    {technicianStatusLabel(c)}
-                  </span>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-lg font-bold text-[#3C216C]">Room {roomsJoin}</p>
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${priorityBadge(c.priority)}`}
+                      >
+                        {c.priority ?? 'medium'}
+                      </span>
+                    </div>
+                    <p className="mt-0.5 text-sm font-medium capitalize text-foreground">
+                      {c.category}
+                      <span className="ml-2 font-mono text-[10px] text-muted-foreground">
+                        {guestComplaintReference(c.id)}
+                      </span>
+                    </p>
+                    <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{c.description}</p>
+                    <span
+                      className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${statusBadge(c)}`}
+                    >
+                      {technicianStatusLabel(c)}
+                    </span>
+                  </button>
                   {!expanded && nextAction?.actionLabel && nextAction.actionKind !== 'none' && (
                     <button
                       type="button"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        void handleTechnicianNextAction(c, nextAction)
-                      }}
+                      onClick={() => void handleTechnicianNextAction(c, nextAction)}
                       className="mt-2 block w-full rounded-lg bg-[#3C216C]/8 px-2.5 py-2 text-left text-xs font-semibold text-[#3C216C] hover:bg-[#3C216C]/12"
                     >
                       Next: {nextAction.actionLabel} →
@@ -294,10 +307,16 @@ export function TechnicianTasks() {
                   )}
                 </div>
 
-                <span className="mt-1 shrink-0 text-muted-foreground">
+                <button
+                  type="button"
+                  aria-expanded={expanded}
+                  aria-label={expanded ? 'Collapse task details' : 'Expand task details'}
+                  className="mt-1 shrink-0 rounded-lg p-1 text-muted-foreground hover:bg-[#3C216C]/5"
+                  onClick={() => toggleExpanded(c)}
+                >
                   {expanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
-                </span>
-              </button>
+                </button>
+              </div>
 
               {expanded && (
                 <div className="mx-4 mb-4 space-y-3 rounded-xl bg-[#F7F4FB] p-4">

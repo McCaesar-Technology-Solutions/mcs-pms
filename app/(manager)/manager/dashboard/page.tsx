@@ -122,9 +122,7 @@ export default async function ManagerDashboardPage() {
           'guest-portal': hotelId ? (
             <>
               <GuestRequestsPanel hotelId={hotelId} initialRequests={guestRequests} />
-              {guestFeedback && guestFeedback.totalCount > 0 && (
-                <GuestFeedbackPanel summary={guestFeedback} />
-              )}
+              {guestFeedback && <GuestFeedbackPanel summary={guestFeedback} />}
               <ManagerNotificationSummary smsPrefs={smsPrefs} emailPrefs={emailPrefs} />
               <GuestPortalSettingsPanel hotelId={hotelId} propertyName={propertyName} />
               <GuestRulesPanel hotelId={hotelId} propertyName={propertyName} />

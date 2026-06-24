@@ -32,7 +32,7 @@ export default async function ManagerLayout({
       getOccupancyToday(supabase, profile.hotel_id),
     ])
     const complaintsNav = navigation.find((n) => n.name === 'Complaints')
-    if (complaintsNav) complaintsNav.badge = pending
+    if (complaintsNav && pending > 0) complaintsNav.badge = pending
     occupancyToday = occupancy
   }
 

@@ -111,10 +111,14 @@ export function NotificationsMenu({ profile }: NotificationsMenuProps) {
                   </Link>
                 )
               })}
-              {profile?.role === 'owner' && (
+              {(profile?.role === 'owner' || profile?.role === 'manager') && (
                 <div className="border-t border-[#E9ECEF] px-4 py-2">
                   <Link
-                    href="/owner/settings#sms-log"
+                    href={
+                      profile.role === 'owner'
+                        ? '/owner/settings#sms-log'
+                        : '/manager/dashboard#sms-log'
+                    }
                     onClick={() => setOpen(false)}
                     className="flex items-center gap-2 py-2 text-xs font-semibold text-primary hover:underline"
                   >
@@ -135,4 +139,10 @@ export function settingsHref(role?: Profile['role']): string {
   if (role === 'owner') return '/owner/settings'
   if (role === 'manager') return '/manager/staff'
   return '/login'
+}
+
+export function settingsMenuLabel(role?: Profile['role']): string {
+  if (role === 'owner') return 'Settings'
+  if (role === 'manager') return 'Account & team'
+  return 'Settings'
 }

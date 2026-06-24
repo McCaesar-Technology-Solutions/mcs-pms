@@ -23,7 +23,7 @@ export default async function OwnerLayout({
     redirect('/login')
   }
 
-  const navigation = [...ownerNavigation]
+  const navigation = ownerNavigation.map((item) => ({ ...item }))
   let occupancyToday: OccupancyToday | undefined
   if (profile.hotel_id) {
     const supabase = await createClient()
@@ -32,7 +32,7 @@ export default async function OwnerLayout({
       getOccupancyToday(supabase, profile.hotel_id),
     ])
     const complaintsNav = navigation.find((n) => n.href.includes('complaints'))
-    if (complaintsNav) complaintsNav.badge = pending
+    if (complaintsNav && pending > 0) complaintsNav.badge = pending
     occupancyToday = occupancy
   }
 

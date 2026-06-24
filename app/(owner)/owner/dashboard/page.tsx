@@ -51,7 +51,7 @@ export default async function DashboardPage() {
         <TasksList tasks={tasks} />
       </section>
 
-      {guestFeedback && guestFeedback.totalCount > 0 && (
+      {guestFeedback && (
         <section className="space-y-4">
           <SectionHeading title="Guest reviews" description="Feedback from the guest portal" />
           <GuestFeedbackPanel summary={guestFeedback} />

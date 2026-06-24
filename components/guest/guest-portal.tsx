@@ -73,6 +73,13 @@ const tabs: { id: TabId; label: string; icon: typeof Home }[] = [
   { id: 'account', label: 'You', icon: User },
 ]
 
+const REQUEST_SUCCESS_LABELS: Record<string, string> = {
+  housekeeping: 'Housekeeping request sent — the front desk has been notified.',
+  late_checkout: 'Late checkout request sent — we will confirm shortly.',
+  extension: 'Stay extension request sent — we will confirm shortly.',
+  self_checkout: 'Self check-out request sent — the front desk has been notified.',
+}
+
 const categories: { id: ComplaintCategory; label: string; icon: typeof Droplets }[] = [
   { id: 'plumbing', label: 'Plumbing', icon: Droplets },
   { id: 'electrical', label: 'Electrical', icon: Zap },
@@ -126,6 +133,7 @@ export function GuestPortal({ guest, roomNumber, propertyContacts, context }: Gu
   const [copiedWifi, setCopiedWifi] = useState(false)
   const [requestLoading, setRequestLoading] = useState<string | null>(null)
   const [requestError, setRequestError] = useState<string | null>(null)
+  const [requestSuccess, setRequestSuccess] = useState<string | null>(null)
   const [requestNote, setRequestNote] = useState('')
   const [requestDate, setRequestDate] = useState('')
   const [requestTime, setRequestTime] = useState('')
@@ -211,6 +219,7 @@ export function GuestPortal({ guest, roomNumber, propertyContacts, context }: Gu
   async function handleRequest(type: string) {
     setRequestLoading(type)
     setRequestError(null)
+    setRequestSuccess(null)
     const result = await submitGuestRequest({
       requestType: type,
       note: requestNote.trim() || undefined,
@@ -230,6 +239,9 @@ export function GuestPortal({ guest, roomNumber, propertyContacts, context }: Gu
     if (bundle.success && bundle.data) {
       setPortalRequests(bundle.data.context.requests)
     }
+    setRequestSuccess(
+      REQUEST_SUCCESS_LABELS[type] ?? 'Request sent — the front desk has been notified.',
+    )
     setActiveTab('stay')
   }
 
@@ -554,6 +566,15 @@ export function GuestPortal({ guest, roomNumber, propertyContacts, context }: Gu
 
         {activeTab === 'stay' && (
           <>
+            {requestSuccess && (
+              <div
+                role="status"
+                className="rounded-xl border border-emerald-400/30 bg-emerald-500/15 px-4 py-3 text-sm text-emerald-100"
+              >
+                {requestSuccess}
+              </div>
+            )}
+
             {guest.check_in && guest.check_out && (
               <GuestStayTimeline
                 checkIn={guest.check_in}
@@ -580,7 +601,11 @@ export function GuestPortal({ guest, roomNumber, propertyContacts, context }: Gu
                   <button
                     key={type}
                     type="button"
-                    onClick={() => setShowRequestForm(showRequestForm === type ? null : type)}
+                    onClick={() => {
+                      setShowRequestForm(showRequestForm === type ? null : type)
+                      setRequestSuccess(null)
+                      setRequestError(null)
+                    }}
                     className={`flex items-center gap-2 rounded-xl px-3 py-3 text-left text-sm transition ${
                       showRequestForm === type
                         ? 'bg-[#D4A62E]/20 ring-1 ring-[#D4A62E]/50'

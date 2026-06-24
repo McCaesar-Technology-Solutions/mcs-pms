@@ -23,10 +23,8 @@ function Stars({ rating }: { rating: number }) {
 }
 
 export function GuestFeedbackPanel({ summary }: GuestFeedbackPanelProps) {
-  if (summary.totalCount === 0) return null
-
   return (
-    <div id="guest-feedback" className="surface-card overflow-hidden">
+    <div id="guest-feedback" className="surface-card overflow-hidden scroll-mt-24">
       <div className="surface-card-accent" />
       <div className="surface-card-header">
         <div className="flex flex-wrap items-end justify-between gap-3">
@@ -36,27 +34,34 @@ export function GuestFeedbackPanel({ summary }: GuestFeedbackPanelProps) {
               Feedback from the guest portal · You tab
             </p>
           </div>
-          <div className="flex gap-4 text-sm">
-            {summary.averageRating != null && (
+          {summary.totalCount > 0 && (
+            <div className="flex gap-4 text-sm">
+              {summary.averageRating != null && (
+                <div className="text-right">
+                  <p className="text-2xl font-bold text-[#3C216C]">{summary.averageRating}</p>
+                  <p className="text-xs text-muted-foreground">Avg (recent)</p>
+                </div>
+              )}
               <div className="text-right">
-                <p className="text-2xl font-bold text-[#3C216C]">{summary.averageRating}</p>
-                <p className="text-xs text-muted-foreground">Avg (recent)</p>
+                <p className="text-2xl font-bold text-foreground">{summary.totalCount}</p>
+                <p className="text-xs text-muted-foreground">Total</p>
               </div>
-            )}
-            <div className="text-right">
-              <p className="text-2xl font-bold text-foreground">{summary.totalCount}</p>
-              <p className="text-xs text-muted-foreground">Total</p>
+              {summary.lowRatingCount > 0 && (
+                <div className="text-right">
+                  <p className="text-2xl font-bold text-[#D85A30]">{summary.lowRatingCount}</p>
+                  <p className="text-xs text-muted-foreground">≤ 2 stars</p>
+                </div>
+              )}
             </div>
-            {summary.lowRatingCount > 0 && (
-              <div className="text-right">
-                <p className="text-2xl font-bold text-[#D85A30]">{summary.lowRatingCount}</p>
-                <p className="text-xs text-muted-foreground">≤ 2 stars</p>
-              </div>
-            )}
-          </div>
+          )}
         </div>
       </div>
 
+      {summary.totalCount === 0 ? (
+        <p className="border-t border-border/60 px-4 py-10 text-center text-sm text-muted-foreground">
+          No guest reviews yet. Reviews appear here after guests submit feedback on the You tab.
+        </p>
+      ) : (
       <ul className="divide-y divide-border/60 border-t border-border/60">
         {summary.rows.map((row) => (
           <li key={row.id} className="px-4 py-3">
@@ -90,6 +95,7 @@ export function GuestFeedbackPanel({ summary }: GuestFeedbackPanelProps) {
           </li>
         ))}
       </ul>
+      )}
     </div>
   )
 }
