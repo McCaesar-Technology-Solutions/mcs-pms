@@ -5,18 +5,21 @@ import { NotificationLogPanel } from '@/components/dashboard/notification-log-pa
 import { AuditLogPanel } from '@/components/dashboard/audit-log-panel'
 import { GuestRulesPanel } from '@/components/dashboard/guest-rules-panel'
 import { GuestPortalSettingsPanel } from '@/components/dashboard/guest-portal-settings-panel'
+import { GuestFeedbackPanel } from '@/components/dashboard/guest-feedback-panel'
 import { PageHeader } from '@/components/dashboard/page-header'
+import { loadHotelGuestFeedback } from '@/lib/data/guest-feedback'
 import { getActiveHotelSettings } from '@/lib/data/settings'
 import { getNotificationLog } from '@/lib/data/notification-log'
 import { getAuditLog } from '@/lib/data/audit-log'
 import { getProfile } from '@/lib/auth/get-profile'
 
 export default async function SettingsPage() {
-  const [hotelSettings, profile, notificationLog, auditLog] = await Promise.all([
-    getActiveHotelSettings(),
+  const hotelSettings = await getActiveHotelSettings()
+  const [profile, notificationLog, auditLog, guestFeedback] = await Promise.all([
     getProfile(),
     getNotificationLog(50),
     getAuditLog(50),
+    hotelSettings?.id ? loadHotelGuestFeedback(hotelSettings.id, 20) : Promise.resolve(null),
   ])
 
   return (
@@ -42,6 +45,7 @@ export default async function SettingsPage() {
             initialPrefs={hotelSettings.notificationEmailPrefs}
             initialFromEmail={hotelSettings.notificationFromEmail}
           />
+          {guestFeedback && <GuestFeedbackPanel summary={guestFeedback} />}
         </>
       )}
       <AuditLogPanel entries={auditLog} />

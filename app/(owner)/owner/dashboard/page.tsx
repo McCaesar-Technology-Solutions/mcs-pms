@@ -4,17 +4,20 @@ import { BookingsList } from '@/components/dashboard/bookings-list'
 import { TasksList } from '@/components/dashboard/tasks-list'
 import { ChannelPerformanceWidget } from '@/components/dashboard/channel-performance'
 import { GRATaxSummary } from '@/components/dashboard/gra-tax-summary'
+import { GuestFeedbackPanel } from '@/components/dashboard/guest-feedback-panel'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { SectionHeading } from '@/components/dashboard/section-heading'
 import { getDashboardData } from '@/lib/data/dashboard'
+import { loadHotelGuestFeedback } from '@/lib/data/guest-feedback'
 import { getHousekeepingTasks } from '@/lib/data/housekeeping'
 import { computeChannelPerformance, computeGraSummary } from '@/lib/data/overview'
 
 export default async function DashboardPage() {
-  const [{ metrics, availability, reservations, invoices }, tasks] = await Promise.all([
+  const [{ metrics, availability, reservations, invoices, hotelId }, tasks] = await Promise.all([
     getDashboardData(),
     getHousekeepingTasks(),
   ])
+  const guestFeedback = hotelId ? await loadHotelGuestFeedback(hotelId) : null
   const channels = computeChannelPerformance(reservations)
   const graSummary = computeGraSummary(invoices)
 
@@ -47,6 +50,13 @@ export default async function DashboardPage() {
         <SectionHeading title="Operations" description="Housekeeping and maintenance tasks" />
         <TasksList tasks={tasks} />
       </section>
+
+      {guestFeedback && guestFeedback.totalCount > 0 && (
+        <section className="space-y-4">
+          <SectionHeading title="Guest reviews" description="Feedback from the guest portal" />
+          <GuestFeedbackPanel summary={guestFeedback} />
+        </section>
+      )}
 
       <section className="space-y-4">
         <SectionHeading title="Business Intelligence" description="Revenue sources and tax compliance" />

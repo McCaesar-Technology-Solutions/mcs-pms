@@ -265,16 +265,38 @@ export async function submitGuestFeedback(input: unknown): Promise<GuestPortalAc
   }
 
   const admin = createAdminClient()
-  const { error } = await admin.from('guest_feedback').insert({
-    hotel_id: auth.guest.hotel_id,
-    guest_id: auth.guest.id,
-    complaint_id: parsed.data.complaintId ?? null,
-    rating: parsed.data.rating,
-    comment: parsed.data.comment?.trim() || null,
-  })
 
-  if (error) return { success: false, error: 'Could not save feedback.' }
+  const { count } = await admin
+    .from('guest_feedback')
+    .select('*', { count: 'exact', head: true })
+    .eq('guest_id', auth.guest.id)
+
+  if ((count ?? 0) > 0) {
+    return { success: false, error: 'You have already submitted feedback for this stay.' }
+  }
+
+  const { data, error } = await admin
+    .from('guest_feedback')
+    .insert({
+      hotel_id: auth.guest.hotel_id,
+      guest_id: auth.guest.id,
+      complaint_id: parsed.data.complaintId ?? null,
+      rating: parsed.data.rating,
+      comment: parsed.data.comment?.trim() || null,
+    })
+    .select('id')
+    .single()
+
+  if (error || !data) return { success: false, error: 'Could not save feedback.' }
+
+  void import('@/lib/notifications/guest-feedback').then(({ notifyGuestFeedbackSubmitted }) =>
+    notifyGuestFeedbackSubmitted(data.id).catch(() => undefined),
+  )
+
   revalidatePath('/guest')
+  revalidatePath('/manager/dashboard')
+  revalidatePath('/owner/dashboard')
+  revalidatePath('/owner/settings')
   return { success: true }
 }
 

@@ -22,6 +22,40 @@ function isRealStaffEmail(email: string | null | undefined): boolean {
   return !email.trim().toLowerCase().endsWith(SYNTHETIC_EMAIL_SUFFIX)
 }
 
+/** Active manager emails only (excludes owner). */
+export async function managerOnlyEmails(hotelId: string): Promise<string[]> {
+  const admin = createAdminClient()
+  const { data } = await admin
+    .from('profiles')
+    .select('email')
+    .eq('hotel_id', hotelId)
+    .eq('is_active', true)
+    .eq('role', 'manager')
+    .not('email', 'is', null)
+
+  return [
+    ...new Set(
+      (data ?? [])
+        .filter((p) => isRealStaffEmail(p.email))
+        .map((p) => p.email!.trim().toLowerCase()),
+    ),
+  ]
+}
+
+/** Active manager phones only (excludes owner). */
+export async function managerOnlyPhones(hotelId: string): Promise<string[]> {
+  const admin = createAdminClient()
+  const { data } = await admin
+    .from('profiles')
+    .select('phone')
+    .eq('hotel_id', hotelId)
+    .eq('is_active', true)
+    .eq('role', 'manager')
+    .not('phone', 'is', null)
+
+  return [...new Set((data ?? []).map((p) => p.phone!.trim()).filter(Boolean))]
+}
+
 /** Manager phones for a property; falls back to owner if no manager on file. */
 export async function managerPhones(hotelId: string): Promise<string[]> {
   const admin = createAdminClient()

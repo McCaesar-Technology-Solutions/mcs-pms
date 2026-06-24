@@ -6,9 +6,12 @@ import { NotificationLogPanel } from '@/components/dashboard/notification-log-pa
 import { AuditLogPanel } from '@/components/dashboard/audit-log-panel'
 import { GuestRulesPanel } from '@/components/dashboard/guest-rules-panel'
 import { GuestPortalSettingsPanel } from '@/components/dashboard/guest-portal-settings-panel'
+import { GuestRequestsPanel } from '@/components/dashboard/guest-requests-panel'
+import { GuestFeedbackPanel } from '@/components/dashboard/guest-feedback-panel'
 import { ManagerNotificationSummary } from '@/components/dashboard/manager-notification-summary'
 import { OpsInboxPanel } from '@/components/dashboard/ops-inbox-panel'
 import { loadHotelGuestRequests } from '@/lib/data/guest-portal'
+import { loadHotelGuestFeedback } from '@/lib/data/guest-feedback'
 import { loadOpsInbox } from '@/lib/data/ops-inbox'
 import { ComplaintsOverviewLive } from '@/components/complaints/complaints-overview-live'
 import { fetchHotelComplaints } from '@/lib/data/complaints'
@@ -33,12 +36,14 @@ export default async function ManagerDashboardPage() {
   let opsInbox: Awaited<ReturnType<typeof loadOpsInbox>> = []
   let smsPrefs: Record<string, boolean> | null = null
   let emailPrefs: Record<string, boolean> | null = null
+  let guestFeedback: Awaited<ReturnType<typeof loadHotelGuestFeedback>> | null = null
   if (hotelId) {
     const admin = createAdminClient()
-    const [{ data: hotel }, requests, inbox, hotelPrefs] = await Promise.all([
+    const [{ data: hotel }, requests, inbox, feedback, hotelPrefs] = await Promise.all([
       admin.from('hotels').select('name').eq('id', hotelId).maybeSingle(),
       loadHotelGuestRequests(hotelId),
       loadOpsInbox(hotelId),
+      loadHotelGuestFeedback(hotelId),
       admin
         .from('hotels')
         .select('notification_sms_prefs, notification_email_prefs')
@@ -48,6 +53,7 @@ export default async function ManagerDashboardPage() {
     propertyName = hotel?.name ?? propertyName
     guestRequests = requests
     opsInbox = inbox
+    guestFeedback = feedback
     smsPrefs = (hotelPrefs.data?.notification_sms_prefs as Record<string, boolean>) ?? null
     emailPrefs = (hotelPrefs.data?.notification_email_prefs as Record<string, boolean>) ?? null
   }
@@ -83,6 +89,7 @@ export default async function ManagerDashboardPage() {
       {hotelId && (
         <>
           <GuestRequestsPanel hotelId={hotelId} initialRequests={guestRequests} />
+          {guestFeedback && <GuestFeedbackPanel summary={guestFeedback} />}
           <ManagerNotificationSummary smsPrefs={smsPrefs} emailPrefs={emailPrefs} />
           <GuestPortalSettingsPanel hotelId={hotelId} propertyName={propertyName} />
           <GuestRulesPanel hotelId={hotelId} propertyName={propertyName} />

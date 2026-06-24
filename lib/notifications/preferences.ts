@@ -17,6 +17,8 @@ export const NOTIFICATION_TEMPLATE_KEYS = [
   'complaint_rejected',
   'complaint_guest_message',
   'guest_request',
+  'guest_feedback',
+  'guest_feedback_low',
   'room_created',
   'housekeeping_assigned',
   'staff_invite',
@@ -61,8 +63,8 @@ export const NOTIFICATION_PREF_GROUPS: {
   },
   {
     title: 'Guest portal',
-    description: 'Requests from the in-room guest app.',
-    keys: ['guest_request'],
+    description: 'Requests and reviews from the in-room guest app.',
+    keys: ['guest_request', 'guest_feedback', 'guest_feedback_low'],
   },
   {
     title: 'Rooms & inventory',
@@ -94,6 +96,8 @@ export const NOTIFICATION_PREF_LABELS: Record<NotificationTemplateKey, string> =
   complaint_rejected: 'Job sent back (technician)',
   complaint_guest_message: 'Guest portal chat message (managers)',
   guest_request: 'Guest portal request (managers)',
+  guest_feedback: 'Guest review submitted (email)',
+  guest_feedback_low: 'Low guest review ≤2 stars (SMS + email)',
   room_created: 'New room added (owner)',
   housekeeping_assigned: 'Housekeeping task assigned',
   staff_invite: 'Staff invite link (technician SMS)',
