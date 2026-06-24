@@ -4,6 +4,7 @@ import { appUrl } from '@/lib/notifications/app-url'
 import { formatComplaintVisit } from '@/lib/complaints/visit'
 import { technicianPhone } from '@/lib/notifications/recipients'
 import { notifyManagers } from '@/lib/notifications/manager-notify'
+import { managerComplaintChatUrl } from '@/lib/complaints/urls'
 import type { ComplaintCategory } from '@/types'
 
 const CATEGORY_LABELS: Record<ComplaintCategory, string> = {
@@ -356,21 +357,28 @@ export async function notifyComplaintGuestMessage(
   if (!ctx) return
 
   const preview = messagePreview.slice(0, 120)
+  const chatUrl = managerComplaintChatUrl(complaintId)
+  const guestLabel = ctx.guestName ? `${ctx.guestName}: ` : ''
+
   await notifyManagers({
     hotelId: ctx.hotelId,
     templateKey: 'complaint_guest_message',
     smsBody: [
       'MOJO: Guest message',
       refLine(ctx),
-      preview,
-      appUrl('/manager/complaints'),
+      `${guestLabel}${preview}`,
+      chatUrl,
     ].join('\n'),
     email: {
       subject: `Guest message — ${refLine(ctx)}`,
-      preview: `${ctx.guestName ?? 'Guest'} sent a message about their issue.`,
-      lines: [preview],
-      actionUrl: appUrl('/manager/complaints'),
-      actionLabel: 'View complaint',
+      preview: `${ctx.guestName ?? 'A guest'} sent a message in the guest portal.`,
+      lines: [
+        ...(ctx.guestName ? [`From: ${ctx.guestName}`] : []),
+        refLine(ctx),
+        `"${preview}"`,
+      ],
+      actionUrl: chatUrl,
+      actionLabel: 'Open chat',
     },
   })
 }

@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Droplets,
   Zap,
@@ -134,6 +135,23 @@ const timelineLabels: Record<ComplaintEventType, string> = {
 }
 
 export function ComplaintsManager() {
+  return (
+    <Suspense
+      fallback={
+        <div className="rounded-2xl bg-white p-10 text-center text-sm text-muted-foreground shadow-elevation-1">
+          Loading complaints…
+        </div>
+      }
+    >
+      <ComplaintsManagerContent />
+    </Suspense>
+  )
+}
+
+function ComplaintsManagerContent() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const deepLinkHandled = useRef(false)
   const [complaints, setComplaints] = useState<Complaint[]>([])
   const [technicians, setTechnicians] = useState<
     { id: string; name: string; specialty: string | null; phone: string | null }[]
@@ -185,6 +203,17 @@ export function ComplaintsManager() {
     load()
   }, [load])
 
+  useEffect(() => {
+    const complaintId = searchParams.get('complaint')
+    if (!complaintId || deepLinkHandled.current || complaints.length === 0) return
+
+    const match = complaints.find((c) => c.id === complaintId)
+    if (match) {
+      deepLinkHandled.current = true
+      void openDetail(match, { scrollToChat: true })
+    }
+  }, [complaints, searchParams])
+
   useRealtimeRefresh('complaints', refreshFromRealtime)
 
   const pending = useMemo(
@@ -197,11 +226,18 @@ export function ComplaintsManager() {
     return complaints.filter((c) => c.status === statusFilter)
   }, [complaints, statusFilter])
 
-  async function openDetail(complaint: Complaint) {
+  async function openDetail(complaint: Complaint, opts?: { scrollToChat?: boolean }) {
     setSelected(complaint)
     setRejectNote('')
     setEstimate(null)
     setGuestPhotoUrl(null)
+
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      params.set('complaint', complaint.id)
+      router.replace(`/manager/complaints?${params.toString()}`, { scroll: false })
+    }
+
     const [evResult, estResult, photoResult] = await Promise.all([
       getComplaintEvents(complaint.id),
       fetchComplaintEstimate(complaint.id),
@@ -212,6 +248,15 @@ export function ComplaintsManager() {
     if (evResult.success && evResult.data) setEvents(evResult.data)
     if (estResult.success) setEstimate(estResult.data ?? null)
     if (photoResult.success && photoResult.data) setGuestPhotoUrl(photoResult.data.url)
+
+    if (opts?.scrollToChat) {
+      requestAnimationFrame(() => {
+        document.getElementById('complaint-guest-chat')?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'nearest',
+        })
+      })
+    }
   }
 
   function closeDetail() {
@@ -219,6 +264,8 @@ export function ComplaintsManager() {
     setRejectNote('')
     setEstimate(null)
     setGuestPhotoUrl(null)
+    deepLinkHandled.current = false
+    router.replace('/manager/complaints', { scroll: false })
   }
 
   async function handleAssign(techId: string) {
@@ -439,7 +486,14 @@ export function ComplaintsManager() {
               )}
 
               {selected.guest_id && (
-                <StaffComplaintMessageThread complaintId={selected.id} />
+                <div id="complaint-guest-chat">
+                  <StaffComplaintMessageThread
+                    complaintId={selected.id}
+                    guestName={guestNameOf(selected)}
+                    roomNumber={roomNumberOf(selected)}
+                    complaintCategory={selected.category}
+                  />
+                </div>
               )}
 
               {(guestPhoneOf(selected) || selected.assignee?.phone) && (

@@ -6,6 +6,7 @@ export const EMAIL_STAFF_TEMPLATE_KEYS = [
   'complaint_guest_approved',
   'complaint_invoice_submitted',
   'complaint_visit_scheduled',
+  'complaint_guest_message',
   'staff_invite',
   'room_created',
 ] as const
@@ -33,6 +34,7 @@ export const EMAIL_PREF_GROUPS: {
       'complaint_guest_approved',
       'complaint_invoice_submitted',
       'complaint_visit_scheduled',
+      'complaint_guest_message',
     ],
   },
   {
@@ -54,6 +56,7 @@ export const EMAIL_PREF_LABELS: Record<EmailStaffTemplateKey, string> = {
   complaint_guest_approved: 'Guest sign-off received',
   complaint_invoice_submitted: 'Technician invoice submitted',
   complaint_visit_scheduled: 'Maintenance visit scheduled',
+  complaint_guest_message: 'Guest chat message',
   staff_invite: 'Staff invite email (manager / receptionist)',
   room_created: 'New room added by manager',
 }
