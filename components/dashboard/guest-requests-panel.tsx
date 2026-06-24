@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition } from 'react'
 import { Bell } from 'lucide-react'
+import { toast } from 'sonner'
 import { updateGuestRequestStatus } from '@/app/actions/guest-portal-staff'
 
 export interface GuestRequestRow {
@@ -26,7 +27,7 @@ interface GuestRequestsPanelProps {
   initialRequests?: GuestRequestRow[]
 }
 
-export function GuestRequestsPanel({ hotelId, initialRequests = [] }: GuestRequestsPanelProps) {
+export function GuestRequestsPanel({ initialRequests = [] }: GuestRequestsPanelProps) {
   const [requests, setRequests] = useState(initialRequests)
   const [pending, startTransition] = useTransition()
 
@@ -41,16 +42,17 @@ export function GuestRequestsPanel({ hotelId, initialRequests = [] }: GuestReque
         setRequests((prev) =>
           prev.map((r) => (r.id === id ? { ...r, status } : r)),
         )
+        toast.success(`Request marked as ${status}.`)
+      } else {
+        toast.error(result.error ?? 'Could not update request.')
       }
     })
   }
 
   const pendingRequests = requests.filter((r) => r.status === 'pending')
 
-  if (requests.length === 0) return null
-
   return (
-    <div id="guest-requests" className="surface-card overflow-hidden">
+    <div id="guest-requests" className="surface-card overflow-hidden scroll-mt-24">
       <div className="surface-card-accent" />
       <div className="surface-card-header">
         <div className="flex items-center gap-2">
@@ -69,49 +71,55 @@ export function GuestRequestsPanel({ hotelId, initialRequests = [] }: GuestReque
         </div>
       </div>
 
-      <ul className="divide-y divide-border/60 border-t border-border/60">
-        {requests.slice(0, 10).map((req) => (
-          <li key={req.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-foreground">
-                {REQUEST_LABELS[req.requestType] ?? req.requestType}
-                {req.roomNumber ? ` · Room ${req.roomNumber}` : ''}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {req.guestName} ·{' '}
-                {new Date(req.createdAt).toLocaleString('en-GB', {
-                  month: 'short',
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
-              </p>
-              {req.note && (
-                <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{req.note}</p>
-              )}
-            </div>
-            {req.status === 'pending' ? (
-              <div className="flex flex-wrap gap-1.5">
-                {(['acknowledged', 'completed', 'declined'] as const).map((status) => (
-                  <button
-                    key={status}
-                    type="button"
-                    disabled={pending}
-                    onClick={() => updateStatus(req.id, status)}
-                    className="rounded-lg bg-[#3C216C]/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-[#3C216C] hover:bg-[#3C216C]/15 disabled:opacity-50"
-                  >
-                    {status}
-                  </button>
-                ))}
+      {requests.length === 0 ? (
+        <p className="border-t border-border/60 px-4 py-10 text-center text-sm text-muted-foreground">
+          No guest requests yet. Requests from the guest portal Stay tab will appear here.
+        </p>
+      ) : (
+        <ul className="divide-y divide-border/60 border-t border-border/60">
+          {requests.slice(0, 10).map((req) => (
+            <li key={req.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-foreground">
+                  {REQUEST_LABELS[req.requestType] ?? req.requestType}
+                  {req.roomNumber ? ` · Room ${req.roomNumber}` : ''}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {req.guestName} ·{' '}
+                  {new Date(req.createdAt).toLocaleString('en-GB', {
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </p>
+                {req.note && (
+                  <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{req.note}</p>
+                )}
               </div>
-            ) : (
-              <span className="rounded-full bg-muted px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-                {req.status}
-              </span>
-            )}
-          </li>
-        ))}
-      </ul>
+              {req.status === 'pending' ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {(['acknowledged', 'completed', 'declined'] as const).map((status) => (
+                    <button
+                      key={status}
+                      type="button"
+                      disabled={pending}
+                      onClick={() => updateStatus(req.id, status)}
+                      className="rounded-lg bg-[#3C216C]/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-[#3C216C] hover:bg-[#3C216C]/15 disabled:opacity-50"
+                    >
+                      {status}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <span className="rounded-full bg-muted px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                  {req.status}
+                </span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   )
 }

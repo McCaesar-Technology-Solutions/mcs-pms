@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { getUpcomingBookings } from '@/lib/data/overview'
 import { ChevronRight } from 'lucide-react'
 import type { Reservation } from '@/types'
@@ -32,9 +33,12 @@ export function BookingsList({ reservations, viewAllHref = '/owner/reservations'
             <h3 className="text-lg font-semibold text-foreground">Upcoming Bookings</h3>
             <p className="text-sm text-muted-foreground mt-1">Next 5 reservations</p>
           </div>
-          <a href={viewAllHref} className="text-primary hover:text-primary/80 text-sm font-semibold flex items-center gap-2 transition-colors">
+          <Link
+            href={viewAllHref}
+            className="text-primary hover:text-primary/80 text-sm font-semibold flex items-center gap-2 transition-colors"
+          >
             View All <ChevronRight className="h-4 w-4" />
-          </a>
+          </Link>
         </div>
       </div>
 
@@ -44,9 +48,10 @@ export function BookingsList({ reservations, viewAllHref = '/owner/reservations'
         ) : (
           <div className="card-list-tray space-y-3">
             {upcomingBookings.map((booking) => (
-              <div
+              <Link
                 key={booking.id}
-                className="elevated-list-item cursor-pointer p-4 transition-colors"
+                href={`${viewAllHref}?open=${booking.id}`}
+                className="elevated-list-item block p-4 transition-colors hover:bg-muted/30"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
@@ -66,7 +71,7 @@ export function BookingsList({ reservations, viewAllHref = '/owner/reservations'
                     <p className="text-xs text-muted-foreground">{booking.numberOfNights} nights</p>
                   </div>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         )}

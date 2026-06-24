@@ -769,6 +769,7 @@ export async function postStaffComplaintMessage(
   )
 
   revalidatePath('/manager/complaints')
+  revalidatePath('/receptionist/complaints')
   revalidatePath('/technician/tasks')
   revalidatePath('/guest')
   return { success: true }

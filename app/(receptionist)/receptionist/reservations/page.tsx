@@ -1,5 +1,5 @@
-import { ReservationsGantt } from '@/components/dashboard/reservations-gantt'
 import { ReservationsManager } from '@/components/dashboard/reservations-manager'
+import { ReservationsTimelineSection } from '@/components/dashboard/reservations-timeline-section'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { getDashboardData } from '@/lib/data/dashboard'
 
@@ -20,16 +20,21 @@ export default async function ReceptionistReservationsPage({
         description="Create bookings, check guests in and out, and manage stays."
       />
 
-      <ReservationsGantt rooms={timelineRooms} bars={timelineBars} />
-
-      <ReservationsManager
-        reservations={reservations}
-        roomOptions={roomOptions}
-        occupancySpans={occupancySpans}
-        initialSearch={q}
-        openReservationId={open}
-        initialNewFlow={checkIn === '1' ? 'check_in' : undefined}
-      />
+      <div className="flex flex-col gap-6">
+        <div className="order-1 md:order-2">
+          <ReservationsManager
+            reservations={reservations}
+            roomOptions={roomOptions}
+            occupancySpans={occupancySpans}
+            initialSearch={q}
+            openReservationId={open}
+            initialNewFlow={checkIn === '1' ? 'check_in' : undefined}
+          />
+        </div>
+        <div className="order-2 md:order-1">
+          <ReservationsTimelineSection rooms={timelineRooms} bars={timelineBars} />
+        </div>
+      </div>
     </div>
   )
 }

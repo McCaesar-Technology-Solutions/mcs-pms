@@ -9,7 +9,7 @@ export default function ReceptionistComplaintsPage() {
         title="Complaints"
         description="Log issues for guests and follow their progress through to resolution."
       />
-      <ComplaintsOwnerView canLog />
+      <ComplaintsOwnerView canLog canMessage />
     </div>
   )
 }

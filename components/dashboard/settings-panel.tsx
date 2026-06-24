@@ -12,7 +12,6 @@ import {
 import { useProperty } from '@/lib/property-context'
 import { AddPropertyDialog } from '@/components/dashboard/add-property-dialog'
 import { PropertyImageCropField } from '@/components/dashboard/property-image-crop-field'
-import { PropertyPortalQrPanel } from '@/components/guest/property-portal-qr-panel'
 import type { HotelSettings } from '@/lib/data/settings'
 import type { Profile, VatMode } from '@/types'
 import { ProfilePhoneEditor } from '@/components/dashboard/profile-phone-editor'
@@ -153,10 +152,6 @@ export function SettingsPanel({ hotelSettings, staffHref = '/owner/staff', profi
           <MfaSettingsCard role={profile.role} returnPath="/owner/settings" />
         </div>
       )}
-
-      <div className="mb-6">
-        <PropertyPortalQrPanel />
-      </div>
 
       {/* Portfolio */}
       <div className="surface-card mb-6 p-6">

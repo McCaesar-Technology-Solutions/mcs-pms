@@ -18,6 +18,7 @@ import { getComplaintEvents, getHotelComplaints } from '@/app/actions/complaints
 import { fetchComplaintEstimate } from '@/app/actions/complaint-estimates'
 import { ComplaintEstimateCard } from '@/components/complaints/complaint-estimate-card'
 import { StaffComplaintModal } from '@/components/complaints/staff-complaint-modal'
+import { StaffComplaintMessageThread } from '@/components/complaints/staff-complaint-message-thread'
 import { PhoneContact } from '@/components/ui/phone-contact'
 import { useRealtimeRefresh } from '@/components/realtime/realtime-refresh-context'
 import { managerPendingLabel } from '@/lib/complaints/workflow'
@@ -112,10 +113,12 @@ function statusBadge(status: ComplaintStatus | null | undefined) {
 interface ComplaintsOwnerViewProps {
   /** Show a "Log complaint" button (front-desk roles). Owners stay read-only. */
   canLog?: boolean
+  /** Allow messaging guests on open complaints (receptionist / front desk). */
+  canMessage?: boolean
 }
 
 /** Read-only complaints view: full lifecycle visibility, no assign/approve actions. */
-export function ComplaintsOwnerView({ canLog = false }: ComplaintsOwnerViewProps) {
+export function ComplaintsOwnerView({ canLog = false, canMessage = false }: ComplaintsOwnerViewProps) {
   const [complaints, setComplaints] = useState<Complaint[]>([])
   const [selected, setSelected] = useState<Complaint | null>(null)
   const [events, setEvents] = useState<ComplaintEvent[]>([])
@@ -317,6 +320,15 @@ export function ComplaintsOwnerView({ canLog = false }: ComplaintsOwnerViewProps
                 </p>
                 <p className="mt-2 text-sm leading-relaxed text-foreground">{selected.description}</p>
               </div>
+
+              {canMessage && selected.guest_id && selected.status !== 'resolved' && (
+                <StaffComplaintMessageThread
+                  complaintId={selected.id}
+                  guestName={guestNameOf(selected)}
+                  roomNumber={roomNumberOf(selected)}
+                  complaintCategory={selected.category}
+                />
+              )}
 
               {(guestPhoneOf(selected) || selected.assignee?.phone) && (
                 <div className={`${liftCard} space-y-3 p-4`}>

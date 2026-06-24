@@ -36,8 +36,8 @@ export default async function ManagerDashboardPage() {
       fetchHotelComplaints(),
       getDashboardData(),
       getHousekeepingTasks(),
-      getNotificationLog(20),
-      getAuditLog(20),
+    getNotificationLog(50),
+    getAuditLog(50),
     ])
 
   let propertyName = 'Property'
@@ -124,16 +124,23 @@ export default async function ManagerDashboardPage() {
               <GuestRequestsPanel hotelId={hotelId} initialRequests={guestRequests} />
               {guestFeedback && <GuestFeedbackPanel summary={guestFeedback} />}
               <ManagerNotificationSummary smsPrefs={smsPrefs} emailPrefs={emailPrefs} />
-              <GuestPortalSettingsPanel hotelId={hotelId} propertyName={propertyName} />
-              <GuestRulesPanel hotelId={hotelId} propertyName={propertyName} />
+              <p className="text-sm text-muted-foreground">
+                Guest portal content and house rules are managed by the property owner in Settings.
+              </p>
+              <GuestPortalSettingsPanel
+                hotelId={hotelId}
+                propertyName={propertyName}
+                canEdit={false}
+              />
+              <GuestRulesPanel hotelId={hotelId} propertyName={propertyName} canEdit={false} />
             </>
           ) : (
             <p className="text-sm text-muted-foreground">No property linked to this account.</p>
           ),
           activity: (
             <div className="grid gap-6 xl:grid-cols-2">
-              <AuditLogPanel entries={auditLog} compact />
-              <NotificationLogPanel entries={notificationLog} compact />
+              <AuditLogPanel entries={auditLog} />
+              <NotificationLogPanel entries={notificationLog} />
             </div>
           ),
         }}
