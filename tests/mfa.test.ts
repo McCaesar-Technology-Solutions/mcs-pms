@@ -129,6 +129,12 @@ describe('totp verification', () => {
     expect(verifyTotpCode(secret, token)).toBe(true)
     expect(verifyTotpCode(secret, '000000')).toBe(false)
   })
+
+  it('allows adjacent time windows (clock skew)', () => {
+    const secret = createTotpSecret()
+    const token = generateSync({ secret, epoch: Math.floor(Date.now() / 1000) - 25 })
+    expect(verifyTotpCode(secret, token)).toBe(true)
+  })
 })
 
 describe('mfa-sms hashing', () => {

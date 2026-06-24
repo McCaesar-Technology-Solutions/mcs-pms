@@ -71,6 +71,23 @@ function profileForStatus(profile: StaffProfile) {
   }
 }
 
+async function loadTotpSecrets(userId: string) {
+  const admin = createAdminClient()
+  const { data } = await admin
+    .from('profiles')
+    .select('mfa_enabled, mfa_method, mfa_totp_secret, mfa_totp_pending_secret, role')
+    .eq('id', userId)
+    .maybeSingle()
+  return data
+}
+
+async function decryptStoredTotpSecret(
+  encrypted: string | null | undefined,
+): Promise<string | null> {
+  if (!encrypted?.trim()) return null
+  return decryptTotpSecret(encrypted)
+}
+
 async function markSessionVerified(
   supabase: Awaited<ReturnType<typeof createClient>>,
   userId: string,
@@ -351,14 +368,20 @@ export async function verifyMfaTotpCode(
   const { supabase, user, profile } = await requireStaffContext()
   if (!user || !profile) return { success: false, error: 'Not signed in.' }
 
-  if (!userNeedsMfa(profile.mfa_enabled === true) || profile.mfa_method !== 'totp') {
+  const mfaRow = await loadTotpSecrets(user.id)
+  if (!userNeedsMfa(mfaRow?.mfa_enabled === true) || mfaRow?.mfa_method !== 'totp') {
     return { success: false, error: 'Authenticator verification is not enabled for this account.' }
   }
 
-  const secret = profile.mfa_totp_secret
-    ? await decryptTotpSecret(profile.mfa_totp_secret)
-    : null
-  if (!secret || !verifyTotpCode(secret, trimmed)) {
+  const secret = await decryptStoredTotpSecret(mfaRow?.mfa_totp_secret)
+  if (!secret) {
+    return {
+      success: false,
+      error:
+        'Authenticator setup could not be read. Turn off 2FA in Settings and set it up again.',
+    }
+  }
+  if (!verifyTotpCode(secret, trimmed)) {
     return { success: false, error: 'Invalid code. Check your authenticator app and try again.' }
   }
 
@@ -375,34 +398,42 @@ export async function beginTotpSetup(): Promise<
   const { user, profile } = await requireStaffContext()
   if (!user || !profile) return { success: false, error: 'Not signed in.' }
 
-  const secret = createTotpSecret()
+  const admin = createAdminClient()
+  const mfaRow = await loadTotpSecrets(user.id)
+  const existingPending = await decryptStoredTotpSecret(mfaRow?.mfa_totp_pending_secret)
+
+  let secret = existingPending
+  if (!secret) {
+    secret = createTotpSecret()
+    const encryptedPending = await encryptTotpSecret(secret)
+    const { error } = await admin
+      .from('profiles')
+      .update({ mfa_totp_pending_secret: encryptedPending })
+      .eq('id', user.id)
+
+    if (error) return { success: false, error: 'Could not start authenticator setup.' }
+  }
+
   const uri = buildTotpUri(secret, profile.email)
   const qrDataUrl = await QRCode.toDataURL(uri, { margin: 2, width: 220 })
-  const encryptedPending = await encryptTotpSecret(secret)
-
-  const admin = createAdminClient()
-  const { error } = await admin
-    .from('profiles')
-    .update({ mfa_totp_pending_secret: encryptedPending })
-    .eq('id', user.id)
-
-  if (error) return { success: false, error: 'Could not start authenticator setup.' }
 
   return { success: true, data: { qrDataUrl, manualSecret: secret } }
 }
 
-export async function confirmTotpSetup(code: string): Promise<MfaActionResult> {
+export async function confirmTotpSetup(
+  code: string,
+  intendedPath?: string,
+): Promise<MfaActionResult<{ redirectTo?: string }>> {
   const trimmed = code.replace(/\D/g, '')
   if (trimmed.length !== 6) {
     return { success: false, error: 'Enter the 6-digit code from your authenticator app.' }
   }
 
-  const { user, profile } = await requireStaffContext()
+  const { supabase, user, profile } = await requireStaffContext()
   if (!user || !profile) return { success: false, error: 'Not signed in.' }
 
-  const pending = profile.mfa_totp_pending_secret
-    ? await decryptTotpSecret(profile.mfa_totp_pending_secret)
-    : null
+  const mfaRow = await loadTotpSecrets(user.id)
+  const pending = await decryptStoredTotpSecret(mfaRow?.mfa_totp_pending_secret)
   if (!pending) {
     return { success: false, error: 'Setup expired. Scan the QR code again.' }
   }
@@ -424,6 +455,16 @@ export async function confirmTotpSetup(code: string): Promise<MfaActionResult> {
     .eq('id', user.id)
 
   if (error) return { success: false, error: 'Could not save authenticator setup.' }
+
+  if (intendedPath !== undefined) {
+    const verified = await markSessionVerified(supabase, user.id)
+    if (!verified.success) return verified as MfaActionResult<{ redirectTo?: string }>
+    return {
+      success: true,
+      data: { redirectTo: safeMfaNext(intendedPath, ROLE_HOME[profile.role]) },
+    }
+  }
+
   return { success: true }
 }
 

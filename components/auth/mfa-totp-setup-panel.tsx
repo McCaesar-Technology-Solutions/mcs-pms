@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { beginTotpSetup, confirmTotpSetup, verifyMfaTotpCode } from '@/app/actions/mfa'
+import { beginTotpSetup, confirmTotpSetup } from '@/app/actions/mfa'
 import { safeMfaNext } from '@/lib/auth/mfa'
 
 interface MfaTotpSetupPanelProps {
@@ -58,26 +58,19 @@ export function MfaTotpSetupPanel({
     setLoading(true)
     setError(null)
 
-    const confirm = await confirmTotpSetup(code)
+    const confirm = await confirmTotpSetup(code, isAuth ? destination : undefined)
+    setLoading(false)
     if (!confirm.success) {
-      setLoading(false)
       setError(confirm.error)
       return
     }
 
-    if (isAuth) {
-      const verified = await verifyMfaTotpCode(code, destination)
-      setLoading(false)
-      if (!verified.success) {
-        setError(verified.error)
-        return
-      }
-      router.push(verified.data?.redirectTo ?? destination)
+    if (isAuth && confirm.data?.redirectTo) {
+      router.push(confirm.data.redirectTo)
       router.refresh()
       return
     }
 
-    setLoading(false)
     onComplete?.()
     router.refresh()
   }
