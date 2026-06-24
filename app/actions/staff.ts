@@ -18,6 +18,29 @@ export type InviteStaffResult = {
   role: 'manager' | 'technician' | 'receptionist'
   email?: string
   phone?: string
+  /** Whether the invite link was delivered automatically. */
+  delivery: {
+    sent: boolean
+    channel: 'email' | 'sms' | 'whatsapp' | 'none'
+    detail: string
+  }
+}
+
+function describeSmsDelivery(results: import('@/lib/notifications/send').SendResult[]): {
+  sent: boolean
+  channel: 'sms' | 'whatsapp' | 'none'
+  detail: string
+} {
+  const sms = results.find((r) => r.channel === 'sms')
+  const whatsapp = results.find((r) => r.channel === 'whatsapp')
+  if (whatsapp?.success) {
+    return { sent: true, channel: 'whatsapp', detail: 'Invite sent via WhatsApp.' }
+  }
+  if (sms?.success) {
+    return { sent: true, channel: 'sms', detail: 'Invite sent via SMS.' }
+  }
+  const err = whatsapp?.error ?? sms?.error ?? 'Could not send the invite message.'
+  return { sent: false, channel: 'none', detail: err }
 }
 
 async function requireStaffProfile(): Promise<Profile | null> {
@@ -130,24 +153,32 @@ export async function inviteStaff(
     revalidatePath('/owner/staff')
     revalidatePath('/manager/staff')
 
-    void import('@/lib/notifications/staff-invite-email').then(async ({ notifyStaffInviteEmail }) => {
-      const { data: hotel } = await admin
-        .from('hotels')
-        .select('name')
-        .eq('id', profile.hotel_id!)
-        .maybeSingle()
-      await notifyStaffInviteEmail({
-        hotelId: profile.hotel_id!,
-        email: normalizedEmail,
-        role: inviteRole,
-        inviteToken: invite.token,
-        hotelName: hotel?.name ?? undefined,
-      })
-    }).catch(() => undefined)
+    const { data: hotel } = await admin
+      .from('hotels')
+      .select('name')
+      .eq('id', profile.hotel_id!)
+      .maybeSingle()
+
+    const { notifyStaffInviteEmail } = await import('@/lib/notifications/staff-invite-email')
+    const emailResult = await notifyStaffInviteEmail({
+      hotelId: profile.hotel_id!,
+      email: normalizedEmail,
+      role: inviteRole,
+      inviteToken: invite.token,
+      hotelName: hotel?.name ?? undefined,
+    })
+
+    const delivery = emailResult.success
+      ? { sent: true, channel: 'email' as const, detail: `Invite email sent to ${normalizedEmail}.` }
+      : {
+          sent: false,
+          channel: 'none' as const,
+          detail: emailResult.error ?? 'Could not send the invite email. Copy the link below.',
+        }
 
     return {
       success: true,
-      data: { token: invite.token, email: normalizedEmail, role: inviteRole },
+      data: { token: invite.token, email: normalizedEmail, role: inviteRole, delivery },
     }
   }
 
@@ -209,24 +240,31 @@ export async function inviteStaff(
   revalidatePath('/owner/staff')
   revalidatePath('/manager/staff')
 
-  void import('@/lib/notifications/staff').then(async ({ notifyStaffInvite }) => {
-    const { data: hotel } = await admin
-      .from('hotels')
-      .select('name')
-      .eq('id', profile.hotel_id!)
-      .maybeSingle()
-    await notifyStaffInvite({
-      hotelId: profile.hotel_id!,
-      phone: normalizedPhone,
-      role: 'technician',
-      inviteToken: invite.token,
-      hotelName: hotel?.name ?? undefined,
-    })
-  }).catch(() => undefined)
+  const { data: hotel } = await admin
+    .from('hotels')
+    .select('name')
+    .eq('id', profile.hotel_id!)
+    .maybeSingle()
+
+  const { notifyStaffInvite } = await import('@/lib/notifications/staff')
+  const smsResults = await notifyStaffInvite({
+    hotelId: profile.hotel_id!,
+    phone: normalizedPhone,
+    role: 'technician',
+    inviteToken: invite.token,
+    hotelName: hotel?.name ?? undefined,
+  })
+
+  const smsDelivery = describeSmsDelivery(smsResults)
 
   return {
     success: true,
-    data: { token: invite.token, phone: normalizedPhone, role: 'technician' },
+    data: {
+      token: invite.token,
+      phone: normalizedPhone,
+      role: 'technician',
+      delivery: smsDelivery,
+    },
   }
 }
 

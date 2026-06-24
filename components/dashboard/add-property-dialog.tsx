@@ -92,7 +92,7 @@ export function AddPropertyDialog({ open, onClose }: AddPropertyDialogProps) {
         </div>
       </ModalHeader>
 
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
         <ModalBody className="space-y-4">
           <div>
             <label className="text-sm font-semibold">Property name</label>

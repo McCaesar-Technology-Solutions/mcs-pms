@@ -83,7 +83,7 @@ export const NOTIFICATION_PREF_LABELS: Record<NotificationTemplateKey, string> =
 }
 
 /** Keys that bypass property prefs (security / auth). */
-export const NOTIFICATION_ALWAYS_SEND = new Set(['mfa_otp'])
+export const NOTIFICATION_ALWAYS_SEND = new Set(['mfa_otp', 'staff_invite'])
 
 export function defaultNotificationSmsPrefs(): Record<NotificationTemplateKey, boolean> {
   return Object.fromEntries(

@@ -9,7 +9,7 @@ export const modalOverlayClass =
   'absolute inset-0 bg-[#22124C]/60 backdrop-blur-[3px] transition-opacity'
 
 export const modalPanelClass =
-  'modal-panel surface-card relative z-10 flex w-full flex-col overflow-hidden rounded-2xl bg-white shadow-elevation-4'
+  'modal-panel surface-card relative z-10 flex w-full min-h-0 flex-col overflow-hidden rounded-2xl bg-white shadow-elevation-4'
 
 export const sheetPanelClass =
   'relative z-10 flex h-full w-full max-w-md flex-col overflow-hidden bg-[#F7F5FB] shadow-[-12px_0_48px_rgba(34,18,76,0.14)]'
@@ -119,7 +119,7 @@ export function ModalBody({
   className?: string
 }) {
   return (
-    <div className={cn('flex-1 overflow-y-auto overscroll-contain px-6 py-5', className)}>
+    <div className={cn('min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-5', className)}>
       {children}
     </div>
   )

@@ -11,6 +11,6 @@ CREATE POLICY "owner_manager_read_hotel_profiles" ON profiles
 CREATE POLICY "technician_read_limited_profiles" ON profiles
   FOR SELECT USING (
     auth_role() = 'technician'
-    AND hotel_id = auth_hotel_id()9
+    AND hotel_id = auth_hotel_id()
     AND role IN ('manager', 'technician')
   );

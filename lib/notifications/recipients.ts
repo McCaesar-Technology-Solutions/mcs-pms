@@ -113,6 +113,7 @@ export async function shouldSendHotelEmailNotification(
   hotelId: string | undefined,
   templateKey: string,
 ): Promise<boolean> {
+  if (templateKey === 'staff_invite') return true
   if (!hotelId) return false
   if (!(EMAIL_STAFF_TEMPLATE_KEYS as readonly string[]).includes(templateKey)) return false
   const prefs = await loadHotelEmailNotificationPrefs(hotelId)

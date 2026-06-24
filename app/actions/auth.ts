@@ -58,7 +58,15 @@ export async function signIn(
     .eq('id', data.user.id)
     .maybeSingle()
 
-  if (!profile || profile.is_active === false) {
+  if (!profile) {
+    await supabase.auth.signOut()
+    return {
+      success: false,
+      error: 'Your account profile is missing. Ask an owner to re-invite you or contact support.',
+    }
+  }
+
+  if (profile.is_active === false) {
     await supabase.auth.signOut()
     return { success: false, error: 'This account has been disabled. Contact your administrator.' }
   }
