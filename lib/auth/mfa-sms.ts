@@ -16,3 +16,13 @@ export function maskPhone(phone: string): string {
   if (digits.length < 4) return phone
   return `••• ••• ${digits.slice(-4)}`
 }
+
+export function maskEmail(email: string): string {
+  const trimmed = email.trim().toLowerCase()
+  const at = trimmed.indexOf('@')
+  if (at <= 1) return trimmed
+  const local = trimmed.slice(0, at)
+  const domain = trimmed.slice(at)
+  const visible = local.slice(0, Math.min(2, local.length))
+  return `${visible}${'•'.repeat(Math.max(1, local.length - visible.length))}${domain}`
+}

@@ -24,11 +24,27 @@ describe('canEnrollMfa', () => {
 })
 
 describe('mfaGateForRole', () => {
-  const off = { applies: false, method: null, hasPhone: true, hasTotp: false, sessionVerified: false }
+  const off = {
+    applies: false,
+    method: null,
+    hasPhone: true,
+    hasEmail: true,
+    hasTotp: false,
+    sessionVerified: false,
+  }
   const smsNeedsPhone = {
     applies: true,
     method: 'sms' as const,
     hasPhone: false,
+    hasEmail: true,
+    hasTotp: false,
+    sessionVerified: false,
+  }
+  const emailNeedsAddress = {
+    applies: true,
+    method: 'email' as const,
+    hasPhone: true,
+    hasEmail: false,
     hasTotp: false,
     sessionVerified: false,
   }
@@ -36,6 +52,7 @@ describe('mfaGateForRole', () => {
     applies: true,
     method: 'sms' as const,
     hasPhone: true,
+    hasEmail: true,
     hasTotp: false,
     sessionVerified: false,
   }
@@ -43,6 +60,7 @@ describe('mfaGateForRole', () => {
     applies: true,
     method: 'sms' as const,
     hasPhone: true,
+    hasEmail: true,
     hasTotp: false,
     sessionVerified: true,
   }
@@ -53,6 +71,10 @@ describe('mfaGateForRole', () => {
 
   it('forces phone setup for SMS without a number', () => {
     expect(mfaGateForRole('owner', smsNeedsPhone)).toBe('enroll')
+  })
+
+  it('forces email setup when address is missing', () => {
+    expect(mfaGateForRole('owner', emailNeedsAddress)).toBe('enroll')
   })
 
   it('forces verify when setup is complete but session is new', () => {
@@ -73,6 +95,7 @@ describe('mfaRedirectPath', () => {
           applies: true,
           method: 'sms',
           hasPhone: false,
+          hasEmail: true,
           hasTotp: false,
           sessionVerified: false,
         },
@@ -88,6 +111,7 @@ describe('mfaRedirectPath', () => {
           applies: true,
           method: 'sms',
           hasPhone: true,
+          hasEmail: true,
           hasTotp: false,
           sessionVerified: false,
         },
@@ -106,8 +130,9 @@ describe('safeMfaNext', () => {
 })
 
 describe('MFA method labels', () => {
-  it('includes SMS option', () => {
+  it('includes SMS and email options', () => {
     expect(MFA_METHOD_LABELS.sms).toMatch(/SMS/i)
+    expect(MFA_METHOD_LABELS.email).toMatch(/email/i)
   })
 })
 

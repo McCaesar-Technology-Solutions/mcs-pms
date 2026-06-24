@@ -3,16 +3,17 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { getMfaStatus } from '@/app/actions/mfa'
+import { MfaEmailForm } from '@/components/auth/mfa-email-form'
 import { MfaSmsForm } from '@/components/auth/mfa-sms-form'
 
 interface MfaEnrollFormProps {
   nextPath: string
 }
 
-/** Complete SMS 2FA setup when enabled but no phone on file. */
+/** Complete 2FA setup when enabled but contact info is missing. */
 export function MfaEnrollForm({ nextPath }: MfaEnrollFormProps) {
   const router = useRouter()
-  const [ready, setReady] = useState(false)
+  const [method, setMethod] = useState<'sms' | 'email' | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -26,12 +27,12 @@ export function MfaEnrollForm({ nextPath }: MfaEnrollFormProps) {
         return
       }
 
-      if (!result.data.enabled || result.data.method !== 'sms') {
+      if (!result.data.enabled || !result.data.method) {
         router.replace(nextPath)
         return
       }
 
-      setReady(true)
+      setMethod(result.data.method)
     })
   }, [nextPath, router])
 
@@ -39,8 +40,12 @@ export function MfaEnrollForm({ nextPath }: MfaEnrollFormProps) {
     return <p className="text-sm text-red-200">{error}</p>
   }
 
-  if (!ready) {
+  if (!method) {
     return <p className="text-sm text-white/70">Loading…</p>
+  }
+
+  if (method === 'email') {
+    return <MfaEmailForm nextPath={nextPath} mode="setup" />
   }
 
   return <MfaSmsForm nextPath={nextPath} mode="setup" />

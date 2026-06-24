@@ -8,6 +8,7 @@ import {
   hashSessionKey,
   generateOtpCode,
   maskPhone,
+  maskEmail,
   MFA_OTP_TTL_MS,
   MFA_SEND_COOLDOWN_MS,
   MFA_SEND_MAX_PER_15_MIN,
@@ -15,6 +16,9 @@ import {
 import { buildMfaStatus } from '@/lib/auth/mfa-status'
 import { mfaRedirectPath, safeMfaNext, userNeedsMfa, type MfaMethod } from '@/lib/auth/mfa'
 import { sendToPhone } from '@/lib/notifications/send'
+import { sendToEmail } from '@/lib/notifications/send-email'
+import { isEmailConfigured } from '@/lib/notifications/email-provider'
+import { appUrl } from '@/lib/notifications/app-url'
 import { isSmsConfigured } from '@/lib/notifications/sms-provider'
 import { toE164 } from '@/lib/notifications/e164'
 import { phoneSchema } from '@/lib/phone'
@@ -62,10 +66,88 @@ function profileForStatus(profile: StaffProfile) {
   return {
     role: profile.role,
     phone: profile.phone,
+    email: profile.email,
     mfa_enabled: profile.mfa_enabled,
     mfa_method: profile.mfa_method,
     mfa_totp_secret: profile.mfa_totp_secret,
   }
+}
+
+async function assertOtpRateLimit(userId: string): Promise<string | null> {
+  const admin = createAdminClient()
+  const since15m = new Date(Date.now() - 15 * 60 * 1000).toISOString()
+  const { count } = await admin
+    .from('mfa_otp_challenges')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .gte('created_at', since15m)
+
+  if ((count ?? 0) >= MFA_SEND_MAX_PER_15_MIN) {
+    return 'Too many codes sent. Wait a few minutes and try again.'
+  }
+
+  const { data: latest } = await admin
+    .from('mfa_otp_challenges')
+    .select('created_at')
+    .eq('user_id', userId)
+    .is('consumed_at', null)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (latest?.created_at) {
+    const elapsed = Date.now() - new Date(latest.created_at).getTime()
+    if (elapsed < MFA_SEND_COOLDOWN_MS) {
+      const waitSec = Math.ceil((MFA_SEND_COOLDOWN_MS - elapsed) / 1000)
+      return `Wait ${waitSec}s before requesting another code.`
+    }
+  }
+
+  return null
+}
+
+async function createOtpChallenge(userId: string): Promise<
+  MfaActionResult<{ code: string }>
+> {
+  const rateLimitError = await assertOtpRateLimit(userId)
+  if (rateLimitError) return { success: false, error: rateLimitError }
+
+  const code = generateOtpCode()
+  const expiresAt = new Date(Date.now() + MFA_OTP_TTL_MS).toISOString()
+  const admin = createAdminClient()
+  const { error } = await admin.from('mfa_otp_challenges').insert({
+    user_id: userId,
+    code_hash: await hashOtp(code),
+    expires_at: expiresAt,
+  })
+
+  if (error) {
+    return { success: false, error: 'Could not create a verification code. Try again.' }
+  }
+
+  return { success: true, data: { code } }
+}
+
+async function verifyOtpChallenge(userId: string, trimmed: string): Promise<boolean> {
+  const admin = createAdminClient()
+  const codeHash = await hashOtp(trimmed)
+  const now = new Date().toISOString()
+
+  const { data: challenge } = await admin
+    .from('mfa_otp_challenges')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('code_hash', codeHash)
+    .is('consumed_at', null)
+    .gt('expires_at', now)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (!challenge) return false
+
+  await admin.from('mfa_otp_challenges').update({ consumed_at: now }).eq('id', challenge.id)
+  return true
 }
 
 async function loadStaffProfile(userId: string) {
@@ -85,7 +167,7 @@ export async function migrateLegacyTotpMfa(userId: string): Promise<void> {
   const admin = createAdminClient()
   const { data } = await admin
     .from('profiles')
-    .select('mfa_method, mfa_totp_secret, mfa_totp_pending_secret, phone')
+    .select('mfa_method, mfa_totp_secret, mfa_totp_pending_secret, phone, email')
     .eq('id', userId)
     .maybeSingle()
 
@@ -97,12 +179,16 @@ export async function migrateLegacyTotpMfa(userId: string): Promise<void> {
   if (!hasTotp) return
 
   const hasPhone = Boolean(data.phone?.trim())
+  const hasEmail = Boolean(data.email?.trim())
+  const useSms = hasPhone
+  const useEmail = !hasPhone && hasEmail
+
   await admin
     .from('profiles')
     .update({
-      mfa_enabled: hasPhone,
-      mfa_method: hasPhone ? 'sms' : null,
-      mfa_sms_enabled: hasPhone,
+      mfa_enabled: useSms || useEmail,
+      mfa_method: useSms ? 'sms' : useEmail ? 'email' : null,
+      mfa_sms_enabled: useSms,
       mfa_totp_secret: null,
       mfa_totp_pending_secret: null,
     })
@@ -152,8 +238,10 @@ export async function getMfaStatus(): Promise<
     enabled: boolean
     method: MfaMethod | null
     hasPhone: boolean
+    hasEmail: boolean
     hasTotp: boolean
     maskedPhone: string | null
+    maskedEmail: string | null
     sessionVerified: boolean
   }>
 > {
@@ -165,15 +253,19 @@ export async function getMfaStatus(): Promise<
   if (!profile) return { success: false, error: 'Not signed in.' }
 
   const status = await buildMfaStatus(supabase, user.id, profileForStatus(profile))
+  const method =
+    profile.mfa_method === 'sms' || profile.mfa_method === 'email' ? profile.mfa_method : null
 
   return {
     success: true,
     data: {
-      enabled: profile.mfa_enabled === true && profile.mfa_method === 'sms',
-      method: profile.mfa_method === 'sms' ? 'sms' : null,
+      enabled: profile.mfa_enabled === true && method !== null,
+      method,
       hasPhone: status.hasPhone,
+      hasEmail: status.hasEmail,
       hasTotp: false,
       maskedPhone: profile.phone ? maskPhone(profile.phone) : null,
+      maskedEmail: profile.email ? maskEmail(profile.email) : null,
       sessionVerified: status.sessionVerified,
     },
   }
@@ -251,6 +343,30 @@ export async function enableSmsMfa(): Promise<MfaActionResult> {
   return { success: true }
 }
 
+export async function enableEmailMfa(): Promise<MfaActionResult> {
+  const { user, profile } = await requireStaffContext()
+  if (!user || !profile) return { success: false, error: 'Not signed in.' }
+
+  if (!profile.email?.trim()) {
+    return { success: false, error: 'Your account has no email address on file.' }
+  }
+
+  const admin = createAdminClient()
+  const { error } = await admin
+    .from('profiles')
+    .update({
+      mfa_enabled: true,
+      mfa_method: 'email',
+      mfa_sms_enabled: false,
+      mfa_totp_secret: null,
+      mfa_totp_pending_secret: null,
+    })
+    .eq('id', user.id)
+
+  if (error) return { success: false, error: 'Could not enable email verification.' }
+  return { success: true }
+}
+
 export async function sendMfaSmsCode(): Promise<
   MfaActionResult<{ maskedPhone: string; devCode?: string }>
 > {
@@ -269,47 +385,11 @@ export async function sendMfaSmsCode(): Promise<
   const e164 = toE164(phone)
   if (!e164) return { success: false, error: 'Your phone number looks invalid. Update it and try again.' }
 
-  const admin = createAdminClient()
-  const since15m = new Date(Date.now() - 15 * 60 * 1000).toISOString()
-  const { count } = await admin
-    .from('mfa_otp_challenges')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', user.id)
-    .gte('created_at', since15m)
-
-  if ((count ?? 0) >= MFA_SEND_MAX_PER_15_MIN) {
-    return { success: false, error: 'Too many codes sent. Wait a few minutes and try again.' }
+  const created = await createOtpChallenge(user.id)
+  if (!created.success || !created.data) {
+    return created as MfaActionResult<{ maskedPhone: string; devCode?: string }>
   }
-
-  const { data: latest } = await admin
-    .from('mfa_otp_challenges')
-    .select('created_at')
-    .eq('user_id', user.id)
-    .is('consumed_at', null)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-
-  if (latest?.created_at) {
-    const elapsed = Date.now() - new Date(latest.created_at).getTime()
-    if (elapsed < MFA_SEND_COOLDOWN_MS) {
-      const waitSec = Math.ceil((MFA_SEND_COOLDOWN_MS - elapsed) / 1000)
-      return { success: false, error: `Wait ${waitSec}s before requesting another code.` }
-    }
-  }
-
-  const code = generateOtpCode()
-  const expiresAt = new Date(Date.now() + MFA_OTP_TTL_MS).toISOString()
-
-  const { error: insertError } = await admin.from('mfa_otp_challenges').insert({
-    user_id: user.id,
-    code_hash: await hashOtp(code),
-    expires_at: expiresAt,
-  })
-
-  if (insertError) {
-    return { success: false, error: 'Could not create a verification code. Try again.' }
-  }
+  const { code } = created.data
 
   const body = `Your MOJO Apartments sign-in code is ${code}. It expires in 5 minutes. Do not share this code.`
   const results = await sendToPhone(phone, body, {
@@ -337,6 +417,61 @@ export async function sendMfaSmsCode(): Promise<
   }
 }
 
+export async function sendMfaEmailCode(): Promise<
+  MfaActionResult<{ maskedEmail: string; devCode?: string }>
+> {
+  const { user, profile } = await requireStaffContext()
+  if (!user || !profile) return { success: false, error: 'Not signed in.' }
+
+  if (!userNeedsMfa(profile.mfa_enabled === true) || profile.mfa_method !== 'email') {
+    return { success: false, error: 'Email verification is not enabled for this account.' }
+  }
+
+  const email = profile.email?.trim().toLowerCase()
+  if (!email) {
+    return { success: false, error: 'Your account has no email address on file.' }
+  }
+
+  const created = await createOtpChallenge(user.id)
+  if (!created.success || !created.data) {
+    return created as MfaActionResult<{ maskedEmail: string; devCode?: string }>
+  }
+  const { code } = created.data
+
+  const result = await sendToEmail(
+    email,
+    {
+      subject: 'Your MOJO Apartments sign-in code',
+      preview: `Your sign-in code is ${code}. It expires in 5 minutes.`,
+      lines: [
+        `Your sign-in code is ${code}.`,
+        'It expires in 5 minutes.',
+        'Do not share this code with anyone.',
+      ],
+      actionUrl: appUrl('/login'),
+      actionLabel: 'Sign in',
+    },
+    { hotelId: profile.hotel_id ?? undefined, templateKey: 'mfa_otp' },
+  )
+
+  const isDev = process.env.NODE_ENV === 'development' && !isEmailConfigured()
+
+  if (!result.success && !isDev) {
+    return {
+      success: false,
+      error: result.error ?? 'Could not send the email. Check RESEND_API_KEY and try again.',
+    }
+  }
+
+  return {
+    success: true,
+    data: {
+      maskedEmail: maskEmail(email),
+      ...(isDev ? { devCode: code } : {}),
+    },
+  }
+}
+
 export async function verifyMfaSmsCode(
   code: string,
   intendedPath?: string,
@@ -353,26 +488,38 @@ export async function verifyMfaSmsCode(
     return { success: false, error: 'SMS verification is not enabled for this account.' }
   }
 
-  const admin = createAdminClient()
-  const codeHash = await hashOtp(trimmed)
-  const now = new Date().toISOString()
-
-  const { data: challenge } = await admin
-    .from('mfa_otp_challenges')
-    .select('id')
-    .eq('user_id', user.id)
-    .eq('code_hash', codeHash)
-    .is('consumed_at', null)
-    .gt('expires_at', now)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-
-  if (!challenge) {
+  const ok = await verifyOtpChallenge(user.id, trimmed)
+  if (!ok) {
     return { success: false, error: 'Invalid or expired code. Request a new SMS and try again.' }
   }
 
-  await admin.from('mfa_otp_challenges').update({ consumed_at: now }).eq('id', challenge.id)
+  const verified = await markSessionVerified(supabase, user.id)
+  if (!verified.success) return verified as MfaActionResult<{ redirectTo: string }>
+
+  const next = safeMfaNext(intendedPath, ROLE_HOME[profile.role])
+  return { success: true, data: { redirectTo: next } }
+}
+
+export async function verifyMfaEmailCode(
+  code: string,
+  intendedPath?: string,
+): Promise<MfaActionResult<{ redirectTo: string }>> {
+  const trimmed = code.replace(/\D/g, '')
+  if (trimmed.length !== 6) {
+    return { success: false, error: 'Enter the 6-digit code from your email.' }
+  }
+
+  const { supabase, user, profile } = await requireStaffContext()
+  if (!user || !profile) return { success: false, error: 'Not signed in.' }
+
+  if (!userNeedsMfa(profile.mfa_enabled === true) || profile.mfa_method !== 'email') {
+    return { success: false, error: 'Email verification is not enabled for this account.' }
+  }
+
+  const ok = await verifyOtpChallenge(user.id, trimmed)
+  if (!ok) {
+    return { success: false, error: 'Invalid or expired code. Request a new email and try again.' }
+  }
 
   const verified = await markSessionVerified(supabase, user.id)
   if (!verified.success) return verified as MfaActionResult<{ redirectTo: string }>

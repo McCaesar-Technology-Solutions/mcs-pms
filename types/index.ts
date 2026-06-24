@@ -19,7 +19,7 @@ export interface Profile {
   specialty: string | null
   mfa_sms_enabled: boolean | null
   mfa_enabled: boolean | null
-  mfa_method: 'sms' | 'totp' | null
+  mfa_method: 'sms' | 'email' | 'totp' | null
   mfa_totp_secret: string | null
   mfa_totp_pending_secret: string | null
   invited_by: string | null

@@ -80,7 +80,7 @@ export async function signIn(
   const admin = createAdminClient()
   const { data: mfaRow } = await admin
     .from('profiles')
-    .select('mfa_enabled, mfa_method, mfa_totp_secret, phone')
+    .select('mfa_enabled, mfa_method, mfa_totp_secret, phone, email')
     .eq('id', data.user.id)
     .maybeSingle()
 
@@ -91,13 +91,14 @@ export async function signIn(
 
     const { data: refreshed } = await admin
       .from('profiles')
-      .select('mfa_enabled, mfa_method, phone')
+      .select('mfa_enabled, mfa_method, phone, email')
       .eq('id', data.user.id)
       .maybeSingle()
 
     const row = refreshed ?? mfaRow
     const incompleteSms = row.mfa_enabled && row.mfa_method === 'sms' && !row.phone?.trim()
-    if (incompleteSms || (row.mfa_enabled && !row.mfa_method)) {
+    const incompleteEmail = row.mfa_enabled && row.mfa_method === 'email' && !row.email?.trim()
+    if (incompleteSms || incompleteEmail || (row.mfa_enabled && !row.mfa_method)) {
       await admin
         .from('profiles')
         .update({

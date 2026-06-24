@@ -6,6 +6,7 @@ import {
   type NotificationTemplateKey,
 } from '@/lib/notifications/preferences'
 import {
+  EMAIL_ALWAYS_SEND,
   EMAIL_STAFF_TEMPLATE_KEYS,
   isEmailTemplateEnabled,
   mergeEmailPrefs,
@@ -113,6 +114,7 @@ export async function shouldSendHotelEmailNotification(
   hotelId: string | undefined,
   templateKey: string,
 ): Promise<boolean> {
+  if (templateKey === 'mfa_otp') return true
   if (EMAIL_ALWAYS_SEND.has(templateKey as EmailStaffTemplateKey)) return true
   if (!hotelId) return false
   if (!(EMAIL_STAFF_TEMPLATE_KEYS as readonly string[]).includes(templateKey)) return false

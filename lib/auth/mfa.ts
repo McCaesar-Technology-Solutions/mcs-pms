@@ -1,9 +1,10 @@
 import type { UserRole } from '@/types'
 
-export type MfaMethod = 'sms'
+export type MfaMethod = 'sms' | 'email'
 
 export const MFA_METHOD_LABELS: Record<MfaMethod, string> = {
   sms: 'Text message (SMS)',
+  email: 'Email',
 }
 
 /** All staff may enable 2FA in profile settings; guests use the token portal only. */
@@ -51,6 +52,7 @@ export interface MfaStatus {
   applies: boolean
   method: MfaMethod | null
   hasPhone: boolean
+  hasEmail: boolean
   hasTotp: boolean
   sessionVerified: boolean
 }
@@ -60,6 +62,7 @@ export function mfaGateForRole(_role: UserRole, status: MfaStatus): MfaGate {
   if (!status.applies || !status.method) return 'ok'
 
   if (status.method === 'sms' && !status.hasPhone) return 'enroll'
+  if (status.method === 'email' && !status.hasEmail) return 'enroll'
   if (!status.sessionVerified) return 'verify'
   return 'ok'
 }

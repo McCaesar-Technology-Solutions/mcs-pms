@@ -8,6 +8,7 @@ import type { UserRole } from '@/types'
 export interface MfaProfileFields {
   role: UserRole
   phone: string | null
+  email: string | null
   mfa_enabled: boolean | null
   mfa_method: MfaMethod | null
   mfa_totp_secret: string | null
@@ -23,6 +24,7 @@ export async function buildMfaStatus(
   const applies = userNeedsMfa(enabled)
   const method = applies ? profile.mfa_method : null
   const hasPhone = Boolean(profile.phone?.trim())
+  const hasEmail = Boolean(profile.email?.trim())
   const hasTotp = Boolean(profile.mfa_totp_secret?.trim())
 
   let sessionVerified = false
@@ -48,5 +50,5 @@ export async function buildMfaStatus(
     }
   }
 
-  return { applies, method, hasPhone, hasTotp, sessionVerified }
+  return { applies, method, hasPhone, hasEmail, hasTotp, sessionVerified }
 }
