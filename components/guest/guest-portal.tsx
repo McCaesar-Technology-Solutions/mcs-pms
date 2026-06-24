@@ -13,6 +13,7 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { submitGuestComplaint, getGuestComplaints } from '@/app/actions/guest'
 import { GuestPhoneEditor } from '@/components/guest/guest-phone-editor'
+import { GuestStayTimeline } from '@/components/guest/guest-stay-timeline'
 import { GuestComplaintCard } from '@/components/guest/guest-complaint-card'
 import { RealtimeReconnectBanner } from '@/components/realtime/reconnect-banner'
 import { PhoneContactList } from '@/components/ui/phone-contact'
@@ -152,6 +153,14 @@ export function GuestPortal({ guest, roomNumber, propertyContacts }: GuestPortal
           <GuestPhoneEditor initialPhone={guest.phone} />
         </div>
       </header>
+
+      {guest.check_in && guest.check_out && (
+        <GuestStayTimeline
+          checkIn={guest.check_in}
+          checkOut={guest.check_out}
+          roomNumber={roomNumber}
+        />
+      )}
 
       {propertyContacts.length > 0 && (
         <section className="mx-4 mb-6">

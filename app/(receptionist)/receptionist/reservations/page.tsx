@@ -9,7 +9,8 @@ export default async function ReceptionistReservationsPage({
   searchParams: Promise<{ q?: string; open?: string; checkIn?: string }>
 }) {
   const { q, open, checkIn } = await searchParams
-  const { reservations, roomOptions, occupancySpans } = await getDashboardData()
+  const { reservations, roomOptions, occupancySpans, timelineRooms, timelineBars } =
+    await getDashboardData()
 
   return (
     <div className="page-shell space-y-6">
@@ -19,7 +20,7 @@ export default async function ReceptionistReservationsPage({
         description="Create bookings, check guests in and out, and manage stays."
       />
 
-      <ReservationsGantt data={reservations} />
+      <ReservationsGantt rooms={timelineRooms} bars={timelineBars} />
 
       <ReservationsManager
         reservations={reservations}

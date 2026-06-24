@@ -1,6 +1,10 @@
 import { createClient } from '@/lib/supabase/server'
 import { getProfile } from '@/lib/auth/get-profile'
 import { getOccupancySpans, type OccupancySpan } from '@/lib/data/occupancy'
+import {
+  getOccupancyTimelineBars,
+  type OccupancyTimelineBar,
+} from '@/lib/data/occupancy-timeline'
 import { calculateStayTotal } from '@/lib/pricing/stay-totals'
 import type {
   Availability,
@@ -31,6 +35,8 @@ export interface DashboardData {
   availability: Availability[]
   roomOptions: RoomOption[]
   occupancySpans: OccupancySpan[]
+  timelineRooms: { id: string; number: string }[]
+  timelineBars: OccupancyTimelineBar[]
 }
 
 const ROOM_STATUS_MAP: Record<DbRoomStatus, RoomStatus> = {
@@ -213,6 +219,8 @@ export async function getDashboardData(): Promise<DashboardData> {
     availability: [],
     roomOptions: [],
     occupancySpans: [],
+    timelineRooms: [],
+    timelineBars: [],
   }
 
   const profile = await getProfile()
@@ -221,7 +229,7 @@ export async function getDashboardData(): Promise<DashboardData> {
   const supabase = await createClient()
   const hotelId = profile.hotel_id
 
-  const [roomsRes, reservationsRes, invoicesRes, occupancySpans] = await Promise.all([
+  const [roomsRes, reservationsRes, invoicesRes, occupancySpans, timeline] = await Promise.all([
     supabase
       .from('rooms')
       .select('*, room_categories(name, default_nightly_rate, default_monthly_rate)')
@@ -234,6 +242,7 @@ export async function getDashboardData(): Promise<DashboardData> {
       .order('check_in', { ascending: false }),
     supabase.from('invoices').select('*').eq('hotel_id', hotelId),
     getOccupancySpans(supabase, hotelId),
+    getOccupancyTimelineBars(supabase, hotelId),
   ])
 
   const dbRooms = (roomsRes.data ?? []) as DbRoom[]
@@ -263,5 +272,7 @@ export async function getDashboardData(): Promise<DashboardData> {
           : Number(r.room_categories?.default_monthly_rate ?? 0),
     })),
     occupancySpans,
+    timelineRooms: timeline.rooms,
+    timelineBars: timeline.bars,
   }
 }
