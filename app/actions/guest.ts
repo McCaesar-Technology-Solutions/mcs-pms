@@ -195,7 +195,7 @@ export async function getGuestComplaints(): Promise<GuestActionResult<Complaint[
   const admin = createAdminClient()
   const { data, error } = await admin
     .from('complaints')
-    .select('*')
+    .select('*, rooms(number)')
     .eq('guest_id', session.data.guest.id)
     .order('submitted_at', { ascending: false })
 
@@ -204,6 +204,51 @@ export async function getGuestComplaints(): Promise<GuestActionResult<Complaint[
   }
 
   return { success: true, data: (data ?? []) as Complaint[] }
+}
+
+export async function getGuestComplaintActivity(
+  complaintId: string,
+): Promise<
+  GuestActionResult<{ events: { id: string; label: string; createdAt: string }[] }>
+> {
+  const session = await requireGuestSessionWithRules()
+  if (!session.success) {
+    return { success: false, error: session.error ?? 'Not authorized.' }
+  }
+
+  const admin = createAdminClient()
+  const { data: complaint } = await admin
+    .from('complaints')
+    .select('id')
+    .eq('id', complaintId)
+    .eq('guest_id', session.data!.guest.id)
+    .maybeSingle()
+
+  if (!complaint) return { success: false, error: 'Issue not found.' }
+
+  const { guestEventLabel, isGuestVisibleEvent } = await import('@/lib/complaints/guest-progress')
+
+  const { data } = await admin
+    .from('complaint_events')
+    .select('id, event_type, created_at')
+    .eq('complaint_id', complaintId)
+    .order('created_at', { ascending: true })
+
+  const events = (data ?? [])
+    .map((row) => {
+      const label = guestEventLabel(row.event_type as import('@/types').ComplaintEventType)
+      if (!label || !isGuestVisibleEvent(row.event_type as import('@/types').ComplaintEventType)) {
+        return null
+      }
+      return {
+        id: row.id,
+        label,
+        createdAt: row.created_at ?? new Date().toISOString(),
+      }
+    })
+    .filter((e): e is { id: string; label: string; createdAt: string } => e !== null)
+
+  return { success: true, data: { events } }
 }
 
 export async function approveGuestComplaintCompletion(

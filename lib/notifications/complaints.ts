@@ -24,6 +24,7 @@ interface ComplaintNotifyContext {
   roomNumber: string | null
   priority: string | null
   description: string
+  guestId?: string | null
   guestName?: string | null
   guestPhone?: string | null
   assignedTo?: string | null
@@ -33,7 +34,7 @@ async function loadComplaintContext(complaintId: string): Promise<ComplaintNotif
   const admin = createAdminClient()
   const { data } = await admin
     .from('complaints')
-    .select('id, hotel_id, category, priority, description, assigned_to, rooms(number), guests(name, phone)')
+    .select('id, hotel_id, category, priority, description, assigned_to, guest_id, rooms(number), guests(name, phone)')
     .eq('id', complaintId)
     .maybeSingle()
 
@@ -49,6 +50,7 @@ async function loadComplaintContext(complaintId: string): Promise<ComplaintNotif
     roomNumber: room?.number ?? null,
     priority: data.priority,
     description: data.description,
+    guestId: data.guest_id ?? null,
     guestName: guest?.name ?? null,
     guestPhone: guest?.phone ?? null,
     assignedTo: data.assigned_to ?? null,
@@ -114,6 +116,15 @@ export async function notifyGuestComplaintReceived(complaintId: string): Promise
     templateKey: 'complaint_guest_received',
     includeWhatsApp: false,
   })
+
+  if (ctx.guestId) {
+    const { notifyGuestComplaintEmail } = await import('@/lib/notifications/guest-email')
+    void notifyGuestComplaintEmail(ctx.guestId, {
+      subject: `Issue received · ${refLine(ctx)}`,
+      preview: 'We received your maintenance report.',
+      lines: [refLine(ctx), `Reference: ${ref}`, 'Our team will follow up shortly.'],
+    })
+  }
 }
 
 /** Manager assigned a job — alert technician. */
@@ -205,6 +216,15 @@ export async function notifyComplaintVisitScheduled(
       hotelId: ctx.hotelId,
       templateKey: 'complaint_visit_scheduled',
       includeWhatsApp: false,
+    })
+  }
+
+  if (ctx.guestId) {
+    const { notifyGuestComplaintEmail } = await import('@/lib/notifications/guest-email')
+    void notifyGuestComplaintEmail(ctx.guestId, {
+      subject: `Visit confirmed · ${refLine(ctx)}`,
+      preview: when ? `Maintenance visit scheduled for ${when}.` : 'A maintenance visit was scheduled.',
+      lines: [refLine(ctx), appointment, 'Your technician agreed this time with you.'],
     })
   }
 
@@ -381,4 +401,40 @@ export async function notifyComplaintGuestMessage(
       actionLabel: 'Open chat',
     },
   })
+}
+
+/** Staff or technician replied — alert guest via SMS and email. */
+export async function notifyComplaintStaffMessageToGuest(
+  complaintId: string,
+  messagePreview: string,
+): Promise<void> {
+  const ctx = await loadComplaintContext(complaintId)
+  if (!ctx) return
+
+  const preview = messagePreview.slice(0, 120)
+  const smsBody = [
+    'MOJO: Message from our team',
+    refLine(ctx),
+    preview,
+    appUrl('/guest'),
+  ].join('\n')
+
+  if (ctx.guestPhone) {
+    await notifyPhones([ctx.guestPhone], smsBody, {
+      hotelId: ctx.hotelId,
+      templateKey: 'complaint_guest_message',
+      includeWhatsApp: false,
+    })
+  }
+
+  if (ctx.guestId) {
+    const { notifyGuestEmail } = await import('@/lib/notifications/guest-email')
+    void notifyGuestEmail(ctx.guestId, 'guest_complaint_message', {
+      subject: `Message from staff · ${refLine(ctx)}`,
+      preview,
+      lines: [refLine(ctx), `"${preview}"`],
+      actionUrl: appUrl('/guest'),
+      actionLabel: 'Reply in portal',
+    })
+  }
 }

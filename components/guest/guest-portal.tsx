@@ -24,6 +24,7 @@ import {
   Check,
   Download,
   Camera,
+  Mail,
   MessageCircle,
 } from 'lucide-react'
 import {
@@ -42,12 +43,21 @@ import {
   submitGuestFeedback,
   submitGuestComplaintWithPhoto,
   getGuestInvoiceReceiptExport,
+  emailGuestInvoiceReceiptAction,
+  fetchGuestPortalBundle,
 } from '@/app/actions/guest-portal'
 import { downloadInvoicePdf } from '@/lib/export/invoice-pdf'
 import { GuestPhoneEditor } from '@/components/guest/guest-phone-editor'
 import { GuestStayTimeline } from '@/components/guest/guest-stay-timeline'
 import { GuestComplaintCard } from '@/components/guest/guest-complaint-card'
+import { GuestNextStepBanner } from '@/components/guest/guest-next-step-banner'
+import { guestComplaintReference } from '@/lib/complaints/guest-progress'
+import { pickGuestNextAction } from '@/lib/complaints/guest-next-action'
+import type { GuestNextAction, GuestNextActionFocus } from '@/lib/complaints/guest-next-action'
+import { guestStatusLabel } from '@/components/complaints/complaints-overview'
 import { GuestComplaintChat } from '@/components/guest/guest-complaint-chat'
+import { GuestPreArrivalForm } from '@/components/guest/guest-pre-arrival-form'
+import { GuestStatusAlerts } from '@/components/guest/guest-status-alerts'
 import { RealtimeReconnectBanner } from '@/components/realtime/reconnect-banner'
 import { PhoneContactList } from '@/components/ui/phone-contact'
 import type { GuestPortalContext } from '@/lib/data/guest-portal'
@@ -117,7 +127,11 @@ export function GuestPortal({ guest, roomNumber, propertyContacts, context }: Gu
   const [requestLoading, setRequestLoading] = useState<string | null>(null)
   const [requestError, setRequestError] = useState<string | null>(null)
   const [requestNote, setRequestNote] = useState('')
+  const [requestDate, setRequestDate] = useState('')
+  const [requestTime, setRequestTime] = useState('')
   const [showRequestForm, setShowRequestForm] = useState<string | null>(null)
+  const [emailReceiptLoading, setEmailReceiptLoading] = useState<string | null>(null)
+  const [emailReceiptMessage, setEmailReceiptMessage] = useState<string | null>(null)
 
   const [category, setCategory] = useState<ComplaintCategory | null>(null)
   const [description, setDescription] = useState('')
@@ -127,6 +141,8 @@ export function GuestPortal({ guest, roomNumber, propertyContacts, context }: Gu
   const [complaintError, setComplaintError] = useState<string | null>(null)
   const [reference, setReference] = useState<string | null>(null)
   const [chatComplaintId, setChatComplaintId] = useState<string | null>(null)
+  const [focusComplaintId, setFocusComplaintId] = useState<string | null>(null)
+  const [focusSection, setFocusSection] = useState<GuestNextActionFocus | null>(null)
 
   const [rating, setRating] = useState(0)
   const [feedbackComment, setFeedbackComment] = useState('')
@@ -135,8 +151,13 @@ export function GuestPortal({ guest, roomNumber, propertyContacts, context }: Gu
   const [feedbackError, setFeedbackError] = useState<string | null>(null)
 
   const [receiptLoading, setReceiptLoading] = useState<string | null>(null)
+  const [portalRequests, setPortalRequests] = useState(context.requests)
 
-  const { property, rules, localGuide, invoices, requests } = context
+  const { property, rules, localGuide, invoices, preArrival } = context
+
+  useEffect(() => {
+    setPortalRequests(context.requests)
+  }, [context.requests])
   const propertyLine = [property.address, property.city, property.region].filter(Boolean).join(', ')
 
   const loadComplaints = useCallback(async () => {
@@ -193,14 +214,22 @@ export function GuestPortal({ guest, roomNumber, propertyContacts, context }: Gu
     const result = await submitGuestRequest({
       requestType: type,
       note: requestNote.trim() || undefined,
+      requestedDate: type === 'extension' && requestDate ? requestDate : undefined,
+      requestedTime: type === 'late_checkout' && requestTime ? requestTime : undefined,
     })
     setRequestLoading(null)
     if (!result.success) {
-      setRequestError(result.error)
+      setRequestError(result.error ?? null)
       return
     }
     setShowRequestForm(null)
     setRequestNote('')
+    setRequestDate('')
+    setRequestTime('')
+    const bundle = await fetchGuestPortalBundle()
+    if (bundle.success && bundle.data) {
+      setPortalRequests(bundle.data.context.requests)
+    }
     setActiveTab('stay')
   }
 
@@ -242,6 +271,16 @@ export function GuestPortal({ guest, roomNumber, propertyContacts, context }: Gu
     setFeedbackDone(true)
   }
 
+  async function emailReceipt(invoiceId: string) {
+    setEmailReceiptLoading(invoiceId)
+    setEmailReceiptMessage(null)
+    const result = await emailGuestInvoiceReceiptAction(invoiceId)
+    setEmailReceiptLoading(null)
+    setEmailReceiptMessage(
+      result.success ? 'Receipt sent to your email.' : (result.error ?? 'Could not send email.'),
+    )
+  }
+
   async function downloadReceipt(invoiceId: string) {
     setReceiptLoading(invoiceId)
     const result = await getGuestInvoiceReceiptExport(invoiceId)
@@ -264,6 +303,31 @@ export function GuestPortal({ guest, roomNumber, propertyContacts, context }: Gu
     () => complaints.filter((c) => c.status !== 'resolved'),
     [complaints],
   )
+
+  const primaryNextAction = useMemo(() => pickGuestNextAction(openComplaints), [openComplaints])
+
+  function handleGuestNextStep(action: GuestNextAction) {
+    setActiveTab('help')
+    setFocusComplaintId(action.complaintId)
+    setFocusSection(action.focus)
+    if (action.focus === 'chat') {
+      setChatComplaintId(action.complaintId)
+    }
+  }
+
+  function handleComplaintNextStep(complaintId: string, focus: GuestNextActionFocus) {
+    if (focus === 'chat') {
+      setChatComplaintId(complaintId)
+      return
+    }
+    setFocusComplaintId(complaintId)
+    setFocusSection(focus)
+  }
+
+  function clearComplaintFocus() {
+    setFocusComplaintId(null)
+    setFocusSection(null)
+  }
 
   if (reference) {
     return (
@@ -334,6 +398,11 @@ export function GuestPortal({ guest, roomNumber, propertyContacts, context }: Gu
       </header>
 
       <main className="space-y-4 px-4">
+        <GuestStatusAlerts
+          complaints={complaints}
+          requests={portalRequests}
+          onOpenHelp={() => setActiveTab('help')}
+        />
         {activeTab === 'home' && (
           <>
             <div className="grid grid-cols-2 gap-3">
@@ -359,6 +428,10 @@ export function GuestPortal({ guest, roomNumber, propertyContacts, context }: Gu
                 <span className="text-xs text-white/80">Maintenance help</span>
               </button>
             </div>
+
+            {primaryNextAction && (
+              <GuestNextStepBanner action={primaryNextAction} onAction={handleGuestNextStep} />
+            )}
 
             {(property.wifiSsid || property.parking || property.emergencyPhone) && (
               <PortalCard className="space-y-3">
@@ -414,10 +487,10 @@ export function GuestPortal({ guest, roomNumber, propertyContacts, context }: Gu
               </PortalCard>
             )}
 
-            {openComplaints.length > 0 && (
+            {openComplaints.length > 1 && (
               <PortalCard>
                 <div className="flex items-center justify-between">
-                  <p className="text-sm font-semibold">Open issues</p>
+                  <p className="text-sm font-semibold">More open issues</p>
                   <span className="rounded-full bg-[#D85A30]/20 px-2 py-0.5 text-xs font-bold text-[#ffb899]">
                     {openComplaints.length}
                   </span>
@@ -427,7 +500,42 @@ export function GuestPortal({ guest, roomNumber, propertyContacts, context }: Gu
                   onClick={() => setActiveTab('help')}
                   className="mt-3 flex w-full items-center justify-between text-sm text-white/70"
                 >
-                  View &amp; message staff
+                  View all issues
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </PortalCard>
+            )}
+
+            {openComplaints.length === 1 && !primaryNextAction && (
+              <PortalCard>
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold">Open issues</p>
+                  <span className="rounded-full bg-[#D85A30]/20 px-2 py-0.5 text-xs font-bold text-[#ffb899]">
+                    {openComplaints.length}
+                  </span>
+                </div>
+                {openComplaints[0] && (
+                  <div className="mt-3 rounded-xl bg-white/5 px-3 py-2.5">
+                    <p className="text-sm font-medium capitalize text-white">
+                      {openComplaints[0].category}
+                      <span className="ml-2 font-mono text-[10px] text-white/50">
+                        {guestComplaintReference(openComplaints[0].id)}
+                      </span>
+                    </p>
+                    <p className="mt-0.5 text-xs text-[#D4A62E]">
+                      {guestStatusLabel(
+                        openComplaints[0].status,
+                        openComplaints[0].approval_stage,
+                      )}
+                    </p>
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('help')}
+                  className="mt-3 flex w-full items-center justify-between text-sm text-white/70"
+                >
+                  View progress &amp; message staff
                   <ChevronRight className="h-4 w-4" />
                 </button>
               </PortalCard>
@@ -486,6 +594,23 @@ export function GuestPortal({ guest, roomNumber, propertyContacts, context }: Gu
               </div>
               {showRequestForm && (
                 <div className="mt-4 space-y-3 border-t border-white/10 pt-4">
+                  {showRequestForm === 'extension' && (
+                    <input
+                      type="date"
+                      value={requestDate}
+                      onChange={(e) => setRequestDate(e.target.value)}
+                      className="w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm"
+                    />
+                  )}
+                  {showRequestForm === 'late_checkout' && (
+                    <input
+                      type="text"
+                      value={requestTime}
+                      onChange={(e) => setRequestTime(e.target.value)}
+                      placeholder="Preferred checkout time (e.g. 2:00 PM)"
+                      className="w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm placeholder:text-white/35"
+                    />
+                  )}
                   <textarea
                     value={requestNote}
                     onChange={(e) => setRequestNote(e.target.value)}
@@ -506,16 +631,32 @@ export function GuestPortal({ guest, roomNumber, propertyContacts, context }: Gu
               )}
             </PortalCard>
 
-            {requests.length > 0 && (
+            <PortalCard>
+              <p className="text-xs font-bold uppercase tracking-widest text-[#D4A62E]">
+                Arrival details
+              </p>
+              <div className="mt-3">
+                <GuestPreArrivalForm
+                  initialEmail={preArrival.email}
+                  initialEta={preArrival.eta}
+                  initialNotes={preArrival.notes}
+                  submittedAt={preArrival.submittedAt}
+                />
+              </div>
+            </PortalCard>
+
+            {portalRequests.length > 0 && (
               <PortalCard className="space-y-2">
                 <p className="text-sm font-semibold">Your requests</p>
-                {requests.map((req) => (
+                {portalRequests.slice(0, 5).map((req) => (
                   <div
                     key={req.id}
-                    className="flex items-center justify-between rounded-xl bg-white/5 px-3 py-2.5 text-sm"
+                    className="flex items-center justify-between rounded-xl bg-white/5 px-3 py-2 text-sm"
                   >
-                    <span>{REQUEST_LABELS[req.requestType] ?? req.requestType}</span>
-                    <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white/70">
+                    <span className="capitalize text-white/80">
+                      {req.requestType.replace(/_/g, ' ')}
+                    </span>
+                    <span className="text-xs font-semibold uppercase text-[#D4A62E]">
                       {req.status}
                     </span>
                   </div>
@@ -546,15 +687,26 @@ export function GuestPortal({ guest, roomNumber, propertyContacts, context }: Gu
                         </p>
                       </div>
                       {inv.paymentStatus === 'paid' && (
-                        <button
-                          type="button"
-                          onClick={() => downloadReceipt(inv.id)}
-                          disabled={receiptLoading === inv.id}
-                          className="flex items-center gap-1 rounded-lg bg-emerald-500/20 px-2.5 py-1.5 text-xs font-semibold text-emerald-200 disabled:opacity-50"
-                        >
-                          <Download className="h-3.5 w-3.5" />
-                          {receiptLoading === inv.id ? '…' : 'Receipt'}
-                        </button>
+                        <div className="flex gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => downloadReceipt(inv.id)}
+                            disabled={receiptLoading === inv.id}
+                            className="flex items-center gap-1 rounded-lg bg-emerald-500/20 px-2.5 py-1.5 text-xs font-semibold text-emerald-200 disabled:opacity-50"
+                          >
+                            <Download className="h-3.5 w-3.5" />
+                            {receiptLoading === inv.id ? '…' : 'PDF'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => emailReceipt(inv.id)}
+                            disabled={emailReceiptLoading === inv.id}
+                            className="flex items-center gap-1 rounded-lg bg-white/10 px-2.5 py-1.5 text-xs font-semibold text-white/80 disabled:opacity-50"
+                          >
+                            <Mail className="h-3.5 w-3.5" />
+                            {emailReceiptLoading === inv.id ? '…' : 'Email'}
+                          </button>
+                        </div>
                       )}
                     </li>
                   ))}
@@ -563,6 +715,9 @@ export function GuestPortal({ guest, roomNumber, propertyContacts, context }: Gu
               <p className="text-xs text-white/45">
                 Pay at the front desk — online payments are not available in the portal.
               </p>
+              {emailReceiptMessage && (
+                <p className="text-xs text-[#D4A62E]">{emailReceiptMessage}</p>
+              )}
             </PortalCard>
           </>
         )}
@@ -653,6 +808,10 @@ export function GuestPortal({ guest, roomNumber, propertyContacts, context }: Gu
                       complaint={c}
                       onUpdated={loadComplaints}
                       onOpenChat={() => setChatComplaintId(c.id)}
+                      forceExpanded={focusComplaintId === c.id}
+                      focusSection={focusComplaintId === c.id ? focusSection : null}
+                      onFocusHandled={clearComplaintFocus}
+                      onNextStep={handleComplaintNextStep}
                     />
                   ))}
                 </ul>

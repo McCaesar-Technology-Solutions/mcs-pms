@@ -9,6 +9,7 @@ export type AuditEntityType =
   | 'guest'
   | 'invoice'
   | 'complaint'
+  | 'guest_request'
 
 export interface AuditLogInput {
   hotelId: string

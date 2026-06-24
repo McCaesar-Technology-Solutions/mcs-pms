@@ -48,6 +48,12 @@ export interface GuestPortalContext {
   invoices: GuestPortalInvoice[]
   requests: GuestPortalRequest[]
   hasFeedback: boolean
+  preArrival: {
+    email: string | null
+    eta: string | null
+    notes: string | null
+    submittedAt: string | null
+  }
 }
 
 interface HotelPortalExtras {
@@ -85,7 +91,7 @@ export async function loadGuestPortalContext(guest: Guest): Promise<GuestPortalC
 
   if (hotelError || !hotel) return null
 
-  const [rulesBundle, localGuide, portalExtras, invoicesRes, requestsRes, feedbackRes] =
+  const [rulesBundle, localGuide, portalExtras, invoicesRes, requestsRes, feedbackRes, guestRowRes] =
     await Promise.all([
       getHotelGuestRules(guest.hotel_id),
       getHotelLocalGuide(guest.hotel_id),
@@ -107,7 +113,14 @@ export async function loadGuestPortalContext(guest: Guest): Promise<GuestPortalC
         .select('id')
         .eq('guest_id', guest.id)
         .limit(1),
+      admin
+        .from('guests')
+        .select('email, pre_arrival_eta, pre_arrival_notes, pre_arrival_submitted_at')
+        .eq('id', guest.id)
+        .maybeSingle(),
     ])
+
+  const guestRow = guestRowRes.error ? null : guestRowRes.data
 
   return {
     property: {
@@ -144,6 +157,12 @@ export async function loadGuestPortalContext(guest: Guest): Promise<GuestPortalC
           createdAt: row.created_at,
         })),
     hasFeedback: feedbackRes.error ? false : (feedbackRes.data?.length ?? 0) > 0,
+    preArrival: {
+      email: guestRow?.email ?? guest.email ?? null,
+      eta: guestRow?.pre_arrival_eta ?? null,
+      notes: guestRow?.pre_arrival_notes ?? null,
+      submittedAt: guestRow?.pre_arrival_submitted_at ?? null,
+    },
   }
 }
 

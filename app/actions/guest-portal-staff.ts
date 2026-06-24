@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { writeAuditLog } from '@/lib/audit/log'
+import { fulfillGuestRequest, notifyRequestStatus } from '@/lib/guest/request-fulfillment'
 import { ownerOwnsHotel } from '@/lib/data/properties'
 import { getHotelLocalGuide, type LocalGuideRow } from '@/lib/data/local-guide'
 
@@ -294,6 +295,25 @@ export async function updateGuestRequestStatus(
   if (!parsed.success) return { success: false, error: 'Invalid status.' }
 
   const admin = createAdminClient()
+  const { data: request } = await admin
+    .from('guest_requests')
+    .select('id, hotel_id, guest_id, room_id, request_type, note, requested_date, requested_time, status')
+    .eq('id', requestId)
+    .eq('hotel_id', profile.hotel_id)
+    .maybeSingle()
+
+  if (!request) return { success: false, error: 'Request not found.' }
+  if (request.status !== 'pending' && parsed.data === 'acknowledged') {
+    return { success: false, error: 'Request is no longer pending.' }
+  }
+
+  let fulfillmentDetail: string | undefined
+  if (parsed.data === 'completed') {
+    const fulfillment = await fulfillGuestRequest(request, 'completed')
+    if (fulfillment.error) return { success: false, error: fulfillment.error }
+    fulfillmentDetail = fulfillment.detail
+  }
+
   const { error } = await admin
     .from('guest_requests')
     .update({ status: parsed.data, updated_at: new Date().toISOString() })
@@ -302,7 +322,28 @@ export async function updateGuestRequestStatus(
 
   if (error) return { success: false, error: 'Could not update request.' }
 
+  const { data: actorProfile } = await supabase
+    .from('profiles')
+    .select('name')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  void writeAuditLog({
+    hotelId: profile.hotel_id,
+    actorId: user.id,
+    actorName: actorProfile?.name ?? profile.role,
+    entityType: 'guest_request',
+    entityId: requestId,
+    action: `request_${parsed.data}`,
+    summary: `${request.request_type} request ${parsed.data}`,
+    details: { requestType: request.request_type, note: request.note },
+  })
+
+  void notifyRequestStatus(requestId, parsed.data, fulfillmentDetail)
+
   revalidatePath('/manager/dashboard')
+  revalidatePath('/manager/housekeeping')
+  revalidatePath('/technician/tasks')
   revalidatePath('/guest')
   return { success: true }
 }

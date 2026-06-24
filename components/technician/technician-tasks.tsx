@@ -21,11 +21,19 @@ import {
   startTechnicianComplaint,
 } from '@/app/actions/complaints'
 import { fetchComplaintEstimate } from '@/app/actions/complaint-estimates'
+import { StaffComplaintMessageThread } from '@/components/complaints/staff-complaint-message-thread'
 import { OptionalInvoicePanel } from '@/components/technician/optional-invoice-panel'
+import { TechnicianComplaintPhoto } from '@/components/technician/technician-complaint-photo'
+import { TechnicianJobProgress } from '@/components/technician/technician-job-progress'
+import { TechnicianNextStepBanner } from '@/components/technician/technician-next-step-banner'
 import { ComplaintEstimateCard } from '@/components/complaints/complaint-estimate-card'
 import { ScheduleVisitForm } from '@/components/complaints/schedule-visit-form'
 import { PhoneContact } from '@/components/ui/phone-contact'
 import { useRealtimeRefresh } from '@/components/realtime/realtime-refresh-context'
+import { guestComplaintReference } from '@/lib/complaints/guest-progress'
+import { getTechnicianNextAction, technicianScrollTarget } from '@/lib/complaints/technician-progress'
+import type { TechnicianNextAction } from '@/lib/complaints/technician-progress'
+import { telHref } from '@/lib/phone'
 import {
   canMarkComplete,
   canStartJob,
@@ -33,7 +41,6 @@ import {
   canTechnicianScheduleVisit,
   isPendingCompletion,
   isPendingEstimate,
-  needsGuestCompletionApproval,
   technicianStatusLabel,
 } from '@/lib/complaints/workflow'
 import { formatComplaintVisit } from '@/lib/complaints/visit'
@@ -55,6 +62,13 @@ const categoryIcons: Record<ComplaintCategory, typeof Droplets> = {
   noise: Volume2,
   other: HelpCircle,
 }
+
+const TECHNICIAN_QUICK_REPLIES = [
+  "Hi, I'm your technician. When is a good time to visit your room?",
+  "I'm on my way to your room now.",
+  "I've started working on your issue.",
+  'Please confirm in your guest portal when the repair looks good to you.',
+] as const
 
 function priorityBadge(priority: string | null | undefined) {
   switch (priority) {
@@ -137,6 +151,34 @@ export function TechnicianTasks() {
     await load()
   }
 
+  function scrollToElement(id: string) {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  }
+
+  async function handleTechnicianNextAction(c: Complaint, action: TechnicianNextAction) {
+    if (action.actionKind === 'call' && c.guests?.phone) {
+      const href = telHref(c.guests.phone)
+      if (href) window.location.href = href
+      if (action.scrollTargetId) {
+        setExpandedId(c.id)
+        setTimeout(() => scrollToElement(action.scrollTargetId!), 120)
+      }
+      return
+    }
+    if (action.actionKind === 'start') {
+      await handleStart(c.id)
+      return
+    }
+    if (action.actionKind === 'complete') {
+      await handleComplete(c.id)
+      return
+    }
+    setExpandedId(c.id)
+    if (action.scrollTargetId) {
+      setTimeout(() => scrollToElement(action.scrollTargetId!), 120)
+    }
+  }
+
   return (
     <div className="mx-auto flex w-full max-w-lg flex-1 flex-col px-4 pb-8 pt-4">
       <div className="mb-5 flex rounded-2xl bg-white p-1 shadow-elevation-1">
@@ -169,6 +211,17 @@ export function TechnicianTasks() {
           const isRejected = c.status === 'rejected'
           const isPending = isPendingEstimate(c) || isPendingCompletion(c)
           const estimate = estimates[c.id]
+          const nextAction = getTechnicianNextAction(c)
+          const showGuestContact =
+            Boolean(c.guests?.phone) &&
+            c.status !== 'resolved' &&
+            (nextAction?.type === 'contact_guest' ||
+              nextAction?.type === 'schedule_visit' ||
+              nextAction?.type === 'start_job' ||
+              nextAction?.type === 'mark_complete' ||
+              nextAction?.type === 'rework')
+          const showChat =
+            c.status !== 'resolved' && Boolean(c.guest_id ?? c.guests?.phone)
 
           return (
             <article
@@ -217,6 +270,9 @@ export function TechnicianTasks() {
                   </div>
                   <p className="mt-0.5 text-sm font-medium capitalize text-foreground">
                     {c.category}
+                    <span className="ml-2 font-mono text-[10px] text-muted-foreground">
+                      {guestComplaintReference(c.id)}
+                    </span>
                   </p>
                   <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{c.description}</p>
                   <span
@@ -224,6 +280,18 @@ export function TechnicianTasks() {
                   >
                     {technicianStatusLabel(c)}
                   </span>
+                  {!expanded && nextAction?.actionLabel && nextAction.actionKind !== 'none' && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        void handleTechnicianNextAction(c, nextAction)
+                      }}
+                      className="mt-2 block w-full rounded-lg bg-[#3C216C]/8 px-2.5 py-2 text-left text-xs font-semibold text-[#3C216C] hover:bg-[#3C216C]/12"
+                    >
+                      Next: {nextAction.actionLabel} →
+                    </button>
+                  )}
                 </div>
 
                 <span className="mt-1 shrink-0 text-muted-foreground">
@@ -233,10 +301,28 @@ export function TechnicianTasks() {
 
               {expanded && (
                 <div className="mx-4 mb-4 space-y-3 rounded-xl bg-[#F7F4FB] p-4">
-                  <p className="text-sm leading-relaxed text-foreground">{c.description}</p>
+                  {nextAction && (
+                    <TechnicianNextStepBanner
+                      action={nextAction}
+                      loading={loading === c.id}
+                      onAction={() => void handleTechnicianNextAction(c, nextAction)}
+                    />
+                  )}
 
-                  {c.guests?.phone && c.status !== 'resolved' && (
-                    <div className="rounded-xl bg-white p-3 shadow-elevation-1">
+                  <TechnicianComplaintPhoto
+                    complaintId={c.id}
+                    hasPhoto={Boolean(c.guest_photo_path)}
+                  />
+
+                  <div className="rounded-xl bg-white p-3.5 shadow-elevation-1">
+                    <TechnicianJobProgress complaint={c} />
+                  </div>
+
+                  {showGuestContact && c.guests?.phone && (
+                    <div
+                      id={technicianScrollTarget(c.id, 'contact')}
+                      className="rounded-xl bg-white p-3 shadow-elevation-1"
+                    >
                       <PhoneContact
                         name={c.guests.name ?? 'Guest'}
                         phone={c.guests.phone}
@@ -246,7 +332,10 @@ export function TechnicianTasks() {
                   )}
 
                   {canTechnicianScheduleVisit(c) && (
-                    <div className="rounded-xl bg-white p-3 shadow-elevation-1">
+                    <div
+                      id={technicianScrollTarget(c.id, 'visit')}
+                      className="rounded-xl bg-white p-3 shadow-elevation-1"
+                    >
                       <ScheduleVisitForm
                         complaintId={c.id}
                         scheduledVisitAt={c.scheduled_visit_at}
@@ -273,7 +362,10 @@ export function TechnicianTasks() {
                   )}
 
                   {c.rejection_note && (
-                    <div className="rounded-xl bg-red-50 px-3 py-2.5 text-sm text-red-700 shadow-elevation-1">
+                    <div
+                      id={technicianScrollTarget(c.id, 'rejection')}
+                      className="rounded-xl bg-red-50 px-3 py-2.5 text-sm text-red-700 shadow-elevation-1"
+                    >
                       <p className="font-semibold">Manager note</p>
                       <p className="mt-1">{c.rejection_note}</p>
                     </div>
@@ -281,17 +373,19 @@ export function TechnicianTasks() {
 
                   {canMarkComplete(c) && (
                     <button
+                      id={technicianScrollTarget(c.id, 'complete')}
                       type="button"
                       disabled={loading === c.id}
                       onClick={() => handleComplete(c.id)}
                       className="w-full rounded-xl bg-[#3C216C] py-3 text-sm font-semibold text-white shadow-elevation-1 transition-all hover:shadow-elevation-2 disabled:opacity-60"
                     >
-                      {loading === c.id ? 'Submitting…' : 'Request manager sign-off'}
+                      {loading === c.id ? 'Submitting…' : 'Request sign-off'}
                     </button>
                   )}
 
-                  {canStartJob(c) && (
+                  {canStartJob(c) && c.status === 'assigned' && (
                     <button
+                      id={technicianScrollTarget(c.id, 'start')}
                       type="button"
                       disabled={loading === c.id}
                       onClick={() => handleStart(c.id)}
@@ -299,6 +393,20 @@ export function TechnicianTasks() {
                     >
                       {loading === c.id ? 'Starting…' : 'Mark as started (optional)'}
                     </button>
+                  )}
+
+                  {showChat && (
+                    <div id={technicianScrollTarget(c.id, 'chat')}>
+                      <StaffComplaintMessageThread
+                      complaintId={c.id}
+                      guestName={c.guests?.name}
+                      roomNumber={roomsJoin}
+                      complaintCategory={c.category}
+                      quickReplies={TECHNICIAN_QUICK_REPLIES}
+                      compact
+                      messagePlaceholder="Message guest…"
+                    />
+                    </div>
                   )}
 
                   {canSubmitInvoice(c) && (
@@ -313,33 +421,12 @@ export function TechnicianTasks() {
                     />
                   )}
 
-                  {isPendingCompletion(c) && canSubmitInvoice(c) && (
-                    <p className="text-center text-xs text-muted-foreground">
-                      You can still send an invoice while waiting for sign-off.
-                    </p>
-                  )}
-
                   {estimate &&
                     (c.status === 'assigned' ||
                       c.status === 'in_progress' ||
                       isPendingCompletion(c)) && (
                       <ComplaintEstimateCard estimate={estimate} />
                     )}
-
-                  {isPendingEstimate(c) && (
-                    <p className="rounded-xl bg-amber-500/10 px-3 py-2.5 text-center text-sm font-medium text-amber-900 shadow-elevation-1">
-                      This job is in a legacy approval queue — ask your manager to release it, or
-                      refresh after they acknowledge.
-                    </p>
-                  )}
-
-                  {isPendingCompletion(c) && (
-                    <p className="rounded-xl bg-white px-3 py-2.5 text-center text-sm font-medium text-muted-foreground shadow-elevation-1">
-                      {needsGuestCompletionApproval(c)
-                        ? 'Work complete — awaiting guest sign-off'
-                        : 'Work complete — awaiting manager sign-off'}
-                    </p>
-                  )}
 
                   {c.status === 'resolved' && c.resolved_at && (
                     <p className="text-center text-xs text-muted-foreground">

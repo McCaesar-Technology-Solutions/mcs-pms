@@ -50,7 +50,7 @@ export function GuestRequestsPanel({ hotelId, initialRequests = [] }: GuestReque
   if (requests.length === 0) return null
 
   return (
-    <div className="surface-card overflow-hidden">
+    <div id="guest-requests" className="surface-card overflow-hidden">
       <div className="surface-card-accent" />
       <div className="surface-card-header">
         <div className="flex items-center gap-2">

@@ -28,6 +28,14 @@ import {
 } from '@/lib/guest/complaint-photos'
 import { notifyGuestRequestCreated } from '@/lib/notifications/guest-requests'
 import { loadGuestPortalContext } from '@/lib/data/guest-portal'
+import {
+  assertRateLimit,
+  GUEST_RATE_LIMITS,
+  guestRateKey,
+  ipRateKey,
+} from '@/lib/rate-limit'
+import { uploadGuestIdDocument } from '@/lib/guest/id-documents'
+import { emailGuestInvoiceReceipt } from '@/lib/notifications/guest-email'
 
 export type GuestPortalActionResult<T = void> =
   | { success: true; data?: T }
@@ -52,6 +60,13 @@ export async function enterGuestPortalByRoom(input: unknown): Promise<GuestPorta
   if (!parsed.success) {
     return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid entry.' }
   }
+
+  const entryLimit = await assertRateLimit(
+    ipRateKey('portal-entry', `${parsed.data.slug}:${parsed.data.roomNumber}`),
+    GUEST_RATE_LIMITS.portalEntry,
+    'Too many sign-in attempts. Please wait a few minutes.',
+  )
+  if (entryLimit) return { success: false, error: entryLimit }
 
   const admin = createAdminClient()
   const { data: hotel } = await admin
@@ -157,6 +172,8 @@ async function requireGuestWithRules() {
 const guestRequestSchema = z.object({
   requestType: z.enum(['housekeeping', 'late_checkout', 'extension', 'self_checkout']),
   note: z.string().max(500).optional(),
+  requestedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  requestedTime: z.string().max(50).optional(),
 })
 
 const feedbackSchema = z.object({
@@ -189,6 +206,12 @@ export async function submitGuestRequest(input: unknown): Promise<GuestPortalAct
   const auth = await requireGuestWithRules()
   if (!auth.ok) return { success: false, error: auth.error }
 
+  const limit = await assertRateLimit(
+    guestRateKey('request', auth.guest.id),
+    GUEST_RATE_LIMITS.request,
+  )
+  if (limit) return { success: false, error: limit }
+
   const parsed = guestRequestSchema.safeParse(input)
   if (!parsed.success) {
     return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid request.' }
@@ -203,6 +226,8 @@ export async function submitGuestRequest(input: unknown): Promise<GuestPortalAct
       room_id: auth.guest.room_id,
       request_type: parsed.data.requestType,
       note: parsed.data.note?.trim() || null,
+      requested_date: parsed.data.requestedDate ?? null,
+      requested_time: parsed.data.requestedTime?.trim() || null,
       status: 'pending',
     })
     .select('id')
@@ -295,6 +320,12 @@ export async function getComplaintMessages(
 export async function postGuestComplaintMessage(input: unknown): Promise<GuestPortalActionResult> {
   const auth = await requireGuestWithRules()
   if (!auth.ok) return { success: false, error: auth.error }
+
+  const limit = await assertRateLimit(
+    guestRateKey('message', auth.guest.id),
+    GUEST_RATE_LIMITS.message,
+  )
+  if (limit) return { success: false, error: limit }
 
   const parsed = messageSchema.safeParse(input)
   if (!parsed.success) {
@@ -502,4 +533,85 @@ export async function getGuestInvoiceReceiptExport(
       },
     },
   }
+}
+
+export async function updateGuestContactEmail(email: string): Promise<GuestPortalActionResult> {
+  const auth = await requireGuestWithRules()
+  if (!auth.ok) return { success: false, error: auth.error }
+
+  const parsed = z.string().email().safeParse(email.trim())
+  if (!parsed.success) return { success: false, error: 'Enter a valid email address.' }
+
+  const admin = createAdminClient()
+  const { error } = await admin
+    .from('guests')
+    .update({ email: parsed.data })
+    .eq('id', auth.guest.id)
+
+  if (error) return { success: false, error: 'Could not save email.' }
+  revalidatePath('/guest')
+  return { success: true }
+}
+
+export async function submitGuestPreArrival(formData: FormData): Promise<GuestPortalActionResult> {
+  const auth = await requireGuestWithRules()
+  if (!auth.ok) return { success: false, error: auth.error }
+
+  const limit = await assertRateLimit(
+    guestRateKey('pre-arrival', auth.guest.id),
+    GUEST_RATE_LIMITS.preArrival,
+  )
+  if (limit) return { success: false, error: limit }
+
+  const eta = String(formData.get('eta') ?? '').trim().slice(0, 120)
+  const notes = String(formData.get('notes') ?? '').trim().slice(0, 1000)
+  const file = formData.get('idDocument')
+
+  const admin = createAdminClient()
+  let idPath: string | null = null
+  let idMime: string | null = null
+
+  if (file instanceof File && file.size > 0) {
+    const uploaded = await uploadGuestIdDocument(auth.guest.id, auth.guest.hotel_id, file)
+    if (!uploaded) {
+      return { success: false, error: 'ID upload failed. Use JPG, PNG, or PDF under 5 MB.' }
+    }
+    idPath = uploaded.path
+    idMime = uploaded.mime
+  }
+
+  const { error } = await admin
+    .from('guests')
+    .update({
+      pre_arrival_eta: eta || null,
+      pre_arrival_notes: notes || null,
+      ...(idPath ? { pre_arrival_id_path: idPath, pre_arrival_id_mime: idMime } : {}),
+      pre_arrival_submitted_at: new Date().toISOString(),
+    })
+    .eq('id', auth.guest.id)
+
+  if (error) return { success: false, error: 'Could not save arrival details.' }
+  revalidatePath('/guest')
+  return { success: true }
+}
+
+export async function emailGuestInvoiceReceiptAction(
+  invoiceId: string,
+): Promise<GuestPortalActionResult> {
+  const auth = await requireGuestWithRules()
+  if (!auth.ok) return { success: false, error: auth.error }
+
+  const receipt = await getGuestInvoiceReceiptExport(invoiceId)
+  if (!receipt.success || !receipt.data) {
+    return { success: false, error: receipt.error ?? 'Could not load receipt.' }
+  }
+
+  const result = await emailGuestInvoiceReceipt(auth.guest.id, {
+    invoiceNumber: receipt.data.invoice.invoiceNumber,
+    totalAmount: receipt.data.invoice.total,
+    paidAt: receipt.data.invoice.issuedAt,
+  })
+
+  if (!result.success) return { success: false, error: result.error ?? 'Could not send email.' }
+  return { success: true }
 }

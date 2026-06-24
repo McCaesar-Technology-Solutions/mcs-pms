@@ -18,9 +18,12 @@ interface StaffComplaintMessageThreadProps {
   guestName?: string | null
   roomNumber?: string | null
   complaintCategory?: string | null
+  quickReplies?: readonly string[]
+  compact?: boolean
+  messagePlaceholder?: string
 }
 
-const QUICK_REPLIES = [
+const DEFAULT_QUICK_REPLIES = [
   "Thanks for reporting this — we're on it.",
   'A technician has been assigned and will contact you shortly.',
   'What time works best for a visit to your room?',
@@ -61,6 +64,9 @@ export function StaffComplaintMessageThread({
   guestName,
   roomNumber,
   complaintCategory,
+  quickReplies = DEFAULT_QUICK_REPLIES,
+  compact = false,
+  messagePlaceholder,
 }: StaffComplaintMessageThreadProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [body, setBody] = useState('')
@@ -212,7 +218,9 @@ export function StaffComplaintMessageThread({
 
       <div
         ref={scrollRef}
-        className="max-h-[min(360px,45vh)] min-h-[220px] space-y-3 overflow-y-auto px-4 py-4"
+        className={`${
+          compact ? 'max-h-[min(240px,35vh)] min-h-[160px]' : 'max-h-[min(360px,45vh)] min-h-[220px]'
+        } space-y-3 overflow-y-auto px-4 py-4`}
       >
         {initialLoading ? (
           <div className="flex h-full min-h-[180px] flex-col items-center justify-center gap-2 text-muted-foreground">
@@ -280,7 +288,7 @@ export function StaffComplaintMessageThread({
 
       <div className="border-t border-border/60 bg-[#FAFDFF]/80 px-3 py-3">
         <div className="mb-2 flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
-          {QUICK_REPLIES.map((reply) => (
+          {quickReplies.map((reply) => (
             <button
               key={reply}
               type="button"
@@ -299,7 +307,7 @@ export function StaffComplaintMessageThread({
             value={body}
             onChange={(e) => setBody(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={`Message ${guestName ?? 'guest'}…`}
+            placeholder={messagePlaceholder ?? `Message ${guestName ?? 'guest'}…`}
             rows={2}
             className="min-h-[44px] max-h-28 min-w-0 flex-1 resize-none rounded-xl border border-border bg-white px-3 py-2.5 text-sm leading-relaxed shadow-elevation-1 outline-none transition focus:border-[#3C216C]/30 focus:ring-2 focus:ring-[#3C216C]/10"
           />

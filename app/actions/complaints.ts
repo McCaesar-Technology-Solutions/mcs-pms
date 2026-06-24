@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { writeAuditLog } from '@/lib/audit/log'
 import { fetchHotelComplaints } from '@/lib/data/complaints'
 import { isVisitTimeValid, parseVisitDateTime } from '@/lib/complaints/visit'
 import { canManagerApproveCompletion, canTechnicianScheduleVisit } from '@/lib/complaints/workflow'
@@ -28,6 +29,35 @@ async function requireStaffProfile() {
     .maybeSingle()
 
   return profile
+}
+
+async function assertComplaintStaffAccess(
+  complaintId: string,
+  profile: NonNullable<Awaited<ReturnType<typeof requireStaffProfile>>>,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const supabase = await createClient()
+
+  if (profile.role === 'technician') {
+    const { data: complaint } = await supabase
+      .from('complaints')
+      .select('id')
+      .eq('id', complaintId)
+      .eq('assigned_to', profile.id)
+      .maybeSingle()
+
+    if (!complaint) return { ok: false, error: 'Complaint not found.' }
+    return { ok: true }
+  }
+
+  const { data: complaint } = await supabase
+    .from('complaints')
+    .select('id')
+    .eq('id', complaintId)
+    .eq('hotel_id', profile.hotel_id)
+    .maybeSingle()
+
+  if (!complaint) return { ok: false, error: 'Complaint not found.' }
+  return { ok: true }
 }
 
 export async function getHotelComplaints(): Promise<ComplaintActionResult<Complaint[]>> {
@@ -270,6 +300,18 @@ export async function assignComplaint(
   void import('@/lib/notifications/complaints').then(({ notifyComplaintAssigned }) =>
     notifyComplaintAssigned(complaintId, technicianId).catch(() => undefined),
   )
+
+  if (profile.hotel_id) {
+    void writeAuditLog({
+      hotelId: profile.hotel_id,
+      actorId: profile.id,
+      actorName: profile.name,
+      entityType: 'complaint',
+      entityId: complaintId,
+      action: 'assigned',
+      summary: 'Technician assigned to complaint',
+    })
+  }
 
   revalidatePath('/manager/complaints')
   return { success: true }
@@ -668,15 +710,8 @@ export async function getStaffComplaintMessages(
   const profile = await requireStaffProfile()
   if (!profile?.hotel_id) return { success: false, error: 'Not authorized.' }
 
-  const supabase = await createClient()
-  const { data: complaint } = await supabase
-    .from('complaints')
-    .select('id')
-    .eq('id', complaintId)
-    .eq('hotel_id', profile.hotel_id)
-    .maybeSingle()
-
-  if (!complaint) return { success: false, error: 'Complaint not found.' }
+  const access = await assertComplaintStaffAccess(complaintId, profile)
+  if (!access.ok) return { success: false, error: access.error }
 
   const admin = createAdminClient()
   const { data } = await admin
@@ -714,15 +749,8 @@ export async function postStaffComplaintMessage(
     return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid message.' }
   }
 
-  const supabase = await createClient()
-  const { data: complaint } = await supabase
-    .from('complaints')
-    .select('id')
-    .eq('id', parsed.data.complaintId)
-    .eq('hotel_id', profile.hotel_id)
-    .maybeSingle()
-
-  if (!complaint) return { success: false, error: 'Complaint not found.' }
+  const access = await assertComplaintStaffAccess(parsed.data.complaintId, profile)
+  if (!access.ok) return { success: false, error: access.error }
 
   const admin = createAdminClient()
   const { error } = await admin.from('complaint_messages').insert({
@@ -734,7 +762,52 @@ export async function postStaffComplaintMessage(
 
   if (error) return { success: false, error: 'Could not send message.' }
 
+  void import('@/lib/notifications/complaints').then(({ notifyComplaintStaffMessageToGuest }) =>
+    notifyComplaintStaffMessageToGuest(parsed.data.complaintId, parsed.data.body.trim()).catch(
+      () => undefined,
+    ),
+  )
+
   revalidatePath('/manager/complaints')
+  revalidatePath('/technician/tasks')
   revalidatePath('/guest')
   return { success: true }
+}
+
+export async function getTechnicianComplaintPhotoUrl(
+  complaintId: string,
+): Promise<ComplaintActionResult<{ url: string }>> {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Not authorized.' }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  if (profile?.role !== 'technician') {
+    return { success: false, error: 'Not authorized.' }
+  }
+
+  const admin = createAdminClient()
+  const { data } = await admin
+    .from('complaints')
+    .select('guest_photo_path')
+    .eq('id', complaintId)
+    .eq('assigned_to', user.id)
+    .maybeSingle()
+
+  if (!data?.guest_photo_path) return { success: false, error: 'No photo attached.' }
+
+  const { GUEST_COMPLAINT_PHOTO_BUCKET } = await import('@/lib/guest/complaint-photos')
+  const { data: signed } = await admin.storage
+    .from(GUEST_COMPLAINT_PHOTO_BUCKET)
+    .createSignedUrl(data.guest_photo_path, 3600)
+
+  if (!signed?.signedUrl) return { success: false, error: 'Could not load photo.' }
+  return { success: true, data: { url: signed.signedUrl } }
 }

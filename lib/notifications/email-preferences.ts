@@ -7,6 +7,7 @@ export const EMAIL_STAFF_TEMPLATE_KEYS = [
   'complaint_invoice_submitted',
   'complaint_visit_scheduled',
   'complaint_guest_message',
+  'guest_request',
   'staff_invite',
   'room_created',
 ] as const
@@ -38,6 +39,11 @@ export const EMAIL_PREF_GROUPS: {
     ],
   },
   {
+    title: 'Guest portal',
+    description: 'Requests from the in-room guest app.',
+    keys: ['guest_request'],
+  },
+  {
     title: 'Staff',
     description: 'Invite emails for managers and receptionists.',
     keys: ['staff_invite'],
@@ -57,12 +63,23 @@ export const EMAIL_PREF_LABELS: Record<EmailStaffTemplateKey, string> = {
   complaint_invoice_submitted: 'Technician invoice submitted',
   complaint_visit_scheduled: 'Maintenance visit scheduled',
   complaint_guest_message: 'Guest chat message',
+  guest_request: 'Guest portal request',
   staff_invite: 'Staff invite email (manager / receptionist)',
   room_created: 'New room added by manager',
 }
 
 /** Staff invite emails always send — onboarding must not be blocked by prefs. */
 export const EMAIL_ALWAYS_SEND = new Set<EmailStaffTemplateKey>(['staff_invite'])
+
+/** Transactional guest emails — always send when Resend is configured. */
+export const GUEST_EMAIL_TEMPLATE_KEYS = [
+  'guest_complaint_update',
+  'guest_request_update',
+  'guest_receipt',
+  'guest_complaint_message',
+] as const
+
+export type GuestEmailTemplateKey = (typeof GUEST_EMAIL_TEMPLATE_KEYS)[number]
 
 export function defaultNotificationEmailPrefs(): Record<EmailStaffTemplateKey, boolean> {
   return Object.fromEntries(

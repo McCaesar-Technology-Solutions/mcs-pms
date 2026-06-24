@@ -8,6 +8,7 @@ import {
 import {
   EMAIL_ALWAYS_SEND,
   EMAIL_STAFF_TEMPLATE_KEYS,
+  GUEST_EMAIL_TEMPLATE_KEYS,
   isEmailTemplateEnabled,
   mergeEmailPrefs,
   type NotificationEmailPrefs,
@@ -161,6 +162,7 @@ export async function shouldSendHotelEmailNotification(
 ): Promise<boolean> {
   if (templateKey === 'mfa_otp') return true
   if (EMAIL_ALWAYS_SEND.has(templateKey as EmailStaffTemplateKey)) return true
+  if ((GUEST_EMAIL_TEMPLATE_KEYS as readonly string[]).includes(templateKey)) return true
   if (!hotelId) return false
   if (!(EMAIL_STAFF_TEMPLATE_KEYS as readonly string[]).includes(templateKey)) return false
   const prefs = await loadHotelEmailNotificationPrefs(hotelId)
