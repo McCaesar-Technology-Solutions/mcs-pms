@@ -240,6 +240,38 @@ export async function uploadPropertyProfileImage(
   return { success: true, data: { imageUrl: propertyImagePublicUrl(path) ?? '' } }
 }
 
+export async function clearPropertyProfileImage(
+  hotelId: string,
+): Promise<PropertyActionResult> {
+  const { profile, userId } = await requireOwner()
+  if (!profile || !userId) return { success: false, error: 'Only owners can update property images.' }
+
+  if (!(await ownerOwnsHotel(userId, hotelId))) {
+    return { success: false, error: 'You do not have access to this property.' }
+  }
+
+  const admin = createAdminClient()
+  const { data: existing } = await admin
+    .from('hotels')
+    .select('profile_image_path')
+    .eq('id', hotelId)
+    .maybeSingle()
+
+  const { error: updateError } = await admin
+    .from('hotels')
+    .update({ profile_image_path: null })
+    .eq('id', hotelId)
+
+  if (updateError) return { success: false, error: updateError.message }
+
+  if (existing?.profile_image_path) {
+    await admin.storage.from(PROPERTY_IMAGE_BUCKET).remove([existing.profile_image_path])
+  }
+
+  revalidateOwnerViews()
+  return { success: true }
+}
+
 export async function switchActiveProperty(hotelId: string): Promise<PropertyActionResult> {
   const { profile, userId } = await requireOwner()
   if (!profile || !userId) return { success: false, error: 'Not authorized.' }

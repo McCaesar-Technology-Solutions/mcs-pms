@@ -3,9 +3,11 @@
 import { useEffect, useState, useTransition } from 'react'
 import { Bell, MessageSquare } from 'lucide-react'
 import { updateNotificationPreferences } from '@/app/actions/settings'
+import { ToggleSwitch } from '@/components/ui/toggle-switch'
 import {
   NOTIFICATION_PREF_GROUPS,
   NOTIFICATION_PREF_LABELS,
+  NOTIFICATION_ALWAYS_SEND,
   mergeNotificationPrefs,
   type NotificationSmsPrefs,
   type NotificationTemplateKey,
@@ -32,6 +34,7 @@ export function NotificationPreferencesPanel({
   }, [hotelId, initialPrefs])
 
   function toggle(key: NotificationTemplateKey) {
+    if (NOTIFICATION_ALWAYS_SEND.has(key)) return
     setPrefs((current) => ({ ...current, [key]: !current[key] }))
     setSaved(false)
   }
@@ -59,8 +62,10 @@ export function NotificationPreferencesPanel({
           <div>
             <h3 className="text-lg font-semibold text-foreground">SMS notifications</h3>
             <p className="mt-0.5 text-sm text-muted-foreground">
-              Choose which automated texts are sent for this property. Security codes (2FA) are
-              always sent.
+              Toggles are saved per property and enforced before every SMS. Staff invites and
+              security codes (2FA) always send. Disabled alerts appear as{' '}
+              <span className="font-semibold text-foreground">skipped</span> in the message log
+              below.
             </p>
           </div>
         </div>
@@ -75,27 +80,18 @@ export function NotificationPreferencesPanel({
             </div>
             <ul className="divide-y divide-[#E9ECEF] rounded-xl border border-[#E9ECEF]">
               {group.keys.map((key) => (
-                <li key={key} className="flex items-start justify-between gap-4 px-4 py-3">
+                <li key={key} className="flex items-center justify-between gap-4 px-4 py-3.5">
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-foreground">
                       {NOTIFICATION_PREF_LABELS[key]}
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={prefs[key]}
-                    onClick={() => toggle(key)}
-                    className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
-                      prefs[key] ? 'bg-primary' : 'bg-[#D8D6DE]'
-                    }`}
-                  >
-                    <span
-                      className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
-                        prefs[key] ? 'left-[1.375rem]' : 'left-0.5'
-                      }`}
-                    />
-                  </button>
+                  <ToggleSwitch
+                    checked={prefs[key]}
+                    onChange={() => toggle(key)}
+                    disabled={NOTIFICATION_ALWAYS_SEND.has(key)}
+                    aria-label={`${NOTIFICATION_PREF_LABELS[key]} — ${prefs[key] ? 'on' : 'off'}`}
+                  />
                 </li>
               ))}
             </ul>

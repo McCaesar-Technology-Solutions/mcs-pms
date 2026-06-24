@@ -5,8 +5,13 @@ import { useEffect, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Building2, Users, Plus, Check, FileText } from 'lucide-react'
 import { updateHotelSettings } from '@/app/actions/settings'
+import {
+  clearPropertyProfileImage,
+  uploadPropertyProfileImage,
+} from '@/app/actions/properties'
 import { useProperty } from '@/lib/property-context'
 import { AddPropertyDialog } from '@/components/dashboard/add-property-dialog'
+import { PropertyImageCropField } from '@/components/dashboard/property-image-crop-field'
 import { PropertyPortalQrPanel } from '@/components/guest/property-portal-qr-panel'
 import type { HotelSettings } from '@/lib/data/settings'
 import type { Profile, VatMode } from '@/types'
@@ -52,6 +57,10 @@ export function SettingsPanel({ hotelSettings, staffHref = '/owner/staff', profi
   const [savePending, startSave] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
+  const [profileImage, setProfileImage] = useState<Blob | null>(null)
+  const [removeExistingImage, setRemoveExistingImage] = useState(false)
+
+  const settingsInSync = !hotelSettings || hotelSettings.id === activePropertyId
 
   const [name, setName] = useState('')
   const [address, setAddress] = useState('')
@@ -74,9 +83,11 @@ export function SettingsPanel({ hotelSettings, staffHref = '/owner/staff', profi
     setVatNumber(hotelSettings.vat_registration_number ?? '')
     setVatMode(hotelSettings.vat_mode ?? 'exclusive')
     setInvoicePrefix(hotelSettings.invoice_prefix ?? 'MOJO')
+    setProfileImage(null)
+    setRemoveExistingImage(false)
     setError(null)
     setSaved(false)
-  }, [hotelSettings])
+  }, [hotelSettings, activePropertyId])
 
   function handleSave(e: React.FormEvent) {
     e.preventDefault()
@@ -103,7 +114,27 @@ export function SettingsPanel({ hotelSettings, staffHref = '/owner/staff', profi
         return
       }
 
+      if (removeExistingImage && !profileImage) {
+        const cleared = await clearPropertyProfileImage(hotelSettings.id)
+        if (!cleared.success) {
+          setError(cleared.error)
+          return
+        }
+      }
+
+      if (profileImage) {
+        const formData = new FormData()
+        formData.append('file', profileImage, 'profile.jpg')
+        const uploaded = await uploadPropertyProfileImage(hotelSettings.id, formData)
+        if (!uploaded.success) {
+          setError(uploaded.error)
+          return
+        }
+      }
+
       setSaved(true)
+      setProfileImage(null)
+      setRemoveExistingImage(false)
       await reloadProperties()
       router.refresh()
       setTimeout(() => setSaved(false), 3000)
@@ -214,7 +245,16 @@ export function SettingsPanel({ hotelSettings, staffHref = '/owner/staff', profi
       </div>
 
       {hotelSettings ? (
-        <form onSubmit={handleSave} className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        <form
+          key={hotelSettings.id}
+          onSubmit={handleSave}
+          className="grid grid-cols-1 gap-6 md:grid-cols-2"
+        >
+          {!settingsInSync && (
+            <div className="md:col-span-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              Loading settings for the selected property…
+            </div>
+          )}
           {/* Property details */}
           <div className="surface-card p-6">
             <div className="mb-6 flex items-center gap-3">
@@ -274,6 +314,16 @@ export function SettingsPanel({ hotelSettings, staffHref = '/owner/staff', profi
                   </select>
                 </div>
               </div>
+
+              <PropertyImageCropField
+                value={profileImage}
+                onChange={setProfileImage}
+                existingImageUrl={
+                  removeExistingImage ? null : hotelSettings.profileImageUrl
+                }
+                onExistingRemoved={() => setRemoveExistingImage(true)}
+                disabled={savePending || !settingsInSync}
+              />
 
               <div className="surface-inset rounded-xl p-3 text-sm text-muted-foreground">
                 <span className="font-semibold text-foreground">{hotelSettings.roomCount}</span>{' '}
@@ -390,7 +440,7 @@ export function SettingsPanel({ hotelSettings, staffHref = '/owner/staff', profi
             )}
             <button
               type="submit"
-              disabled={savePending}
+              disabled={savePending || !settingsInSync}
               className="w-full rounded-lg bg-primary py-2.5 font-semibold text-primary-foreground transition-all hover:-translate-y-0.5 hover:shadow-elevation-2 disabled:opacity-50 sm:w-auto sm:px-8"
             >
               {savePending ? 'Saving…' : 'Save changes'}
@@ -399,7 +449,14 @@ export function SettingsPanel({ hotelSettings, staffHref = '/owner/staff', profi
         </form>
       ) : (
         <div className="surface-card p-6 text-sm text-muted-foreground">
-          Property settings are available when signed in as an owner with an active apartment.
+          {isAdmin ? (
+            <>
+              Select a property above or add one to edit property details, tax settings, and
+              notifications. If you just signed up, try refreshing the page.
+            </>
+          ) : (
+            <>Property settings are available when signed in as an owner with an active apartment.</>
+          )}
         </div>
       )}
 

@@ -34,7 +34,9 @@ export default async function SettingsPage() {
           />
           <EmailNotificationPreferencesPanel
             hotelId={hotelSettings.id}
+            propertyName={hotelSettings.name}
             initialPrefs={hotelSettings.notificationEmailPrefs}
+            initialFromEmail={hotelSettings.notificationFromEmail}
           />
         </>
       )}

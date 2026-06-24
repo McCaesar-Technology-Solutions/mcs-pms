@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import Cropper, { type Area } from 'react-easy-crop'
 import { ImagePlus, X } from 'lucide-react'
 import { getCroppedImageBlob } from '@/lib/images/crop'
@@ -8,25 +8,46 @@ import { getCroppedImageBlob } from '@/lib/images/crop'
 interface PropertyImageCropFieldProps {
   value: Blob | null
   onChange: (blob: Blob | null) => void
+  existingImageUrl?: string | null
   disabled?: boolean
+  onExistingRemoved?: () => void
 }
 
-export function PropertyImageCropField({ value, onChange, disabled }: PropertyImageCropFieldProps) {
+export function PropertyImageCropField({
+  value,
+  onChange,
+  existingImageUrl,
+  disabled,
+  onExistingRemoved,
+}: PropertyImageCropFieldProps) {
   const [imageSrc, setImageSrc] = useState<string | null>(null)
   const [crop, setCrop] = useState({ x: 0, y: 0 })
   const [zoom, setZoom] = useState(1)
   const [croppedPixels, setCroppedPixels] = useState<Area | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [removedExisting, setRemovedExisting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const showExisting = Boolean(existingImageUrl && !previewUrl && !imageSrc && !removedExisting)
+
+  useEffect(() => {
+    setRemovedExisting(false)
+    setPreviewUrl(null)
+    setImageSrc(null)
+    setError(null)
+  }, [existingImageUrl])
+
   const clear = useCallback(() => {
+    const hadExisting = showExisting
     setImageSrc(null)
     setPreviewUrl(null)
     setCroppedPixels(null)
     setCrop({ x: 0, y: 0 })
     setZoom(1)
+    setRemovedExisting(true)
     onChange(null)
-  }, [onChange])
+    if (hadExisting) onExistingRemoved?.()
+  }, [onChange, onExistingRemoved, showExisting])
 
   const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -43,6 +64,7 @@ export function PropertyImageCropField({ value, onChange, disabled }: PropertyIm
     }
 
     setError(null)
+    setRemovedExisting(false)
     const reader = new FileReader()
     reader.onload = () => {
       setImageSrc(reader.result as string)
@@ -90,6 +112,37 @@ export function PropertyImageCropField({ value, onChange, disabled }: PropertyIm
         </div>
       )}
 
+      {showExisting && (
+        <div className="mt-3 flex items-start gap-3">
+          <img
+            src={existingImageUrl!}
+            alt="Current property photo"
+            className="h-20 w-20 rounded-xl object-cover shadow-elevation-1"
+          />
+          <div className="flex flex-col gap-2">
+            <label className="inline-flex cursor-pointer text-sm font-semibold text-primary hover:underline">
+              Replace photo
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                disabled={disabled}
+                onChange={onFileChange}
+              />
+            </label>
+            <button
+              type="button"
+              onClick={clear}
+              disabled={disabled}
+              className="inline-flex items-center gap-1 text-sm font-semibold text-muted-foreground hover:text-foreground disabled:opacity-50"
+            >
+              <X className="h-4 w-4" />
+              Remove
+            </button>
+          </div>
+        </div>
+      )}
+
       {imageSrc && (
         <div className="mt-3 space-y-3">
           <div className="relative h-52 overflow-hidden rounded-xl bg-[#1a1330]">
@@ -134,7 +187,7 @@ export function PropertyImageCropField({ value, onChange, disabled }: PropertyIm
         </div>
       )}
 
-      {!imageSrc && !previewUrl && (
+      {!imageSrc && !previewUrl && !showExisting && (
         <label
           className={`mt-3 flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-[#E9ECEF] bg-[#FAFDFF] px-4 py-6 transition-colors hover:bg-white ${
             disabled ? 'pointer-events-none opacity-50' : ''

@@ -18,6 +18,8 @@ function statusClass(status: NotificationLogEntry['status']) {
       return 'bg-emerald-500/10 text-emerald-700'
     case 'failed':
       return 'bg-red-100 text-red-700'
+    case 'skipped':
+      return 'bg-amber-100 text-amber-800'
     default:
       return 'bg-[#E9ECEF] text-[#5E5872]'
   }

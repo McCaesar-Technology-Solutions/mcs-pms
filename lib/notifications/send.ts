@@ -213,21 +213,29 @@ async function logNotification(
   phone: string,
   channel: NotificationChannel,
   body: string,
-  result: SendResult,
+  result: SendResult & { status?: 'sent' | 'failed' | 'skipped' },
 ): Promise<void> {
   if (!opts.hotelId) return
   try {
     const admin = createAdminClient()
+    const status =
+      result.status ??
+      (result.providerId === 'skipped-pref'
+        ? 'skipped'
+        : result.success
+          ? 'sent'
+          : 'failed')
     await admin.from('notification_log').insert({
       hotel_id: opts.hotelId,
       recipient_phone: phone,
       channel,
       template_key: opts.templateKey,
       body,
-      provider: resolveSmsProvider(),
+      provider: status === 'skipped' ? 'pref' : resolveSmsProvider(),
       provider_id: result.providerId ?? null,
-      status: result.success ? 'sent' : 'failed',
-      error_message: result.error ?? null,
+      status,
+      error_message:
+        status === 'skipped' ? 'Disabled in notification settings' : (result.error ?? null),
     })
   } catch {
     // Non-blocking
@@ -246,7 +254,11 @@ export async function sendToPhone(
     if (process.env.NODE_ENV === 'development') {
       console.info(`[notify:${opts.templateKey}] skipped (disabled for hotel)`)
     }
-    return [{ channel: 'sms', success: true, providerId: 'skipped-pref' }]
+    const skipped: SendResult = { channel: 'sms', success: true, providerId: 'skipped-pref' }
+    if (opts.hotelId) {
+      await logNotification(opts, e164, 'sms', body, { ...skipped, status: 'skipped' })
+    }
+    return [skipped]
   }
 
   if (!isConfigured()) {

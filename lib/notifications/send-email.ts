@@ -1,6 +1,6 @@
 import { Resend } from 'resend'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { isEmailConfigured, resolveEmailFrom } from '@/lib/notifications/email-provider'
+import { isEmailConfigured, resolveEmailFromForHotel } from '@/lib/notifications/email-provider'
 import { renderStaffEmail, type StaffEmailContent } from '@/lib/notifications/email-template'
 import { shouldSendHotelEmailNotification } from '@/lib/notifications/recipients'
 
@@ -23,11 +23,18 @@ async function logEmailNotification(
   opts: EmailNotifyOptions,
   email: string,
   body: string,
-  result: EmailSendResult,
+  result: EmailSendResult & { status?: 'sent' | 'failed' | 'skipped' },
 ): Promise<void> {
   if (!opts.hotelId) return
   try {
     const admin = createAdminClient()
+    const status =
+      result.status ??
+      (result.providerId === 'skipped-pref'
+        ? 'skipped'
+        : result.success
+          ? 'sent'
+          : 'failed')
     await admin.from('notification_log').insert({
       hotel_id: opts.hotelId,
       recipient_phone: null,
@@ -35,10 +42,11 @@ async function logEmailNotification(
       channel: 'email',
       template_key: opts.templateKey,
       body,
-      provider: 'resend',
+      provider: status === 'skipped' ? 'pref' : 'resend',
       provider_id: result.providerId ?? null,
-      status: result.success ? 'sent' : 'failed',
-      error_message: result.error ?? null,
+      status,
+      error_message:
+        status === 'skipped' ? 'Disabled in notification settings' : (result.error ?? null),
     })
   } catch {
     // Non-blocking
@@ -53,14 +61,18 @@ export async function sendToEmail(
   const email = rawEmail.trim().toLowerCase()
   if (!isValidEmail(email)) return { success: false, error: 'Invalid email address' }
 
+  const { html, text } = renderStaffEmail(content)
+
   if (!(await shouldSendHotelEmailNotification(opts.hotelId, opts.templateKey))) {
     if (process.env.NODE_ENV === 'development') {
       console.info(`[email:${opts.templateKey}] skipped (disabled for hotel)`)
     }
-    return { success: true, providerId: 'skipped-pref' }
+    const skipped: EmailSendResult = { success: true, providerId: 'skipped-pref' }
+    if (opts.hotelId) {
+      await logEmailNotification(opts, email, text, { ...skipped, status: 'skipped' })
+    }
+    return skipped
   }
-
-  const { html, text } = renderStaffEmail(content)
 
   if (!isEmailConfigured()) {
     if (process.env.NODE_ENV === 'development') {
@@ -71,8 +83,9 @@ export async function sendToEmail(
 
   try {
     const resend = new Resend(process.env.RESEND_API_KEY!)
+    const from = await resolveEmailFromForHotel(opts.hotelId)
     const { data, error } = await resend.emails.send({
-      from: resolveEmailFrom(),
+      from,
       to: email,
       subject: content.subject,
       html,

@@ -28,6 +28,7 @@ export type Database = {
           profile_image_path: string | null
           notification_sms_prefs: Json
           notification_email_prefs: Json
+          notification_from_email: string | null
           created_at: string | null
         }
         Insert: {
@@ -48,6 +49,7 @@ export type Database = {
           profile_image_path?: string | null
           notification_sms_prefs?: Json
           notification_email_prefs?: Json
+          notification_from_email?: string | null
           created_at?: string | null
         }
         Update: {
@@ -68,6 +70,7 @@ export type Database = {
           profile_image_path?: string | null
           notification_sms_prefs?: Json
           notification_email_prefs?: Json
+          notification_from_email?: string | null
           created_at?: string | null
         }
         Relationships: [

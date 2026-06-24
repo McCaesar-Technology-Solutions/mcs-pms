@@ -5,8 +5,8 @@ import {
   isEmailTemplateEnabled,
   mergeEmailPrefs,
 } from '@/lib/notifications/email-preferences'
+import { formatEmailFrom, isEmailConfigured } from '@/lib/notifications/email-provider'
 import { renderStaffEmail } from '@/lib/notifications/email-template'
-import { isEmailConfigured } from '@/lib/notifications/email-provider'
 
 describe('email notification preferences', () => {
   it('defaults all staff email templates to enabled', () => {
@@ -23,8 +23,21 @@ describe('email notification preferences', () => {
   })
 
   it('respects explicit false for email templates', () => {
+    const merged = mergeEmailPrefs({ complaint_submitted: false })
+    expect(isEmailTemplateEnabled(merged, 'complaint_submitted')).toBe(false)
+  })
+
+  it('always allows staff invite emails', () => {
     const merged = mergeEmailPrefs({ staff_invite: false })
-    expect(isEmailTemplateEnabled(merged, 'staff_invite')).toBe(false)
+    expect(isEmailTemplateEnabled(merged, 'staff_invite')).toBe(true)
+  })
+})
+
+describe('email provider formatting', () => {
+  it('formats from header with property name', () => {
+    expect(formatEmailFrom('MOJO Osu', 'alerts@mojo.com')).toBe(
+      'MOJO Osu <alerts@mojo.com>',
+    )
   })
 })
 

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { ownerOwnsHotel } from '@/lib/data/properties'
 import { updateHotelSettingsSchema, updateNotificationPrefsSchema } from '@/lib/validations'
 import type { NotificationSmsPrefs } from '@/lib/notifications/preferences'
@@ -56,13 +57,14 @@ export async function updateHotelSettings(input: {
     return { success: false, error: 'You do not have access to this property.' }
   }
 
-  const { data: before } = await supabase
+  const admin = createAdminClient()
+  const { data: before } = await admin
     .from('hotels')
     .select('name, vat_mode, invoice_prefix')
     .eq('id', parsed.data.hotelId)
     .maybeSingle()
 
-  const { error } = await supabase
+  const { error } = await admin
     .from('hotels')
     .update({
       name: parsed.data.name.trim(),
@@ -145,7 +147,8 @@ export async function updateNotificationPreferences(input: {
     }
   }
 
-  const { error } = await supabase
+  const admin = createAdminClient()
+  const { error } = await admin
     .from('hotels')
     .update({ notification_sms_prefs: prefs })
     .eq('id', parsed.data.hotelId)
@@ -159,6 +162,7 @@ export async function updateNotificationPreferences(input: {
 export async function updateEmailNotificationPreferences(input: {
   hotelId: string
   prefs: NotificationEmailPrefs
+  notificationFromEmail?: string
 }): Promise<SettingsActionResult> {
   const parsed = updateNotificationPrefsSchema.safeParse(input)
   if (!parsed.success) {
@@ -192,9 +196,13 @@ export async function updateEmailNotificationPreferences(input: {
     }
   }
 
-  const { error } = await supabase
+  const admin = createAdminClient()
+  const { error } = await admin
     .from('hotels')
-    .update({ notification_email_prefs: prefs })
+    .update({
+      notification_email_prefs: prefs,
+      notification_from_email: parsed.data.notificationFromEmail?.trim() || null,
+    })
     .eq('id', parsed.data.hotelId)
 
   if (error) return { success: false, error: error.message }

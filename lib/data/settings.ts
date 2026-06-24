@@ -1,6 +1,7 @@
 import { getProfile } from '@/lib/auth/get-profile'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { ownerOwnsHotel } from '@/lib/data/properties'
+import { propertyImagePublicUrl } from '@/lib/properties/image-storage'
 import type { Hotel, VatMode } from '@/types'
 import type { ExportHotelInfo } from '@/lib/export/types'
 import {
@@ -25,9 +26,11 @@ export interface HotelSettings {
   vat_registration_number: string | null
   vat_mode: VatMode
   invoice_prefix: string | null
+  profileImageUrl: string | null
   roomCount: number
   notificationSmsPrefs: NotificationSmsPrefs
   notificationEmailPrefs: NotificationEmailPrefs
+  notificationFromEmail: string | null
 }
 
 export async function getActiveHotelSettings(): Promise<HotelSettings | null> {
@@ -70,9 +73,11 @@ export async function getActiveHotelSettings(): Promise<HotelSettings | null> {
     vat_registration_number: h.vat_registration_number,
     vat_mode: (h.vat_mode ?? 'exclusive') as VatMode,
     invoice_prefix: h.invoice_prefix,
+    profileImageUrl: propertyImagePublicUrl(h.profile_image_path),
     roomCount: roomCount ?? 0,
     notificationSmsPrefs,
     notificationEmailPrefs,
+    notificationFromEmail: h.notification_from_email ?? null,
   }
 }
 

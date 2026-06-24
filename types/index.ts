@@ -47,6 +47,7 @@ export interface Hotel {
   profile_image_path: string | null
   notification_sms_prefs?: Record<string, boolean> | null
   notification_email_prefs?: Record<string, boolean> | null
+  notification_from_email?: string | null
   created_at: string | null
 }
 

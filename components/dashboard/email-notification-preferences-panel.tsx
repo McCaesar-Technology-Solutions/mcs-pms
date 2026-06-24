@@ -3,9 +3,11 @@
 import { useEffect, useState, useTransition } from 'react'
 import { Mail } from 'lucide-react'
 import { updateEmailNotificationPreferences } from '@/app/actions/settings'
+import { ToggleSwitch } from '@/components/ui/toggle-switch'
 import {
   EMAIL_PREF_GROUPS,
   EMAIL_PREF_LABELS,
+  EMAIL_ALWAYS_SEND,
   mergeEmailPrefs,
   type EmailStaffTemplateKey,
   type NotificationEmailPrefs,
@@ -13,25 +15,32 @@ import {
 
 interface EmailNotificationPreferencesPanelProps {
   hotelId: string
+  propertyName: string
   initialPrefs?: NotificationEmailPrefs | null
+  initialFromEmail?: string | null
 }
 
 export function EmailNotificationPreferencesPanel({
   hotelId,
+  propertyName,
   initialPrefs,
+  initialFromEmail,
 }: EmailNotificationPreferencesPanelProps) {
   const [prefs, setPrefs] = useState(() => mergeEmailPrefs(initialPrefs))
+  const [fromEmail, setFromEmail] = useState(initialFromEmail ?? '')
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
 
   useEffect(() => {
     setPrefs(mergeEmailPrefs(initialPrefs))
+    setFromEmail(initialFromEmail ?? '')
     setError(null)
     setSaved(false)
-  }, [hotelId, initialPrefs])
+  }, [hotelId, initialPrefs, initialFromEmail])
 
   function toggle(key: EmailStaffTemplateKey) {
+    if (EMAIL_ALWAYS_SEND.has(key)) return
     setPrefs((current) => ({ ...current, [key]: !current[key] }))
     setSaved(false)
   }
@@ -40,7 +49,11 @@ export function EmailNotificationPreferencesPanel({
     setError(null)
     setSaved(false)
     startTransition(async () => {
-      const result = await updateEmailNotificationPreferences({ hotelId, prefs })
+      const result = await updateEmailNotificationPreferences({
+        hotelId,
+        prefs,
+        notificationFromEmail: fromEmail.trim(),
+      })
       if (!result.success) {
         setError(result.error)
         return
@@ -59,14 +72,47 @@ export function EmailNotificationPreferencesPanel({
           <div>
             <h3 className="text-lg font-semibold text-foreground">Email notifications</h3>
             <p className="mt-0.5 text-sm text-muted-foreground">
-              Alerts sent to owner and manager email addresses on file. Requires{' '}
-              <code className="text-xs">RESEND_API_KEY</code> in your environment.
+              Set the sender address for this property and choose which alerts go out. Requires{' '}
+              <code className="text-xs">RESEND_API_KEY</code>. The address must be on a domain
+              verified in Resend.
             </p>
           </div>
         </div>
       </div>
 
       <div className="space-y-6 p-6">
+        <div className="rounded-xl border border-[#E9ECEF] bg-[#FAFDFF] p-4">
+          <label htmlFor="notification-from-email" className="text-sm font-semibold text-foreground">
+            Sender email address
+          </label>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Guests and staff will see emails from{' '}
+            <span className="font-medium text-foreground">
+              {propertyName.trim() || 'Your property'}
+            </span>
+            {fromEmail.trim() ? (
+              <>
+                {' '}
+                &lt;{fromEmail.trim().toLowerCase()}&gt;
+              </>
+            ) : (
+              ' using the server default (RESEND_FROM or Resend sandbox)'
+            )}
+            .
+          </p>
+          <input
+            id="notification-from-email"
+            type="email"
+            value={fromEmail}
+            onChange={(e) => {
+              setFromEmail(e.target.value)
+              setSaved(false)
+            }}
+            placeholder="alerts@yourdomain.com"
+            className="input-soft mt-3"
+          />
+        </div>
+
         {EMAIL_PREF_GROUPS.map((group) => (
           <div key={group.title}>
             <div className="mb-3">
@@ -75,23 +121,14 @@ export function EmailNotificationPreferencesPanel({
             </div>
             <ul className="divide-y divide-[#E9ECEF] rounded-xl border border-[#E9ECEF]">
               {group.keys.map((key) => (
-                <li key={key} className="flex items-start justify-between gap-4 px-4 py-3">
+                <li key={key} className="flex items-center justify-between gap-4 px-4 py-3.5">
                   <p className="text-sm font-medium text-foreground">{EMAIL_PREF_LABELS[key]}</p>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={prefs[key]}
-                    onClick={() => toggle(key)}
-                    className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
-                      prefs[key] ? 'bg-primary' : 'bg-[#D8D6DE]'
-                    }`}
-                  >
-                    <span
-                      className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
-                        prefs[key] ? 'left-[1.375rem]' : 'left-0.5'
-                      }`}
-                    />
-                  </button>
+                  <ToggleSwitch
+                    checked={prefs[key]}
+                    onChange={() => toggle(key)}
+                    disabled={EMAIL_ALWAYS_SEND.has(key)}
+                    aria-label={`${EMAIL_PREF_LABELS[key]} — ${prefs[key] ? 'on' : 'off'}`}
+                  />
                 </li>
               ))}
             </ul>

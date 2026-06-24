@@ -156,6 +156,11 @@ export const updateHotelSettingsSchema = z.object({
 export const updateNotificationPrefsSchema = z.object({
   hotelId: z.string().uuid(),
   prefs: z.record(z.string(), z.boolean()),
+  notificationFromEmail: z
+    .string()
+    .email('Enter a valid sender email address')
+    .optional()
+    .or(z.literal('')),
 })
 
 export const createPropertySchema = z.object({

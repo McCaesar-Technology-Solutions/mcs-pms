@@ -88,11 +88,33 @@ export async function getAssignedProperty(): Promise<Property | null> {
 
 export async function ownerOwnsHotel(ownerId: string, hotelId: string): Promise<boolean> {
   const admin = createAdminClient()
-  const { data } = await admin
+  const { data: hotel } = await admin
     .from('hotels')
-    .select('id')
+    .select('id, owner_id')
     .eq('id', hotelId)
-    .eq('owner_id', ownerId)
     .maybeSingle()
-  return Boolean(data)
+
+  if (!hotel) return false
+  if (hotel.owner_id === ownerId) return true
+  if (hotel.owner_id && hotel.owner_id !== ownerId) return false
+
+  const { data: ownerProfile } = await admin
+    .from('profiles')
+    .select('role, hotel_id')
+    .eq('id', ownerId)
+    .maybeSingle()
+
+  if (ownerProfile?.role !== 'owner') return false
+
+  const { data: linked } = await admin
+    .from('profiles')
+    .select('id')
+    .eq('id', ownerId)
+    .eq('hotel_id', hotelId)
+    .maybeSingle()
+
+  if (!linked) return false
+
+  await admin.from('hotels').update({ owner_id: ownerId }).eq('id', hotelId).is('owner_id', null)
+  return true
 }

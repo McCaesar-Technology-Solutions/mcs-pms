@@ -51,6 +51,9 @@ export const EMAIL_PREF_LABELS: Record<EmailStaffTemplateKey, string> = {
   staff_invite: 'Staff invite email (manager / receptionist)',
 }
 
+/** Staff invite emails always send — onboarding must not be blocked by prefs. */
+export const EMAIL_ALWAYS_SEND = new Set<EmailStaffTemplateKey>(['staff_invite'])
+
 export function defaultNotificationEmailPrefs(): Record<EmailStaffTemplateKey, boolean> {
   return Object.fromEntries(
     EMAIL_STAFF_TEMPLATE_KEYS.map((k) => [k, true]),
@@ -72,6 +75,7 @@ export function isEmailTemplateEnabled(
   prefs: Record<EmailStaffTemplateKey, boolean>,
   templateKey: string,
 ): boolean {
+  if (EMAIL_ALWAYS_SEND.has(templateKey as EmailStaffTemplateKey)) return true
   if (!(EMAIL_STAFF_TEMPLATE_KEYS as readonly string[]).includes(templateKey)) return false
   return prefs[templateKey as EmailStaffTemplateKey] !== false
 }
