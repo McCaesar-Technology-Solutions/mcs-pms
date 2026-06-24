@@ -50,7 +50,7 @@ export function AuditLogPanel({ entries, compact = false }: AuditLogPanelProps) 
           <div>
             <h3 className="text-lg font-semibold text-foreground">Activity log</h3>
             <p className="mt-0.5 text-sm text-muted-foreground">
-              Check-ins, bookings, rate changes, room updates, and property settings.
+              Check-ins, bookings, rate changes, room updates, property settings, and guest rules.
             </p>
           </div>
         </div>

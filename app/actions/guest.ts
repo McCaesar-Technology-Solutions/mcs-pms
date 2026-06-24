@@ -2,6 +2,7 @@
 
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getGuestSessionId } from '@/lib/guest-session'
+import { guestNeedsRulesAcceptance } from '@/app/actions/guest-rules'
 import { submitComplaintSchema } from '@/lib/validations'
 import { canGuestApproveCompletion } from '@/lib/complaints/workflow'
 import { walkInCheckIn, checkOutStay } from '@/app/actions/stays'
@@ -84,10 +85,28 @@ export async function getGuestFromSession(): Promise<
   return { success: true, data: { guest: guest as Guest, roomNumber } }
 }
 
+async function requireGuestSessionWithRules(): Promise<
+  GuestActionResult<{ guest: Guest; roomNumber: string | null }>
+> {
+  const session = await getGuestFromSession()
+  if (!session.success || !session.data) {
+    return {
+      success: false,
+      error: !session.success ? session.error : 'Not authorized.',
+    }
+  }
+
+  if (await guestNeedsRulesAcceptance(session.data.guest.id)) {
+    return { success: false, error: 'Please accept the property rules to continue.' }
+  }
+
+  return session
+}
+
 export async function submitGuestComplaint(
   input: unknown,
 ): Promise<GuestActionResult<{ reference: string }>> {
-  const session = await getGuestFromSession()
+  const session = await requireGuestSessionWithRules()
   if (!session.success) {
     return { success: false, error: session.error ?? 'Not authorized.' }
   }
@@ -186,7 +205,7 @@ export async function getGuestComplaints(): Promise<GuestActionResult<Complaint[
 export async function approveGuestComplaintCompletion(
   complaintId: string,
 ): Promise<GuestActionResult> {
-  const session = await getGuestFromSession()
+  const session = await requireGuestSessionWithRules()
   if (!session.success) {
     return { success: false, error: session.error ?? 'Not authorized.' }
   }
@@ -378,7 +397,7 @@ export async function updateGuestPhone(phone: string): Promise<GuestActionResult
     return { success: false, error: phoneParsed.error.issues[0]?.message ?? 'Invalid phone.' }
   }
 
-  const session = await getGuestFromSession()
+  const session = await requireGuestSessionWithRules()
   if (!session.success) {
     return { success: false, error: session.error ?? 'Not authorized.' }
   }

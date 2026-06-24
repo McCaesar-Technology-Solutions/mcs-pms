@@ -1,7 +1,10 @@
 import { redirect } from 'next/navigation'
 import { GuestPortal } from '@/components/guest/guest-portal'
+import { GuestRulesGate } from '@/components/guest/guest-rules-gate'
 import { getGuestFromSession } from '@/app/actions/guest'
+import { guestNeedsRulesAcceptance } from '@/app/actions/guest-rules'
 import { getGuestPropertyContacts } from '@/lib/data/contacts'
+import { getHotelGuestRules } from '@/lib/data/guest-rules'
 
 export default async function GuestPage({
   searchParams,
@@ -18,6 +21,20 @@ export default async function GuestPage({
   const session = await getGuestFromSession()
   if (!session.success || !session.data) {
     return <GuestExpiredPage message={messageForError(params.error)} />
+  }
+
+  const needsRules = await guestNeedsRulesAcceptance(session.data.guest.id)
+  if (needsRules) {
+    const bundle = await getHotelGuestRules(session.data.guest.hotel_id)
+    if (bundle) {
+      return (
+        <GuestRulesGate
+          hotelName={bundle.hotelName}
+          rules={bundle.rules}
+          mode="portal"
+        />
+      )
+    }
   }
 
   const propertyContacts = await getGuestPropertyContacts(session.data.guest.hotel_id)

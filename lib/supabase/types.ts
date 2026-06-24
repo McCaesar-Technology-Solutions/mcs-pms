@@ -29,6 +29,7 @@ export type Database = {
           notification_sms_prefs: Json
           notification_email_prefs: Json
           notification_from_email: string | null
+          guest_rules_version: number
           created_at: string | null
         }
         Insert: {
@@ -50,6 +51,7 @@ export type Database = {
           notification_sms_prefs?: Json
           notification_email_prefs?: Json
           notification_from_email?: string | null
+          guest_rules_version?: number
           created_at?: string | null
         }
         Update: {
@@ -71,6 +73,7 @@ export type Database = {
           notification_sms_prefs?: Json
           notification_email_prefs?: Json
           notification_from_email?: string | null
+          guest_rules_version?: number
           created_at?: string | null
         }
         Relationships: [
@@ -252,6 +255,38 @@ export type Database = {
           },
         ]
       }
+      hotel_guest_rules: {
+        Row: {
+          id: string
+          hotel_id: string
+          rule_text: string
+          sort_order: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          hotel_id: string
+          rule_text: string
+          sort_order?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          hotel_id?: string
+          rule_text?: string
+          sort_order?: number
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'hotel_guest_rules_hotel_id_fkey'
+            columns: ['hotel_id']
+            isOneToOne: false
+            referencedRelation: 'hotels'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       guests: {
         Row: {
           id: string
@@ -265,6 +300,7 @@ export type Database = {
           token_expires_at: string | null
           check_in: string | null
           check_out: string | null
+          guest_rules_accepted_version: number | null
           enrolled_by: string | null
           created_at: string | null
         }
@@ -280,6 +316,7 @@ export type Database = {
           token_expires_at?: string | null
           check_in?: string | null
           check_out?: string | null
+          guest_rules_accepted_version?: number | null
           enrolled_by?: string | null
           created_at?: string | null
         }
@@ -295,6 +332,7 @@ export type Database = {
           token_expires_at?: string | null
           check_in?: string | null
           check_out?: string | null
+          guest_rules_accepted_version?: number | null
           enrolled_by?: string | null
           created_at?: string | null
         }

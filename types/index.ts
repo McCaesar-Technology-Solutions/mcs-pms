@@ -319,6 +319,7 @@ export interface Guest {
   token_expires_at: string | null
   check_in: string | null
   check_out: string | null
+  guest_rules_accepted_version: number | null
   enrolled_by: string | null
   created_at: string | null
 }

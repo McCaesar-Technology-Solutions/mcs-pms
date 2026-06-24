@@ -10,6 +10,8 @@ import {
   isValidGuestPortalSlug,
 } from '@/lib/guest-portal'
 import { setGuestSession } from '@/lib/guest-session'
+import { hasAcceptedPropertyRules } from '@/lib/guest-rules-cookie'
+import { getHotelGuestRules } from '@/lib/data/guest-rules'
 import { guestRoomEntrySchema } from '@/lib/validations'
 import { tokenExpiryISO } from '@/lib/stays/helpers'
 
@@ -50,6 +52,19 @@ export async function enterGuestPortalByRoom(input: unknown): Promise<GuestPorta
     return { success: false, error: 'This property link is not valid.' }
   }
 
+  const rulesBundle = await getHotelGuestRules(hotel.id)
+  if (!rulesBundle) {
+    return { success: false, error: 'This property link is not valid.' }
+  }
+
+  const rulesAccepted = await hasAcceptedPropertyRules(hotel.id, rulesBundle.version)
+  if (!rulesAccepted) {
+    return {
+      success: false,
+      error: 'Please read and accept the property rules before continuing.',
+    }
+  }
+
   const match = await findActiveGuestForRoom(hotel.id, parsed.data.roomNumber)
   if (!match) {
     return {
@@ -66,6 +81,12 @@ export async function enterGuestPortalByRoom(input: unknown): Promise<GuestPorta
       : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
 
   await setGuestSession(match.guest.id, expiresAt)
+
+  await admin
+    .from('guests')
+    .update({ guest_rules_accepted_version: rulesBundle.version })
+    .eq('id', match.guest.id)
+
   redirect('/guest')
 }
 

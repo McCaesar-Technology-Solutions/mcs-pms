@@ -438,6 +438,20 @@ export async function sendMfaEmailCode(): Promise<
   }
   const { code } = created.data
 
+  if (!isEmailConfigured()) {
+    if (process.env.NODE_ENV === 'development') {
+      return {
+        success: true,
+        data: { maskedEmail: maskEmail(email), devCode: code },
+      }
+    }
+    return {
+      success: false,
+      error:
+        'Email is not configured on this server. In Vercel → Settings → Environment Variables, add RESEND_API_KEY, then redeploy.',
+    }
+  }
+
   const result = await sendToEmail(
     email,
     {
@@ -454,9 +468,7 @@ export async function sendMfaEmailCode(): Promise<
     { hotelId: profile.hotel_id ?? undefined, templateKey: 'mfa_otp' },
   )
 
-  const isDev = process.env.NODE_ENV === 'development' && !isEmailConfigured()
-
-  if (!result.success && !isDev) {
+  if (!result.success) {
     return {
       success: false,
       error: result.error ?? 'Could not send the email. Check RESEND_API_KEY and try again.',
@@ -467,7 +479,6 @@ export async function sendMfaEmailCode(): Promise<
     success: true,
     data: {
       maskedEmail: maskEmail(email),
-      ...(isDev ? { devCode: code } : {}),
     },
   }
 }
