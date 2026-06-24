@@ -71,6 +71,12 @@ export async function createRoom(input: {
       ? null
       : parsed.data.monthlyRate
 
+  const { data: category } = await supabase
+    .from('room_categories')
+    .select('name')
+    .eq('id', parsed.data.categoryId)
+    .maybeSingle()
+
   const { error } = await supabase.from('rooms').insert({
     hotel_id: profile.hotel_id,
     number: parsed.data.number.trim(),
@@ -85,6 +91,29 @@ export async function createRoom(input: {
   if (error) {
     if (error.code === '23505') return { success: false, error: 'A room with that number already exists.' }
     return { success: false, error: error.message }
+  }
+
+  if (profile.role === 'manager') {
+    void import('@/lib/notifications/rooms').then(({ notifyOwnerRoomCreated }) =>
+      notifyOwnerRoomCreated({
+        hotelId: profile.hotel_id,
+        roomNumber: parsed.data.number.trim(),
+        managerName: profile.name,
+        floor: parsed.data.floor,
+        nightlyRate: parsed.data.nightlyRate,
+        categoryName: category?.name ?? null,
+      }).catch(() => undefined),
+    )
+
+    void writeAuditLog({
+      hotelId: profile.hotel_id,
+      actorId: profile.id,
+      actorName: profile.name,
+      entityType: 'room',
+      entityId: null,
+      action: 'created',
+      summary: `Room ${parsed.data.number.trim()} added (floor ${parsed.data.floor})`,
+    })
   }
 
   revalidateRoomViews()

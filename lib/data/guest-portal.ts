@@ -50,19 +50,46 @@ export interface GuestPortalContext {
   hasFeedback: boolean
 }
 
+interface HotelPortalExtras {
+  guest_portal_wifi_ssid: string | null
+  guest_portal_wifi_password: string | null
+  guest_portal_parking: string | null
+  guest_portal_emergency_phone: string | null
+  guest_portal_check_out_time: string | null
+  guest_portal_welcome: string | null
+}
+
+/** Loads portal-specific hotel columns when migration 036 is applied; otherwise null. */
+async function loadHotelPortalExtras(hotelId: string): Promise<HotelPortalExtras | null> {
+  const admin = createAdminClient()
+  const { data, error } = await admin
+    .from('hotels')
+    .select(
+      'guest_portal_wifi_ssid, guest_portal_wifi_password, guest_portal_parking, guest_portal_emergency_phone, guest_portal_check_out_time, guest_portal_welcome',
+    )
+    .eq('id', hotelId)
+    .maybeSingle()
+
+  if (error || !data) return null
+  return data as HotelPortalExtras
+}
+
 export async function loadGuestPortalContext(guest: Guest): Promise<GuestPortalContext | null> {
   const admin = createAdminClient()
-  const [{ data: hotel }, rulesBundle, localGuide, invoicesRes, requestsRes, feedbackRes] =
+
+  const { data: hotel, error: hotelError } = await admin
+    .from('hotels')
+    .select('id, name, address, city, region, profile_image_path')
+    .eq('id', guest.hotel_id)
+    .maybeSingle()
+
+  if (hotelError || !hotel) return null
+
+  const [rulesBundle, localGuide, portalExtras, invoicesRes, requestsRes, feedbackRes] =
     await Promise.all([
-      admin
-        .from('hotels')
-        .select(
-          'id, name, address, city, region, profile_image_path, guest_portal_wifi_ssid, guest_portal_wifi_password, guest_portal_parking, guest_portal_emergency_phone, guest_portal_check_out_time, guest_portal_welcome',
-        )
-        .eq('id', guest.hotel_id)
-        .maybeSingle(),
       getHotelGuestRules(guest.hotel_id),
       getHotelLocalGuide(guest.hotel_id),
+      loadHotelPortalExtras(guest.hotel_id),
       admin
         .from('invoices')
         .select('id, invoice_number, total_amount, payment_status, issued_at, paid_at')
@@ -82,8 +109,6 @@ export async function loadGuestPortalContext(guest: Guest): Promise<GuestPortalC
         .limit(1),
     ])
 
-  if (!hotel) return null
-
   return {
     property: {
       hotelId: hotel.id,
@@ -92,12 +117,12 @@ export async function loadGuestPortalContext(guest: Guest): Promise<GuestPortalC
       city: hotel.city,
       region: hotel.region,
       imageUrl: propertyImagePublicUrl(hotel.profile_image_path),
-      wifiSsid: hotel.guest_portal_wifi_ssid,
-      wifiPassword: hotel.guest_portal_wifi_password,
-      parking: hotel.guest_portal_parking,
-      emergencyPhone: hotel.guest_portal_emergency_phone,
-      checkOutTime: hotel.guest_portal_check_out_time ?? '11:00 AM',
-      welcome: hotel.guest_portal_welcome,
+      wifiSsid: portalExtras?.guest_portal_wifi_ssid ?? null,
+      wifiPassword: portalExtras?.guest_portal_wifi_password ?? null,
+      parking: portalExtras?.guest_portal_parking ?? null,
+      emergencyPhone: portalExtras?.guest_portal_emergency_phone ?? null,
+      checkOutTime: portalExtras?.guest_portal_check_out_time ?? '11:00 AM',
+      welcome: portalExtras?.guest_portal_welcome ?? null,
     },
     rules: rulesBundle?.rules ?? [],
     localGuide,
@@ -109,25 +134,29 @@ export async function loadGuestPortalContext(guest: Guest): Promise<GuestPortalC
       issuedAt: row.issued_at,
       paidAt: row.paid_at,
     })),
-    requests: (requestsRes.data ?? []).map((row) => ({
-      id: row.id,
-      requestType: row.request_type as GuestPortalRequest['requestType'],
-      note: row.note,
-      status: row.status,
-      createdAt: row.created_at,
-    })),
-    hasFeedback: (feedbackRes.data?.length ?? 0) > 0,
+    requests: requestsRes.error
+      ? []
+      : (requestsRes.data ?? []).map((row) => ({
+          id: row.id,
+          requestType: row.request_type as GuestPortalRequest['requestType'],
+          note: row.note,
+          status: row.status,
+          createdAt: row.created_at,
+        })),
+    hasFeedback: feedbackRes.error ? false : (feedbackRes.data?.length ?? 0) > 0,
   }
 }
 
 export async function loadHotelGuestRequests(hotelId: string): Promise<GuestRequestPanelRow[]> {
   const admin = createAdminClient()
-  const { data } = await admin
+  const { data, error } = await admin
     .from('guest_requests')
     .select('id, request_type, note, status, created_at, guests(name), rooms(number)')
     .eq('hotel_id', hotelId)
     .order('created_at', { ascending: false })
     .limit(15)
+
+  if (error) return []
 
   return (data ?? []).map((row) => {
     const guest =

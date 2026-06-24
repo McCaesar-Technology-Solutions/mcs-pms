@@ -28,12 +28,12 @@ export const DEFAULT_LOCAL_GUIDE: readonly { title: string; body: string }[] = [
 
 export async function ensureDefaultLocalGuide(hotelId: string): Promise<void> {
   const admin = createAdminClient()
-  const { count } = await admin
+  const { count, error } = await admin
     .from('hotel_local_guide')
     .select('*', { count: 'exact', head: true })
     .eq('hotel_id', hotelId)
 
-  if ((count ?? 0) > 0) return
+  if (error || (count ?? 0) > 0) return
 
   await admin.from('hotel_local_guide').insert(
     DEFAULT_LOCAL_GUIDE.map((item, index) => ({
@@ -45,16 +45,44 @@ export async function ensureDefaultLocalGuide(hotelId: string): Promise<void> {
   )
 }
 
+function defaultLocalGuideRows(): LocalGuideRow[] {
+  return DEFAULT_LOCAL_GUIDE.map((item, index) => ({
+    id: `default-${index}`,
+    title: item.title,
+    body: item.body,
+    sortOrder: index,
+  }))
+}
+
 export async function getHotelLocalGuide(hotelId: string): Promise<LocalGuideRow[]> {
-  await ensureDefaultLocalGuide(hotelId)
   const admin = createAdminClient()
-  const { data } = await admin
+  const { data, error } = await admin
     .from('hotel_local_guide')
     .select('id, title, body, sort_order')
     .eq('hotel_id', hotelId)
     .order('sort_order', { ascending: true })
 
-  return (data ?? []).map((row) => ({
+  if (error) return defaultLocalGuideRows()
+
+  if ((data ?? []).length === 0) {
+    await ensureDefaultLocalGuide(hotelId)
+    const { data: seeded, error: seedError } = await admin
+      .from('hotel_local_guide')
+      .select('id, title, body, sort_order')
+      .eq('hotel_id', hotelId)
+      .order('sort_order', { ascending: true })
+
+    if (seedError || !seeded?.length) return defaultLocalGuideRows()
+
+    return seeded.map((row) => ({
+      id: row.id,
+      title: row.title,
+      body: row.body,
+      sortOrder: row.sort_order,
+    }))
+  }
+
+  return data.map((row) => ({
     id: row.id,
     title: row.title,
     body: row.body,

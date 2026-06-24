@@ -7,6 +7,7 @@ export const EMAIL_STAFF_TEMPLATE_KEYS = [
   'complaint_invoice_submitted',
   'complaint_visit_scheduled',
   'staff_invite',
+  'room_created',
 ] as const
 
 export type EmailStaffTemplateKey = (typeof EMAIL_STAFF_TEMPLATE_KEYS)[number]
@@ -39,6 +40,11 @@ export const EMAIL_PREF_GROUPS: {
     description: 'Invite emails for managers and receptionists.',
     keys: ['staff_invite'],
   },
+  {
+    title: 'Rooms & inventory',
+    description: 'When managers add rooms to your property.',
+    keys: ['room_created'],
+  },
 ]
 
 export const EMAIL_PREF_LABELS: Record<EmailStaffTemplateKey, string> = {
@@ -49,6 +55,7 @@ export const EMAIL_PREF_LABELS: Record<EmailStaffTemplateKey, string> = {
   complaint_invoice_submitted: 'Technician invoice submitted',
   complaint_visit_scheduled: 'Maintenance visit scheduled',
   staff_invite: 'Staff invite email (manager / receptionist)',
+  room_created: 'New room added by manager',
 }
 
 /** Staff invite emails always send — onboarding must not be blocked by prefs. */

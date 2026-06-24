@@ -41,6 +41,51 @@ export async function managerPhones(hotelId: string): Promise<string[]> {
     .map((p) => p.phone!)
 }
 
+/** Property owner phone(s) from hotels.owner_id. */
+export async function ownerPhones(hotelId: string): Promise<string[]> {
+  const admin = createAdminClient()
+  const { data: hotel } = await admin
+    .from('hotels')
+    .select('owner_id')
+    .eq('id', hotelId)
+    .maybeSingle()
+
+  if (!hotel?.owner_id) return []
+
+  const { data: profile } = await admin
+    .from('profiles')
+    .select('phone')
+    .eq('id', hotel.owner_id)
+    .eq('is_active', true)
+    .maybeSingle()
+
+  const phone = profile?.phone?.trim()
+  return phone ? [phone] : []
+}
+
+/** Property owner email from hotels.owner_id. */
+export async function ownerEmails(hotelId: string): Promise<string[]> {
+  const admin = createAdminClient()
+  const { data: hotel } = await admin
+    .from('hotels')
+    .select('owner_id')
+    .eq('id', hotelId)
+    .maybeSingle()
+
+  if (!hotel?.owner_id) return []
+
+  const { data: profile } = await admin
+    .from('profiles')
+    .select('email')
+    .eq('id', hotel.owner_id)
+    .eq('is_active', true)
+    .maybeSingle()
+
+  const email = profile?.email?.trim().toLowerCase()
+  if (!email || !isRealStaffEmail(email)) return []
+  return [email]
+}
+
 /** Manager emails for a property; falls back to owner if no manager on file. */
 export async function managerEmails(hotelId: string): Promise<string[]> {
   const admin = createAdminClient()
