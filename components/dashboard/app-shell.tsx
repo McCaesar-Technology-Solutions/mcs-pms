@@ -8,7 +8,9 @@ import type { Profile } from '@/types'
 import type { OccupancyToday } from '@/lib/data/occupancy'
 import { HotelRealtimeProvider } from '@/components/realtime/hotel-realtime'
 import { ProfilePhoneBanner } from '@/components/dashboard/profile-phone-banner'
+import { TrialBanner } from '@/components/dashboard/trial-banner'
 import { hasPhoneNumber } from '@/lib/phone'
+import type { SubscriptionSnapshot } from '@/lib/saas/plans'
 
 interface AppShellProps {
   children: React.ReactNode
@@ -16,6 +18,7 @@ interface AppShellProps {
   profile?: Profile | null
   enableRealtime?: boolean
   occupancyToday?: OccupancyToday
+  subscription?: SubscriptionSnapshot | null
 }
 
 export function AppShell({
@@ -24,6 +27,7 @@ export function AppShell({
   profile,
   enableRealtime = false,
   occupancyToday,
+  subscription,
 }: AppShellProps) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
@@ -52,6 +56,7 @@ export function AppShell({
       />
       <main className="app-main h-dvh min-w-0 flex-1 overflow-y-auto">
         <Topbar onMenuOpen={() => setMobileNavOpen(true)} profile={profile} />
+        {subscription && profile?.role === 'owner' && <TrialBanner subscription={subscription} />}
         {profile && !hasPhoneNumber(profile.phone) && profile.role !== 'technician' && (
           <ProfilePhoneBanner
             roleLabel={

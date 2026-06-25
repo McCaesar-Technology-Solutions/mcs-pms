@@ -130,14 +130,17 @@ See [SECURITY.md](SECURITY.md) for detail.
 | Integration | Status | Location |
 |-------------|--------|----------|
 | Supabase Auth | Live | `lib/supabase/*`, `app/actions/auth.ts` |
-| Supabase Realtime | Live (migration `015`) | `components/realtime/*` |
-| Twilio SMS/WhatsApp | Optional env | `lib/notifications/send.ts` |
-| Hubtel SMS | Optional env | `lib/notifications/send.ts` |
-| Paystack / Hubtel Pay | **Not built** | — |
-| OTA / iCal | **Not built** | — |
-| Email (Resend, etc.) | **Not built** | — |
-| Supabase Storage | Buckets documented; **no upload UI** | DEPLOYMENT.md |
-| Sentry / E2E tests | **Not wired** | — |
+| Supabase Realtime | Live (migrations `015`, `038`) | `components/realtime/*` |
+| Arkesel / Hubtel / Twilio SMS | Optional env | `lib/notifications/send.ts` |
+| Resend email | Optional env | `lib/notifications/send-email.ts` |
+| Paystack | Live (initialize + webhook) | `lib/payments/paystack.ts`, `app/actions/payments.ts` |
+| SaaS onboarding | Live — org signup, trial, guided setup | `app/(onboarding)/get-started`, `lib/saas/*`, migration `041` |
+| Hubtel Pay | **Not built** | — |
+| OTA / iCal | Live — import + export feeds, cron sync | `lib/channels/*`, `app/(owner)/owner/channels`, `app/api/ical/[token]` |
+| Supabase Storage | Live with RLS (migration `038`) | guest ID docs, property images |
+| Sentry | Optional (`SENTRY_DSN`) | `lib/monitoring/sentry.ts` |
+| Vercel Cron | Live | `app/api/cron/*`, `vercel.json` |
+| Health / ready | Live | `app/api/health`, `app/api/ready` |
 
 Product gaps (owner complaints UI, pagination, password reset, etc.) are listed in [FEATURES.md](FEATURES.md#what-is-incomplete).
 
@@ -147,7 +150,7 @@ Product gaps (owner complaints UI, pagination, password reset, etc.) are listed 
 
 - **Current scale:** single-digit properties per owner; hundreds of rooms; suitable for pilot properties.
 - **Indexes:** on `hotel_id`, reservation dates, complaint status as data grows.
-- **Pagination:** large guest/reservation tables may need server-side pagination (not yet everywhere).
+- **Pagination:** default limit 100 on major list queries (`lib/data/pagination.ts`); not cursor-based yet.
 - **Realtime:** one channel per hotel shell; acceptable for typical property staff counts.
 
 ---

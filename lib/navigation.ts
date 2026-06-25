@@ -6,6 +6,7 @@ export type NavIconKey =
   | 'banknote'
   | 'file-text'
   | 'bar-chart-3'
+  | 'globe'
   | 'settings'
   | 'wrench'
   | 'user-cog'
@@ -30,6 +31,7 @@ export const ownerNavigation: NavItem[] = [
   { name: 'Billing', href: '/owner/billing', icon: 'banknote' },
   { name: 'GRA Reports', href: '/owner/gra-reports', icon: 'file-text' },
   { name: 'Analytics', href: '/owner/analytics', icon: 'bar-chart-3' },
+  { name: 'Channels', href: '/owner/channels', icon: 'globe' },
   { name: 'Settings', href: '/owner/settings', icon: 'settings' },
 ]
 

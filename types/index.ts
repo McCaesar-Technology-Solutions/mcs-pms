@@ -24,8 +24,13 @@ export interface Profile {
   mfa_totp_pending_secret: string | null
   invited_by: string | null
   is_active: boolean | null
+  organization_id: string | null
+  onboarding_step: OnboardingStep | null
+  onboarding_completed_at: string | null
   created_at: string | null
 }
+
+export type OnboardingStep = 'welcome' | 'property' | 'compliance' | 'team' | 'done'
 
 export type VatMode = 'exclusive' | 'inclusive'
 
@@ -36,6 +41,7 @@ export interface Hotel {
   city: string | null
   region: string | null
   owner_id: string | null
+  organization_id: string | null
   gta_license_number: string | null
   gta_license_expiry: string | null
   vat_registration_number: string | null
@@ -169,6 +175,25 @@ export interface GRATaxSummary {
 }
 
 // Channels & Distribution
+export type ChannelProvider = 'airbnb' | 'booking_com' | 'other'
+
+export interface ChannelIcalFeed {
+  id: string
+  hotelId: string
+  roomId: string | null
+  name: string
+  provider: ChannelProvider
+  direction: 'import' | 'export'
+  importUrl: string | null
+  exportToken: string
+  isActive: boolean
+  lastSyncAt: string | null
+  lastSyncStatus: 'ok' | 'error' | 'pending' | null
+  lastSyncMessage: string | null
+  eventsSynced: number
+  createdAt: string
+}
+
 export interface ChannelPerformance {
   channel: 'website' | 'airbnb' | 'booking' | 'walk_in' | 'other'
   bookings: number
@@ -288,7 +313,7 @@ export type PaymentMethod =
   | 'cash'
   | 'bank_transfer'
 
-export type PaymentStatus = 'pending' | 'paid' | 'overdue' | 'refunded'
+export type PaymentStatus = 'pending' | 'partial' | 'paid' | 'overdue' | 'refunded'
 
 export interface DbRoom {
   id: string
@@ -339,6 +364,8 @@ export interface DbReservation {
   nightly_rate: number | null
   monthly_rate: number | null
   total_amount: number | null
+  ical_uid: string | null
+  ical_feed_id: string | null
   created_by: string | null
   created_at: string | null
 }
@@ -396,6 +423,7 @@ export interface DbInvoice {
   total_amount: number
   payment_method: PaymentMethod | null
   payment_status: PaymentStatus | null
+  amount_paid: number | null
   issued_at: string | null
   due_at: string | null
   paid_at: string | null

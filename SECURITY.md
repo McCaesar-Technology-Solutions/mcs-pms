@@ -367,26 +367,26 @@ CREATE POLICY invoice_no_update ON invoices
 
 Before Production Deployment:
 
-- [ ] HTTPS enabled and certificate valid
-- [ ] Security headers configured
-- [ ] Authentication implemented (Supabase Auth)
-- [ ] Password policy enforced
-- [ ] Session timeout configured
-- [ ] Rate limiting on API endpoints
-- [ ] Input validation on all forms
-- [ ] SQL injection prevention (parameterized queries)
-- [ ] CSRF protection enabled
-- [ ] RBAC implemented
-- [ ] Audit logging enabled
-- [ ] Database encryption enabled
-- [ ] API keys in environment variables
-- [ ] Payment integration (Stripe) secure
-- [ ] OTA tokens encrypted
-- [ ] Backups tested and working
+- [x] HTTPS enabled and certificate valid (Vercel)
+- [x] Security headers configured (`next.config.mjs`)
+- [x] Authentication implemented (Supabase Auth)
+- [x] Password policy enforced (8+ chars signup; rate-limited auth)
+- [x] Rate limiting on auth and guest portal actions
+- [x] Input validation on server actions (Zod)
+- [x] RBAC implemented (middleware + RLS)
+- [x] Audit logging enabled (`audit_log`, guest ID view/export/erase)
+- [x] API keys in environment variables
+- [x] Paystack webhook signature verification
+- [x] Health / ready endpoints
+- [x] MFA mandatory for owner/manager in production
+- [x] Guest signed session tokens
+- [x] Notification fail-closed in production when providers unset
+- [x] Privacy policy published (`/privacy`)
+- [x] Terms of service published (`/terms`)
+- [ ] Backups tested and working (Supabase PITR on Pro)
 - [ ] Disaster recovery plan documented
-- [ ] Privacy policy published
-- [ ] Terms of service published
-- [ ] GRA tax compliance verified
+- [ ] GRA tax compliance verified with your accountant
+- [ ] `SENTRY_DSN` configured for error alerting
 
 ## Incident Response
 

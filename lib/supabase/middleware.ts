@@ -18,7 +18,7 @@ import { mfaRedirectIfNeeded } from '@/lib/auth/mfa-server'
 import type { Database } from '@/lib/supabase/types'
 import type { UserRole } from '@/types'
 
-const PUBLIC_PATHS = ['/login', '/accept-invite', '/signup', '/forgot-password']
+const PUBLIC_PATHS = ['/login', '/accept-invite', '/signup', '/forgot-password', '/privacy', '/terms']
 const GUEST_PREFIX = '/guest'
 
 const LEGACY_STAFF_PATHS = [
@@ -37,7 +37,7 @@ const LEGACY_STAFF_PATHS = [
 async function loadStaffProfile(supabase: ReturnType<typeof createServerClient<Database>>, userId: string) {
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role, is_active, phone, email, mfa_enabled, mfa_method, mfa_totp_secret')
+    .select('role, is_active, phone, email, mfa_enabled, mfa_method, mfa_totp_secret, onboarding_completed_at')
     .eq('id', userId)
     .maybeSingle()
 
@@ -51,13 +51,14 @@ async function loadStaffProfile(supabase: ReturnType<typeof createServerClient<D
     mfa_enabled: profile.mfa_enabled,
     mfa_method: profile.mfa_method as MfaMethod | null,
     mfa_totp_secret: profile.mfa_totp_secret,
+    onboarding_completed_at: profile.onboarding_completed_at,
   }
 }
 
 export async function updateSession(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  if (pathname.startsWith('/api/health') || pathname.startsWith('/api/ready')) {
+  if (pathname.startsWith('/api/health') || pathname.startsWith('/api/ready') || pathname.startsWith('/api/ical')) {
     return NextResponse.next({ request })
   }
 
@@ -143,6 +144,28 @@ export async function updateSession(request: NextRequest) {
     return supabaseResponse
   }
 
+  if (pathname.startsWith('/get-started')) {
+    if (!user) {
+      const loginUrl = new URL('/login', request.url)
+      loginUrl.searchParams.set('next', '/get-started')
+      return NextResponse.redirect(loginUrl)
+    }
+
+    const profile = await loadStaffProfile(supabase, user.id)
+    if (!profile || profile.is_active === false || profile.role !== 'owner') {
+      if (profile && isStaffRole(profile.role)) {
+        return NextResponse.redirect(new URL(ROLE_HOME[profile.role], request.url))
+      }
+      return NextResponse.redirect(new URL('/login', request.url))
+    }
+
+    if (profile.onboarding_completed_at) {
+      return NextResponse.redirect(new URL('/owner/dashboard', request.url))
+    }
+
+    return supabaseResponse
+  }
+
   const required = roleRequiredPath(pathname)
   const isLegacyStaff =
     LEGACY_STAFF_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`))
@@ -199,6 +222,14 @@ export async function updateSession(request: NextRequest) {
     )
     if (mfaTarget) {
       return NextResponse.redirect(mfaTarget)
+    }
+
+    if (
+      profile.role === 'owner' &&
+      !profile.onboarding_completed_at &&
+      !pathname.startsWith('/get-started')
+    ) {
+      return NextResponse.redirect(new URL('/get-started', request.url))
     }
 
     return supabaseResponse

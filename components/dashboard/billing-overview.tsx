@@ -4,8 +4,9 @@ import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Download, Plus, TrendingUp, CreditCard } from 'lucide-react'
 import { toast } from 'sonner'
-import { createManualInvoice, recordInvoicePayment } from '@/app/actions/invoices'
+import { createManualInvoice, recordInvoicePayment, recordPartialInvoicePayment, refundInvoicePayment } from '@/app/actions/invoices'
 import { initiateStaffInvoicePayment } from '@/app/actions/payments'
+import { invoiceBalanceDue } from '@/lib/billing/invoice-payments'
 import { CenteredModal, ModalBody, ModalFooter, ModalHeader } from '@/components/ui/centered-modal'
 import { PAYMENT_METHOD_LABELS, computeInvoiceTaxes, type VatMode } from '@/lib/tax'
 import { formatInvoiceNumber } from '@/lib/invoices/numbering'
@@ -48,11 +49,15 @@ function mapInvoices(invoices: InvoiceWithRoom[]): BillingRow[] {
     if (status === 'pending' && inv.due_at && inv.due_at.slice(0, 10) < todayStr) {
       status = 'overdue'
     }
+    const balanceDue = invoiceBalanceDue(
+      inv.total_amount ?? 0,
+      inv.amount_paid ?? (status === 'paid' ? inv.total_amount ?? 0 : 0),
+    )
     return {
       id: formatInvoiceNumber(inv),
       guestName: inv.guest_name,
       roomNumber: inv.roomNumber ?? '—',
-      amount: inv.total_amount ?? 0,
+      amount: balanceDue > 0 && status !== 'paid' ? balanceDue : inv.total_amount ?? 0,
       status,
       date: (inv.issued_at ?? new Date().toISOString()).slice(0, 10),
       dueDate: (inv.due_at ?? inv.issued_at ?? new Date().toISOString()).slice(0, 10),
@@ -116,6 +121,8 @@ export function BillingOverview({
   const [newSubtotal, setNewSubtotal] = useState('')
   const [newPaymentMethod, setNewPaymentMethod] = useState<PaymentMethod>('cash')
   const [newMarkPaid, setNewMarkPaid] = useState(true)
+  const [partialAmount, setPartialAmount] = useState('')
+  const [partialMethod, setPartialMethod] = useState<PaymentMethod>('cash')
   const [pending, startTransition] = useTransition()
 
   useEffect(() => {
@@ -206,12 +213,54 @@ export function BillingOverview({
     })
   }
 
+  function submitPartialPayment(inv: InvoiceWithRoom) {
+    const amount = parseFloat(partialAmount)
+    if (!amount || amount <= 0) {
+      toast.error('Enter a valid payment amount.')
+      return
+    }
+    startTransition(async () => {
+      const result = await recordPartialInvoicePayment({
+        invoiceId: inv.id,
+        amount,
+        paymentMethod: partialMethod,
+      })
+      if (result.success) {
+        toast.success('Partial payment recorded')
+        setPartialAmount('')
+        setDetail(null)
+        router.refresh()
+      } else {
+        toast.error(result.error)
+      }
+    })
+  }
+
+  function submitRefund(inv: InvoiceWithRoom) {
+    startTransition(async () => {
+      const result = await refundInvoicePayment({ invoiceId: inv.id })
+      if (result.success) {
+        toast.success('Refund recorded')
+        setDetail(null)
+        router.refresh()
+      } else {
+        toast.error(result.error)
+      }
+    })
+  }
+
+  function invoiceOpenBalance(inv: InvoiceWithRoom): number {
+    return invoiceBalanceDue(inv.total_amount ?? 0, inv.amount_paid ?? 0)
+  }
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'paid':
         return 'bg-amber-600 text-amber-50'
       case 'pending':
         return 'bg-amber-600 text-amber-50'
+      case 'partial':
+        return 'bg-blue-600 text-blue-50'
       case 'overdue':
         return 'bg-red-600 text-red-50'
       default:
@@ -436,13 +485,25 @@ export function BillingOverview({
                   <p className="mt-1 font-semibold capitalize text-foreground">{detail.payment_status ?? 'pending'}</p>
                 </div>
                 <div className="surface-inset rounded-xl p-3">
+                  <p className="modal-panel-subtle text-xs">Amount paid</p>
+                  <p className="mt-1 font-semibold text-foreground">
+                    {money(detail.amount_paid ?? 0)}
+                  </p>
+                </div>
+                <div className="surface-inset rounded-xl p-3">
+                  <p className="modal-panel-subtle text-xs">Balance due</p>
+                  <p className="mt-1 font-semibold text-foreground">
+                    {money(invoiceOpenBalance(detail))}
+                  </p>
+                </div>
+                <div className="surface-inset rounded-xl p-3">
                   <p className="modal-panel-subtle text-xs">Issued</p>
                   <p className="mt-1 font-semibold text-foreground">
                     {detail.issued_at ? new Date(detail.issued_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
                   </p>
                 </div>
                 <div className="surface-inset rounded-xl p-3">
-                  <p className="modal-panel-subtle text-xs">Paid</p>
+                  <p className="modal-panel-subtle text-xs">Paid in full</p>
                   <p className="mt-1 font-semibold text-foreground">
                     {detail.paid_at ? new Date(detail.paid_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
                   </p>
@@ -460,8 +521,45 @@ export function BillingOverview({
                 </button>
               )}
 
-              {detail.payment_status !== 'paid' && (
+              {detail.payment_status !== 'paid' &&
+                detail.payment_status !== 'refunded' &&
+                invoiceOpenBalance(detail) > 0 && (
                 <>
+                  <div className="rounded-xl surface-inset p-4 space-y-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Record partial payment
+                    </p>
+                    <div className="flex gap-2">
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={partialAmount}
+                        onChange={(e) => setPartialAmount(e.target.value)}
+                        placeholder={`Max ${invoiceOpenBalance(detail)}`}
+                        className="flex-1 rounded-lg border border-[#E9ECEF] px-3 py-2 text-sm"
+                      />
+                      <select
+                        value={partialMethod}
+                        onChange={(e) => setPartialMethod(e.target.value as PaymentMethod)}
+                        className="rounded-lg border border-[#E9ECEF] px-2 py-2 text-sm"
+                      >
+                        {PAYMENT_METHODS.map((m) => (
+                          <option key={m} value={m}>
+                            {PAYMENT_METHOD_LABELS[m]}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() => submitPartialPayment(detail)}
+                      className="w-full rounded-lg border border-primary px-4 py-2 text-sm font-semibold text-primary disabled:opacity-50"
+                    >
+                      Record partial payment
+                    </button>
+                  </div>
                   {paystackEnabled && (
                     <button
                       type="button"
@@ -470,7 +568,7 @@ export function BillingOverview({
                       className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#3C216C] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
                     >
                       <CreditCard className="h-4 w-4" />
-                      Pay with Paystack
+                      Pay balance with Paystack
                     </button>
                   )}
                   <button
@@ -479,9 +577,20 @@ export function BillingOverview({
                     onClick={() => markPaid(detail)}
                     className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50"
                   >
-                    Record payment
+                    Record full payment
                   </button>
                 </>
+              )}
+
+              {(detail.amount_paid ?? 0) > 0 && detail.payment_status !== 'refunded' && (
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() => submitRefund(detail)}
+                  className="flex w-full items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 disabled:opacity-50"
+                >
+                  Issue refund
+                </button>
               )}
             </ModalBody>
           </>

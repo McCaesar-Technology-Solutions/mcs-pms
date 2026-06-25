@@ -134,6 +134,16 @@ function LoginForm() {
             Create an owner account
           </Link>
         </p>
+
+        <p className="mt-4 text-center text-xs text-white/45">
+          <Link href="/privacy" className="hover:text-[#D4A62E] hover:underline">
+            Privacy
+          </Link>
+          {' · '}
+          <Link href="/terms" className="hover:text-[#D4A62E] hover:underline">
+            Terms
+          </Link>
+        </p>
       </div>
     </div>
   )

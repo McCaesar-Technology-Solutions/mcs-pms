@@ -114,6 +114,9 @@ export async function initiateGuestInvoicePayment(
   if (invoice.payment_status === 'paid') {
     return { success: false, error: 'This invoice is already paid.' }
   }
+  if (invoice.payment_status === 'refunded') {
+    return { success: false, error: 'This invoice has been refunded.' }
+  }
 
   const amount = Number(invoice.total_amount ?? 0)
   if (amount <= 0) return { success: false, error: 'Invalid invoice amount.' }

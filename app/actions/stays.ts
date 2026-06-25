@@ -17,6 +17,10 @@ import {
   tokenExpiryISO,
 } from '@/lib/stays/helpers'
 import { revalidateStayViews } from '@/lib/stays/revalidate'
+import {
+  linkFolioChargesToInvoice,
+  prepareCheckoutTaxesWithFolio,
+} from '@/lib/folio/rollup'
 import { writeAuditLog, logRoomStatusChange } from '@/lib/audit/log'
 import type { PaymentMethod, ReservationChannel } from '@/types'
 import { z } from 'zod'
@@ -502,7 +506,7 @@ export async function checkOutStay(input: {
     }
 
     const nightlyRate = await getRoomNightlyRate(admin, guest.room_id)
-    const { taxes } = await computeCheckoutTaxes(
+    const { taxes: roomTaxes } = await computeCheckoutTaxes(
       admin,
       profile.hotel_id,
       guest.check_in,
@@ -513,6 +517,13 @@ export async function checkOutStay(input: {
       null,
       null,
       guest.check_out,
+    )
+    const { taxes, folioCharges, folioSubtotal } = await prepareCheckoutTaxesWithFolio(
+      admin,
+      profile.hotel_id,
+      guest.id,
+      null,
+      roomTaxes,
     )
     const now = new Date().toISOString()
     const paidNow = input.markAsPaid !== false
@@ -539,25 +550,38 @@ export async function checkOutStay(input: {
       .single()
 
     const invoiceNumber = await allocateInvoiceNumber(profile.hotel_id)
-    await admin.from('invoices').insert({
-      hotel_id: profile.hotel_id,
-      reservation_id: newRes?.id ?? null,
-      guest_id: guest.id,
-      guest_name: guest.name,
-      invoice_number: invoiceNumber,
-      subtotal: taxes.subtotal,
-      nhil_amount: taxes.nhil,
-      getfund_amount: taxes.getfund,
-      covid_levy_amount: taxes.covid,
-      vat_amount: taxes.vat,
-      elevy_amount: taxes.elevy,
-      total_amount: taxes.total,
-      payment_method: input.paymentMethod,
-      payment_status: paidNow ? 'paid' : 'pending',
-      issued_at: now,
-      due_at: dueAt,
-      paid_at: paidNow ? now : null,
-    })
+    const { data: invoiceRow } = await admin
+      .from('invoices')
+      .insert({
+        hotel_id: profile.hotel_id,
+        reservation_id: newRes?.id ?? null,
+        guest_id: guest.id,
+        guest_name: guest.name,
+        invoice_number: invoiceNumber,
+        subtotal: taxes.subtotal,
+        nhil_amount: taxes.nhil,
+        getfund_amount: taxes.getfund,
+        covid_levy_amount: taxes.covid,
+        vat_amount: taxes.vat,
+        elevy_amount: taxes.elevy,
+        total_amount: taxes.total,
+        payment_method: input.paymentMethod,
+        payment_status: paidNow ? 'paid' : 'pending',
+        amount_paid: paidNow ? taxes.total : 0,
+        issued_at: now,
+        due_at: dueAt,
+        paid_at: paidNow ? now : null,
+      })
+      .select('id')
+      .single()
+
+    if (invoiceRow?.id && folioCharges.length) {
+      await linkFolioChargesToInvoice(
+        admin,
+        folioCharges.map((c) => c.id),
+        invoiceRow.id,
+      )
+    }
 
     await admin
       .from('guests')
@@ -610,7 +634,7 @@ export async function checkOutStay(input: {
       entityType: 'reservation',
       entityId: newRes?.id ?? null,
       action: 'checked_out',
-      summary: `${guest.name} checked out (legacy guest record) — ${input.paymentMethod.replace(/_/g, ' ')}`,
+      summary: `${guest.name} checked out (legacy guest record) — ${input.paymentMethod.replace(/_/g, ' ')}${folioSubtotal > 0 ? ` (+₵${folioSubtotal} folio)` : ''}`,
     })
 
     return { success: true }
@@ -636,7 +660,7 @@ export async function checkOutStay(input: {
     return { success: false, error: 'Check-out must be after check-in.' }
   }
 
-  const { taxes } = await computeCheckoutTaxes(
+  const { taxes: roomTaxes } = await computeCheckoutTaxes(
     admin,
     reservation.hotel_id,
     reservation.check_in,
@@ -648,6 +672,17 @@ export async function checkOutStay(input: {
     reservation.total_amount,
     reservation.check_out,
   )
+
+  const guestIdForFolio = reservation.guest_id
+  const { taxes, folioCharges, folioSubtotal } = guestIdForFolio
+    ? await prepareCheckoutTaxesWithFolio(
+        admin,
+        reservation.hotel_id,
+        guestIdForFolio,
+        reservation.id,
+        roomTaxes,
+      )
+    : { taxes: roomTaxes, folioCharges: [], folioSubtotal: 0 }
   const now = new Date().toISOString()
   const paidNow = input.markAsPaid !== false
   const dueAt = paidNow
@@ -662,25 +697,38 @@ export async function checkOutStay(input: {
 
   if (!existingInvoice) {
     const invoiceNumber = await allocateInvoiceNumber(reservation.hotel_id)
-    await admin.from('invoices').insert({
-      hotel_id: reservation.hotel_id,
-      reservation_id: reservation.id,
-      guest_id: reservation.guest_id,
-      guest_name: reservation.guest_name,
-      invoice_number: invoiceNumber,
-      subtotal: taxes.subtotal,
-      nhil_amount: taxes.nhil,
-      getfund_amount: taxes.getfund,
-      covid_levy_amount: taxes.covid,
-      vat_amount: taxes.vat,
-      elevy_amount: taxes.elevy,
-      total_amount: taxes.total,
-      payment_method: input.paymentMethod,
-      payment_status: paidNow ? 'paid' : 'pending',
-      issued_at: now,
-      due_at: dueAt,
-      paid_at: paidNow ? now : null,
-    })
+    const { data: invoiceRow } = await admin
+      .from('invoices')
+      .insert({
+        hotel_id: reservation.hotel_id,
+        reservation_id: reservation.id,
+        guest_id: reservation.guest_id,
+        guest_name: reservation.guest_name,
+        invoice_number: invoiceNumber,
+        subtotal: taxes.subtotal,
+        nhil_amount: taxes.nhil,
+        getfund_amount: taxes.getfund,
+        covid_levy_amount: taxes.covid,
+        vat_amount: taxes.vat,
+        elevy_amount: taxes.elevy,
+        total_amount: taxes.total,
+        payment_method: input.paymentMethod,
+        payment_status: paidNow ? 'paid' : 'pending',
+        amount_paid: paidNow ? taxes.total : 0,
+        issued_at: now,
+        due_at: dueAt,
+        paid_at: paidNow ? now : null,
+      })
+      .select('id')
+      .single()
+
+    if (invoiceRow?.id && folioCharges.length) {
+      await linkFolioChargesToInvoice(
+        admin,
+        folioCharges.map((c) => c.id),
+        invoiceRow.id,
+      )
+    }
   }
 
   await admin
@@ -757,7 +805,7 @@ export async function checkOutStay(input: {
     entityType: 'reservation',
     entityId: reservation.id,
     action: 'checked_out',
-    summary: `${reservation.guest_name} checked out — ₵${taxes.total.toLocaleString()} (${input.paymentMethod.replace(/_/g, ' ')}, ${paidNow ? 'paid' : 'pending'})`,
+    summary: `${reservation.guest_name} checked out — ₵${taxes.total.toLocaleString()} (${input.paymentMethod.replace(/_/g, ' ')}, ${paidNow ? 'paid' : 'pending'})${folioSubtotal > 0 ? ` incl. ₵${folioSubtotal} folio` : ''}`,
   })
 
   return { success: true }

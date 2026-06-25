@@ -17,6 +17,7 @@ export type Database = {
           city: string | null
           region: string | null
           owner_id: string | null
+          organization_id: string | null
           gta_license_number: string | null
           gta_license_expiry: string | null
           vat_registration_number: string | null
@@ -45,6 +46,7 @@ export type Database = {
           city?: string | null
           region?: string | null
           owner_id?: string | null
+          organization_id?: string | null
           gta_license_number?: string | null
           gta_license_expiry?: string | null
           vat_registration_number?: string | null
@@ -73,6 +75,7 @@ export type Database = {
           city?: string | null
           region?: string | null
           owner_id?: string | null
+          organization_id?: string | null
           gta_license_number?: string | null
           gta_license_expiry?: string | null
           vat_registration_number?: string | null
@@ -120,6 +123,9 @@ export type Database = {
           mfa_totp_pending_secret: string | null
           invited_by: string | null
           is_active: boolean | null
+          organization_id: string | null
+          onboarding_step: 'welcome' | 'property' | 'compliance' | 'team' | 'done' | null
+          onboarding_completed_at: string | null
           created_at: string | null
         }
         Insert: {
@@ -137,6 +143,9 @@ export type Database = {
           mfa_totp_pending_secret?: string | null
           invited_by?: string | null
           is_active?: boolean | null
+          organization_id?: string | null
+          onboarding_step?: 'welcome' | 'property' | 'compliance' | 'team' | 'done' | null
+          onboarding_completed_at?: string | null
           created_at?: string | null
         }
         Update: {
@@ -154,6 +163,9 @@ export type Database = {
           mfa_totp_pending_secret?: string | null
           invited_by?: string | null
           is_active?: boolean | null
+          organization_id?: string | null
+          onboarding_step?: 'welcome' | 'property' | 'compliance' | 'team' | 'done' | null
+          onboarding_completed_at?: string | null
           created_at?: string | null
         }
         Relationships: [
@@ -529,6 +541,8 @@ export type Database = {
           nightly_rate: number | null
           monthly_rate: number | null
           total_amount: number | null
+          ical_uid: string | null
+          ical_feed_id: string | null
           created_by: string | null
           created_at: string | null
         }
@@ -546,6 +560,8 @@ export type Database = {
           nightly_rate?: number | null
           monthly_rate?: number | null
           total_amount?: number | null
+          ical_uid?: string | null
+          ical_feed_id?: string | null
           created_by?: string | null
           created_at?: string | null
         }
@@ -563,6 +579,8 @@ export type Database = {
           nightly_rate?: number | null
           monthly_rate?: number | null
           total_amount?: number | null
+          ical_uid?: string | null
+          ical_feed_id?: string | null
           created_by?: string | null
           created_at?: string | null
         }
@@ -893,7 +911,8 @@ export type Database = {
             | 'cash'
             | 'bank_transfer'
             | null
-          payment_status: 'pending' | 'paid' | 'overdue' | 'refunded' | null
+          payment_status: 'pending' | 'partial' | 'paid' | 'overdue' | 'refunded' | null
+          amount_paid: number | null
           issued_at: string | null
           due_at: string | null
           paid_at: string | null
@@ -921,7 +940,8 @@ export type Database = {
             | 'cash'
             | 'bank_transfer'
             | null
-          payment_status?: 'pending' | 'paid' | 'overdue' | 'refunded' | null
+          payment_status?: 'pending' | 'partial' | 'paid' | 'overdue' | 'refunded' | null
+          amount_paid?: number | null
           issued_at?: string | null
           due_at?: string | null
           paid_at?: string | null
@@ -948,7 +968,8 @@ export type Database = {
             | 'cash'
             | 'bank_transfer'
             | null
-          payment_status?: 'pending' | 'paid' | 'overdue' | 'refunded' | null
+          payment_status?: 'pending' | 'partial' | 'paid' | 'overdue' | 'refunded' | null
+          amount_paid?: number | null
           issued_at?: string | null
           due_at?: string | null
           paid_at?: string | null
@@ -1249,6 +1270,155 @@ export type Database = {
         Insert: { id?: string; rate_key: string; created_at?: string | null }
         Update: { id?: string; rate_key?: string; created_at?: string | null }
         Relationships: []
+      }
+      organizations: {
+        Row: {
+          id: string
+          name: string
+          slug: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          slug: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          slug?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      organization_members: {
+        Row: {
+          id: string
+          organization_id: string
+          user_id: string
+          role: 'owner' | 'billing'
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          user_id: string
+          role?: 'owner' | 'billing'
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          user_id?: string
+          role?: 'owner' | 'billing'
+          created_at?: string
+        }
+        Relationships: []
+      }
+      subscriptions: {
+        Row: {
+          id: string
+          organization_id: string
+          plan: 'trial' | 'starter' | 'growth' | 'enterprise'
+          status: 'trialing' | 'active' | 'past_due' | 'cancelled'
+          trial_ends_at: string
+          current_period_end: string | null
+          max_properties: number
+          max_rooms_per_property: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          plan?: 'trial' | 'starter' | 'growth' | 'enterprise'
+          status?: 'trialing' | 'active' | 'past_due' | 'cancelled'
+          trial_ends_at?: string
+          current_period_end?: string | null
+          max_properties?: number
+          max_rooms_per_property?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          plan?: 'trial' | 'starter' | 'growth' | 'enterprise'
+          status?: 'trialing' | 'active' | 'past_due' | 'cancelled'
+          trial_ends_at?: string
+          current_period_end?: string | null
+          max_properties?: number
+          max_rooms_per_property?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      channel_ical_feeds: {
+        Row: {
+          id: string
+          hotel_id: string
+          room_id: string | null
+          name: string
+          provider: 'airbnb' | 'booking_com' | 'other'
+          direction: 'import' | 'export'
+          import_url: string | null
+          export_token: string
+          is_active: boolean
+          last_sync_at: string | null
+          last_sync_status: 'ok' | 'error' | 'pending' | null
+          last_sync_message: string | null
+          events_synced: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          hotel_id: string
+          room_id?: string | null
+          name: string
+          provider: 'airbnb' | 'booking_com' | 'other'
+          direction: 'import' | 'export'
+          import_url?: string | null
+          export_token?: string
+          is_active?: boolean
+          last_sync_at?: string | null
+          last_sync_status?: 'ok' | 'error' | 'pending' | null
+          last_sync_message?: string | null
+          events_synced?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          hotel_id?: string
+          room_id?: string | null
+          name?: string
+          provider?: 'airbnb' | 'booking_com' | 'other'
+          direction?: 'import' | 'export'
+          import_url?: string | null
+          export_token?: string
+          is_active?: boolean
+          last_sync_at?: string | null
+          last_sync_status?: 'ok' | 'error' | 'pending' | null
+          last_sync_message?: string | null
+          events_synced?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'channel_ical_feeds_hotel_id_fkey'
+            columns: ['hotel_id']
+            isOneToOne: false
+            referencedRelation: 'hotels'
+            referencedColumns: ['id']
+          },
+        ]
       }
       guest_charges: {
         Row: {

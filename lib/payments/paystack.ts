@@ -1,6 +1,7 @@
 import crypto from 'node:crypto'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getAppOrigin } from '@/lib/env'
+import { applyInvoicePaymentRecord } from '@/lib/billing/apply-payment'
 
 export function isPaystackConfigured(): boolean {
   return Boolean(process.env.PAYSTACK_SECRET_KEY?.trim())
@@ -142,39 +143,19 @@ export async function handlePaystackChargeSuccess(event: {
 
   const amountGhs = event.amount / 100
 
-  if (!existing) {
-    await admin.from('payment_records').insert({
-      hotel_id: hotelId,
-      invoice_id: invoiceId,
-      guest_id: event.metadata?.guest_id ?? null,
-      provider: 'paystack',
-      provider_reference: event.reference,
-      amount: amountGhs,
-      currency: event.currency,
-      status: 'success',
-      idempotency_key: idempotencyKey,
-      metadata: event,
-      completed_at: new Date().toISOString(),
-    })
-  } else {
-    await admin
-      .from('payment_records')
-      .update({
-        status: 'success',
-        completed_at: new Date().toISOString(),
-      })
-      .eq('id', existing.id)
-  }
+  const paymentResult = await applyInvoicePaymentRecord(admin, {
+    invoiceId,
+    hotelId,
+    amount: amountGhs,
+    paymentMethod: 'visa',
+    provider: 'paystack',
+    providerReference: event.reference,
+    idempotencyKey,
+  })
 
-  await admin
-    .from('invoices')
-    .update({
-      payment_status: 'paid',
-      paid_at: new Date().toISOString(),
-      payment_method: 'visa',
-    })
-    .eq('id', invoiceId)
-    .eq('hotel_id', hotelId)
+  if (!paymentResult.ok) {
+    return { ok: false, error: paymentResult.error }
+  }
 
   return { ok: true }
 }

@@ -125,7 +125,7 @@ docs/               role-specific user guides
 
 ## What's next (roadmap)
 
-Priority order: **payments → OTA/iCal → SaaS onboarding**. (Password reset + unit tests are done.) Details in [FEATURES.md](FEATURES.md#what-is-incomplete).
+Priority next: **Paystack subscription billing** for plan upgrades after trial. Core pilot features (payments, OTA/iCal, SaaS onboarding) are shipped. Details in [FEATURES.md](FEATURES.md#what-is-incomplete).
 
 ---
 

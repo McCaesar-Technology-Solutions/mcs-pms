@@ -4,7 +4,7 @@ import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { seedDefaultRoomCategories } from '@/lib/data/room-categories'
+import { createOrganizationForOwner } from '@/lib/saas/organization'
 import { ROLE_HOME, isStaffRole } from '@/lib/auth/roles'
 import { getAppOrigin, isPublicSignupAllowed } from '@/lib/env'
 import { getClientIp } from '@/lib/auth/client-ip'
@@ -214,8 +214,7 @@ export async function signUpOwner(input: {
   name: string
   email: string
   password: string
-  hotelName: string
-  hotelAddress?: string
+  organizationName: string
 }): Promise<AuthActionResult> {
   if (!isPublicSignupAllowed()) {
     return {
@@ -266,6 +265,8 @@ export async function signUpOwner(input: {
     mfa_enabled: false,
     mfa_method: null,
     mfa_sms_enabled: false,
+    onboarding_step: 'welcome',
+    onboarding_completed_at: null,
   })
 
   if (profileError) {
@@ -274,52 +275,23 @@ export async function signUpOwner(input: {
     return { success: false, error: 'Could not complete registration. Please try again.' }
   }
 
-  const { data: hotel, error: hotelError } = await admin
-    .from('hotels')
-    .insert({
-      name: parsed.data.hotelName.trim(),
-      address: parsed.data.hotelAddress?.trim() || null,
-      city: 'Accra',
-      region: 'Greater Accra',
-      owner_id: userId,
-    })
-    .select('id')
-    .single()
-
-  if (hotelError || !hotel) {
-    console.error('[signUpOwner] hotel insert failed:', hotelError?.message)
+  const org = await createOrganizationForOwner(userId, parsed.data.organizationName.trim())
+  if (!org) {
     await admin.from('profiles').delete().eq('id', userId)
     await admin.auth.admin.deleteUser(userId)
-
-    const msg = hotelError?.message?.toLowerCase() ?? ''
-    if (msg.includes('owner_id') && (msg.includes('column') || msg.includes('schema cache'))) {
-      return {
-        success: false,
-        error:
-          'Database setup is incomplete. Run Supabase migration 005_owner_properties.sql, then try again.',
-      }
-    }
-    if (msg.includes('violates foreign key') && msg.includes('owner_id')) {
-      return {
-        success: false,
-        error:
-          'Database setup needs an update. Run Supabase migration 006_hotels_owner_auth_users.sql, then try again.',
-      }
-    }
-
-    return { success: false, error: 'Could not create your property. Please try again.' }
+    return { success: false, error: 'Could not create your organization. Please try again.' }
   }
 
-  await seedDefaultRoomCategories(admin, hotel.id)
-
-  const { error: linkError } = await admin
+  const { error: orgLinkError } = await admin
     .from('profiles')
-    .update({ hotel_id: hotel.id })
+    .update({ organization_id: org.organizationId })
     .eq('id', userId)
 
-  if (linkError) {
-    console.error('[signUpOwner] profile link failed:', linkError.message)
-    await admin.from('hotels').delete().eq('id', hotel.id)
+  if (orgLinkError) {
+    console.error('[signUpOwner] org link failed:', orgLinkError.message)
+    await admin.from('organization_members').delete().eq('user_id', userId)
+    await admin.from('subscriptions').delete().eq('organization_id', org.organizationId)
+    await admin.from('organizations').delete().eq('id', org.organizationId)
     await admin.from('profiles').delete().eq('id', userId)
     await admin.auth.admin.deleteUser(userId)
     return { success: false, error: 'Could not complete registration. Please try again.' }
@@ -350,7 +322,7 @@ export async function signUpOwner(input: {
   return {
     success: true,
     role: 'owner',
-    redirectTo: await staffRedirectAfterAuth(ROLE_HOME.owner),
+    redirectTo: '/get-started',
   }
 }
 

@@ -7,6 +7,10 @@ import { ensureGuestPortalSlug } from '@/lib/guest-portal'
 import { ensureDefaultGuestRules } from '@/lib/data/guest-rules'
 import { seedDefaultRoomCategories } from '@/lib/data/room-categories'
 import { getOwnerProperties, ownerOwnsHotel } from '@/lib/data/properties'
+import {
+  countOrganizationProperties,
+  getSubscriptionForOwner,
+} from '@/lib/saas/organization'
 import { createPropertySchema } from '@/lib/validations'
 import {
   PROPERTY_IMAGE_BUCKET,
@@ -27,6 +31,7 @@ function revalidateOwnerViews() {
     '/owner/staff',
     '/owner/billing',
     '/owner/analytics',
+    '/owner/channels',
     '/owner/gra-reports',
     '/owner/settings',
     '/owner/guests',
@@ -43,7 +48,7 @@ async function requireOwner() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('id, role, hotel_id')
+    .select('id, role, hotel_id, organization_id')
     .eq('id', user.id)
     .maybeSingle()
 
@@ -116,6 +121,27 @@ export async function createProperty(input: {
   const { profile, userId } = await requireOwner()
   if (!profile || !userId) return { success: false, error: 'Only owners can add properties.' }
 
+  const sub = await getSubscriptionForOwner(userId)
+  if (sub) {
+    const propertyCount = profile.organization_id
+      ? await countOrganizationProperties(profile.organization_id)
+      : await getOwnerProperties().then((p) => p.length)
+
+    if (propertyCount >= sub.maxProperties) {
+      return {
+        success: false,
+        error: `Your ${sub.plan} plan allows up to ${sub.maxProperties} propert${sub.maxProperties === 1 ? 'y' : 'ies'}. Upgrade to add more.`,
+      }
+    }
+
+    if (parsed.data.totalRooms > sub.maxRoomsPerProperty) {
+      return {
+        success: false,
+        error: `Your plan allows up to ${sub.maxRoomsPerProperty} rooms per property.`,
+      }
+    }
+  }
+
   const admin = createAdminClient()
 
   const { data: hotel, error: hotelError } = await admin
@@ -126,6 +152,7 @@ export async function createProperty(input: {
       city: parsed.data.city.trim(),
       region: parsed.data.region.trim(),
       owner_id: userId,
+      organization_id: profile.organization_id,
     })
     .select('id, name, address, city, region')
     .single()

@@ -5,6 +5,11 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getProfile } from '@/lib/auth/get-profile'
+import {
+  canOwnerEraseGuestData,
+  canStaffExportGuestData,
+  canStaffViewGuestIdDocument,
+} from '@/lib/auth/tenant-access'
 import { writeAuditLog } from '@/lib/audit/log'
 import { GUEST_ID_DOCUMENT_BUCKET } from '@/lib/guest/id-documents'
 
@@ -14,7 +19,7 @@ export type GuestPrivacyResult =
 
 export async function exportGuestData(guestId: string): Promise<GuestPrivacyResult> {
   const profile = await getProfile()
-  if (!profile?.hotel_id || !['owner', 'manager', 'receptionist'].includes(profile.role)) {
+  if (!profile?.hotel_id || !canStaffExportGuestData(profile.role)) {
     return { success: false, error: 'Not authorized.' }
   }
 
@@ -62,7 +67,7 @@ export async function exportGuestData(guestId: string): Promise<GuestPrivacyResu
 
 export async function eraseGuestPersonalData(guestId: string): Promise<GuestPrivacyResult> {
   const profile = await getProfile()
-  if (!profile?.hotel_id || profile.role !== 'owner') {
+  if (!profile?.hotel_id || !canOwnerEraseGuestData(profile.role)) {
     return { success: false, error: 'Only the property owner can erase guest data.' }
   }
 
@@ -117,7 +122,7 @@ export async function getGuestIdDocumentSignedUrl(
   guestId: string,
 ): Promise<GuestPrivacyResult & { url?: string }> {
   const profile = await getProfile()
-  if (!profile?.hotel_id || !['owner', 'manager', 'receptionist'].includes(profile.role)) {
+  if (!profile?.hotel_id || !canStaffViewGuestIdDocument(profile.role)) {
     return { success: false, error: 'Not authorized.' }
   }
 

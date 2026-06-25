@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
 import {
@@ -994,6 +995,16 @@ export function GuestPortal({
           </div>
         )}
       </main>
+
+      <div className="fixed bottom-[4.75rem] left-0 right-0 z-10 flex justify-center gap-3 px-4 pb-1 text-[10px] text-white/35">
+        <Link href="/privacy" className="hover:text-white/60 hover:underline">
+          Privacy
+        </Link>
+        <span aria-hidden="true">·</span>
+        <Link href="/terms" className="hover:text-white/60 hover:underline">
+          Terms
+        </Link>
+      </div>
 
       <nav
         className="guest-portal-nav fixed bottom-0 left-0 right-0 z-20 border-t border-white/10 bg-[#12082a]/90 px-3 backdrop-blur-xl"

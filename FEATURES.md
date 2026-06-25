@@ -22,58 +22,61 @@ Production features shipped beyond the original UI prototype.
 - **Housekeeping** — kanban (desktop + `/mobile/housekeeping`); auto clean task on checkout.
 - **Complaints** — guest submit (or staff log on a guest's behalf) → manager assign → technician invoice → manager approve → work → completion approval → resolved. Owners get a **read-only** lifecycle view at `/owner/complaints`; assigned technicians can call/WhatsApp the guest.
 - **Staff** — invite managers and receptionists by **email**, technicians by **phone**; phone numbers editable on profiles.
-- **Billing / GRA / Analytics** — owner only; invoice numbering, PDF export, tax reports. Managers' dashboard hides revenue metrics.
+- **Billing / GRA / Analytics** — owner only; invoice numbering, PDF export, tax reports, Paystack checkout, partial payments and refunds, payment ledger reconciliation, guest folio posting with checkout rollup, night audit. Managers' dashboard hides revenue metrics.
+- **Guest privacy** — owner export/erase PII; staff signed URL for pre-arrival ID docs with audit log.
+- **Production ops** — health/ready endpoints, Vercel cron (cleanup, notifications, GTA alerts), notification outbox with retries.
 
 ### Notifications and live updates
 
-- **SMS / WhatsApp** — job alerts via Twilio or Hubtel SMS (Ghana); requires phone on profile.
+- **SMS / WhatsApp / Email** — Arkesel or Hubtel SMS; Resend email; fails closed in production when unset.
 - **In-app bell** — check-outs, complaints; refreshes on realtime events.
 - **Realtime** — Supabase Realtime (migration `015`); pages update without manual refresh; toast alerts for new complaints, pending approvals, assignments.
 
 ### What is incomplete
 
-The app is **operationally usable** for a pilot property (staff workflows, billing records, complaints). It is **not yet a full commercial PMS / SaaS**. See also [README.md](README.md) (summary) and [ARCHITECTURE.md](ARCHITECTURE.md) (integrations).
+The app is **production-ready for Ghana hospitality operators** signing up via self-serve trial. Paystack **subscription** billing is not built yet — see [FEATURES.md](FEATURES.md#what-is-incomplete).
 
-#### 1. Payments (largest gap)
+#### 1. Payments (partial)
 
-- Invoices can be created and **marked paid manually** (cash, MoMo, card, etc.).
-- **No** Paystack / Hubtel Pay checkout, webhooks, or guest self-pay.
-- Checkout records payment method; collection is still front-desk / manual.
+- **Paystack** — staff and guest checkout, webhooks, `payment_records` reconciliation (done).
+- **Partial payments & refunds** — staff record partial cash/card payments, full pay, and refunds from billing overview (done).
+- **Not yet:** Hubtel Pay.
 
 #### 2. Distribution
 
-- **No** channel manager or OTA sync (Airbnb, Booking.com, iCal).
-- Dashboard **channel performance** only reports how bookings were labeled — it does not connect to external calendars.
+- **iCal sync** — import Airbnb/Booking.com calendars; export per-room availability feeds; cron sync every 15 min (done).
+- **Not yet:** Airbnb OAuth API, channel manager, two-way rate sync.
 
 #### 3. SaaS productization
 
-- Built for **one owner** adding properties, not multi-tenant org signup.
-- No subscription billing, super-admin console, or self-service beyond owner signup.
+- **Self-serve signup** — landing page, 14-day trial, organization account per owner (done).
+- **Guided onboarding** — `/get-started` wizard: property, compliance, team invite (done).
+- **Plan limits** — trial caps on properties and rooms; plan tab in Settings (done).
+- **Not yet:** Paystack subscription billing, super-admin console.
 
-#### 4. Production hardening
+#### 4. Production hardening (June 2026)
 
 | Area | State |
 |------|--------|
-| Automated tests | Vitest unit tests for roles, validations, phone/E.164, complaint workflow (`npm test`) |
-| Error monitoring (Sentry) | Documented, not wired |
-| Rate limiting | Not on server actions |
-| Pagination | Large tables load in bulk |
-| Password reset | Done — email link flow (`/forgot-password` → `/auth/callback` → `/reset-password`) |
-| 2FA / OAuth | SMS OTP 2FA (required: owner + manager; optional: receptionist + technician). OAuth not implemented |
+| Automated tests | Vitest — 130+ unit/integration tests (`npm test`) |
+| Error monitoring | Sentry via `SENTRY_DSN` (optional envelope reporter) |
+| Rate limiting | Auth, guest portal, MFA verify — DB-backed, fail-closed in prod |
+| Pagination | Default limit 100 on guests, complaints, billing lists |
+| Password reset | Done |
+| 2FA | SMS OTP — **mandatory** owner + manager in production |
+| Guest sessions | HMAC-signed tokens; room + surname entry |
+| Privacy / Terms | `/privacy`, `/terms` published |
+| Migrations | Through `041` — see [DEPLOYMENT.md](DEPLOYMENT.md) |
 
 Realtime updates require an **open browser tab** — not push when the app is closed.
 
 #### 5. Partial features
 
 - **Technician housekeeping** — toast alerts only; no HK screen on `/technician/tasks`.
-- **File storage** — buckets documented; no guest document upload UI.
-- **Email notifications** — SMS/WhatsApp only (Twilio / Hubtel SMS).
-- **Notification log** — written to DB; no delivery review UI.
-- **Audit trail** — complaint timeline only; no global change log.
 
 #### Recommended build order
 
-1. Online payments → 2. OTA / iCal → 3. SaaS onboarding. (Password reset + unit tests: done.)
+Production pilot is feature-complete. Next: Paystack subscription billing, then super-admin if multi-tenant SaaS scale is needed.
 
 ---
 
