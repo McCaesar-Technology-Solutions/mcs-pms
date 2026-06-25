@@ -1,4 +1,5 @@
 import type { UserRole } from '@/types'
+import { isProd } from '@/lib/env'
 
 export type MfaMethod = 'sms' | 'email'
 
@@ -12,8 +13,15 @@ export function canEnrollMfa(role: UserRole): boolean {
   return role === 'owner' || role === 'manager' || role === 'receptionist' || role === 'technician'
 }
 
-/** Whether this account should complete 2FA on login (opt-in only). */
-export function userNeedsMfa(mfaEnabled: boolean): boolean {
+/** Owner/manager must use 2FA in production; other roles opt in via settings. */
+export function roleRequiresMfa(role: UserRole): boolean {
+  if (!isProd()) return false
+  return role === 'owner' || role === 'manager'
+}
+
+/** Whether this account must complete 2FA before using the app. */
+export function userNeedsMfa(role: UserRole, mfaEnabled: boolean): boolean {
+  if (roleRequiresMfa(role)) return true
   return mfaEnabled
 }
 
@@ -58,8 +66,12 @@ export interface MfaStatus {
 }
 
 /** Decide whether the session must finish setup or verify 2FA before proceeding. */
-export function mfaGateForRole(_role: UserRole, status: MfaStatus): MfaGate {
-  if (!status.applies || !status.method) return 'ok'
+export function mfaGateForRole(role: UserRole, status: MfaStatus): MfaGate {
+  const mandatory = roleRequiresMfa(role)
+  if (!status.applies && !mandatory) return 'ok'
+
+  if (mandatory && !status.method) return 'enroll'
+  if (!status.method) return 'ok'
 
   if (status.method === 'sms' && !status.hasPhone) return 'enroll'
   if (status.method === 'email' && !status.hasEmail) return 'enroll'

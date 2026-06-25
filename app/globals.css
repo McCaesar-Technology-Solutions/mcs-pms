@@ -329,6 +329,57 @@
       0 8px 24px rgba(var(--glow-purple), 0.06);
   }
 
+  /* Guest portal — consistent vertical rhythm and safe areas */
+  .guest-portal-shell {
+    padding-bottom: calc(6.5rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .guest-portal-header {
+    position: relative;
+    overflow: hidden;
+    padding-top: max(2.5rem, env(safe-area-inset-top, 0px));
+    padding-right: max(1.25rem, env(safe-area-inset-right, 0px));
+    padding-bottom: 1.5rem;
+    padding-left: max(1.25rem, env(safe-area-inset-left, 0px));
+  }
+
+  .guest-portal-main {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    width: 100%;
+    max-width: 32rem;
+    margin-inline: auto;
+    padding-right: max(1.25rem, env(safe-area-inset-right, 0px));
+    padding-bottom: 2rem;
+    padding-left: max(1.25rem, env(safe-area-inset-left, 0px));
+  }
+
+  .guest-tab-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  @media (min-width: 640px) {
+    .guest-tab-panel {
+      gap: 1.5rem;
+    }
+  }
+
+  .guest-portal-nav {
+    padding-top: 0.75rem;
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
+  }
+
+  .guest-auth-shell {
+    min-height: 100dvh;
+    padding-top: max(2.5rem, env(safe-area-inset-top, 0px));
+    padding-right: max(1.5rem, env(safe-area-inset-right, 0px));
+    padding-bottom: max(2.5rem, env(safe-area-inset-bottom, 0px));
+    padding-left: max(1.5rem, env(safe-area-inset-left, 0px));
+  }
+
   .surface-inset {
     border-radius: calc(var(--radius) - 2px);
     background: rgba(255, 255, 255, 0.72);

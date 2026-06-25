@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { hashSessionKey } from '@/lib/auth/mfa-crypto'
-import { userNeedsMfa, type MfaMethod, type MfaStatus } from '@/lib/auth/mfa'
+import { roleRequiresMfa, userNeedsMfa, type MfaMethod, type MfaStatus } from '@/lib/auth/mfa'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { Database } from '@/lib/supabase/types'
 import type { UserRole } from '@/types'
@@ -21,8 +21,10 @@ export async function buildMfaStatus(
   profile: MfaProfileFields,
 ): Promise<MfaStatus> {
   const enabled = profile.mfa_enabled === true
-  const applies = userNeedsMfa(enabled)
-  const method = applies ? profile.mfa_method : null
+  const applies = userNeedsMfa(profile.role, enabled)
+  const method = applies
+    ? profile.mfa_method ?? (roleRequiresMfa(profile.role) ? null : null)
+    : null
   const hasPhone = Boolean(profile.phone?.trim())
   const hasEmail = Boolean(profile.email?.trim())
   const hasTotp = Boolean(profile.mfa_totp_secret?.trim())

@@ -30,6 +30,12 @@ export type Database = {
           notification_email_prefs: Json
           notification_from_email: string | null
           guest_rules_version: number
+          guest_portal_wifi_ssid: string | null
+          guest_portal_wifi_password: string | null
+          guest_portal_parking: string | null
+          guest_portal_emergency_phone: string | null
+          guest_portal_check_out_time: string | null
+          guest_portal_welcome: string | null
           created_at: string | null
         }
         Insert: {
@@ -52,6 +58,12 @@ export type Database = {
           notification_email_prefs?: Json
           notification_from_email?: string | null
           guest_rules_version?: number
+          guest_portal_wifi_ssid?: string | null
+          guest_portal_wifi_password?: string | null
+          guest_portal_parking?: string | null
+          guest_portal_emergency_phone?: string | null
+          guest_portal_check_out_time?: string | null
+          guest_portal_welcome?: string | null
           created_at?: string | null
         }
         Update: {
@@ -74,6 +86,12 @@ export type Database = {
           notification_email_prefs?: Json
           notification_from_email?: string | null
           guest_rules_version?: number
+          guest_portal_wifi_ssid?: string | null
+          guest_portal_wifi_password?: string | null
+          guest_portal_parking?: string | null
+          guest_portal_emergency_phone?: string | null
+          guest_portal_check_out_time?: string | null
+          guest_portal_welcome?: string | null
           created_at?: string | null
         }
         Relationships: [
@@ -287,6 +305,132 @@ export type Database = {
           },
         ]
       }
+      hotel_local_guide: {
+        Row: {
+          id: string
+          hotel_id: string
+          title: string
+          body: string
+          sort_order: number
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          hotel_id: string
+          title: string
+          body: string
+          sort_order?: number
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          hotel_id?: string
+          title?: string
+          body?: string
+          sort_order?: number
+          created_at?: string | null
+        }
+        Relationships: []
+      }
+      guest_requests: {
+        Row: {
+          id: string
+          hotel_id: string
+          guest_id: string
+          room_id: string | null
+          request_type: 'housekeeping' | 'late_checkout' | 'extension' | 'self_checkout'
+          note: string | null
+          status: 'pending' | 'acknowledged' | 'completed' | 'declined'
+          requested_date: string | null
+          requested_time: string | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          hotel_id: string
+          guest_id: string
+          room_id?: string | null
+          request_type: 'housekeeping' | 'late_checkout' | 'extension' | 'self_checkout'
+          note?: string | null
+          status?: 'pending' | 'acknowledged' | 'completed' | 'declined'
+          requested_date?: string | null
+          requested_time?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          hotel_id?: string
+          guest_id?: string
+          room_id?: string | null
+          request_type?: 'housekeeping' | 'late_checkout' | 'extension' | 'self_checkout'
+          note?: string | null
+          status?: 'pending' | 'acknowledged' | 'completed' | 'declined'
+          requested_date?: string | null
+          requested_time?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      guest_feedback: {
+        Row: {
+          id: string
+          hotel_id: string
+          guest_id: string
+          complaint_id: string | null
+          rating: number
+          comment: string | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          hotel_id: string
+          guest_id: string
+          complaint_id?: string | null
+          rating: number
+          comment?: string | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          hotel_id?: string
+          guest_id?: string
+          complaint_id?: string | null
+          rating?: number
+          comment?: string | null
+          created_at?: string | null
+        }
+        Relationships: []
+      }
+      complaint_messages: {
+        Row: {
+          id: string
+          complaint_id: string
+          author_role: 'guest' | 'staff'
+          author_id: string | null
+          body: string
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          complaint_id: string
+          author_role: 'guest' | 'staff'
+          author_id?: string | null
+          body: string
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          complaint_id?: string
+          author_role?: 'guest' | 'staff'
+          author_id?: string | null
+          body?: string
+          created_at?: string | null
+        }
+        Relationships: []
+      }
       guests: {
         Row: {
           id: string
@@ -301,6 +445,14 @@ export type Database = {
           check_in: string | null
           check_out: string | null
           guest_rules_accepted_version: number | null
+          do_not_disturb: boolean
+          guest_photo_path: string | null
+          guest_photo_mime: string | null
+          pre_arrival_eta: string | null
+          pre_arrival_notes: string | null
+          pre_arrival_id_path: string | null
+          pre_arrival_id_mime: string | null
+          pre_arrival_submitted_at: string | null
           enrolled_by: string | null
           created_at: string | null
         }
@@ -317,6 +469,14 @@ export type Database = {
           check_in?: string | null
           check_out?: string | null
           guest_rules_accepted_version?: number | null
+          do_not_disturb?: boolean
+          guest_photo_path?: string | null
+          guest_photo_mime?: string | null
+          pre_arrival_eta?: string | null
+          pre_arrival_notes?: string | null
+          pre_arrival_id_path?: string | null
+          pre_arrival_id_mime?: string | null
+          pre_arrival_submitted_at?: string | null
           enrolled_by?: string | null
           created_at?: string | null
         }
@@ -333,6 +493,14 @@ export type Database = {
           check_in?: string | null
           check_out?: string | null
           guest_rules_accepted_version?: number | null
+          do_not_disturb?: boolean
+          guest_photo_path?: string | null
+          guest_photo_mime?: string | null
+          pre_arrival_eta?: string | null
+          pre_arrival_notes?: string | null
+          pre_arrival_id_path?: string | null
+          pre_arrival_id_mime?: string | null
+          pre_arrival_submitted_at?: string | null
           enrolled_by?: string | null
           created_at?: string | null
         }
@@ -355,7 +523,7 @@ export type Database = {
           guest_name: string
           check_in: string
           check_out: string
-          status: 'confirmed' | 'checked_in' | 'checked_out' | 'cancelled' | null
+          status: 'confirmed' | 'checked_in' | 'checked_out' | 'cancelled' | 'no_show' | null
           channel: 'airbnb' | 'booking_com' | 'direct' | 'walk_in' | 'other' | null
           rate_type: 'nightly' | 'monthly' | null
           nightly_rate: number | null
@@ -372,7 +540,7 @@ export type Database = {
           guest_name: string
           check_in: string
           check_out: string
-          status?: 'confirmed' | 'checked_in' | 'checked_out' | 'cancelled' | null
+          status?: 'confirmed' | 'checked_in' | 'checked_out' | 'cancelled' | 'no_show' | null
           channel?: 'airbnb' | 'booking_com' | 'direct' | 'walk_in' | 'other' | null
           rate_type?: 'nightly' | 'monthly' | null
           nightly_rate?: number | null
@@ -389,7 +557,7 @@ export type Database = {
           guest_name?: string
           check_in?: string
           check_out?: string
-          status?: 'confirmed' | 'checked_in' | 'checked_out' | 'cancelled' | null
+          status?: 'confirmed' | 'checked_in' | 'checked_out' | 'cancelled' | 'no_show' | null
           channel?: 'airbnb' | 'booking_com' | 'direct' | 'walk_in' | 'other' | null
           rate_type?: 'nightly' | 'monthly' | null
           nightly_rate?: number | null
@@ -441,6 +609,9 @@ export type Database = {
           rejection_note: string | null
           submitted_at: string | null
           resolved_at: string | null
+          sla_due_at: string | null
+          guest_photo_path: string | null
+          guest_photo_mime: string | null
         }
         Insert: {
           id?: string
@@ -474,6 +645,9 @@ export type Database = {
           rejection_note?: string | null
           submitted_at?: string | null
           resolved_at?: string | null
+          sla_due_at?: string | null
+          guest_photo_path?: string | null
+          guest_photo_mime?: string | null
         }
         Update: {
           id?: string
@@ -507,6 +681,9 @@ export type Database = {
           rejection_note?: string | null
           submitted_at?: string | null
           resolved_at?: string | null
+          sla_due_at?: string | null
+          guest_photo_path?: string | null
+          guest_photo_mime?: string | null
         }
         Relationships: [
           {
@@ -514,6 +691,20 @@ export type Database = {
             columns: ['hotel_id']
             isOneToOne: false
             referencedRelation: 'hotels'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'complaints_room_id_fkey'
+            columns: ['room_id']
+            isOneToOne: false
+            referencedRelation: 'rooms'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'complaints_guest_id_fkey'
+            columns: ['guest_id']
+            isOneToOne: false
+            referencedRelation: 'guests'
             referencedColumns: ['id']
           },
         ]
@@ -770,6 +961,13 @@ export type Database = {
             referencedRelation: 'hotels'
             referencedColumns: ['id']
           },
+          {
+            foreignKeyName: 'invoices_reservation_id_fkey'
+            columns: ['reservation_id']
+            isOneToOne: false
+            referencedRelation: 'reservations'
+            referencedColumns: ['id']
+          },
         ]
       }
       housekeeping_tasks: {
@@ -843,6 +1041,7 @@ export type Database = {
           token: string
           accepted: boolean | null
           created_at: string | null
+          expires_at: string | null
         }
         Insert: {
           id?: string
@@ -854,6 +1053,7 @@ export type Database = {
           token?: string
           accepted?: boolean | null
           created_at?: string | null
+          expires_at?: string | null
         }
         Update: {
           id?: string
@@ -865,6 +1065,7 @@ export type Database = {
           token?: string
           accepted?: boolean | null
           created_at?: string | null
+          expires_at?: string | null
         }
         Relationships: [
           {
@@ -1042,6 +1243,195 @@ export type Database = {
             referencedColumns: ['id']
           },
         ]
+      }
+      action_rate_limits: {
+        Row: { id: string; rate_key: string; created_at: string | null }
+        Insert: { id?: string; rate_key: string; created_at?: string | null }
+        Update: { id?: string; rate_key?: string; created_at?: string | null }
+        Relationships: []
+      }
+      guest_charges: {
+        Row: {
+          id: string
+          hotel_id: string
+          guest_id: string
+          reservation_id: string | null
+          description: string
+          amount: number
+          charge_type: 'room' | 'incidental' | 'tax' | 'deposit' | 'adjustment'
+          posted_by: string | null
+          invoice_id: string | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          hotel_id: string
+          guest_id: string
+          reservation_id?: string | null
+          description: string
+          amount: number
+          charge_type?: 'room' | 'incidental' | 'tax' | 'deposit' | 'adjustment'
+          posted_by?: string | null
+          invoice_id?: string | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          hotel_id?: string
+          guest_id?: string
+          reservation_id?: string | null
+          description?: string
+          amount?: number
+          charge_type?: 'room' | 'incidental' | 'tax' | 'deposit' | 'adjustment'
+          posted_by?: string | null
+          invoice_id?: string | null
+          created_at?: string | null
+        }
+        Relationships: []
+      }
+      night_audits: {
+        Row: {
+          id: string
+          hotel_id: string
+          business_date: string
+          closed_by: string | null
+          rooms_occupied: number
+          rooms_available: number
+          arrivals: number
+          departures: number
+          revenue_posted: number
+          notes: string | null
+          closed_at: string | null
+        }
+        Insert: {
+          id?: string
+          hotel_id: string
+          business_date: string
+          closed_by?: string | null
+          rooms_occupied?: number
+          rooms_available?: number
+          arrivals?: number
+          departures?: number
+          revenue_posted?: number
+          notes?: string | null
+          closed_at?: string | null
+        }
+        Update: {
+          id?: string
+          hotel_id?: string
+          business_date?: string
+          closed_by?: string | null
+          rooms_occupied?: number
+          rooms_available?: number
+          arrivals?: number
+          departures?: number
+          revenue_posted?: number
+          notes?: string | null
+          closed_at?: string | null
+        }
+        Relationships: []
+      }
+      payment_records: {
+        Row: {
+          id: string
+          hotel_id: string
+          invoice_id: string | null
+          guest_id: string | null
+          provider: 'paystack' | 'hubtel' | 'manual'
+          provider_reference: string | null
+          amount: number
+          currency: string
+          status: 'pending' | 'success' | 'failed' | 'refunded'
+          metadata: Json | null
+          idempotency_key: string | null
+          created_at: string | null
+          completed_at: string | null
+        }
+        Insert: {
+          id?: string
+          hotel_id: string
+          invoice_id?: string | null
+          guest_id?: string | null
+          provider: 'paystack' | 'hubtel' | 'manual'
+          provider_reference?: string | null
+          amount: number
+          currency?: string
+          status?: 'pending' | 'success' | 'failed' | 'refunded'
+          metadata?: Json | null
+          idempotency_key?: string | null
+          created_at?: string | null
+          completed_at?: string | null
+        }
+        Update: {
+          id?: string
+          hotel_id?: string
+          invoice_id?: string | null
+          guest_id?: string | null
+          provider?: 'paystack' | 'hubtel' | 'manual'
+          provider_reference?: string | null
+          amount?: number
+          currency?: string
+          status?: 'pending' | 'success' | 'failed' | 'refunded'
+          metadata?: Json | null
+          idempotency_key?: string | null
+          created_at?: string | null
+          completed_at?: string | null
+        }
+        Relationships: []
+      }
+      notification_outbox: {
+        Row: {
+          id: string
+          hotel_id: string | null
+          channel: 'sms' | 'email' | 'whatsapp'
+          recipient: string
+          template_key: string
+          payload: Json
+          idempotency_key: string | null
+          status: 'pending' | 'processing' | 'sent' | 'failed' | 'dead'
+          attempts: number
+          max_attempts: number
+          next_retry_at: string | null
+          last_error: string | null
+          provider_id: string | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          hotel_id?: string | null
+          channel: 'sms' | 'email' | 'whatsapp'
+          recipient: string
+          template_key: string
+          payload: Json
+          idempotency_key?: string | null
+          status?: 'pending' | 'processing' | 'sent' | 'failed' | 'dead'
+          attempts?: number
+          max_attempts?: number
+          next_retry_at?: string | null
+          last_error?: string | null
+          provider_id?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          hotel_id?: string | null
+          channel?: 'sms' | 'email' | 'whatsapp'
+          recipient?: string
+          template_key?: string
+          payload?: Json
+          idempotency_key?: string | null
+          status?: 'pending' | 'processing' | 'sent' | 'failed' | 'dead'
+          attempts?: number
+          max_attempts?: number
+          next_retry_at?: string | null
+          last_error?: string | null
+          provider_id?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
       }
     }
     Views: Record<string, never>

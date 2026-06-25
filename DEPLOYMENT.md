@@ -73,8 +73,18 @@ NEXT_PUBLIC_APP_URL=https://yourdomain.com
 # NOTIFICATION_CHANNELS=sms,whatsapp
 # MFA_OTP_SECRET=long-random-string
 
-# Payments (not yet integrated)
-# PAYSTACK_SECRET_KEY=sk_live_...
+# Payments (Paystack — Ghana)
+PAYSTACK_SECRET_KEY=sk_live_...
+# Optional public key for future client-side embeds
+# NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY=pk_live_...
+
+# Production hardening (required in production)
+MFA_OTP_SECRET=long-random-string
+GUEST_SESSION_SECRET=long-random-string
+CRON_SECRET=long-random-string-for-vercel-cron
+
+# Error monitoring (recommended)
+# SENTRY_DSN=https://...@sentry.io/...
 ```
 
 ### Setting Environment Variables in Vercel
@@ -101,7 +111,7 @@ NEXT_PUBLIC_APP_URL=https://yourdomain.com
 
 ### 2. Schema and migrations
 
-Migrations live in `supabase/migrations/` (`001` through `018`). Every tenant table has RLS enabled.
+Migrations live in `supabase/migrations/` (`001` through `038`). Every tenant table has RLS enabled.
 
 | Migration | Purpose |
 |-----------|---------|
@@ -119,6 +129,10 @@ Migrations live in `supabase/migrations/` (`001` through `018`). Every tenant ta
 | `017` | `REPLICA IDENTITY FULL` for richer realtime UPDATE payloads |
 | `018` | Receptionist role: role constraints + front-desk RLS policies |
 | `019` | SMS OTP two-factor authentication tables + `profiles.mfa_sms_enabled` |
+| `020`–`037` | Guest portal, complaints, housekeeping, GRA, portal phase 2 |
+| **`038`** | **Production hardening**: rate-limit RLS, invite expiry, manager invoice read-only, guest folio, night audit, payment records, notification outbox, complaint SLA, `no_show` status |
+
+**Apply migration `038` before production go-live.**
 
 **Fresh database** — Supabase CLI:
 
@@ -186,6 +200,27 @@ Requirements:
 - Set **`MFA_OTP_SECRET`** in production (random string; used to hash codes and session keys).
 - **Dev without SMS:** codes are logged to the terminal and shown on the verify screen when no SMS provider is configured.
 - Flow: sign in → add phone if missing (`/enroll-mfa`) → enter SMS code (`/verify-mfa`) → dashboard.
+- **Owner and manager MFA is mandatory in production** (`NODE_ENV=production`).
+
+### 7. Vercel Cron jobs
+
+Configure `CRON_SECRET` in Vercel env vars. Vercel Cron sends `Authorization: Bearer <CRON_SECRET>` to:
+
+| Route | Schedule | Purpose |
+|-------|----------|---------|
+| `/api/cron/cleanup` | Daily 03:00 UTC | Purge stale rate limits and MFA challenges |
+| `/api/cron/notifications` | Every 5 min | Drain notification outbox |
+| `/api/cron/compliance` | Daily 08:00 UTC | GTA license expiry alerts to owners |
+
+### 8. Paystack webhooks
+
+1. In Paystack Dashboard → Settings → Webhooks, set URL to `https://yourdomain.com/api/webhooks/paystack`
+2. Set `PAYSTACK_SECRET_KEY` in Vercel (server-only)
+3. Guest and staff checkout use Paystack Initialize; webhook confirms payment and marks invoices paid
+
+### 9. Production seed policy
+
+**Never run `npm run seed` in production.** The seed script exits when `NODE_ENV=production`. Create the owner account via controlled signup (`ALLOW_PUBLIC_SIGNUP=true` only if needed) or Supabase Auth admin.
 
 ## Authentication Setup
 
@@ -447,16 +482,17 @@ git push origin v1.0.0
 
 ## Security Checklist
 
-- [ ] Set NEXTAUTH_SECRET to random 32-character string
-- [ ] Configure CORS for API endpoints
+- [ ] Apply migration `038` on Supabase
+- [ ] Set `MFA_OTP_SECRET`, `GUEST_SESSION_SECRET`, `CRON_SECRET`
+- [ ] Set `NEXT_PUBLIC_APP_URL` to production domain
+- [ ] Configure SMS (Arkesel) or email (Resend) provider
+- [ ] Set `PAYSTACK_SECRET_KEY` and register webhook URL
+- [ ] Disable public signup unless required (`ALLOW_PUBLIC_SIGNUP`)
+- [ ] Never run seed script against production database
 - [ ] Enable HTTPS (automatic on Vercel)
-- [ ] Set security headers in next.config.js
-- [ ] Validate all user inputs server-side
-- [ ] Use parameterized queries to prevent SQL injection
-- [ ] Rate limit API endpoints
-- [ ] Implement request signing for webhooks
-- [ ] Regularly rotate API keys
-- [ ] Monitor for suspicious activity with Sentry
+- [ ] Set security headers in next.config.mjs
+- [ ] Configure `SENTRY_DSN` for error monitoring
+- [ ] Verify `/api/health` and `/api/ready` after deploy
 
 ## Troubleshooting
 
@@ -515,10 +551,10 @@ Set up alerts in Vercel for:
 
 ### Current Capacity
 
-With mock data:
-- 1000+ concurrent users
-- Unlimited API calls
-- Instant page loads
+Production deployment targets a single property with Supabase Pro recommended for:
+- Realtime subscriptions across staff dashboards
+- Point-in-time recovery and connection pooling
+- Storage for guest ID documents and invoice PDFs
 
 ### When Adding Database
 

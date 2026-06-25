@@ -28,6 +28,7 @@ import {
 } from '@/lib/guest/complaint-photos'
 import { notifyGuestRequestCreated } from '@/lib/notifications/guest-requests'
 import { loadGuestPortalContext } from '@/lib/data/guest-portal'
+import { getClientIp } from '@/lib/auth/client-ip'
 import {
   assertRateLimit,
   GUEST_RATE_LIMITS,
@@ -61,8 +62,16 @@ export async function enterGuestPortalByRoom(input: unknown): Promise<GuestPorta
     return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid entry.' }
   }
 
+  const ip = await getClientIp()
+  const ipLimit = await assertRateLimit(
+    ipRateKey('portal-entry-ip', ip),
+    GUEST_RATE_LIMITS.portalEntryIp,
+    'Too many sign-in attempts. Please wait a few minutes.',
+  )
+  if (ipLimit) return { success: false, error: ipLimit }
+
   const entryLimit = await assertRateLimit(
-    ipRateKey('portal-entry', `${parsed.data.slug}:${parsed.data.roomNumber}`),
+    ipRateKey('portal-entry', `${parsed.data.slug}:${parsed.data.roomNumber}:${ip}`),
     GUEST_RATE_LIMITS.portalEntry,
     'Too many sign-in attempts. Please wait a few minutes.',
   )
@@ -92,7 +101,11 @@ export async function enterGuestPortalByRoom(input: unknown): Promise<GuestPorta
     }
   }
 
-  const match = await findActiveGuestForRoom(hotel.id, parsed.data.roomNumber)
+  const match = await findActiveGuestForRoom(
+    hotel.id,
+    parsed.data.roomNumber,
+    parsed.data.guestLastName,
+  )
   if (!match) {
     return {
       success: false,
@@ -160,8 +173,11 @@ export async function getStaffPropertyPortalInfo(): Promise<
 
 async function requireGuestWithRules() {
   const session = await getGuestFromSession()
-  if (!session.success || !session.data) {
+  if (!session.success) {
     return { ok: false as const, error: session.error ?? 'Not authorized.' }
+  }
+  if (!session.data) {
+    return { ok: false as const, error: 'Not authorized.' }
   }
   if (await guestNeedsRulesAcceptance(session.data.guest.id)) {
     return { ok: false as const, error: 'Please accept the property rules to continue.' }
@@ -333,7 +349,7 @@ export async function getComplaintMessages(
         id: m.id,
         authorRole: m.author_role,
         body: m.body,
-        createdAt: m.created_at,
+        createdAt: m.created_at ?? new Date(0).toISOString(),
       })),
     },
   }
@@ -515,7 +531,7 @@ export async function getGuestInvoiceReceiptExport(
     vat_mode: 'exclusive' | 'inclusive' | null
   } | null
 
-  const reservation = row.reservations as {
+  const reservation = row.reservations as unknown as {
     check_in: string
     check_out: string
     rooms?: { number: string } | null
@@ -624,8 +640,11 @@ export async function emailGuestInvoiceReceiptAction(
   if (!auth.ok) return { success: false, error: auth.error }
 
   const receipt = await getGuestInvoiceReceiptExport(invoiceId)
-  if (!receipt.success || !receipt.data) {
+  if (!receipt.success) {
     return { success: false, error: receipt.error ?? 'Could not load receipt.' }
+  }
+  if (!receipt.data) {
+    return { success: false, error: 'Could not load receipt.' }
   }
 
   const result = await emailGuestInvoiceReceipt(auth.guest.id, {

@@ -1,11 +1,9 @@
 /** Edge- and Node-compatible HMAC helpers (no `node:crypto`). */
 
+import { getMfaOtpSecret } from '@/lib/env'
+
 function mfaSecret(): string {
-  return (
-    process.env.MFA_OTP_SECRET ??
-    process.env.SUPABASE_SERVICE_ROLE_KEY ??
-    'dev-only-mfa-secret-change-me'
-  )
+  return getMfaOtpSecret()
 }
 
 function bufferToHex(buffer: ArrayBuffer): string {

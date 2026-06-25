@@ -7,7 +7,14 @@ import {
   STAFF_ROLES,
 } from '@/lib/auth/roles'
 import { legacyPathForRole } from '@/lib/auth/legacy-redirect'
-import { isMfaPath } from '@/lib/auth/mfa'
+import {
+  isMfaPath,
+  mfaGateForRole,
+  mfaRedirectPath,
+  type MfaMethod,
+} from '@/lib/auth/mfa'
+import { buildMfaStatus } from '@/lib/auth/mfa-status'
+import { mfaRedirectIfNeeded } from '@/lib/auth/mfa-server'
 import type { Database } from '@/lib/supabase/types'
 import type { UserRole } from '@/types'
 
@@ -27,9 +34,35 @@ const LEGACY_STAFF_PATHS = [
   '/settings',
 ]
 
+async function loadStaffProfile(supabase: ReturnType<typeof createServerClient<Database>>, userId: string) {
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role, is_active, phone, email, mfa_enabled, mfa_method, mfa_totp_secret')
+    .eq('id', userId)
+    .maybeSingle()
+
+  if (!profile?.role) return null
+
+  return {
+    role: profile.role as UserRole,
+    is_active: profile.is_active,
+    phone: profile.phone,
+    email: profile.email,
+    mfa_enabled: profile.mfa_enabled,
+    mfa_method: profile.mfa_method as MfaMethod | null,
+    mfa_totp_secret: profile.mfa_totp_secret,
+  }
+}
+
 export async function updateSession(request: NextRequest) {
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+  const { pathname } = request.nextUrl
+
+  if (pathname.startsWith('/api/health') || pathname.startsWith('/api/ready')) {
     return NextResponse.next({ request })
+  }
+
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    return new NextResponse('Service misconfigured', { status: 503 })
   }
 
   let supabaseResponse = NextResponse.next({ request })
@@ -55,15 +88,10 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const { pathname } = request.nextUrl
-
   if (pathname.startsWith(GUEST_PREFIX)) {
     return supabaseResponse
   }
 
-  // Password-recovery flow: the callback exchanges a code for a (recovery)
-  // session, and the reset page must stay reachable while that session is
-  // active — so never redirect these away based on auth state.
   if (pathname.startsWith('/auth/') || pathname === '/reset-password') {
     return supabaseResponse
   }
@@ -72,30 +100,44 @@ export async function updateSession(request: NextRequest) {
     if (!user) {
       return NextResponse.redirect(new URL('/login', request.url))
     }
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .maybeSingle()
 
-    const home =
-      profile?.role && isStaffRole(profile.role)
-        ? ROLE_HOME[profile.role as UserRole]
-        : '/owner/dashboard'
-    return NextResponse.redirect(new URL(home, request.url))
+    const profile = await loadStaffProfile(supabase, user.id)
+    if (!profile || profile.is_active === false) {
+      return NextResponse.redirect(new URL('/login', request.url))
+    }
+
+    const status = await buildMfaStatus(supabase, user.id, profile)
+    const gate = mfaGateForRole(profile.role, status)
+
+    if (gate === 'verify' && pathname.startsWith('/verify-mfa')) {
+      return supabaseResponse
+    }
+    if (gate === 'enroll' && pathname.startsWith('/enroll-mfa')) {
+      return supabaseResponse
+    }
+    if (gate === 'ok') {
+      return NextResponse.redirect(new URL(ROLE_HOME[profile.role], request.url))
+    }
+
+    const target = mfaRedirectPath(profile.role, status, ROLE_HOME[profile.role])
+    return NextResponse.redirect(new URL(target, request.url))
   }
 
   if (PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
     if (user) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role, is_active')
-        .eq('id', user.id)
-        .maybeSingle()
-
-      if (profile?.is_active !== false && isStaffRole(profile?.role)) {
-        const home = ROLE_HOME[profile.role]
-        return NextResponse.redirect(new URL(home, request.url))
+      const profile = await loadStaffProfile(supabase, user.id)
+      if (profile?.is_active !== false && profile && isStaffRole(profile.role)) {
+        const mfaTarget = await mfaRedirectIfNeeded(
+          supabase,
+          user.id,
+          profile,
+          ROLE_HOME[profile.role],
+          request.url,
+        )
+        if (mfaTarget) {
+          return NextResponse.redirect(mfaTarget)
+        }
+        return NextResponse.redirect(new URL(ROLE_HOME[profile.role], request.url))
       }
     }
     return supabaseResponse
@@ -112,13 +154,8 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(loginUrl)
     }
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role, is_active')
-      .eq('id', user.id)
-      .maybeSingle()
-
-    if (profile?.is_active !== false && profile?.role && isStaffRole(profile.role)) {
+    const profile = await loadStaffProfile(supabase, user.id)
+    if (profile?.is_active !== false && profile && isStaffRole(profile.role)) {
       const target = legacyPathForRole(pathname, profile.role)
       return NextResponse.redirect(new URL(target, request.url))
     }
@@ -133,11 +170,7 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(loginUrl)
     }
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role, is_active, phone, mfa_enabled, mfa_method, mfa_totp_secret')
-      .eq('id', user.id)
-      .maybeSingle()
+    const profile = await loadStaffProfile(supabase, user.id)
 
     if (!profile || profile.is_active === false) {
       await supabase.auth.signOut()
@@ -150,17 +183,25 @@ export async function updateSession(request: NextRequest) {
       if (!STAFF_ROLES.includes(profile.role)) {
         return NextResponse.redirect(new URL('/login', request.url))
       }
-      return supabaseResponse
-    }
-
-    if (profile.role !== required) {
+    } else if (profile.role !== required) {
       if (isStaffRole(profile.role)) {
         return NextResponse.redirect(new URL(ROLE_HOME[profile.role], request.url))
       }
       return NextResponse.redirect(new URL('/login', request.url))
     }
 
-    // 2FA is opt-in in Settings — never block navigation here (login/sign-up must stay clean).
+    const mfaTarget = await mfaRedirectIfNeeded(
+      supabase,
+      user.id,
+      profile,
+      pathname,
+      request.url,
+    )
+    if (mfaTarget) {
+      return NextResponse.redirect(mfaTarget)
+    }
+
+    return supabaseResponse
   }
 
   if (
@@ -173,6 +214,20 @@ export async function updateSession(request: NextRequest) {
       const loginUrl = new URL('/login', request.url)
       loginUrl.searchParams.set('next', pathname)
       return NextResponse.redirect(loginUrl)
+    }
+
+    const profile = await loadStaffProfile(supabase, user.id)
+    if (profile && profile.is_active !== false) {
+      const mfaTarget = await mfaRedirectIfNeeded(
+        supabase,
+        user.id,
+        profile,
+        pathname,
+        request.url,
+      )
+      if (mfaTarget) {
+        return NextResponse.redirect(mfaTarget)
+      }
     }
   }
 

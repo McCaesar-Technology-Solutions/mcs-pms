@@ -6,11 +6,12 @@ import { guestNeedsRulesAcceptance } from '@/app/actions/guest-rules'
 import { getGuestPropertyContacts } from '@/lib/data/contacts'
 import { getHotelGuestRules } from '@/lib/data/guest-rules'
 import { loadGuestPortalContext } from '@/lib/data/guest-portal'
+import { isPaystackConfigured } from '@/lib/payments/paystack'
 
 export default async function GuestPage({
   searchParams,
 }: {
-  searchParams: Promise<{ token?: string; error?: string }>
+  searchParams: Promise<{ token?: string; error?: string; paid?: string; payment_error?: string }>
 }) {
   const params = await searchParams
 
@@ -53,6 +54,9 @@ export default async function GuestPage({
       roomNumber={session.data.roomNumber}
       propertyContacts={propertyContacts}
       context={context}
+      paystackEnabled={isPaystackConfigured()}
+      paymentNotice={params.paid ? 'paid' : params.payment_error ? 'error' : undefined}
+      paymentError={params.payment_error}
     />
   )
 }

@@ -1,3 +1,4 @@
+import { isProd } from '@/lib/env'
 import { Resend } from 'resend'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { isEmailConfigured, resolveEmailFromForHotel } from '@/lib/notifications/email-provider'
@@ -75,6 +76,16 @@ export async function sendToEmail(
   }
 
   if (!isEmailConfigured()) {
+    if (isProd()) {
+      const failed: EmailSendResult = {
+        success: false,
+        error: 'Email provider is not configured',
+      }
+      if (opts.hotelId) {
+        await logEmailNotification(opts, email, text, { ...failed, status: 'failed' })
+      }
+      return failed
+    }
     if (process.env.NODE_ENV === 'development') {
       console.info(`[email:${opts.templateKey}] → ${email}\n${text}`)
     }

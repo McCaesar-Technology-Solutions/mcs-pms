@@ -154,7 +154,7 @@ export async function loadGuestPortalContext(guest: Guest): Promise<GuestPortalC
           requestType: row.request_type as GuestPortalRequest['requestType'],
           note: row.note,
           status: row.status,
-          createdAt: row.created_at,
+          createdAt: row.created_at ?? new Date(0).toISOString(),
         })),
     hasFeedback: feedbackRes.error ? false : (feedbackRes.data?.length ?? 0) > 0,
     preArrival: {
@@ -191,7 +191,7 @@ export async function loadHotelGuestRequests(hotelId: string): Promise<GuestRequ
       requestType: row.request_type as GuestPortalRequest['requestType'],
       note: row.note,
       status: row.status,
-      createdAt: row.created_at,
+      createdAt: row.created_at ?? new Date(0).toISOString(),
       guestName: guest,
       roomNumber: room,
     }

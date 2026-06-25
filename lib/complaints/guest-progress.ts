@@ -38,7 +38,7 @@ export function buildGuestRepairSteps(complaint: Complaint): GuestRepairStep[] {
   const workCurrent =
     !workDone &&
     !rejected &&
-    (status === 'in_progress' || (assignedDone && hasVisit))
+    ((status as Complaint['status']) === 'in_progress' || (assignedDone && hasVisit))
 
   const signoffDone = resolved || guestSignedOff
   const signoffCurrent = pendingGuestSignoff && !guestSignedOff

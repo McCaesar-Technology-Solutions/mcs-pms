@@ -1,3 +1,4 @@
+import { isProd } from '@/lib/env'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { toE164 } from '@/lib/notifications/e164'
 import {
@@ -262,6 +263,17 @@ export async function sendToPhone(
   }
 
   if (!isConfigured()) {
+    if (isProd()) {
+      const failed: SendResult = {
+        channel: 'sms',
+        success: false,
+        error: 'SMS provider is not configured',
+      }
+      if (opts.hotelId) {
+        await logNotification(opts, e164, 'sms', body, failed)
+      }
+      return [failed]
+    }
     if (process.env.NODE_ENV === 'development') {
       console.info(`[notify:${opts.templateKey}] → ${e164}: ${body}`)
     }

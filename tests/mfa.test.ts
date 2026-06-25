@@ -10,9 +10,9 @@ import {
 import { hashOtp, hashSessionKey } from '@/lib/auth/mfa-sms'
 
 describe('userNeedsMfa', () => {
-  it('only applies when the user opted in', () => {
-    expect(userNeedsMfa(false)).toBe(false)
-    expect(userNeedsMfa(true)).toBe(true)
+  it('applies when opted in for non-privileged roles', () => {
+    expect(userNeedsMfa('technician', false)).toBe(false)
+    expect(userNeedsMfa('technician', true)).toBe(true)
   })
 })
 

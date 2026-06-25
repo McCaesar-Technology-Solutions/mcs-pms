@@ -75,7 +75,7 @@ export function buildTechnicianJobSteps(complaint: Complaint): TechnicianJobStep
     !workStarted &&
     !rejected &&
     hasVisit &&
-    (status === 'assigned' || status === 'in_progress')
+    (status === 'assigned' || (status as Complaint['status']) === 'in_progress')
 
   const submittedDone = pending || resolved
   const submittedCurrent = canMarkComplete(complaint) && !pending && !resolved

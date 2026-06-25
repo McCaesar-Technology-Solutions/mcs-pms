@@ -8,7 +8,7 @@ import {
 
 describe('signInSchema', () => {
   it('accepts a valid email + password', () => {
-    expect(signInSchema.safeParse({ email: 'a@b.com', password: 'secret1' }).success).toBe(true)
+    expect(signInSchema.safeParse({ email: 'a@b.com', password: 'secret12' }).success).toBe(true)
   })
 
   it('rejects bad email or short password', () => {

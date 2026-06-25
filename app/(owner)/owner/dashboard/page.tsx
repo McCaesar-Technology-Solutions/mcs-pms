@@ -13,15 +13,22 @@ import { getDashboardData } from '@/lib/data/dashboard'
 import { loadHotelGuestFeedback } from '@/lib/data/guest-feedback'
 import { getHousekeepingTasks } from '@/lib/data/housekeeping'
 import { computeChannelPerformance, computeGraSummary } from '@/lib/data/overview'
+import { getRecentNightAudits } from '@/app/actions/night-audit'
+import { NightAuditPanel } from '@/components/dashboard/night-audit-panel'
+import { todayISO } from '@/lib/stays/helpers'
 
 export default async function DashboardPage() {
-  const [{ metrics, availability, reservations, invoices, hotelId }, tasks] = await Promise.all([
-    getDashboardData(),
-    getHousekeepingTasks(),
-  ])
+  const [{ metrics, availability, reservations, invoices, hotelId }, tasks, nightAudits] =
+    await Promise.all([
+      getDashboardData(),
+      getHousekeepingTasks(),
+      getRecentNightAudits(),
+    ])
   const guestFeedback = hotelId ? await loadHotelGuestFeedback(hotelId) : null
   const channels = computeChannelPerformance(reservations)
   const graSummary = computeGraSummary(invoices)
+  const businessDate = todayISO()
+  const todayClosed = nightAudits.some((a) => a.business_date === businessDate)
 
   return (
     <div className="page-shell space-y-8">
@@ -75,6 +82,11 @@ export default async function DashboardPage() {
           <ChannelPerformanceWidget channels={channels} />
           <GRATaxSummary summary={graSummary} />
         </div>
+      </section>
+
+      <section className="space-y-4">
+        <SectionHeading title="End of day" description="Night audit and business date close" />
+        <NightAuditPanel audits={nightAudits} todayClosed={todayClosed} />
       </section>
     </div>
   )

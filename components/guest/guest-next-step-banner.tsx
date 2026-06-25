@@ -31,7 +31,7 @@ export function GuestNextStepBanner({
         action.type === 'confirm_complete'
           ? 'border-[#D85A30]/40 bg-gradient-to-br from-[#D85A30]/20 to-[#3C216C]/30'
           : 'border-[#D4A62E]/30 bg-gradient-to-br from-[#D4A62E]/15 to-[#3C216C]/25'
-      } ${isHome ? 'p-4' : 'p-3.5'}`}
+      } ${isHome ? 'p-5' : 'p-3.5'}`}
     >
       <div className="flex items-start gap-3">
         <div

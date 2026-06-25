@@ -56,7 +56,9 @@ function deriveStatus(
   return 'new'
 }
 
-export async function getGuestsData(): Promise<GuestRow[]> {
+import { clampLimit } from '@/lib/data/pagination'
+
+export async function getGuestsData(limit?: number): Promise<GuestRow[]> {
   const profile = await getProfile()
   if (!profile?.hotel_id) return []
 
@@ -70,11 +72,14 @@ export async function getGuestsData(): Promise<GuestRow[]> {
         'id, name, email, phone, room_id, check_in, check_out, created_at, token, token_expires_at, rooms(number)',
       )
       .eq('hotel_id', hotelId)
-      .order('created_at', { ascending: false }),
+      .order('created_at', { ascending: false })
+      .limit(clampLimit(limit)),
     supabase
       .from('reservations')
       .select('*')
-      .eq('hotel_id', hotelId),
+      .eq('hotel_id', hotelId)
+      .order('created_at', { ascending: false })
+      .limit(clampLimit(limit)),
   ])
 
   const guests = (guestsRes.data ?? []) as unknown as GuestQueryRow[]

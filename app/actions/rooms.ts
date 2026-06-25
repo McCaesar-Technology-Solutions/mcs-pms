@@ -96,7 +96,7 @@ export async function createRoom(input: {
   if (profile.role === 'manager') {
     void import('@/lib/notifications/rooms').then(({ notifyOwnerRoomCreated }) =>
       notifyOwnerRoomCreated({
-        hotelId: profile.hotel_id,
+        hotelId: profile.hotel_id!,
         roomNumber: parsed.data.number.trim(),
         managerName: profile.name,
         floor: parsed.data.floor,
@@ -207,7 +207,7 @@ export async function updateRoom(
 
     if (changes.length > 0) {
       void writeAuditLog({
-        hotelId: profile.hotel_id,
+        hotelId: profile.hotel_id!,
         actorId: profile.id,
         actorName: profile.name,
         entityType: 'room',
@@ -269,7 +269,7 @@ export async function updateRoomStatus(
       actorName: profile.name,
       roomId: id,
       roomNumber: existing.number,
-      from: existing.status,
+      from: existing.status ?? 'available',
       to: status,
       reason: 'manual update',
     })

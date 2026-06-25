@@ -16,6 +16,8 @@ import type { HotelSettings } from '@/lib/data/settings'
 import type { Profile, VatMode } from '@/types'
 import { ProfilePhoneEditor } from '@/components/dashboard/profile-phone-editor'
 import { MfaSettingsCard } from '@/components/dashboard/mfa-settings-card'
+import { GtaLicenseAlert } from '@/components/dashboard/gta-license-alert'
+import { assessGtaLicense } from '@/lib/compliance/gta-license'
 
 const GHANA_REGIONS = [
   'Greater Accra',
@@ -142,6 +144,14 @@ export function SettingsPanel({ hotelSettings, staffHref = '/owner/staff', profi
 
   return (
     <>
+      {hotelSettings && (
+        <GtaLicenseAlert
+          check={assessGtaLicense({
+            licenseNumber: hotelSettings.gta_license_number,
+            expiryDate: hotelSettings.gta_license_expiry,
+          })}
+        />
+      )}
       {profile && (
         <div className="mb-6 space-y-6">
           <ProfilePhoneEditor

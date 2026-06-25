@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { Analytics } from '@vercel/analytics/next'
 import { Cormorant_Garamond, DM_Sans, JetBrains_Mono } from 'next/font/google'
 import { Toaster } from 'sonner'
 import { AppProviders } from '@/components/providers/app-providers'
@@ -34,6 +35,7 @@ export default function RootLayout({
     >
       <body className="font-sans antialiased text-foreground" suppressHydrationWarning>
         <AppProviders>{children}</AppProviders>
+        <Analytics />
         <Toaster position="top-right" richColors closeButton />
       </body>
     </html>

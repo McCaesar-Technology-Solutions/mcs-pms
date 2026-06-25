@@ -1,11 +1,9 @@
 import { createAdminClient } from '@/lib/supabase/admin'
+import { isProd } from '@/lib/env'
 
 export interface RateLimitOptions {
-  /** Max attempts within the sliding window. */
   max: number
-  /** Window length in milliseconds. */
   windowMs: number
-  /** Minimum gap between consecutive attempts (optional). */
   cooldownMs?: number
 }
 
@@ -14,6 +12,7 @@ const DEFAULT_ERROR = 'Too many attempts. Please wait a few minutes and try agai
 /**
  * DB-backed rate limit for server actions (works across serverless instances).
  * Returns an error message when limited, or null when allowed.
+ * Fails closed in production when the DB check errors.
  */
 export async function assertRateLimit(
   rateKey: string,
@@ -29,7 +28,10 @@ export async function assertRateLimit(
     .eq('rate_key', rateKey)
     .gte('created_at', since)
 
-  if (countError) return null
+  if (countError) {
+    console.error('[rate-limit] count error:', countError.message)
+    return isProd() ? errorMessage : null
+  }
 
   if ((count ?? 0) >= options.max) {
     return errorMessage
@@ -37,18 +39,27 @@ export async function assertRateLimit(
 
   if (options.cooldownMs) {
     const cooldownSince = new Date(Date.now() - options.cooldownMs).toISOString()
-    const { count: recentCount } = await admin
+    const { count: recentCount, error: cooldownError } = await admin
       .from('action_rate_limits')
       .select('*', { count: 'exact', head: true })
       .eq('rate_key', rateKey)
       .gte('created_at', cooldownSince)
+
+    if (cooldownError) {
+      console.error('[rate-limit] cooldown error:', cooldownError.message)
+      return isProd() ? errorMessage : null
+    }
 
     if ((recentCount ?? 0) > 0) {
       return errorMessage
     }
   }
 
-  await admin.from('action_rate_limits').insert({ rate_key: rateKey })
+  const { error: insertError } = await admin.from('action_rate_limits').insert({ rate_key: rateKey })
+  if (insertError) {
+    console.error('[rate-limit] insert error:', insertError.message)
+    return isProd() ? errorMessage : null
+  }
 
   if ((count ?? 0) > 50) {
     void admin
@@ -61,13 +72,21 @@ export async function assertRateLimit(
   return null
 }
 
-/** Common presets for guest-facing actions. */
 export const GUEST_RATE_LIMITS = {
   portalEntry: { max: 8, windowMs: 15 * 60 * 1000, cooldownMs: 5_000 },
+  portalEntryIp: { max: 20, windowMs: 15 * 60 * 1000, cooldownMs: 3_000 },
   complaint: { max: 5, windowMs: 60 * 60 * 1000, cooldownMs: 30_000 },
   message: { max: 30, windowMs: 15 * 60 * 1000, cooldownMs: 2_000 },
   request: { max: 10, windowMs: 60 * 60 * 1000, cooldownMs: 10_000 },
   preArrival: { max: 5, windowMs: 60 * 60 * 1000, cooldownMs: 10_000 },
+} as const satisfies Record<string, RateLimitOptions>
+
+export const AUTH_RATE_LIMITS = {
+  signIn: { max: 10, windowMs: 15 * 60 * 1000, cooldownMs: 2_000 },
+  signUp: { max: 3, windowMs: 60 * 60 * 1000, cooldownMs: 30_000 },
+  passwordReset: { max: 5, windowMs: 60 * 60 * 1000, cooldownMs: 60_000 },
+  acceptInvite: { max: 5, windowMs: 60 * 60 * 1000, cooldownMs: 10_000 },
+  mfaVerify: { max: 8, windowMs: 15 * 60 * 1000, cooldownMs: 1_000 },
 } as const satisfies Record<string, RateLimitOptions>
 
 export function guestRateKey(scope: string, guestId: string): string {
@@ -76,4 +95,8 @@ export function guestRateKey(scope: string, guestId: string): string {
 
 export function ipRateKey(scope: string, identifier: string): string {
   return `ip:${scope}:${identifier}`
+}
+
+export function authRateKey(scope: string, identifier: string): string {
+  return `auth:${scope}:${identifier.toLowerCase()}`
 }

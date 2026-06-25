@@ -6,6 +6,14 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { seedDefaultRoomCategories } from '@/lib/data/room-categories'
 import { ROLE_HOME, isStaffRole } from '@/lib/auth/roles'
+import { getAppOrigin, isPublicSignupAllowed } from '@/lib/env'
+import { getClientIp } from '@/lib/auth/client-ip'
+import {
+  assertRateLimit,
+  AUTH_RATE_LIMITS,
+  authRateKey,
+  ipRateKey,
+} from '@/lib/rate-limit'
 import {
   acceptInviteSchema,
   requestResetSchema,
@@ -23,8 +31,12 @@ export type SimpleActionResult =
   | { success: true }
   | { success: false; error: string }
 
-/** Resolve the app's public origin for building email redirect links. */
+const INVITE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000
+
 async function resolveOrigin(): Promise<string> {
+  if (process.env.NODE_ENV === 'production') {
+    return getAppOrigin()
+  }
   if (process.env.NEXT_PUBLIC_APP_URL) {
     return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '')
   }
@@ -36,6 +48,11 @@ async function resolveOrigin(): Promise<string> {
   return host ? `${proto}://${host}` : ''
 }
 
+async function staffRedirectAfterAuth(intendedPath: string): Promise<string> {
+  const { getStaffMfaRedirect } = await import('@/app/actions/mfa')
+  return getStaffMfaRedirect(intendedPath)
+}
+
 export async function signIn(
   email: string,
   password: string,
@@ -44,6 +61,22 @@ export async function signIn(
   if (!parsed.success) {
     return { success: false, error: 'Invalid email or password.' }
   }
+
+  const ip = await getClientIp()
+  const emailKey = parsed.data.email.trim().toLowerCase()
+  const ipLimit = await assertRateLimit(
+    ipRateKey('sign-in', ip),
+    AUTH_RATE_LIMITS.signIn,
+    'Too many sign-in attempts. Please wait and try again.',
+  )
+  if (ipLimit) return { success: false, error: ipLimit }
+
+  const accountLimit = await assertRateLimit(
+    authRateKey('sign-in', emailKey),
+    AUTH_RATE_LIMITS.signIn,
+    'Too many sign-in attempts. Please wait and try again.',
+  )
+  if (accountLimit) return { success: false, error: accountLimit }
 
   const supabase = await createClient()
   const { data, error } = await supabase.auth.signInWithPassword(parsed.data)
@@ -112,7 +145,7 @@ export async function signIn(
     }
   }
 
-  const redirectTo = ROLE_HOME[profile.role]
+  const redirectTo = await staffRedirectAfterAuth(ROLE_HOME[profile.role])
   return { success: true, role: profile.role, redirectTo }
 }
 
@@ -125,6 +158,13 @@ export async function requestPasswordReset(email: string): Promise<SimpleActionR
   if (!parsed.success) {
     return { success: false, error: 'Enter a valid email address.' }
   }
+
+  const ip = await getClientIp()
+  const limit = await assertRateLimit(
+    ipRateKey('password-reset', ip),
+    AUTH_RATE_LIMITS.passwordReset,
+  )
+  if (limit) return { success: false, error: limit }
 
   const origin = await resolveOrigin()
   if (!origin) {
@@ -177,10 +217,21 @@ export async function signUpOwner(input: {
   hotelName: string
   hotelAddress?: string
 }): Promise<AuthActionResult> {
+  if (!isPublicSignupAllowed()) {
+    return {
+      success: false,
+      error: 'Self-service registration is disabled. Contact your administrator for access.',
+    }
+  }
+
   const parsed = signUpOwnerSchema.safeParse(input)
   if (!parsed.success) {
     return { success: false, error: parsed.error.issues[0]?.message ?? 'Please check your details.' }
   }
+
+  const ip = await getClientIp()
+  const ipLimit = await assertRateLimit(ipRateKey('sign-up', ip), AUTH_RATE_LIMITS.signUp)
+  if (ipLimit) return { success: false, error: ipLimit }
 
   const admin = createAdminClient()
 
@@ -296,7 +347,11 @@ export async function signUpOwner(input: {
     })
     .eq('id', userId)
 
-  return { success: true, role: 'owner', redirectTo: ROLE_HOME.owner }
+  return {
+    success: true,
+    role: 'owner',
+    redirectTo: await staffRedirectAfterAuth(ROLE_HOME.owner),
+  }
 }
 
 export async function signOut(): Promise<void> {
@@ -328,6 +383,17 @@ export async function acceptInvite(
   if (inviteError || !invite) {
     return { success: false, error: 'This invite link is invalid or has already been used.' }
   }
+
+  if (invite.expires_at && new Date(invite.expires_at) < new Date()) {
+    return { success: false, error: 'This invite link has expired. Ask your manager for a new invite.' }
+  }
+
+  const ip = await getClientIp()
+  const inviteLimit = await assertRateLimit(
+    ipRateKey('accept-invite', ip),
+    AUTH_RATE_LIMITS.acceptInvite,
+  )
+  if (inviteLimit) return { success: false, error: inviteLimit }
 
   const { data: authUser, error: signUpError } = await admin.auth.admin.createUser({
     email: invite.email,
@@ -383,5 +449,9 @@ export async function acceptInvite(
     .eq('id', authUser.user.id)
 
   const role = invite.role as UserRole
-  return { success: true, role, redirectTo: ROLE_HOME[role] }
+  return {
+    success: true,
+    role,
+    redirectTo: await staffRedirectAfterAuth(ROLE_HOME[role]),
+  }
 }

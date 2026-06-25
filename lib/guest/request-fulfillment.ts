@@ -1,5 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin'
-import { extendStay, checkOutStay } from '@/app/actions/stays'
+import { extendStay } from '@/app/actions/stays'
 import { notifyGuestRequestStatusChanged } from '@/lib/notifications/guest-requests'
 
 interface GuestRequestRow {
@@ -47,16 +47,10 @@ export async function fulfillGuestRequest(
   }
 
   if (request.request_type === 'self_checkout') {
-    const result = await checkOutStay({
-      guestId: request.guest_id,
-      paymentMethod: 'cash',
-      earlyCheckout: true,
-      markAsPaid: false,
-    })
-    if (!result.success) {
-      return { error: result.error ?? 'Could not complete check-out.' }
+    return {
+      detail:
+        'Self check-out request received. Please settle any balance at the front desk before leaving.',
     }
-    return { detail: 'You have been checked out. Thank you for staying with us.' }
   }
 
   if (request.request_type === 'housekeeping') {

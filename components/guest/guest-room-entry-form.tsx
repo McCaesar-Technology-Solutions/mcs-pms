@@ -10,6 +10,7 @@ interface GuestRoomEntryFormProps {
 
 export function GuestRoomEntryForm({ slug, hotelName }: GuestRoomEntryFormProps) {
   const [roomNumber, setRoomNumber] = useState('')
+  const [guestLastName, setGuestLastName] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -17,7 +18,7 @@ export function GuestRoomEntryForm({ slug, hotelName }: GuestRoomEntryFormProps)
     e.preventDefault()
     setLoading(true)
     setError(null)
-    const result = await enterGuestPortalByRoom({ slug, roomNumber })
+    const result = await enterGuestPortalByRoom({ slug, roomNumber, guestLastName })
     setLoading(false)
     if (!result.success) {
       setError(result.error)
@@ -25,16 +26,35 @@ export function GuestRoomEntryForm({ slug, hotelName }: GuestRoomEntryFormProps)
   }
 
   return (
-    <div className="min-h-dvh bg-[#22124C] px-6 py-10 text-white">
-      <div className="mx-auto max-w-md text-center">
-        <p className="font-[family-name:var(--font-cormorant)] text-3xl font-semibold text-[#D4A62E]">
-          MOJO APARTMENTS
-        </p>
-        <p className="mt-3 text-lg text-white/90">{hotelName}</p>
-        <p className="mt-2 text-sm text-white/70">Enter your room number to open the guest portal.</p>
-      </div>
+    <div className="guest-auth-shell bg-[#22124C] text-white">
+      <div className="mx-auto flex max-w-md flex-col gap-8">
+        <div className="text-center">
+          <p className="font-[family-name:var(--font-cormorant)] text-3xl font-semibold text-[#D4A62E]">
+            MOJO APARTMENTS
+          </p>
+          <p className="mt-3 text-lg text-white/90">{hotelName}</p>
+          <p className="mt-2 text-sm leading-relaxed text-white/70">
+            Enter your room number to open the guest portal.
+          </p>
+        </div>
 
-      <form onSubmit={handleSubmit} className="mx-auto mt-8 max-w-md space-y-4">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+        <div>
+          <label htmlFor="guestLastName" className="mb-2 block text-sm font-medium text-white/90">
+            Last name on booking
+          </label>
+          <input
+            id="guestLastName"
+            type="text"
+            autoComplete="family-name"
+            required
+            value={guestLastName}
+            onChange={(e) => setGuestLastName(e.target.value)}
+            placeholder="As shown on your reservation"
+            className="w-full rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-white placeholder:text-white/40"
+          />
+        </div>
+
         <div>
           <label htmlFor="roomNumber" className="mb-2 block text-sm font-medium text-white/90">
             Room number
@@ -59,7 +79,7 @@ export function GuestRoomEntryForm({ slug, hotelName }: GuestRoomEntryFormProps)
 
         <button
           type="submit"
-          disabled={loading || !roomNumber.trim()}
+          disabled={loading || !roomNumber.trim() || !guestLastName.trim()}
           className="w-full rounded-xl bg-[#3C216C] py-4 text-lg font-semibold text-white disabled:opacity-50"
         >
           {loading ? 'Opening…' : 'Continue'}
@@ -68,7 +88,8 @@ export function GuestRoomEntryForm({ slug, hotelName }: GuestRoomEntryFormProps)
         <p className="text-center text-xs text-white/50">
           Checked in guests only. If you need help, contact the front desk.
         </p>
-      </form>
+        </form>
+      </div>
     </div>
   )
 }

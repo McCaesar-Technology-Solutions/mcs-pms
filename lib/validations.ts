@@ -3,7 +3,7 @@ import { phoneSchema } from '@/lib/phone'
 
 export const signInSchema = z.object({
   email: z.string().email('Enter a valid email'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
 })
 
 export const requestResetSchema = z.object({
@@ -79,6 +79,11 @@ export const guestRoomEntrySchema = z.object({
     .trim()
     .min(1, 'Enter your room number')
     .max(20, 'Room number is too long'),
+  guestLastName: z
+    .string()
+    .trim()
+    .min(2, 'Enter the last name on your booking')
+    .max(80, 'Last name is too long'),
 })
 
 export const staffComplaintSchema = z.object({

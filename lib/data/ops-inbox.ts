@@ -63,7 +63,7 @@ export async function loadOpsInbox(hotelId: string, limit = 12): Promise<OpsInbo
       .limit(15)
   }
 
-  for (const c of (complaintsRes.data ?? []) as Complaint[]) {
+  for (const c of (complaintsRes.data ?? []) as unknown as Complaint[]) {
     const room = (c as Complaint & { rooms?: { number: string } }).rooms?.number
     let title = `${c.category} issue`
     let subtitle = room ? `Room ${room}` : 'Unassigned room'
@@ -102,12 +102,19 @@ export async function loadOpsInbox(hotelId: string, limit = 12): Promise<OpsInbo
       subtitle: `${guest?.name ?? 'Guest'}${room?.number ? ` · Room ${room.number}` : ''}`,
       priority: r.request_type === 'self_checkout' ? 1 : 2,
       href: '/manager/dashboard#guest-requests',
-      createdAt: r.created_at,
+      createdAt: r.created_at ?? new Date(0).toISOString(),
     })
   }
 
   const seenComplaints = new Set<string>()
-  for (const m of messagesRes.data ?? []) {
+  type GuestMessageRow = {
+    complaint_id: string
+    body: string
+    created_at: string | null
+    complaints: { category?: string; rooms?: { number?: string } } | null
+  }
+
+  for (const m of (messagesRes.data ?? []) as GuestMessageRow[]) {
     if (seenComplaints.has(m.complaint_id)) continue
     const complaint = m.complaints as { category?: string; rooms?: { number?: string } } | null
     if (!complaint) continue
@@ -119,7 +126,7 @@ export async function loadOpsInbox(hotelId: string, limit = 12): Promise<OpsInbo
       subtitle: `${complaint.rooms?.number ? `Room ${complaint.rooms.number} · ` : ''}${m.body.slice(0, 60)}`,
       priority: 2,
       href: `/manager/complaints?complaint=${m.complaint_id}`,
-      createdAt: m.created_at,
+      createdAt: m.created_at ?? new Date(0).toISOString(),
     })
   }
 

@@ -21,6 +21,9 @@ import { getHousekeepingTasks } from '@/lib/data/housekeeping'
 import { getNotificationLog } from '@/lib/data/notification-log'
 import { getAuditLog } from '@/lib/data/audit-log'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getRecentNightAudits } from '@/app/actions/night-audit'
+import { NightAuditPanel } from '@/components/dashboard/night-audit-panel'
+import { todayISO } from '@/lib/stays/helpers'
 
 const MANAGER_HASH_TO_TAB: Record<string, string> = {
   'ops-inbox': 'overview',
@@ -31,13 +34,14 @@ const MANAGER_HASH_TO_TAB: Record<string, string> = {
 }
 
 export default async function ManagerDashboardPage() {
-  const [complaints, { metrics, hotelId }, tasks, notificationLog, auditLog] =
+  const [complaints, { metrics, hotelId }, tasks, notificationLog, auditLog, nightAudits] =
     await Promise.all([
       fetchHotelComplaints(),
       getDashboardData(),
       getHousekeepingTasks(),
-    getNotificationLog(50),
-    getAuditLog(50),
+      getNotificationLog(50),
+      getAuditLog(50),
+      getRecentNightAudits(),
     ])
 
   let propertyName = 'Property'
@@ -70,6 +74,8 @@ export default async function ManagerDashboardPage() {
   const pendingGuestRequests = guestRequests.filter((r) => r.status === 'pending').length
   const overviewBadge = opsInbox.length
   const guestPortalBadge = pendingGuestRequests
+  const businessDate = todayISO()
+  const todayClosed = nightAudits.some((a) => a.business_date === businessDate)
 
   return (
     <div className="page-shell space-y-6">
@@ -117,6 +123,8 @@ export default async function ManagerDashboardPage() {
                   <TasksList tasks={tasks} />
                 </section>
               </div>
+
+              <NightAuditPanel audits={nightAudits} todayClosed={todayClosed} />
             </>
           ),
           'guest-portal': hotelId ? (

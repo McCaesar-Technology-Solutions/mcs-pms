@@ -30,8 +30,6 @@ export async function mfaRedirectIfNeeded(
   requestUrl: string,
 ): Promise<string | null> {
   if (isMfaPath(pathname)) return null
-  // 2FA is opt-in only — never intercept navigation unless explicitly enabled.
-  if (profile.mfa_enabled !== true) return null
 
   const status = await buildMfaStatus(supabase, userId, profile)
   const gate = mfaGateForRole(profile.role, status)

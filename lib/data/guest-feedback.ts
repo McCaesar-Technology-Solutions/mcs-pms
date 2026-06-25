@@ -39,7 +39,7 @@ export async function loadHotelGuestFeedback(
       id: row.id,
       rating: row.rating,
       comment: row.comment,
-      createdAt: row.created_at,
+      createdAt: row.created_at ?? new Date(0).toISOString(),
       guestName: guest?.name ?? 'Guest',
       roomNumber: roomFromGuest,
     }

@@ -290,7 +290,7 @@ export async function checkInStay(
       actorName: profile.name,
       roomId: reservation.room_id,
       roomNumber: roomBeforeCheckIn.number,
-      from: roomBeforeCheckIn.status,
+      from: roomBeforeCheckIn.status ?? 'available',
       to: 'occupied',
       reason: 'check-in',
     })
@@ -587,7 +587,7 @@ export async function checkOutStay(input: {
           actorName: profile.name,
           roomId: guest.room_id,
           roomNumber: roomBeforeCheckout.number,
-          from: roomBeforeCheckout.status,
+          from: roomBeforeCheckout.status ?? 'available',
           to: 'cleaning',
           reason: 'check-out',
         })
@@ -722,7 +722,7 @@ export async function checkOutStay(input: {
         actorName: profile.name,
         roomId: reservation.room_id,
         roomNumber: roomBeforeCheckout.number,
-        from: roomBeforeCheckout.status,
+        from: roomBeforeCheckout.status ?? 'available',
         to: 'cleaning',
         reason: 'check-out',
       })
@@ -936,7 +936,7 @@ export async function moveStayRoom(
         actorName: profile.name,
         roomId: oldRoomId,
         roomNumber: oldRoom.number,
-        from: oldRoom.status,
+        from: oldRoom.status ?? 'available',
         to: 'cleaning',
         reason: 'guest moved',
       })
@@ -955,7 +955,7 @@ export async function moveStayRoom(
       actorName: profile.name,
       roomId: newRoomId,
       roomNumber: newRoom.number,
-      from: newRoom.status,
+      from: newRoom.status ?? 'available',
       to: 'occupied',
       reason: 'guest moved in',
     })
@@ -995,7 +995,7 @@ export async function markNoShow(reservationId: string): Promise<StayActionResul
 
   const { error } = await supabase
     .from('reservations')
-    .update({ status: 'cancelled' })
+    .update({ status: 'no_show' })
     .eq('id', reservationId)
 
   if (error) return { success: false, error: error.message }

@@ -15,6 +15,7 @@ import {
 } from '@/lib/auth/mfa-sms'
 import { buildMfaStatus } from '@/lib/auth/mfa-status'
 import { mfaRedirectPath, safeMfaNext, userNeedsMfa, type MfaMethod } from '@/lib/auth/mfa'
+import { assertRateLimit, AUTH_RATE_LIMITS, authRateKey } from '@/lib/rate-limit'
 import { sendToPhone } from '@/lib/notifications/send'
 import { sendToEmail } from '@/lib/notifications/send-email'
 import { isEmailConfigured } from '@/lib/notifications/email-provider'
@@ -228,9 +229,10 @@ async function markSessionVerified(
 
 /** Post-login redirect — always proceed to the app; 2FA is configured in Settings only. */
 export async function getStaffMfaRedirect(intendedPath: string): Promise<string> {
-  const { user, profile } = await requireStaffContext()
+  const { supabase, user, profile } = await requireStaffContext()
   if (!user || !profile) return '/login'
-  return safeMfaNext(intendedPath, ROLE_HOME[profile.role])
+  const status = await buildMfaStatus(supabase, user.id, profileForStatus(profile))
+  return mfaRedirectPath(profile.role, status, ROLE_HOME[profile.role], intendedPath)
 }
 
 export async function getMfaStatus(): Promise<
@@ -373,7 +375,7 @@ export async function sendMfaSmsCode(): Promise<
   const { supabase, user, profile } = await requireStaffContext()
   if (!user || !profile) return { success: false, error: 'Not signed in.' }
 
-  if (!userNeedsMfa(profile.mfa_enabled === true) || profile.mfa_method !== 'sms') {
+  if (!userNeedsMfa(profile.role, profile.mfa_enabled === true) || profile.mfa_method !== 'sms') {
     return { success: false, error: 'SMS verification is not enabled for this account.' }
   }
 
@@ -423,7 +425,7 @@ export async function sendMfaEmailCode(): Promise<
   const { user, profile } = await requireStaffContext()
   if (!user || !profile) return { success: false, error: 'Not signed in.' }
 
-  if (!userNeedsMfa(profile.mfa_enabled === true) || profile.mfa_method !== 'email') {
+  if (!userNeedsMfa(profile.role, profile.mfa_enabled === true) || profile.mfa_method !== 'email') {
     return { success: false, error: 'Email verification is not enabled for this account.' }
   }
 
@@ -495,7 +497,14 @@ export async function verifyMfaSmsCode(
   const { supabase, user, profile } = await requireStaffContext()
   if (!user || !profile) return { success: false, error: 'Not signed in.' }
 
-  if (!userNeedsMfa(profile.mfa_enabled === true) || profile.mfa_method !== 'sms') {
+  const verifyLimit = await assertRateLimit(
+    authRateKey('mfa-verify', user.id),
+    AUTH_RATE_LIMITS.mfaVerify,
+    'Too many verification attempts. Wait a few minutes and try again.',
+  )
+  if (verifyLimit) return { success: false, error: verifyLimit }
+
+  if (!userNeedsMfa(profile.role, profile.mfa_enabled === true) || profile.mfa_method !== 'sms') {
     return { success: false, error: 'SMS verification is not enabled for this account.' }
   }
 
@@ -523,7 +532,14 @@ export async function verifyMfaEmailCode(
   const { supabase, user, profile } = await requireStaffContext()
   if (!user || !profile) return { success: false, error: 'Not signed in.' }
 
-  if (!userNeedsMfa(profile.mfa_enabled === true) || profile.mfa_method !== 'email') {
+  const verifyLimit = await assertRateLimit(
+    authRateKey('mfa-verify', user.id),
+    AUTH_RATE_LIMITS.mfaVerify,
+    'Too many verification attempts. Wait a few minutes and try again.',
+  )
+  if (verifyLimit) return { success: false, error: verifyLimit }
+
+  if (!userNeedsMfa(profile.role, profile.mfa_enabled === true) || profile.mfa_method !== 'email') {
     return { success: false, error: 'Email verification is not enabled for this account.' }
   }
 

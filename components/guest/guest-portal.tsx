@@ -46,6 +46,7 @@ import {
   emailGuestInvoiceReceiptAction,
   fetchGuestPortalBundle,
 } from '@/app/actions/guest-portal'
+import { initiateGuestInvoicePayment } from '@/app/actions/payments'
 import { downloadInvoicePdf } from '@/lib/export/invoice-pdf'
 import { GuestPhoneEditor } from '@/components/guest/guest-phone-editor'
 import { GuestStayTimeline } from '@/components/guest/guest-stay-timeline'
@@ -103,6 +104,9 @@ interface GuestPortalProps {
   roomNumber: string | null
   propertyContacts: StaffContact[]
   context: GuestPortalContext
+  paystackEnabled?: boolean
+  paymentNotice?: 'paid' | 'error'
+  paymentError?: string
 }
 
 function PortalCard({
@@ -114,7 +118,7 @@ function PortalCard({
 }) {
   return (
     <div
-      className={`rounded-2xl border border-white/10 bg-white/[0.07] p-4 backdrop-blur-sm ${className}`}
+      className={`rounded-2xl border border-white/10 bg-white/[0.07] p-5 backdrop-blur-sm ${className}`}
     >
       {children}
     </div>
@@ -125,7 +129,15 @@ function money(value: number) {
   return `GHS ${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
-export function GuestPortal({ guest, roomNumber, propertyContacts, context }: GuestPortalProps) {
+export function GuestPortal({
+  guest,
+  roomNumber,
+  propertyContacts,
+  context,
+  paystackEnabled = false,
+  paymentNotice,
+  paymentError,
+}: GuestPortalProps) {
   const [activeTab, setActiveTab] = useState<TabId>('home')
   const [dnd, setDnd] = useState(Boolean((guest as Guest & { do_not_disturb?: boolean }).do_not_disturb))
   const [complaints, setComplaints] = useState<Complaint[]>([])
@@ -160,7 +172,16 @@ export function GuestPortal({ guest, roomNumber, propertyContacts, context }: Gu
   const [feedbackError, setFeedbackError] = useState<string | null>(null)
 
   const [receiptLoading, setReceiptLoading] = useState<string | null>(null)
+  const [paymentLoading, setPaymentLoading] = useState<string | null>(null)
   const [portalRequests, setPortalRequests] = useState(context.requests)
+
+  useEffect(() => {
+    if (paymentNotice === 'paid') {
+      setRequestSuccess('Payment received. Thank you!')
+    } else if (paymentNotice === 'error' && paymentError) {
+      setRequestError(paymentError)
+    }
+  }, [paymentNotice, paymentError])
 
   const { property, rules, localGuide, invoices, preArrival } = context
 
@@ -302,6 +323,18 @@ export function GuestPortal({ guest, roomNumber, propertyContacts, context }: Gu
     downloadInvoicePdf(result.data.hotel, result.data.invoice)
   }
 
+  async function payInvoice(invoiceId: string) {
+    setPaymentLoading(invoiceId)
+    setRequestError(null)
+    const result = await initiateGuestInvoicePayment(invoiceId)
+    setPaymentLoading(null)
+    if (result.success) {
+      window.location.href = result.data.authorizationUrl
+      return
+    }
+    setRequestError(result.error)
+  }
+
   async function copyWifi() {
     const text = property.wifiPassword
       ? `Network: ${property.wifiSsid}\nPassword: ${property.wifiPassword}`
@@ -368,7 +401,7 @@ export function GuestPortal({ guest, roomNumber, propertyContacts, context }: Gu
   }
 
   return (
-    <div className="relative min-h-dvh bg-gradient-to-b from-[#1a0f3d] via-[#22124C] to-[#12082a] pb-28 text-white">
+    <div className="guest-portal-shell relative min-h-dvh bg-gradient-to-b from-[#1a0f3d] via-[#22124C] to-[#12082a] text-white">
       {disconnected && (
         <RealtimeReconnectBanner
           onReconnect={() => setRetryKey((k) => k + 1)}
@@ -376,7 +409,7 @@ export function GuestPortal({ guest, roomNumber, propertyContacts, context }: Gu
         />
       )}
 
-      <header className="relative overflow-hidden px-5 pb-6 pt-10">
+      <header className="guest-portal-header">
         <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-[#D4A62E]/10 blur-3xl" />
         <div className="relative flex items-start gap-4">
           {property.imageUrl ? (
@@ -409,18 +442,23 @@ export function GuestPortal({ guest, roomNumber, propertyContacts, context }: Gu
           </button>
         </div>
         {property.welcome && activeTab === 'home' && (
-          <p className="relative mt-4 text-sm leading-relaxed text-white/75">{property.welcome}</p>
+          <p className="relative mt-5 text-sm leading-relaxed text-white/75">{property.welcome}</p>
         )}
       </header>
 
-      <main className="mx-auto w-full max-w-lg space-y-4 px-4">
+      <main className="guest-portal-main">
         <GuestStatusAlerts
           complaints={complaints}
           requests={portalRequests}
           onOpenHelp={() => setActiveTab('help')}
         />
         {activeTab === 'home' && (
-          <div role="tabpanel" id="guest-panel-home" aria-labelledby="guest-tab-home">
+          <div
+            role="tabpanel"
+            id="guest-panel-home"
+            aria-labelledby="guest-tab-home"
+            className="guest-tab-panel"
+          >
             <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
@@ -428,7 +466,7 @@ export function GuestPortal({ guest, roomNumber, propertyContacts, context }: Gu
                   setShowRequestForm('housekeeping')
                   setActiveTab('stay')
                 }}
-                className="flex flex-col items-start gap-2 rounded-2xl bg-gradient-to-br from-[#3C216C] to-[#2a1650] p-4 text-left shadow-lg"
+                className="flex flex-col items-start gap-2 rounded-2xl bg-gradient-to-br from-[#3C216C] to-[#2a1650] p-5 text-left shadow-lg"
               >
                 <Sparkles className="h-5 w-5 text-[#D4A62E]" />
                 <span className="text-sm font-semibold">Housekeeping</span>
@@ -437,7 +475,7 @@ export function GuestPortal({ guest, roomNumber, propertyContacts, context }: Gu
               <button
                 type="button"
                 onClick={() => setActiveTab('help')}
-                className="flex flex-col items-start gap-2 rounded-2xl bg-gradient-to-br from-[#D85A30]/80 to-[#a84320] p-4 text-left shadow-lg"
+                className="flex flex-col items-start gap-2 rounded-2xl bg-gradient-to-br from-[#D85A30]/80 to-[#a84320] p-5 text-left shadow-lg"
               >
                 <LifeBuoy className="h-5 w-5 text-white" />
                 <span className="text-sm font-semibold">Report issue</span>
@@ -558,18 +596,25 @@ export function GuestPortal({ guest, roomNumber, propertyContacts, context }: Gu
             )}
 
             {propertyContacts.length > 0 && (
-              <PhoneContactList
-                contacts={propertyContacts}
-                title="Contact manager"
-                emptyMessage=""
-                variant="dark"
-              />
+              <PortalCard className="space-y-3">
+                <PhoneContactList
+                  contacts={propertyContacts}
+                  title="Contact manager"
+                  emptyMessage=""
+                  variant="dark"
+                />
+              </PortalCard>
             )}
           </div>
         )}
 
         {activeTab === 'stay' && (
-          <div role="tabpanel" id="guest-panel-stay" aria-labelledby="guest-tab-stay">
+          <div
+            role="tabpanel"
+            id="guest-panel-stay"
+            aria-labelledby="guest-tab-stay"
+            className="guest-tab-panel"
+          >
             {requestSuccess && (
               <div
                 role="status"
@@ -737,12 +782,24 @@ export function GuestPortal({ guest, roomNumber, propertyContacts, context }: Gu
                           </button>
                         </div>
                       )}
+                      {inv.paymentStatus !== 'paid' && paystackEnabled && (
+                        <button
+                          type="button"
+                          onClick={() => payInvoice(inv.id)}
+                          disabled={paymentLoading === inv.id}
+                          className="rounded-lg bg-[#D4A62E] px-3 py-1.5 text-xs font-semibold text-[#22124C] disabled:opacity-50"
+                        >
+                          {paymentLoading === inv.id ? '…' : 'Pay online'}
+                        </button>
+                      )}
                     </li>
                   ))}
                 </ul>
               )}
               <p className="text-xs text-white/45">
-                Pay at the front desk — online payments are not available in the portal.
+                {paystackEnabled
+                  ? 'Pay online with card or mobile money, or settle at the front desk.'
+                  : 'Pay at the front desk — online payments are not configured for this property.'}
               </p>
               {emailReceiptMessage && (
                 <p className="text-xs text-[#D4A62E]">{emailReceiptMessage}</p>
@@ -752,8 +809,13 @@ export function GuestPortal({ guest, roomNumber, propertyContacts, context }: Gu
         )}
 
         {activeTab === 'help' && (
-          <div role="tabpanel" id="guest-panel-help" aria-labelledby="guest-tab-help">
-            <form onSubmit={handleComplaintSubmit} className="space-y-4">
+          <div
+            role="tabpanel"
+            id="guest-panel-help"
+            aria-labelledby="guest-tab-help"
+            className="guest-tab-panel"
+          >
+            <form onSubmit={handleComplaintSubmit} className="flex flex-col gap-5">
               <PortalCard>
                 <p className="text-sm font-semibold">Report an issue</p>
                 <p className="mt-1 text-xs text-white/55">Add a photo to help our team diagnose faster.</p>
@@ -826,9 +888,9 @@ export function GuestPortal({ guest, roomNumber, propertyContacts, context }: Gu
             </form>
 
             {complaints.length > 0 && (
-              <section className="space-y-2">
-                <p className="px-1 text-sm font-semibold">My issues</p>
-                <ul className="space-y-2">
+              <section className="flex flex-col gap-3">
+                <p className="text-sm font-semibold">My issues</p>
+                <ul className="flex flex-col gap-3">
                   {complaints.map((c) => (
                     <GuestComplaintCard
                       key={c.id}
@@ -874,7 +936,12 @@ export function GuestPortal({ guest, roomNumber, propertyContacts, context }: Gu
         )}
 
         {activeTab === 'account' && (
-          <div role="tabpanel" id="guest-panel-account" aria-labelledby="guest-tab-account">
+          <div
+            role="tabpanel"
+            id="guest-panel-account"
+            aria-labelledby="guest-tab-account"
+            className="guest-tab-panel"
+          >
             <PortalCard>
               <p className="mb-3 text-sm font-semibold">Your phone</p>
               <GuestPhoneEditor initialPhone={guest.phone} />
@@ -929,11 +996,11 @@ export function GuestPortal({ guest, roomNumber, propertyContacts, context }: Gu
       </main>
 
       <nav
-        className="fixed bottom-0 left-0 right-0 z-20 border-t border-white/10 bg-[#12082a]/90 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl"
+        className="guest-portal-nav fixed bottom-0 left-0 right-0 z-20 border-t border-white/10 bg-[#12082a]/90 px-3 backdrop-blur-xl"
         role="tablist"
         aria-label="Guest portal sections"
       >
-        <div className="mx-auto flex max-w-lg justify-around">
+        <div className="mx-auto flex max-w-lg justify-around gap-1">
           {tabs.map(({ id, label, icon: Icon }) => {
             const active = activeTab === id
             return (
@@ -946,7 +1013,7 @@ export function GuestPortal({ guest, roomNumber, propertyContacts, context }: Gu
                 aria-controls={`guest-panel-${id}`}
                 tabIndex={active ? 0 : -1}
                 onClick={() => setActiveTab(id)}
-                className={`flex flex-1 flex-col items-center gap-1 rounded-xl py-2 text-[10px] font-semibold transition ${
+                className={`flex flex-1 flex-col items-center gap-1.5 rounded-xl py-2.5 text-[10px] font-semibold transition ${
                   active ? 'text-[#D4A62E]' : 'text-white/45'
                 }`}
               >

@@ -20,6 +20,7 @@ import {
 } from 'lucide-react'
 import { CenteredModal, ModalBody, ModalHeader } from '@/components/ui/centered-modal'
 import { regenerateGuestAccess, revokeGuestAccess, checkOutGuest, updateGuest } from '@/app/actions/guest'
+import { GuestFolioPanel } from '@/components/dashboard/guest-folio-panel'
 import { hasPhoneNumber } from '@/lib/phone'
 import { toast } from 'sonner'
 import { PAYMENT_METHOD_LABELS } from '@/lib/tax'
@@ -367,6 +368,15 @@ export function GuestsTable({ guests, initialSearch = '', readOnly = false }: Gu
                   </div>
                 </div>
               </div>
+
+              {!readOnly && selectedGuest.isInHouse && (
+                <GuestFolioPanel
+                  guestId={selectedGuest.id}
+                  guestName={selectedGuest.name}
+                  reservationId={selectedGuest.reservationId}
+                  readOnly={readOnly}
+                />
+              )}
 
               {!readOnly && <GuestAccessLink guest={selectedGuest} />}
 

@@ -1,10 +1,11 @@
 'use client'
 
-import { useMemo, useState, useTransition } from 'react'
+import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Download, Plus, TrendingUp } from 'lucide-react'
+import { Download, Plus, TrendingUp, CreditCard } from 'lucide-react'
 import { toast } from 'sonner'
 import { createManualInvoice, recordInvoicePayment } from '@/app/actions/invoices'
+import { initiateStaffInvoicePayment } from '@/app/actions/payments'
 import { CenteredModal, ModalBody, ModalFooter, ModalHeader } from '@/components/ui/centered-modal'
 import { PAYMENT_METHOD_LABELS, computeInvoiceTaxes, type VatMode } from '@/lib/tax'
 import { formatInvoiceNumber } from '@/lib/invoices/numbering'
@@ -91,6 +92,9 @@ interface BillingOverviewProps {
   hotel: ExportHotelInfo | null
   initialQuery?: string
   vatMode?: VatMode
+  paystackEnabled?: boolean
+  paymentNotice?: 'paid' | 'error'
+  paymentError?: string
 }
 
 export function BillingOverview({
@@ -98,6 +102,9 @@ export function BillingOverview({
   hotel,
   initialQuery = '',
   vatMode = 'exclusive',
+  paystackEnabled = false,
+  paymentNotice,
+  paymentError,
 }: BillingOverviewProps) {
   const router = useRouter()
   const [statusFilter, setStatusFilter] = useState<string | null>(null)
@@ -110,6 +117,14 @@ export function BillingOverview({
   const [newPaymentMethod, setNewPaymentMethod] = useState<PaymentMethod>('cash')
   const [newMarkPaid, setNewMarkPaid] = useState(true)
   const [pending, startTransition] = useTransition()
+
+  useEffect(() => {
+    if (paymentNotice === 'paid') {
+      toast.success('Payment received via Paystack')
+    } else if (paymentNotice === 'error' && paymentError) {
+      toast.error(paymentError)
+    }
+  }, [paymentNotice, paymentError])
 
   const rows: BillingRow[] = useMemo(() => mapInvoices(invoices), [invoices])
 
@@ -174,6 +189,17 @@ export function BillingOverview({
         toast.success('Payment recorded')
         setDetail(null)
         router.refresh()
+      } else {
+        toast.error(result.error)
+      }
+    })
+  }
+
+  function payOnline(inv: InvoiceWithRoom) {
+    startTransition(async () => {
+      const result = await initiateStaffInvoicePayment(inv.id)
+      if (result.success) {
+        window.location.href = result.data.authorizationUrl
       } else {
         toast.error(result.error)
       }
@@ -435,14 +461,27 @@ export function BillingOverview({
               )}
 
               {detail.payment_status !== 'paid' && (
-                <button
-                  type="button"
-                  disabled={pending}
-                  onClick={() => markPaid(detail)}
-                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50"
-                >
-                  Record payment
-                </button>
+                <>
+                  {paystackEnabled && (
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() => payOnline(detail)}
+                      className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#3C216C] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+                    >
+                      <CreditCard className="h-4 w-4" />
+                      Pay with Paystack
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() => markPaid(detail)}
+                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+                  >
+                    Record payment
+                  </button>
+                </>
               )}
             </ModalBody>
           </>

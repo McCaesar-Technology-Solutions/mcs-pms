@@ -35,7 +35,7 @@ export function GuestStayTimeline({
   }
 
   return (
-    <section className="mx-4 mb-6 rounded-2xl border border-white/15 bg-white/5 p-4">
+    <section className="rounded-2xl border border-white/10 bg-white/[0.07] p-5 backdrop-blur-sm">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <p className="text-sm font-semibold text-[#D4A62E]">Your stay</p>

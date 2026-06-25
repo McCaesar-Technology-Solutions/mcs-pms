@@ -29,6 +29,11 @@ function loadEnv() {
 
 loadEnv()
 
+if (process.env.NODE_ENV === 'production') {
+  console.error('Refusing to run seed in production. Use a development environment only.')
+  process.exit(1)
+}
+
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'

@@ -38,18 +38,18 @@ export function GuestRulesGate({ hotelName, rules, mode, slug }: GuestRulesGateP
   }
 
   return (
-    <div className="min-h-dvh bg-[#22124C] px-6 py-10 text-white">
-      <div className="mx-auto max-w-lg">
+    <div className="guest-auth-shell bg-[#22124C] text-white">
+      <div className="mx-auto flex max-w-lg flex-col gap-8">
         <p className="text-center font-[family-name:var(--font-cormorant)] text-3xl font-semibold text-[#D4A62E]">
           MOJO APARTMENTS
         </p>
         <p className="mt-3 text-center text-lg text-white/90">{hotelName}</p>
-        <h1 className="mt-6 text-center text-xl font-semibold">Rules &amp; regulations</h1>
-        <p className="mt-2 text-center text-sm text-white/70">
+        <h1 className="text-center text-xl font-semibold">Rules &amp; regulations</h1>
+        <p className="text-center text-sm leading-relaxed text-white/70">
           Please read the following house rules. You must agree before accessing the guest portal.
         </p>
 
-        <ol className="mt-8 space-y-4 rounded-2xl border border-white/15 bg-white/5 p-5">
+        <ol className="space-y-4 rounded-2xl border border-white/15 bg-white/5 p-5">
           {rules.map((rule, index) => (
             <li key={rule.id} className="flex gap-3 text-sm leading-relaxed text-white/90">
               <span className="mt-0.5 shrink-0 font-semibold text-[#D4A62E]">{index + 1}.</span>
@@ -58,7 +58,7 @@ export function GuestRulesGate({ hotelName, rules, mode, slug }: GuestRulesGateP
           ))}
         </ol>
 
-        <label className="mt-6 flex cursor-pointer items-start gap-3 rounded-xl border border-white/15 bg-white/5 p-4">
+        <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/15 bg-white/5 p-4">
           <input
             type="checkbox"
             checked={agreed}
@@ -72,14 +72,14 @@ export function GuestRulesGate({ hotelName, rules, mode, slug }: GuestRulesGateP
         </label>
 
         {error && (
-          <p className="mt-4 rounded-lg bg-red-500/20 px-3 py-2 text-sm text-red-200">{error}</p>
+          <p className="rounded-lg bg-red-500/20 px-3 py-2 text-sm text-red-200">{error}</p>
         )}
 
         <button
           type="button"
           onClick={handleContinue}
           disabled={!agreed || loading}
-          className="mt-6 w-full rounded-xl bg-[#3C216C] py-4 text-lg font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+          className="w-full rounded-xl bg-[#3C216C] py-4 text-lg font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
         >
           {loading ? 'Continuing…' : 'I agree — continue'}
         </button>

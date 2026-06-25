@@ -49,6 +49,8 @@ async function assertComplaintStaffAccess(
     return { ok: true }
   }
 
+  if (!profile.hotel_id) return { ok: false, error: 'Not authorized.' }
+
   const { data: complaint } = await supabase
     .from('complaints')
     .select('id')
@@ -164,6 +166,8 @@ export async function createStaffComplaint(input: unknown): Promise<ComplaintAct
     return { success: false, error: 'Select a room or a guest.' }
   }
 
+  const { computeComplaintSlaDueAt } = await import('@/lib/complaints/sla')
+
   const { data: complaint, error } = await admin
     .from('complaints')
     .insert({
@@ -174,6 +178,7 @@ export async function createStaffComplaint(input: unknown): Promise<ComplaintAct
       description: parsed.data.description,
       priority: parsed.data.priority,
       status: 'open',
+      sla_due_at: computeComplaintSlaDueAt(parsed.data.priority),
     })
     .select('id')
     .single()
@@ -731,7 +736,7 @@ export async function getStaffComplaintMessages(
         id: m.id,
         authorRole: m.author_role,
         body: m.body,
-        createdAt: m.created_at,
+        createdAt: m.created_at ?? new Date(0).toISOString(),
         authorName: author,
       }
     }),

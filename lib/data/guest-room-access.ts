@@ -15,6 +15,7 @@ export interface ActiveGuestRoomMatch {
 export async function findActiveGuestForRoom(
   hotelId: string,
   roomNumberInput: string,
+  guestLastName?: string,
 ): Promise<ActiveGuestRoomMatch | null> {
   const normalized = normalizeRoomNumber(roomNumberInput)
   if (!normalized) return null
@@ -42,6 +43,12 @@ export async function findActiveGuestForRoom(
     (g) => !g.token_expires_at || new Date(g.token_expires_at) > now,
   )
   if (!active) return null
+
+  if (guestLastName?.trim()) {
+    const normalizedLast = guestLastName.trim().toLowerCase()
+    const guestLast = active.name.trim().split(/\s+/).pop()?.toLowerCase() ?? ''
+    if (guestLast !== normalizedLast) return null
+  }
 
   return { guest: active as Guest, roomNumber: room.number }
 }

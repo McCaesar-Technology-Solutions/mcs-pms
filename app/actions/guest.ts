@@ -105,7 +105,7 @@ async function requireGuestSessionWithRules(): Promise<
 
 export async function submitGuestComplaint(
   input: unknown,
-): Promise<GuestActionResult<{ reference: string }>> {
+): Promise<GuestActionResult<{ reference: string; complaintId: string; hotelId: string }>> {
   const session = await requireGuestSessionWithRules()
   if (!session.success) {
     return { success: false, error: session.error ?? 'Not authorized.' }
@@ -144,6 +144,7 @@ export async function submitGuestComplaint(
   }
 
   const priority = parsed.data.priority === 'urgent' ? 'urgent' : 'medium'
+  const { computeComplaintSlaDueAt } = await import('@/lib/complaints/sla')
 
   const { data: complaint, error } = await admin
     .from('complaints')
@@ -155,6 +156,7 @@ export async function submitGuestComplaint(
       description: parsed.data.description,
       priority,
       status: 'open',
+      sla_due_at: computeComplaintSlaDueAt(priority),
     })
     .select('id')
     .single()
@@ -203,7 +205,7 @@ export async function getGuestComplaints(): Promise<GuestActionResult<Complaint[
     return { success: false, error: 'Could not load complaints.' }
   }
 
-  return { success: true, data: (data ?? []) as Complaint[] }
+  return { success: true, data: (data ?? []) as unknown as Complaint[] }
 }
 
 export async function getGuestComplaintActivity(

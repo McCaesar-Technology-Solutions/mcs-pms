@@ -18,7 +18,9 @@ interface InvoiceQueryRow extends DbInvoice {
   } | null
 }
 
-export async function getInvoicesData(): Promise<InvoiceWithRoom[]> {
+import { clampLimit } from '@/lib/data/pagination'
+
+export async function getInvoicesData(limit?: number): Promise<InvoiceWithRoom[]> {
   const profile = await getProfile()
   if (!profile?.hotel_id) return []
 
@@ -28,6 +30,7 @@ export async function getInvoicesData(): Promise<InvoiceWithRoom[]> {
     .select('*, reservations(check_in, check_out, rooms(number))')
     .eq('hotel_id', profile.hotel_id)
     .order('issued_at', { ascending: false })
+    .limit(clampLimit(limit))
 
   const rows = (data ?? []) as unknown as InvoiceQueryRow[]
 

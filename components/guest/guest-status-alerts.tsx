@@ -61,7 +61,7 @@ export function GuestStatusAlerts({ complaints, requests, onOpenHelp }: GuestSta
   }
 
   return (
-    <div className="mx-4 mb-2 rounded-2xl border border-[#D4A62E]/40 bg-[#D4A62E]/15 px-4 py-3">
+    <div className="rounded-2xl border border-[#D4A62E]/40 bg-[#D4A62E]/15 p-5">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-[10px] font-bold uppercase tracking-widest text-[#D4A62E]">Update</p>
