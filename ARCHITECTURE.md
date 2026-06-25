@@ -134,7 +134,6 @@ See [SECURITY.md](SECURITY.md) for detail.
 | Arkesel / Hubtel / Twilio SMS | Optional env | `lib/notifications/send.ts` |
 | Resend email | Optional env | `lib/notifications/send-email.ts` |
 | Paystack | Live (initialize + webhook) | `lib/payments/paystack.ts`, `app/actions/payments.ts` |
-| SaaS onboarding | Live — org signup, trial, guided setup | `app/(onboarding)/get-started`, `lib/saas/*`, migration `041` |
 | Hubtel Pay | **Not built** | — |
 | OTA / iCal | Live — import + export feeds, cron sync | `lib/channels/*`, `app/(owner)/owner/channels`, `app/api/ical/[token]` |
 | Supabase Storage | Live with RLS (migration `038`) | guest ID docs, property images |

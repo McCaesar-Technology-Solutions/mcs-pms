@@ -37,7 +37,7 @@ const LEGACY_STAFF_PATHS = [
 async function loadStaffProfile(supabase: ReturnType<typeof createServerClient<Database>>, userId: string) {
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role, is_active, phone, email, mfa_enabled, mfa_method, mfa_totp_secret, onboarding_completed_at')
+    .select('role, is_active, phone, email, mfa_enabled, mfa_method, mfa_totp_secret, hotel_id, onboarding_completed_at')
     .eq('id', userId)
     .maybeSingle()
 
@@ -51,6 +51,7 @@ async function loadStaffProfile(supabase: ReturnType<typeof createServerClient<D
     mfa_enabled: profile.mfa_enabled,
     mfa_method: profile.mfa_method as MfaMethod | null,
     mfa_totp_secret: profile.mfa_totp_secret,
+    hotel_id: profile.hotel_id,
     onboarding_completed_at: profile.onboarding_completed_at,
   }
 }
@@ -159,7 +160,7 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(new URL('/login', request.url))
     }
 
-    if (profile.onboarding_completed_at) {
+    if (profile.onboarding_completed_at || profile.hotel_id) {
       return NextResponse.redirect(new URL('/owner/dashboard', request.url))
     }
 
@@ -227,6 +228,7 @@ export async function updateSession(request: NextRequest) {
     if (
       profile.role === 'owner' &&
       !profile.onboarding_completed_at &&
+      !profile.hotel_id &&
       !pathname.startsWith('/get-started')
     ) {
       return NextResponse.redirect(new URL('/get-started', request.url))

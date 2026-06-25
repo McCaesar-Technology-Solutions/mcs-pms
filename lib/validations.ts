@@ -217,7 +217,6 @@ export const signUpOwnerSchema = z.object({
   name: z.string().min(2, 'Your name is required'),
   email: z.string().email('Enter a valid email'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
-  organizationName: z.string().min(2, 'Business or portfolio name is required'),
 })
 
 export type SignInInput = z.infer<typeof signInSchema>

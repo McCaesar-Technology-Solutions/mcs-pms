@@ -10,14 +10,9 @@ import { PageTabShell } from '@/components/dashboard/page-tab-shell'
 import { getActiveHotelSettings } from '@/lib/data/settings'
 import { getNotificationLog } from '@/lib/data/notification-log'
 import { getAuditLog } from '@/lib/data/audit-log'
-import { SubscriptionPlanPanel } from '@/components/dashboard/subscription-plan-panel'
 import { getProfile } from '@/lib/auth/get-profile'
-import { getOwnerProperties } from '@/lib/data/properties'
-import { getSubscriptionForOwner } from '@/lib/saas/organization'
 
 const SETTINGS_HASH_TO_TAB: Record<string, string> = {
-  plan: 'plan',
-  billing: 'plan',
   'guest-portal': 'guest-portal',
   'guest-feedback': 'guest-portal',
   'guest-requests': 'guest-portal',
@@ -28,12 +23,10 @@ const SETTINGS_HASH_TO_TAB: Record<string, string> = {
 
 export default async function SettingsPage() {
   const hotelSettings = await getActiveHotelSettings()
-  const profile = await getProfile()
-  const [notificationLog, auditLog, properties, subscription] = await Promise.all([
+  const [profile, notificationLog, auditLog] = await Promise.all([
+    getProfile(),
     getNotificationLog(50),
     getAuditLog(50),
-    getOwnerProperties(),
-    profile?.id ? getSubscriptionForOwner(profile.id) : Promise.resolve(null),
   ])
 
   return (
@@ -49,16 +42,12 @@ export default async function SettingsPage() {
         defaultTab="property"
         tabs={[
           { id: 'property', label: 'Property' },
-          { id: 'plan', label: 'Plan' },
           { id: 'guest-portal', label: 'Guest portal' },
           { id: 'alerts', label: 'Alerts' },
           { id: 'activity', label: 'Activity' },
         ]}
         panels={{
           property: <SettingsPanel hotelSettings={hotelSettings} profile={profile} />,
-          plan: (
-            <SubscriptionPlanPanel subscription={subscription} propertyCount={properties.length} />
-          ),
           'guest-portal':
             hotelSettings != null ? (
               <>

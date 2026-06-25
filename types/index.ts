@@ -24,9 +24,8 @@ export interface Profile {
   mfa_totp_pending_secret: string | null
   invited_by: string | null
   is_active: boolean | null
-  organization_id: string | null
-  onboarding_step: OnboardingStep | null
-  onboarding_completed_at: string | null
+  onboarding_step?: 'welcome' | 'property' | 'compliance' | 'team' | 'done' | null
+  onboarding_completed_at?: string | null
   created_at: string | null
 }
 
@@ -41,7 +40,6 @@ export interface Hotel {
   city: string | null
   region: string | null
   owner_id: string | null
-  organization_id: string | null
   gta_license_number: string | null
   gta_license_expiry: string | null
   vat_registration_number: string | null

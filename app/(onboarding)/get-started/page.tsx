@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation'
 
 export default async function GetStartedPage() {
   const data = await getOnboardingPageData()
-  if (!data) redirect('/login')
+  if (!data) redirect('/owner/dashboard')
 
   return (
     <div className="min-h-dvh bg-[#22124C] px-4 py-10">
@@ -18,11 +18,7 @@ export default async function GetStartedPage() {
         <p className="mt-1 text-sm text-white/50">Property management for Ghana hospitality</p>
       </div>
 
-      <OnboardingWizard
-        step={data.step}
-        ownerName={data.ownerName}
-        subscription={data.subscription}
-      />
+      <OnboardingWizard step={data.step} ownerName={data.ownerName} />
     </div>
   )
 }

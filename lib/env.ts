@@ -8,9 +8,10 @@ export function isProd(): boolean {
   return isProduction
 }
 
+/** Owner self-signup. Set DISABLE_PUBLIC_SIGNUP=true to block new registrations. */
 export function isPublicSignupAllowed(): boolean {
-  if (!isProduction) return true
-  return process.env.ALLOW_PUBLIC_SIGNUP === 'true'
+  if (process.env.DISABLE_PUBLIC_SIGNUP === 'true') return false
+  return true
 }
 
 function requireEnv(name: string): string {

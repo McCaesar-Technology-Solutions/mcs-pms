@@ -125,7 +125,7 @@ docs/               role-specific user guides
 
 ## What's next (roadmap)
 
-Priority next: **Paystack subscription billing** for plan upgrades after trial. Core pilot features (payments, OTA/iCal, SaaS onboarding) are shipped. Details in [FEATURES.md](FEATURES.md#what-is-incomplete).
+Priority optional: Hubtel Pay, Airbnb OAuth API. Core ops (reservations, billing, OTA iCal, compliance) are shipped. Details in [FEATURES.md](FEATURES.md#what-is-incomplete).
 
 ---
 

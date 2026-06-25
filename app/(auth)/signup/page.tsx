@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,7 +11,6 @@ export default function SignUpPage() {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [organizationName, setOrganizationName] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -20,7 +19,7 @@ export default function SignUpPage() {
     setError(null)
     setLoading(true)
 
-    const result = await signUpOwner({ name, email, password, organizationName })
+    const result = await signUpOwner({ name, email, password })
     setLoading(false)
 
     if (!result.success) {
@@ -36,13 +35,13 @@ export default function SignUpPage() {
       <div className="w-full max-w-md rounded-2xl border border-white/10 bg-white/5 p-8 shadow-2xl backdrop-blur-md">
         <div className="mb-8 text-center">
           <Link
-            href="/"
+            href="/login"
             className="text-3xl font-semibold tracking-wide text-[#D4A62E] hover:text-[#e0b64a]"
             style={{ fontFamily: 'var(--font-cormorant, "Cormorant Garamond", serif)' }}
           >
             MOJO APARTMENTS
           </Link>
-          <p className="mt-2 text-sm text-white/70">Start your 14-day free trial</p>
+          <p className="mt-2 text-sm text-white/70">Create your owner account</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
@@ -61,7 +60,7 @@ export default function SignUpPage() {
 
           <div className="space-y-2">
             <Label htmlFor="email" className="text-white/90">
-              Work email
+              Email
             </Label>
             <Input
               id="email"
@@ -88,23 +87,6 @@ export default function SignUpPage() {
               minLength={8}
               className="border-white/20 bg-white/10 text-white placeholder:text-white/40"
             />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="organizationName" className="text-white/90">
-              Business or portfolio name
-            </Label>
-            <Input
-              id="organizationName"
-              value={organizationName}
-              onChange={(e) => setOrganizationName(e.target.value)}
-              placeholder="e.g. MOJO Hospitality Group"
-              required
-              className="border-white/20 bg-white/10 text-white placeholder:text-white/40"
-            />
-            <p className="text-xs text-white/45">
-              You&apos;ll add your first property in the next step.
-            </p>
           </div>
 
           {error && (

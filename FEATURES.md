@@ -8,7 +8,7 @@ Production features shipped beyond the original UI prototype.
 
 | Role | Sign-in | Scope |
 |------|---------|-------|
-| **Owner** | `/signup` or login | All properties in portfolio; billing, GRA, analytics, settings |
+| **Owner** | `/signup` or login | Guided first-run setup; all properties in portfolio; billing, GRA, analytics, settings |
 | **Manager** | Staff invite | One property; daily ops, complaints, housekeeping |
 | **Receptionist** | Staff invite (email) | One property; front desk — bookings, check-in/out, room status, log complaints. No revenue/billing/prices/approvals |
 | **Technician** | Staff invite | Assigned maintenance jobs only |
@@ -34,7 +34,7 @@ Production features shipped beyond the original UI prototype.
 
 ### What is incomplete
 
-The app is **production-ready for Ghana hospitality operators** signing up via self-serve trial. Paystack **subscription** billing is not built yet — see [FEATURES.md](FEATURES.md#what-is-incomplete).
+The app is **production-ready as a custom PMS** for a hotel or portfolio operator (single company deployment). See also [README.md](README.md) and [ARCHITECTURE.md](ARCHITECTURE.md).
 
 #### 1. Payments (partial)
 
@@ -47,12 +47,10 @@ The app is **production-ready for Ghana hospitality operators** signing up via s
 - **iCal sync** — import Airbnb/Booking.com calendars; export per-room availability feeds; cron sync every 15 min (done).
 - **Not yet:** Airbnb OAuth API, channel manager, two-way rate sync.
 
-#### 3. SaaS productization
+#### 3. Optional / future
 
-- **Self-serve signup** — landing page, 14-day trial, organization account per owner (done).
-- **Guided onboarding** — `/get-started` wizard: property, compliance, team invite (done).
-- **Plan limits** — trial caps on properties and rooms; plan tab in Settings (done).
-- **Not yet:** Paystack subscription billing, super-admin console.
+- **Hubtel Pay** — alternative to Paystack for MoMo (not built).
+- **Airbnb OAuth** — beyond iCal import/export (not built).
 
 #### 4. Production hardening (June 2026)
 
@@ -66,7 +64,7 @@ The app is **production-ready for Ghana hospitality operators** signing up via s
 | 2FA | SMS OTP — **mandatory** owner + manager in production |
 | Guest sessions | HMAC-signed tokens; room + surname entry |
 | Privacy / Terms | `/privacy`, `/terms` published |
-| Migrations | Through `041` — see [DEPLOYMENT.md](DEPLOYMENT.md) |
+| Migrations | Through `042` — apply `scripts/apply-042-chunks/042_owner_onboarding.sql` for the setup wizard |
 
 Realtime updates require an **open browser tab** — not push when the app is closed.
 
@@ -76,7 +74,7 @@ Realtime updates require an **open browser tab** — not push when the app is cl
 
 #### Recommended build order
 
-Production pilot is feature-complete. Next: Paystack subscription billing, then super-admin if multi-tenant SaaS scale is needed.
+Operational pilot is feature-complete for a dedicated deployment. Optional next: Hubtel Pay, Airbnb OAuth API.
 
 ---
 

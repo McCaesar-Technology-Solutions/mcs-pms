@@ -23,9 +23,8 @@ import {
   ONBOARDING_STEP_LABELS,
   ONBOARDING_STEPS,
   onboardingProgress,
-} from '@/lib/saas/onboarding'
-import { PLAN_CATALOG, type SubscriptionSnapshot } from '@/lib/saas/plans'
-import type { OnboardingStep } from '@/types'
+  type OnboardingStep,
+} from '@/lib/onboarding/state'
 
 const GHANA_REGIONS = [
   'Greater Accra',
@@ -46,20 +45,20 @@ const GHANA_REGIONS = [
   'Western North',
 ] as const
 
+const inputClass =
+  'w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2.5 text-white placeholder:text-white/40 focus:border-[#D4A62E]/50 focus:outline-none focus:ring-2 focus:ring-[#D4A62E]/20'
+
 interface OnboardingWizardProps {
   step: OnboardingStep
   ownerName: string
-  subscription: SubscriptionSnapshot | null
 }
 
-export function OnboardingWizard({ step, ownerName, subscription }: OnboardingWizardProps) {
+export function OnboardingWizard({ step, ownerName }: OnboardingWizardProps) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
 
   const progress = onboardingProgress(step)
-  const trial = PLAN_CATALOG.trial
-
   const stepIndex = ONBOARDING_STEPS.indexOf(step)
 
   function run(action: () => Promise<{ success: boolean; error?: string }>) {
@@ -88,18 +87,6 @@ export function OnboardingWizard({ step, ownerName, subscription }: OnboardingWi
             style={{ width: `${progress}%` }}
           />
         </div>
-        <div className="mt-4 flex flex-wrap gap-2">
-          {ONBOARDING_STEPS.map((s, i) => (
-            <span
-              key={s}
-              className={`rounded-full px-3 py-1 text-xs font-medium ${
-                i <= stepIndex ? 'bg-[#D4A62E]/20 text-[#F5DFA0]' : 'bg-white/5 text-white/40'
-              }`}
-            >
-              {ONBOARDING_STEP_LABELS[s]}
-            </span>
-          ))}
-        </div>
       </div>
 
       <div className="rounded-2xl border border-white/10 bg-white/5 p-8 shadow-2xl backdrop-blur-md">
@@ -110,20 +97,10 @@ export function OnboardingWizard({ step, ownerName, subscription }: OnboardingWi
         )}
 
         {step === 'welcome' && (
-          <WelcomeStep
-            ownerName={ownerName}
-            subscription={subscription}
-            trial={trial}
-            pending={pending}
-            onContinue={() => run(completeWelcomeStep)}
-          />
+          <WelcomeStep ownerName={ownerName} pending={pending} onContinue={() => run(completeWelcomeStep)} />
         )}
         {step === 'property' && (
-          <PropertyStep
-            maxRooms={subscription?.maxRoomsPerProperty ?? trial.maxRoomsPerProperty}
-            pending={pending}
-            onSubmit={(data) => run(() => completePropertyStep(data))}
-          />
+          <PropertyStep pending={pending} onSubmit={(data) => run(() => completePropertyStep(data))} />
         )}
         {step === 'compliance' && (
           <ComplianceStep
@@ -167,14 +144,10 @@ export function OnboardingWizard({ step, ownerName, subscription }: OnboardingWi
 
 function WelcomeStep({
   ownerName,
-  subscription,
-  trial,
   pending,
   onContinue,
 }: {
   ownerName: string
-  subscription: SubscriptionSnapshot | null
-  trial: (typeof PLAN_CATALOG)['trial']
   pending: boolean
   onContinue: () => void
 }) {
@@ -187,19 +160,16 @@ function WelcomeStep({
         <div>
           <h1 className="text-2xl font-semibold">Welcome, {ownerName.split(' ')[0]}</h1>
           <p className="mt-2 text-sm leading-relaxed text-white/70">
-            You&apos;re on a {trial.label.toLowerCase()} for{' '}
-            <strong className="text-white">{subscription?.organizationName ?? 'your portfolio'}</strong>.
-            We&apos;ll set up your first property, Ghana compliance fields, and optional team access in
-            about five minutes.
+            Let&apos;s configure your property, Ghana compliance fields, and optional manager access.
+            This takes about five minutes.
           </p>
         </div>
       </div>
-
       <ul className="grid gap-3 sm:grid-cols-2">
         {[
           'Room inventory & nightly rates',
           'GRA-ready invoicing on checkout',
-          'Guest portal & complaint workflow',
+          'Guest portal & complaints',
           'OTA calendar sync (iCal)',
         ].map((item) => (
           <li
@@ -211,11 +181,6 @@ function WelcomeStep({
           </li>
         ))}
       </ul>
-
-      <p className="text-xs text-white/45">
-        {trial.description} No card required to start.
-      </p>
-
       <button type="button" className="btn-primary h-11 w-full gap-2 sm:w-auto" disabled={pending} onClick={onContinue}>
         Let&apos;s set up your property
         <ChevronRight className="h-4 w-4" />
@@ -225,11 +190,9 @@ function WelcomeStep({
 }
 
 function PropertyStep({
-  maxRooms,
   pending,
   onSubmit,
 }: {
-  maxRooms: number
   pending: boolean
   onSubmit: (data: Record<string, unknown>) => void
 }) {
@@ -237,7 +200,7 @@ function PropertyStep({
   const [address, setAddress] = useState('')
   const [city, setCity] = useState('Accra')
   const [region, setRegion] = useState<(typeof GHANA_REGIONS)[number]>('Greater Accra')
-  const [totalRooms, setTotalRooms] = useState(Math.min(10, maxRooms))
+  const [totalRooms, setTotalRooms] = useState(10)
 
   return (
     <form
@@ -249,22 +212,21 @@ function PropertyStep({
     >
       <StepHeader
         icon={Building2}
-        title="Your first property"
-        description="We create your rooms and default rates automatically. You can refine categories later."
+        title="Your property"
+        description="We create rooms and default rates automatically. You can refine categories later in Settings."
       />
-
       <Field label="Property name">
-        <input className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2.5 text-white placeholder:text-white/40 focus:border-[#D4A62E]/50 focus:outline-none focus:ring-2 focus:ring-[#D4A62E]/20" value={name} onChange={(e) => setName(e.target.value)} required placeholder="MOJO Apartments Osu" />
+        <input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} required placeholder="MOJO Apartments Osu" />
       </Field>
       <Field label="Street address">
-        <input className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2.5 text-white placeholder:text-white/40 focus:border-[#D4A62E]/50 focus:outline-none focus:ring-2 focus:ring-[#D4A62E]/20" value={address} onChange={(e) => setAddress(e.target.value)} required placeholder="14 Oxford Street" />
+        <input className={inputClass} value={address} onChange={(e) => setAddress(e.target.value)} required placeholder="14 Oxford Street" />
       </Field>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="City">
-          <input className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2.5 text-white placeholder:text-white/40 focus:border-[#D4A62E]/50 focus:outline-none focus:ring-2 focus:ring-[#D4A62E]/20" value={city} onChange={(e) => setCity(e.target.value)} required />
+          <input className={inputClass} value={city} onChange={(e) => setCity(e.target.value)} required />
         </Field>
         <Field label="Region">
-          <select className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2.5 text-white placeholder:text-white/40 focus:border-[#D4A62E]/50 focus:outline-none focus:ring-2 focus:ring-[#D4A62E]/20" value={region} onChange={(e) => setRegion(e.target.value as (typeof GHANA_REGIONS)[number])}>
+          <select className={inputClass} value={region} onChange={(e) => setRegion(e.target.value as (typeof GHANA_REGIONS)[number])}>
             {GHANA_REGIONS.map((r) => (
               <option key={r} value={r}>
                 {r}
@@ -273,18 +235,9 @@ function PropertyStep({
           </select>
         </Field>
       </div>
-      <Field label={`Number of rooms (max ${maxRooms} on your plan)`}>
-        <input
-          className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2.5 text-white placeholder:text-white/40 focus:border-[#D4A62E]/50 focus:outline-none focus:ring-2 focus:ring-[#D4A62E]/20"
-          type="number"
-          min={1}
-          max={maxRooms}
-          value={totalRooms}
-          onChange={(e) => setTotalRooms(Number(e.target.value))}
-          required
-        />
+      <Field label="Number of rooms">
+        <input className={inputClass} type="number" min={1} max={200} value={totalRooms} onChange={(e) => setTotalRooms(Number(e.target.value))} required />
       </Field>
-
       <button type="submit" className="btn-primary h-11 w-full sm:w-auto" disabled={pending}>
         Create property & continue
       </button>
@@ -319,23 +272,21 @@ function ComplianceStep({
         title="Ghana compliance"
         description="Optional now — add GTA licence and VAT details for GRA reports and invoice exports."
       />
-
       <Field label="GTA licence number">
-        <input className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2.5 text-white placeholder:text-white/40 focus:border-[#D4A62E]/50 focus:outline-none focus:ring-2 focus:ring-[#D4A62E]/20" value={gtaLicenseNumber} onChange={(e) => setGtaLicenseNumber(e.target.value)} placeholder="GTA-XXXX" />
+        <input className={inputClass} value={gtaLicenseNumber} onChange={(e) => setGtaLicenseNumber(e.target.value)} placeholder="GTA-XXXX" />
       </Field>
       <Field label="GTA licence expiry">
-        <input className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2.5 text-white placeholder:text-white/40 focus:border-[#D4A62E]/50 focus:outline-none focus:ring-2 focus:ring-[#D4A62E]/20" type="date" value={gtaLicenseExpiry} onChange={(e) => setGtaLicenseExpiry(e.target.value)} />
+        <input className={inputClass} type="date" value={gtaLicenseExpiry} onChange={(e) => setGtaLicenseExpiry(e.target.value)} />
       </Field>
       <Field label="VAT registration (TIN)">
-        <input className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2.5 text-white placeholder:text-white/40 focus:border-[#D4A62E]/50 focus:outline-none focus:ring-2 focus:ring-[#D4A62E]/20" value={vatRegistrationNumber} onChange={(e) => setVatRegistrationNumber(e.target.value)} placeholder="C000XXXXXXX" />
+        <input className={inputClass} value={vatRegistrationNumber} onChange={(e) => setVatRegistrationNumber(e.target.value)} placeholder="C000XXXXXXX" />
       </Field>
       <Field label="VAT display on invoices">
-        <select className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2.5 text-white placeholder:text-white/40 focus:border-[#D4A62E]/50 focus:outline-none focus:ring-2 focus:ring-[#D4A62E]/20" value={vatMode} onChange={(e) => setVatMode(e.target.value as 'exclusive' | 'inclusive')}>
+        <select className={inputClass} value={vatMode} onChange={(e) => setVatMode(e.target.value as 'exclusive' | 'inclusive')}>
           <option value="exclusive">Exclusive — tax added on top</option>
           <option value="inclusive">Inclusive — tax included in room rate</option>
         </select>
       </Field>
-
       <div className="flex flex-wrap gap-3">
         <button type="submit" className="btn-primary h-11" disabled={pending}>
           Save & continue
@@ -366,24 +317,11 @@ function TeamStep({
         title="Invite your manager"
         description="Managers run daily ops — reservations, housekeeping, and complaints. They won't see revenue or billing."
       />
-
       <Field label="Manager email (optional)">
-        <input
-          className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2.5 text-white placeholder:text-white/40 focus:border-[#D4A62E]/50 focus:outline-none focus:ring-2 focus:ring-[#D4A62E]/20"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="manager@yourproperty.com"
-        />
+        <input className={inputClass} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="manager@yourproperty.com" />
       </Field>
-
       <div className="flex flex-wrap gap-3">
-        <button
-          type="button"
-          className="btn-primary h-11"
-          disabled={pending || !email.trim()}
-          onClick={() => onSubmit(email.trim())}
-        >
+        <button type="button" className="btn-primary h-11" disabled={pending || !email.trim()} onClick={() => onSubmit(email.trim())}>
           Send invite & continue
         </button>
         <button type="button" className="btn-secondary h-11 border-white/20 bg-transparent text-white hover:bg-white/10" disabled={pending} onClick={onSkip}>
@@ -403,8 +341,7 @@ function DoneStep({ pending, onLaunch }: { pending: boolean; onLaunch: () => voi
       <div>
         <h1 className="text-2xl font-semibold">You&apos;re ready to go</h1>
         <p className="mt-2 text-sm text-white/70">
-          Your property is live. Open the dashboard to create reservations, connect OTA calendars, and
-          configure guest portal settings.
+          Your property is live. Open the dashboard to create reservations and connect OTA calendars.
         </p>
       </div>
       <button type="button" className="btn-primary mx-auto h-11 min-w-[200px] gap-2" disabled={pending} onClick={onLaunch}>

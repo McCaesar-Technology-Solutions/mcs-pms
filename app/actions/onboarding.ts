@@ -8,10 +8,6 @@ import { ensureGuestPortalSlug } from '@/lib/guest-portal'
 import { ensureDefaultGuestRules } from '@/lib/data/guest-rules'
 import { seedDefaultRoomCategories } from '@/lib/data/room-categories'
 import { ensureExportFeedsForHotel } from '@/lib/channels/ensure-export-feeds'
-import {
-  countOrganizationProperties,
-  getSubscriptionForOwner,
-} from '@/lib/saas/organization'
 import { inviteStaff } from '@/app/actions/staff'
 import type { OnboardingStep, VatMode } from '@/types'
 
@@ -65,7 +61,7 @@ async function requireOnboardingOwner() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('id, role, hotel_id, organization_id, onboarding_step, onboarding_completed_at')
+    .select('id, role, hotel_id, onboarding_step, onboarding_completed_at')
     .eq('id', user.id)
     .maybeSingle()
 
@@ -75,10 +71,7 @@ async function requireOnboardingOwner() {
 
 async function advanceStep(userId: string, step: OnboardingStep) {
   const admin = createAdminClient()
-  await admin
-    .from('profiles')
-    .update({ onboarding_step: step })
-    .eq('id', userId)
+  await admin.from('profiles').update({ onboarding_step: step }).eq('id', userId)
 }
 
 async function seedRoomsForHotel(
@@ -121,7 +114,7 @@ function revalidateAll() {
 
 export async function completeWelcomeStep(): Promise<OnboardingActionResult> {
   const ctx = await requireOnboardingOwner()
-  if (!ctx) return { success: false, error: 'Onboarding is not available.' }
+  if (!ctx) return { success: false, error: 'Setup is not available.' }
 
   await advanceStep(ctx.userId, 'property')
   revalidateAll()
@@ -135,35 +128,12 @@ export async function completePropertyStep(input: unknown): Promise<OnboardingAc
   }
 
   const ctx = await requireOnboardingOwner()
-  if (!ctx) return { success: false, error: 'Onboarding is not available.' }
+  if (!ctx) return { success: false, error: 'Setup is not available.' }
 
   if (ctx.profile.hotel_id) {
     await advanceStep(ctx.userId, 'compliance')
     revalidateAll()
     return { success: true }
-  }
-
-  const sub = await getSubscriptionForOwner(ctx.userId)
-  if (!sub) {
-    return { success: false, error: 'Account setup is incomplete. Contact support.' }
-  }
-
-  if (parsed.data.totalRooms > sub.maxRoomsPerProperty) {
-    return {
-      success: false,
-      error: `Your plan allows up to ${sub.maxRoomsPerProperty} rooms per property.`,
-    }
-  }
-
-  const propertyCount = ctx.profile.organization_id
-    ? await countOrganizationProperties(ctx.profile.organization_id)
-    : 0
-
-  if (propertyCount >= sub.maxProperties) {
-    return {
-      success: false,
-      error: `Your plan allows up to ${sub.maxProperties} propert${sub.maxProperties === 1 ? 'y' : 'ies'}.`,
-    }
   }
 
   const admin = createAdminClient()
@@ -176,7 +146,6 @@ export async function completePropertyStep(input: unknown): Promise<OnboardingAc
       city: parsed.data.city.trim(),
       region: parsed.data.region,
       owner_id: ctx.userId,
-      organization_id: ctx.profile.organization_id,
       vat_mode: 'exclusive',
     })
     .select('id')
@@ -268,7 +237,7 @@ export async function completeTeamStep(input: unknown): Promise<OnboardingAction
 
 export async function finishOnboarding(): Promise<OnboardingActionResult> {
   const ctx = await requireOnboardingOwner()
-  if (!ctx) return { success: false, error: 'Onboarding is not available.' }
+  if (!ctx) return { success: false, error: 'Setup is not available.' }
 
   if (!ctx.profile.hotel_id) {
     return { success: false, error: 'Add your first property before launching.' }

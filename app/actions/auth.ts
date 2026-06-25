@@ -4,7 +4,6 @@ import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { createOrganizationForOwner } from '@/lib/saas/organization'
 import { ROLE_HOME, isStaffRole } from '@/lib/auth/roles'
 import { getAppOrigin, isPublicSignupAllowed } from '@/lib/env'
 import { getClientIp } from '@/lib/auth/client-ip'
@@ -214,7 +213,6 @@ export async function signUpOwner(input: {
   name: string
   email: string
   password: string
-  organizationName: string
 }): Promise<AuthActionResult> {
   if (!isPublicSignupAllowed()) {
     return {
@@ -234,7 +232,6 @@ export async function signUpOwner(input: {
 
   const admin = createAdminClient()
 
-  // Create the auth user (email pre-confirmed, no SMTP dependency).
   const { data: authUser, error: signUpError } = await admin.auth.admin.createUser({
     email: parsed.data.email,
     password: parsed.data.password,
@@ -254,7 +251,6 @@ export async function signUpOwner(input: {
 
   const userId = authUser.user.id
 
-  // Profile must exist before hotel insert when owner_id FK targets profiles (migration 005).
   const { error: profileError } = await admin.from('profiles').insert({
     id: userId,
     hotel_id: null,
@@ -265,8 +261,6 @@ export async function signUpOwner(input: {
     mfa_enabled: false,
     mfa_method: null,
     mfa_sms_enabled: false,
-    onboarding_step: 'welcome',
-    onboarding_completed_at: null,
   })
 
   if (profileError) {
@@ -275,29 +269,6 @@ export async function signUpOwner(input: {
     return { success: false, error: 'Could not complete registration. Please try again.' }
   }
 
-  const org = await createOrganizationForOwner(userId, parsed.data.organizationName.trim())
-  if (!org) {
-    await admin.from('profiles').delete().eq('id', userId)
-    await admin.auth.admin.deleteUser(userId)
-    return { success: false, error: 'Could not create your organization. Please try again.' }
-  }
-
-  const { error: orgLinkError } = await admin
-    .from('profiles')
-    .update({ organization_id: org.organizationId })
-    .eq('id', userId)
-
-  if (orgLinkError) {
-    console.error('[signUpOwner] org link failed:', orgLinkError.message)
-    await admin.from('organization_members').delete().eq('user_id', userId)
-    await admin.from('subscriptions').delete().eq('organization_id', org.organizationId)
-    await admin.from('organizations').delete().eq('id', org.organizationId)
-    await admin.from('profiles').delete().eq('id', userId)
-    await admin.auth.admin.deleteUser(userId)
-    return { success: false, error: 'Could not complete registration. Please try again.' }
-  }
-
-  // Sign the new owner in.
   const supabase = await createClient()
   const { error: loginError } = await supabase.auth.signInWithPassword({
     email: parsed.data.email,

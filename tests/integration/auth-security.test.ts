@@ -33,16 +33,18 @@ describe('production auth policy', () => {
     expect(roleRequiresMfa('owner')).toBe(false)
   })
 
-  it('blocks public signup in production unless explicitly allowed', async () => {
+  it('allows public signup in production by default', async () => {
     vi.stubEnv('NODE_ENV', 'production')
-    vi.stubEnv('ALLOW_PUBLIC_SIGNUP', '')
+    delete process.env.DISABLE_PUBLIC_SIGNUP
+    const { isPublicSignupAllowed } = await loadEnv()
+    expect(isPublicSignupAllowed()).toBe(true)
+  })
+
+  it('blocks public signup when DISABLE_PUBLIC_SIGNUP is set', async () => {
+    vi.stubEnv('NODE_ENV', 'production')
+    vi.stubEnv('DISABLE_PUBLIC_SIGNUP', 'true')
     const { isPublicSignupAllowed } = await loadEnv()
     expect(isPublicSignupAllowed()).toBe(false)
-
-    vi.stubEnv('ALLOW_PUBLIC_SIGNUP', 'true')
-    vi.resetModules()
-    const env2 = await import('@/lib/env')
-    expect(env2.isPublicSignupAllowed()).toBe(true)
   })
 
   it('allows signup in development', async () => {
