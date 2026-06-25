@@ -1,0 +1,33 @@
+name: Scheduled crons
+
+# Vercel Hobby only allows daily cron jobs in vercel.json. These endpoints need
+# sub-daily schedules, so GitHub Actions calls them with CRON_SECRET instead.
+#
+# Required repo secrets: CRON_SECRET, PRODUCTION_APP_URL (e.g. https://your-app.vercel.app)
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+jobs:
+  notifications:
+    if: github.event.schedule == '*/5 * * * *' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Drain notification outbox
+        run: |
+          curl -sfS \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.PRODUCTION_APP_URL }}/api/cron/notifications"
+
+  channel-sync:
+    if: github.event.schedule == '*/15 * * * *' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sync channel import feeds
+        run: |
+          curl -sfS \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.PRODUCTION_APP_URL }}/api/cron/channel-sync"

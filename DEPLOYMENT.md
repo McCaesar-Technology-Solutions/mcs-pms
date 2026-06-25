@@ -209,8 +209,16 @@ Configure `CRON_SECRET` in Vercel env vars. Vercel Cron sends `Authorization: Be
 | Route | Schedule | Purpose |
 |-------|----------|---------|
 | `/api/cron/cleanup` | Daily 03:00 UTC | Purge stale rate limits and MFA challenges |
-| `/api/cron/notifications` | Every 5 min | Drain notification outbox |
 | `/api/cron/compliance` | Daily 08:00 UTC | GTA license expiry alerts to owners |
+
+**Hobby plan limit:** Vercel Hobby only allows cron jobs that run **once per day**. Sub-daily jobs are handled by [`.github/workflows/scheduled-crons.yml`](.github/workflows/scheduled-crons.yml) instead:
+
+| Route | Schedule | Purpose |
+|-------|----------|---------|
+| `/api/cron/notifications` | Every 5 min | Drain notification outbox |
+| `/api/cron/channel-sync` | Every 15 min | Pull iCal import feeds |
+
+Add GitHub repository secrets **`CRON_SECRET`** (same value as Vercel) and **`PRODUCTION_APP_URL`** (e.g. `https://your-app.vercel.app`). On Vercel Pro, you may move these back into `vercel.json` if you prefer.
 
 ### 8. Paystack webhooks
 
