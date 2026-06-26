@@ -25,6 +25,7 @@ export function MfaSmsForm({ nextPath, mode }: MfaSmsFormProps) {
   const [phone, setPhone] = useState('')
   const [code, setCode] = useState('')
   const [maskedPhone, setMaskedPhone] = useState<string | null>(null)
+  const [deliveryChannel, setDeliveryChannel] = useState<'sms' | 'whatsapp'>('sms')
   const [devCode, setDevCode] = useState<string | null>(null)
   const [needsPhone, setNeedsPhone] = useState(mode === 'setup')
   const [error, setError] = useState<string | null>(null)
@@ -32,7 +33,7 @@ export function MfaSmsForm({ nextPath, mode }: MfaSmsFormProps) {
   const [sending, setSending] = useState(false)
   const [bootstrapping, setBootstrapping] = useState(true)
 
-  const deliverCode = useCallback(async (send: () => Promise<{ success: boolean; error?: string; data?: { maskedPhone: string; devCode?: string } }>) => {
+  const deliverCode = useCallback(async (send: () => Promise<{ success: boolean; error?: string; data?: { maskedPhone: string; devCode?: string; deliveryChannel?: 'sms' | 'whatsapp' } }>) => {
     setSending(true)
     setError(null)
     const result = await send()
@@ -43,6 +44,7 @@ export function MfaSmsForm({ nextPath, mode }: MfaSmsFormProps) {
     }
     if (result.data) {
       setMaskedPhone(result.data.maskedPhone)
+      setDeliveryChannel(result.data.deliveryChannel ?? 'sms')
       setDevCode(result.data.devCode ?? null)
     }
     return true
@@ -77,9 +79,11 @@ export function MfaSmsForm({ nextPath, mode }: MfaSmsFormProps) {
         if (mode === 'verify' || hasPhone) {
           await deliverCode(sendMfaSmsCode)
         }
-      } catch {
+      } catch (err) {
         if (!cancelled) {
-          setError('Could not load verification. Refresh the page and try again.')
+          const message =
+            err instanceof Error ? err.message : 'Could not load verification. Refresh the page and try again.'
+          setError(message)
           setBootstrapping(false)
         }
       }
@@ -125,7 +129,7 @@ export function MfaSmsForm({ nextPath, mode }: MfaSmsFormProps) {
     return (
       <form onSubmit={handleSavePhone} className="space-y-5">
         <p className="text-sm text-white/70">
-          Add your mobile number. We&apos;ll text a 6-digit code to verify it.
+          Add your mobile number. We&apos;ll send a 6-digit code via WhatsApp or SMS to verify it.
         </p>
         <div className="space-y-2">
           <Label htmlFor="mfa-phone" className="text-white/90">
@@ -161,8 +165,8 @@ export function MfaSmsForm({ nextPath, mode }: MfaSmsFormProps) {
     <form onSubmit={handleVerify} className="space-y-5">
       <p className="text-sm text-white/70">
         {maskedPhone
-          ? `Enter the 6-digit code we sent to ${maskedPhone}.`
-          : 'Enter the 6-digit code from your SMS.'}
+          ? `Enter the 6-digit code we sent to ${maskedPhone} via ${deliveryChannel === 'whatsapp' ? 'WhatsApp' : 'SMS'}.`
+          : `Enter the 6-digit code from your ${deliveryChannel === 'whatsapp' ? 'WhatsApp message' : 'SMS'}.`}
       </p>
 
       {devCode && (

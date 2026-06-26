@@ -39,4 +39,8 @@ describe('guest session tokens', () => {
     expect(await parseGuestSessionToken('not-a-valid-token')).toBeNull()
     expect(await parseGuestSessionToken('a.b')).toBeNull()
   })
+
+  it('rejects a raw guest id (legacy enter route bug)', async () => {
+    expect(await parseGuestSessionToken('550e8400-e29b-41d4-a716-446655440000')).toBeNull()
+  })
 })

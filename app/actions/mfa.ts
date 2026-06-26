@@ -22,6 +22,13 @@ import { isEmailConfigured } from '@/lib/notifications/email-provider'
 import { appUrl } from '@/lib/notifications/app-url'
 import { isSmsConfigured } from '@/lib/notifications/sms-provider'
 import { toE164 } from '@/lib/notifications/e164'
+import {
+  checkTwilioVerification,
+  isTwilioVerifyConfigured,
+  resolvePhoneVerifyChannel,
+  sendTwilioVerification,
+  twilioVerifyChannelLabel,
+} from '@/lib/notifications/twilio-verify'
 import { phoneSchema } from '@/lib/phone'
 import type { UserRole } from '@/types'
 
@@ -39,6 +46,19 @@ interface StaffProfile {
   mfa_method: MfaMethod | null
   mfa_totp_secret: string | null
   mfa_totp_pending_secret: string | null
+}
+
+function mfaActionError(err: unknown, fallback: string): string {
+  if (err instanceof Error) {
+    if (err.message.includes('MFA_OTP_SECRET')) {
+      return 'Two-factor authentication is not configured on this server (missing MFA_OTP_SECRET). Add it in your deployment environment variables and redeploy.'
+    }
+    if (err.message.includes('Supabase admin')) {
+      return 'Server configuration error. Contact your administrator.'
+    }
+    return err.message
+  }
+  return fallback
 }
 
 async function requireStaffContext() {
@@ -110,23 +130,31 @@ async function assertOtpRateLimit(userId: string): Promise<string | null> {
 async function createOtpChallenge(userId: string): Promise<
   MfaActionResult<{ code: string }>
 > {
-  const rateLimitError = await assertOtpRateLimit(userId)
-  if (rateLimitError) return { success: false, error: rateLimitError }
+  try {
+    const rateLimitError = await assertOtpRateLimit(userId)
+    if (rateLimitError) return { success: false, error: rateLimitError }
 
-  const code = generateOtpCode()
-  const expiresAt = new Date(Date.now() + MFA_OTP_TTL_MS).toISOString()
-  const admin = createAdminClient()
-  const { error } = await admin.from('mfa_otp_challenges').insert({
-    user_id: userId,
-    code_hash: await hashOtp(code),
-    expires_at: expiresAt,
-  })
+    const code = generateOtpCode()
+    const expiresAt = new Date(Date.now() + MFA_OTP_TTL_MS).toISOString()
+    const admin = createAdminClient()
+    const { error } = await admin.from('mfa_otp_challenges').insert({
+      user_id: userId,
+      code_hash: await hashOtp(code),
+      expires_at: expiresAt,
+    })
 
-  if (error) {
-    return { success: false, error: 'Could not create a verification code. Try again.' }
+    if (error) {
+      return { success: false, error: 'Could not create a verification code. Try again.' }
+    }
+
+    return { success: true, data: { code } }
+  } catch (err) {
+    console.error('[mfa] createOtpChallenge failed:', err)
+    return {
+      success: false,
+      error: mfaActionError(err, 'Could not create a verification code. Try again.'),
+    }
   }
-
-  return { success: true, data: { code } }
 }
 
 async function verifyOtpChallenge(userId: string, trimmed: string): Promise<boolean> {
@@ -149,6 +177,168 @@ async function verifyOtpChallenge(userId: string, trimmed: string): Promise<bool
 
   await admin.from('mfa_otp_challenges').update({ consumed_at: now }).eq('id', challenge.id)
   return true
+}
+
+async function recordExternalVerifySend(userId: string): Promise<void> {
+  const admin = createAdminClient()
+  await admin.from('mfa_otp_challenges').insert({
+    user_id: userId,
+    code_hash: 'twilio-verify',
+    expires_at: new Date(Date.now() + MFA_OTP_TTL_MS).toISOString(),
+  })
+}
+
+function phoneVerifyDestination(phone: string): string | null {
+  return toE164(phone)
+}
+
+async function sendPhoneMfaCode(
+  userId: string,
+  profile: StaffProfile,
+  phone: string,
+): Promise<
+  MfaActionResult<{ maskedPhone: string; devCode?: string; deliveryChannel?: 'sms' | 'whatsapp' }>
+> {
+  const e164 = phoneVerifyDestination(phone)
+  if (!e164) {
+    return { success: false, error: 'Your phone number looks invalid. Update it and try again.' }
+  }
+
+  const rateLimitError = await assertOtpRateLimit(userId)
+  if (rateLimitError) return { success: false, error: rateLimitError }
+
+  if (isTwilioVerifyConfigured()) {
+    const channel = resolvePhoneVerifyChannel()
+    const sent = await sendTwilioVerification(e164, channel)
+    if (!sent.success) {
+      return { success: false, error: sent.error ?? 'Could not send the verification code.' }
+    }
+    await recordExternalVerifySend(userId)
+    return {
+      success: true,
+      data: {
+        maskedPhone: maskPhone(phone),
+        deliveryChannel: channel,
+      },
+    }
+  }
+
+  const created = await createOtpChallenge(userId)
+  if (!created.success || !created.data) {
+    return created as MfaActionResult<{
+      maskedPhone: string
+      devCode?: string
+      deliveryChannel?: 'sms' | 'whatsapp'
+    }>
+  }
+  const { code } = created.data
+
+  const body = `Your MOJO Apartments sign-in code is ${code}. It expires in 5 minutes. Do not share this code.`
+  const results = await sendToPhone(phone, body, {
+    hotelId: profile.hotel_id ?? undefined,
+    templateKey: 'mfa_otp',
+    includeWhatsApp: true,
+  })
+
+  const sent = results.some((r) => r.success)
+  const isDev = process.env.NODE_ENV === 'development' && !isSmsConfigured()
+  const deliveryChannel = results.find((r) => r.success && r.channel === 'whatsapp')
+    ? 'whatsapp'
+    : 'sms'
+
+  if (!sent && !isDev) {
+    return {
+      success: false,
+      error: 'Could not send the code. Check notification settings or try again shortly.',
+    }
+  }
+
+  return {
+    success: true,
+    data: {
+      maskedPhone: maskPhone(phone),
+      deliveryChannel,
+      ...(isDev ? { devCode: code } : {}),
+    },
+  }
+}
+
+async function sendEmailMfaCode(
+  userId: string,
+  profile: StaffProfile,
+  email: string,
+): Promise<MfaActionResult<{ maskedEmail: string; devCode?: string }>> {
+  const rateLimitError = await assertOtpRateLimit(userId)
+  if (rateLimitError) return { success: false, error: rateLimitError }
+
+  if (isTwilioVerifyConfigured()) {
+    const sent = await sendTwilioVerification(email, 'email')
+    if (!sent.success) {
+      return { success: false, error: sent.error ?? 'Could not send the verification code.' }
+    }
+    await recordExternalVerifySend(userId)
+    return { success: true, data: { maskedEmail: maskEmail(email) } }
+  }
+
+  const created = await createOtpChallenge(userId)
+  if (!created.success || !created.data) {
+    return created as MfaActionResult<{ maskedEmail: string; devCode?: string }>
+  }
+  const { code } = created.data
+
+  if (!isEmailConfigured()) {
+    if (process.env.NODE_ENV === 'development') {
+      return {
+        success: true,
+        data: { maskedEmail: maskEmail(email), devCode: code },
+      }
+    }
+    return {
+      success: false,
+      error:
+        'Email is not configured on this server. Add TWILIO_VERIFY_SERVICE_SID for Verify email, or RESEND_API_KEY, then redeploy.',
+    }
+  }
+
+  const result = await sendToEmail(
+    email,
+    {
+      subject: 'Your MOJO Apartments sign-in code',
+      preview: `Your sign-in code is ${code}. It expires in 5 minutes.`,
+      lines: [
+        `Your sign-in code is ${code}.`,
+        'It expires in 5 minutes.',
+        'Do not share this code with anyone.',
+      ],
+      actionUrl: appUrl('/login'),
+      actionLabel: 'Sign in',
+    },
+    { hotelId: profile.hotel_id ?? undefined, templateKey: 'mfa_otp' },
+  )
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error ?? 'Could not send the email. Check RESEND_API_KEY and try again.',
+    }
+  }
+
+  return { success: true, data: { maskedEmail: maskEmail(email) } }
+}
+
+async function confirmMfaCode(profile: StaffProfile, userId: string, trimmed: string): Promise<boolean> {
+  if (isTwilioVerifyConfigured()) {
+    const to =
+      profile.mfa_method === 'email'
+        ? profile.email?.trim().toLowerCase()
+        : profile.phone
+          ? phoneVerifyDestination(profile.phone)
+          : null
+    if (!to) return false
+    const checked = await checkTwilioVerification(to, trimmed)
+    return checked.success
+  }
+  return verifyOtpChallenge(userId, trimmed)
 }
 
 async function loadStaffProfile(userId: string) {
@@ -200,31 +390,39 @@ async function markSessionVerified(
   supabase: Awaited<ReturnType<typeof createClient>>,
   userId: string,
 ): Promise<MfaActionResult> {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
-  if (!session?.refresh_token) {
-    return { success: false, error: 'Your session expired. Sign in again.' }
+  try {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+    if (!session?.refresh_token) {
+      return { success: false, error: 'Your session expired. Sign in again.' }
+    }
+
+    const admin = createAdminClient()
+    const sessionKey = await hashSessionKey(session.refresh_token)
+    const now = new Date().toISOString()
+    const sessionExpires = session.expires_at
+      ? new Date(session.expires_at * 1000).toISOString()
+      : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+
+    await admin.from('mfa_verified_sessions').upsert(
+      {
+        user_id: userId,
+        session_key: sessionKey,
+        verified_at: now,
+        expires_at: sessionExpires,
+      },
+      { onConflict: 'user_id,session_key' },
+    )
+
+    return { success: true }
+  } catch (err) {
+    console.error('[mfa] markSessionVerified failed:', err)
+    return {
+      success: false,
+      error: mfaActionError(err, 'Could not complete verification. Try again.'),
+    }
   }
-
-  const admin = createAdminClient()
-  const sessionKey = await hashSessionKey(session.refresh_token)
-  const now = new Date().toISOString()
-  const sessionExpires = session.expires_at
-    ? new Date(session.expires_at * 1000).toISOString()
-    : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
-
-  await admin.from('mfa_verified_sessions').upsert(
-    {
-      user_id: userId,
-      session_key: sessionKey,
-      verified_at: now,
-      expires_at: sessionExpires,
-    },
-    { onConflict: 'user_id,session_key' },
-  )
-
-  return { success: true }
 }
 
 /** Post-login redirect — always proceed to the app; 2FA is configured in Settings only. */
@@ -245,31 +443,48 @@ export async function getMfaStatus(): Promise<
     maskedPhone: string | null
     maskedEmail: string | null
     sessionVerified: boolean
+    usesTwilioVerify: boolean
+    phoneDeliveryChannel: 'sms' | 'whatsapp' | null
   }>
 > {
-  const { supabase, user } = await requireStaffContext()
-  if (!user) return { success: false, error: 'Not signed in.' }
+  try {
+    const { supabase, user } = await requireStaffContext()
+    if (!user) return { success: false, error: 'Not signed in.' }
 
-  await migrateLegacyTotpMfa(user.id)
-  const profile = (await loadStaffProfile(user.id)) ?? null
-  if (!profile) return { success: false, error: 'Not signed in.' }
+    await migrateLegacyTotpMfa(user.id)
+    const profile = (await loadStaffProfile(user.id)) ?? null
+    if (!profile) return { success: false, error: 'Not signed in.' }
 
-  const status = await buildMfaStatus(supabase, user.id, profileForStatus(profile))
-  const method =
-    profile.mfa_method === 'sms' || profile.mfa_method === 'email' ? profile.mfa_method : null
+    const status = await buildMfaStatus(supabase, user.id, profileForStatus(profile))
+    const method =
+      profile.mfa_method === 'sms' || profile.mfa_method === 'email' ? profile.mfa_method : null
 
-  return {
-    success: true,
-    data: {
-      enabled: profile.mfa_enabled === true && method !== null,
-      method,
-      hasPhone: status.hasPhone,
-      hasEmail: status.hasEmail,
-      hasTotp: false,
-      maskedPhone: profile.phone ? maskPhone(profile.phone) : null,
-      maskedEmail: profile.email ? maskEmail(profile.email) : null,
-      sessionVerified: status.sessionVerified,
-    },
+    return {
+      success: true,
+      data: {
+        enabled: profile.mfa_enabled === true && method !== null,
+        method,
+        hasPhone: status.hasPhone,
+        hasEmail: status.hasEmail,
+        hasTotp: false,
+        maskedPhone: profile.phone ? maskPhone(profile.phone) : null,
+        maskedEmail: profile.email ? maskEmail(profile.email) : null,
+        sessionVerified: status.sessionVerified,
+        usesTwilioVerify: isTwilioVerifyConfigured(),
+        phoneDeliveryChannel:
+          method === 'sms' && isTwilioVerifyConfigured()
+            ? resolvePhoneVerifyChannel()
+            : method === 'sms'
+              ? 'sms'
+              : null,
+      },
+    }
+  } catch (err) {
+    console.error('[mfa] getMfaStatus failed:', err)
+    return {
+      success: false,
+      error: mfaActionError(err, 'Could not load verification settings. Refresh and try again.'),
+    }
   }
 }
 
@@ -370,13 +585,13 @@ export async function enableEmailMfa(): Promise<MfaActionResult> {
 }
 
 export async function sendMfaSmsCode(): Promise<
-  MfaActionResult<{ maskedPhone: string; devCode?: string }>
+  MfaActionResult<{ maskedPhone: string; devCode?: string; deliveryChannel?: 'sms' | 'whatsapp' }>
 > {
-  const { supabase, user, profile } = await requireStaffContext()
+  const { user, profile } = await requireStaffContext()
   if (!user || !profile) return { success: false, error: 'Not signed in.' }
 
   if (!userNeedsMfa(profile.role, profile.mfa_enabled === true) || profile.mfa_method !== 'sms') {
-    return { success: false, error: 'SMS verification is not enabled for this account.' }
+    return { success: false, error: 'Phone verification is not enabled for this account.' }
   }
 
   const phone = profile.phone?.trim()
@@ -384,39 +599,7 @@ export async function sendMfaSmsCode(): Promise<
     return { success: false, error: 'Add a phone number before verifying.' }
   }
 
-  const e164 = toE164(phone)
-  if (!e164) return { success: false, error: 'Your phone number looks invalid. Update it and try again.' }
-
-  const created = await createOtpChallenge(user.id)
-  if (!created.success || !created.data) {
-    return created as MfaActionResult<{ maskedPhone: string; devCode?: string }>
-  }
-  const { code } = created.data
-
-  const body = `Your MOJO Apartments sign-in code is ${code}. It expires in 5 minutes. Do not share this code.`
-  const results = await sendToPhone(phone, body, {
-    hotelId: profile.hotel_id ?? undefined,
-    templateKey: 'mfa_otp',
-    includeWhatsApp: false,
-  })
-
-  const sent = results.some((r) => r.success)
-  const isDev = process.env.NODE_ENV === 'development' && !isSmsConfigured()
-
-  if (!sent && !isDev) {
-    return {
-      success: false,
-      error: 'Could not send the SMS. Check notification settings or try again shortly.',
-    }
-  }
-
-  return {
-    success: true,
-    data: {
-      maskedPhone: maskPhone(phone),
-      ...(isDev ? { devCode: code } : {}),
-    },
-  }
+  return sendPhoneMfaCode(user.id, profile, phone)
 }
 
 export async function sendMfaEmailCode(): Promise<
@@ -434,55 +617,7 @@ export async function sendMfaEmailCode(): Promise<
     return { success: false, error: 'Your account has no email address on file.' }
   }
 
-  const created = await createOtpChallenge(user.id)
-  if (!created.success || !created.data) {
-    return created as MfaActionResult<{ maskedEmail: string; devCode?: string }>
-  }
-  const { code } = created.data
-
-  if (!isEmailConfigured()) {
-    if (process.env.NODE_ENV === 'development') {
-      return {
-        success: true,
-        data: { maskedEmail: maskEmail(email), devCode: code },
-      }
-    }
-    return {
-      success: false,
-      error:
-        'Email is not configured on this server. In Vercel → Settings → Environment Variables, add RESEND_API_KEY, then redeploy.',
-    }
-  }
-
-  const result = await sendToEmail(
-    email,
-    {
-      subject: 'Your MOJO Apartments sign-in code',
-      preview: `Your sign-in code is ${code}. It expires in 5 minutes.`,
-      lines: [
-        `Your sign-in code is ${code}.`,
-        'It expires in 5 minutes.',
-        'Do not share this code with anyone.',
-      ],
-      actionUrl: appUrl('/login'),
-      actionLabel: 'Sign in',
-    },
-    { hotelId: profile.hotel_id ?? undefined, templateKey: 'mfa_otp' },
-  )
-
-  if (!result.success) {
-    return {
-      success: false,
-      error: result.error ?? 'Could not send the email. Check RESEND_API_KEY and try again.',
-    }
-  }
-
-  return {
-    success: true,
-    data: {
-      maskedEmail: maskEmail(email),
-    },
-  }
+  return sendEmailMfaCode(user.id, profile, email)
 }
 
 export async function verifyMfaSmsCode(
@@ -491,7 +626,7 @@ export async function verifyMfaSmsCode(
 ): Promise<MfaActionResult<{ redirectTo: string }>> {
   const trimmed = code.replace(/\D/g, '')
   if (trimmed.length !== 6) {
-    return { success: false, error: 'Enter the 6-digit code from your SMS.' }
+    return { success: false, error: 'Enter the 6-digit code from your message.' }
   }
 
   const { supabase, user, profile } = await requireStaffContext()
@@ -505,12 +640,16 @@ export async function verifyMfaSmsCode(
   if (verifyLimit) return { success: false, error: verifyLimit }
 
   if (!userNeedsMfa(profile.role, profile.mfa_enabled === true) || profile.mfa_method !== 'sms') {
-    return { success: false, error: 'SMS verification is not enabled for this account.' }
+    return { success: false, error: 'Phone verification is not enabled for this account.' }
   }
 
-  const ok = await verifyOtpChallenge(user.id, trimmed)
+  const ok = await confirmMfaCode(profile, user.id, trimmed)
   if (!ok) {
-    return { success: false, error: 'Invalid or expired code. Request a new SMS and try again.' }
+    const channel = isTwilioVerifyConfigured() ? resolvePhoneVerifyChannel() : 'sms'
+    return {
+      success: false,
+      error: `Invalid or expired code. Request a new ${twilioVerifyChannelLabel(channel)} message and try again.`,
+    }
   }
 
   const verified = await markSessionVerified(supabase, user.id)
@@ -543,7 +682,7 @@ export async function verifyMfaEmailCode(
     return { success: false, error: 'Email verification is not enabled for this account.' }
   }
 
-  const ok = await verifyOtpChallenge(user.id, trimmed)
+  const ok = await confirmMfaCode(profile, user.id, trimmed)
   if (!ok) {
     return { success: false, error: 'Invalid or expired code. Request a new email and try again.' }
   }

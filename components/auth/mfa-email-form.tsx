@@ -68,9 +68,11 @@ export function MfaEmailForm({ nextPath, mode }: MfaEmailFormProps) {
         if (mode === 'verify' || hasEmail) {
           await deliverCode()
         }
-      } catch {
+      } catch (err) {
         if (!cancelled) {
-          setError('Could not load verification. Refresh the page and try again.')
+          const message =
+            err instanceof Error ? err.message : 'Could not load verification. Refresh the page and try again.'
+          setError(message)
           setBootstrapping(false)
         }
       }

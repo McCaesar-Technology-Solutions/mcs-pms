@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { SettingsPanel } from '@/components/dashboard/settings-panel'
 import { NotificationPreferencesPanel } from '@/components/dashboard/notification-preferences-panel'
 import { EmailNotificationPreferencesPanel } from '@/components/dashboard/email-notification-preferences-panel'

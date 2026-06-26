@@ -102,7 +102,7 @@ describe('mfaRedirectPath', () => {
         '/owner/dashboard',
         '/owner/billing',
       ),
-    ).toBe('/owner/settings#security?next=%2Fowner%2Fbilling')
+    ).toBe('/enroll-mfa?next=%2Fowner%2Fbilling')
 
     expect(
       mfaRedirectPath(
@@ -117,7 +117,7 @@ describe('mfaRedirectPath', () => {
         },
         '/manager/dashboard',
       ),
-    ).toBe('/manager/staff#security?next=%2Fmanager%2Fdashboard')
+    ).toBe('/verify-mfa?next=%2Fmanager%2Fdashboard')
   })
 })
 

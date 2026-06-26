@@ -75,6 +75,11 @@ export function getMfaOtpSecret(): string {
   const secret = process.env.MFA_OTP_SECRET?.trim()
   if (secret) return secret
   if (isProduction) {
+    // Session-key hashing fallback when Twilio Verify handles OTP delivery.
+    const twilioToken = process.env.TWILIO_AUTH_TOKEN?.trim()
+    if (twilioToken && process.env.TWILIO_VERIFY_SERVICE_SID?.trim()) {
+      return twilioToken
+    }
     throw new Error('MFA_OTP_SECRET is required in production')
   }
   return process.env.SUPABASE_SERVICE_ROLE_KEY ?? 'dev-only-mfa-secret-change-me'

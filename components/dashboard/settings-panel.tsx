@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useState, useTransition } from 'react'
+import { Suspense, useEffect, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Building2, Users, Plus, Check, FileText } from 'lucide-react'
 import { updateHotelSettings } from '@/app/actions/settings'
@@ -159,7 +159,11 @@ export function SettingsPanel({ hotelSettings, staffHref = '/owner/staff', profi
             roleLabel="property owner"
             variant="card"
           />
-          <MfaSettingsCard role={profile.role} returnPath="/owner/settings" />
+          <Suspense
+            fallback={<p className="text-sm text-muted-foreground">Checking sign-in verification…</p>}
+          >
+            <MfaSettingsCard role={profile.role} returnPath="/owner/settings" />
+          </Suspense>
         </div>
       )}
 

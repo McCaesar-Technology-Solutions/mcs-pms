@@ -15,17 +15,32 @@ export function MfaVerifyForm({ nextPath }: MfaVerifyFormProps) {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    getMfaStatus().then((result) => {
-      if (!result.success) {
-        setError(result.error)
-        return
+    let cancelled = false
+
+    async function init() {
+      try {
+        const result = await getMfaStatus()
+        if (cancelled) return
+
+        if (!result.success) {
+          setError(result.error)
+          return
+        }
+        if (result.data?.method === 'sms' || result.data?.method === 'email') {
+          setMethod(result.data.method)
+        } else {
+          setError('Sign-in verification is not enabled for this account.')
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(
+            err instanceof Error ? err.message : 'Could not load verification. Refresh the page and try again.',
+          )
+        }
       }
-      if (result.data?.method === 'sms' || result.data?.method === 'email') {
-        setMethod(result.data.method)
-      } else {
-        setError('Sign-in verification is not enabled for this account.')
-      }
-    })
+    }
+
+    void init()
   }, [])
 
   if (error) {

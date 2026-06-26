@@ -1,12 +1,13 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Mail, Shield, ShieldCheck, Smartphone } from 'lucide-react'
 import { disableMfa, enableEmailMfa, enableSmsMfa, getMfaStatus } from '@/app/actions/mfa'
-import { MFA_METHOD_LABELS, type MfaMethod } from '@/lib/auth/mfa'
+import { MFA_METHOD_LABELS, safeMfaNext, type MfaMethod } from '@/lib/auth/mfa'
 import { MfaEmailForm } from '@/components/auth/mfa-email-form'
 import { MfaSmsForm } from '@/components/auth/mfa-sms-form'
+import { MfaVerifyForm } from '@/components/auth/mfa-verify-form'
 import type { UserRole } from '@/types'
 
 interface MfaSettingsCardProps {
@@ -16,12 +17,15 @@ interface MfaSettingsCardProps {
 
 export function MfaSettingsCard({ role, returnPath }: MfaSettingsCardProps) {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const nextPath = safeMfaNext(searchParams.get('next'), returnPath)
   const [enabled, setEnabled] = useState(false)
   const [method, setMethod] = useState<MfaMethod | null>(null)
   const [hasPhone, setHasPhone] = useState(false)
   const [hasEmail, setHasEmail] = useState(false)
   const [maskedPhone, setMaskedPhone] = useState<string | null>(null)
   const [maskedEmail, setMaskedEmail] = useState<string | null>(null)
+  const [sessionVerified, setSessionVerified] = useState(true)
   const [setupMethod, setSetupMethod] = useState<MfaMethod | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
@@ -31,13 +35,17 @@ export function MfaSettingsCard({ role, returnPath }: MfaSettingsCardProps) {
     setLoading(true)
     const result = await getMfaStatus()
     setLoading(false)
-    if (!result.success || !result.data) return
+    if (!result.success || !result.data) {
+      if (!result.success) setError(result.error)
+      return
+    }
     setEnabled(result.data.enabled)
     setMethod(result.data.method)
     setHasPhone(result.data.hasPhone)
     setHasEmail(result.data.hasEmail)
     setMaskedPhone(result.data.maskedPhone)
     setMaskedEmail(result.data.maskedEmail)
+    setSessionVerified(result.data.sessionVerified)
   }, [])
 
   useEffect(() => {
@@ -106,9 +114,9 @@ export function MfaSettingsCard({ role, returnPath }: MfaSettingsCardProps) {
         </p>
         <div className="rounded-xl bg-[#22124C] p-5">
           {isSms ? (
-            <MfaSmsForm nextPath={returnPath} mode="setup" />
+            <MfaSmsForm nextPath={nextPath} mode="setup" />
           ) : (
-            <MfaEmailForm nextPath={returnPath} mode="setup" />
+            <MfaEmailForm nextPath={nextPath} mode="setup" />
           )}
         </div>
         <button
@@ -122,6 +130,24 @@ export function MfaSettingsCard({ role, returnPath }: MfaSettingsCardProps) {
         >
           Cancel
         </button>
+      </div>
+    )
+  }
+
+  if (enabled && method && !sessionVerified) {
+    return (
+      <div className="surface-card overflow-hidden p-6">
+        <div className="mb-4 flex items-center gap-2">
+          <Shield className="h-5 w-5 text-[#3C216C]" />
+          <h3 className="text-lg font-semibold text-foreground">Verify this sign-in</h3>
+        </div>
+        <p className="mb-4 text-sm text-muted-foreground">
+          Two-factor sign-in is enabled. Enter the code we send to your{' '}
+          {method === 'sms' ? 'phone' : 'email'} to continue using the app.
+        </p>
+        <div className="rounded-xl bg-[#22124C] p-5">
+          <MfaVerifyForm nextPath={nextPath} />
+        </div>
       </div>
     )
   }

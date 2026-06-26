@@ -4,7 +4,7 @@ import { isProd } from '@/lib/env'
 export type MfaMethod = 'sms' | 'email'
 
 export const MFA_METHOD_LABELS: Record<MfaMethod, string> = {
-  sms: 'Text message (SMS)',
+  sms: 'Phone (WhatsApp or SMS)',
   email: 'Email',
 }
 
@@ -96,13 +96,12 @@ export function mfaRedirectPath(
 ): string {
   const gate = mfaGateForRole(role, status)
   const next = safeMfaNext(intendedPath, defaultHome)
-  const settingsPath = `${mfaSettingsPathForRole(role)}#security`
 
   if (gate === 'enroll') {
-    return `${settingsPath}?next=${encodeURIComponent(next)}`
+    return `/enroll-mfa?next=${encodeURIComponent(next)}`
   }
   if (gate === 'verify') {
-    return `${settingsPath}?next=${encodeURIComponent(next)}`
+    return `/verify-mfa?next=${encodeURIComponent(next)}`
   }
   return next
 }

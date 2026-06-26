@@ -69,18 +69,24 @@ export async function getGuestSessionId(): Promise<string | null> {
 }
 
 export async function setGuestSession(guestId: string, expiresAt: Date) {
-  const token = await createGuestSessionToken(guestId, expiresAt)
   const cookieStore = await cookies()
-  cookieStore.set(GUEST_SESSION_COOKIE, token, {
+  cookieStore.set(GUEST_SESSION_COOKIE, await createGuestSessionToken(guestId, expiresAt), {
+    ...guestSessionCookieOptions(expiresAt),
+  })
+}
+
+/** Cookie attributes shared by server actions and route handlers. */
+export function guestSessionCookieOptions(expiresAt: Date) {
+  return {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    sameSite: 'lax' as const,
     path: '/guest',
     expires: expiresAt,
-  })
+  }
 }
 
 export async function clearGuestSession() {
   const cookieStore = await cookies()
-  cookieStore.delete(GUEST_SESSION_COOKIE)
+  cookieStore.delete({ name: GUEST_SESSION_COOKIE, path: '/guest' })
 }

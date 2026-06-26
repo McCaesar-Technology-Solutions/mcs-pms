@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState, useTransition } from 'react'
+import { Suspense, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Check, Copy, Mail, Phone, Plus, ShieldCheck, UserX, X } from 'lucide-react'
 import { inviteStaff, revokeInvite, setStaffActive, updateStaffPhone } from '@/app/actions/staff'
@@ -288,7 +288,11 @@ export function StaffManager({ currentProfile, staff, invites }: StaffManagerPro
             }
             variant="card"
           />
-          <MfaSettingsCard role={currentProfile.role} returnPath={staffReturnPath} />
+          <Suspense
+            fallback={<p className="text-sm text-muted-foreground">Checking sign-in verification…</p>}
+          >
+            <MfaSettingsCard role={currentProfile.role} returnPath={staffReturnPath} />
+          </Suspense>
         </div>
       )}
 

@@ -68,6 +68,9 @@ function messageForError(error?: string): string {
   if (error === 'missing') {
     return 'Scan the property QR code or use the link from the front desk.'
   }
+  if (error === 'invalid' || error === 'Invalid or expired link.') {
+    return 'This guest link is not valid. Ask the front desk for a new QR code or link.'
+  }
   return 'Please scan the property QR code or use the link from the front desk.'
 }
 

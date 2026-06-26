@@ -1,6 +1,10 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { validateGuestToken } from '@/app/actions/guest'
-import { GUEST_SESSION_COOKIE } from '@/lib/guest-session'
+import {
+  createGuestSessionToken,
+  GUEST_SESSION_COOKIE,
+  guestSessionCookieOptions,
+} from '@/lib/guest-session'
 
 export async function GET(request: NextRequest) {
   const token = request.nextUrl.searchParams.get('token')
@@ -18,14 +22,11 @@ export async function GET(request: NextRequest) {
     )
   }
 
+  const expiresAt = new Date(result.data.expiresAt)
+  const sessionToken = await createGuestSessionToken(result.data.guest.id, expiresAt)
+
   const response = NextResponse.redirect(new URL('/guest', request.url))
-  response.cookies.set(GUEST_SESSION_COOKIE, result.data.guest.id, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: '/guest',
-    expires: new Date(result.data.expiresAt),
-  })
+  response.cookies.set(GUEST_SESSION_COOKIE, sessionToken, guestSessionCookieOptions(expiresAt))
 
   return response
 }

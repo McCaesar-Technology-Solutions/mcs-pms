@@ -1,9 +1,15 @@
+import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
+import { AuthMfaShell } from '@/components/auth/auth-mfa-shell'
+import { MfaEnrollForm } from '@/components/auth/mfa-enroll-form'
 import { getProfile } from '@/lib/auth/get-profile'
-import { mfaSettingsPathForRole, safeMfaNext } from '@/lib/auth/mfa'
 import { ROLE_HOME, isStaffRole } from '@/lib/auth/roles'
+import { safeMfaNext } from '@/lib/auth/mfa'
 
-/** Legacy route — 2FA setup lives in Settings. */
+function EnrollMfaContent({ nextPath }: { nextPath: string }) {
+  return <MfaEnrollForm nextPath={nextPath} />
+}
+
 export default async function EnrollMfaPage({
   searchParams,
 }: {
@@ -16,5 +22,15 @@ export default async function EnrollMfaPage({
 
   const { next } = await searchParams
   const destination = safeMfaNext(next, ROLE_HOME[profile.role])
-  redirect(`${mfaSettingsPathForRole(profile.role)}#security?next=${encodeURIComponent(destination)}`)
+
+  return (
+    <AuthMfaShell
+      title="Finish verification setup"
+      description="Two-factor sign-in is enabled on your account. Add your contact details and confirm with a one-time code."
+    >
+      <Suspense fallback={<p className="text-sm text-white/70">Loading…</p>}>
+        <EnrollMfaContent nextPath={destination} />
+      </Suspense>
+    </AuthMfaShell>
+  )
 }
