@@ -145,8 +145,6 @@ export const updateHotelSettingsSchema = z.object({
   address: z.string().min(2, 'Address is required'),
   city: z.string().min(2, 'City is required'),
   region: z.string().min(2, 'Region is required'),
-  gta_license_number: z.string().max(80).optional().or(z.literal('')),
-  gta_license_expiry: z.string().optional().or(z.literal('')),
   vat_registration_number: z.string().max(80).optional().or(z.literal('')),
   vat_mode: z.enum(['exclusive', 'inclusive']).optional(),
   invoice_prefix: z

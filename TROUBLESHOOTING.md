@@ -374,7 +374,7 @@ A: Yes. Supabase Realtime pushes updates to open browser tabs (after migration `
 A: Currently set to Ghana Cedis (₵). Modify currency in component files.
 
 **Q: Can I connect OTA channels like Airbnb?**
-A: Not yet. Channels UI may exist as placeholder; iCal/API sync is on the roadmap.
+A: Not automatically in this version. Create the booking manually under **Reservations** and set the **channel** (Airbnb, Booking.com, walk-in, etc.) so it appears in analytics and billing.
 
 **Q: Does it have a mobile app?**
 A: Yes! PWA housekeeping app at /mobile/housekeeping optimized for iOS/Android.

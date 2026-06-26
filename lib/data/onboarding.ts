@@ -12,8 +12,6 @@ export interface OnboardingPropertyDraft {
 }
 
 export interface OnboardingComplianceDraft {
-  gtaLicenseNumber: string
-  gtaLicenseExpiry: string
   vatRegistrationNumber: string
   vatMode: VatMode
 }
@@ -41,7 +39,7 @@ export async function getOnboardingPageData(): Promise<OnboardingPageData | null
   const [{ data: hotel }, { count: roomCount }] = await Promise.all([
     admin
       .from('hotels')
-      .select('name, address, city, region, gta_license_number, gta_license_expiry, vat_registration_number, vat_mode')
+      .select('name, address, city, region, vat_registration_number, vat_mode')
       .eq('id', profile.hotel_id)
       .maybeSingle(),
     admin
@@ -59,8 +57,6 @@ export async function getOnboardingPageData(): Promise<OnboardingPageData | null
       totalRooms: roomCount ?? 0,
     }
     data.compliance = {
-      gtaLicenseNumber: hotel.gta_license_number ?? '',
-      gtaLicenseExpiry: hotel.gta_license_expiry ?? '',
       vatRegistrationNumber: hotel.vat_registration_number ?? '',
       vatMode: (hotel.vat_mode as VatMode) ?? 'exclusive',
     }

@@ -9,7 +9,7 @@ export async function applyInvoicePaymentRecord(
     hotelId: string
     amount: number
     paymentMethod: PaymentMethod
-    provider: 'manual' | 'paystack'
+    provider: 'manual' | 'paystack' | 'hubtel'
     providerReference?: string
     idempotencyKey: string
   },

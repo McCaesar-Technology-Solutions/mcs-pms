@@ -7,7 +7,7 @@ export const privacySections = [
   },
   {
     title: 'Data we collect',
-    body: `We process: name, email, phone, room assignment, stay dates, booking channel, complaint and service requests, pre-arrival information (including optional ID uploads), invoice and payment status, and staff account details (role, phone for SMS alerts). Payment card data is handled by Paystack — we do not store full card numbers.`,
+    body: `We process: name, email, phone, room assignment, stay dates, booking channel, complaint and service requests, pre-arrival information (including optional ID uploads), invoice and payment status, and staff account details (role, phone for SMS alerts). We do not store payment card numbers — payments are recorded manually by staff.`,
   },
   {
     title: 'Why we use your data',
@@ -54,11 +54,11 @@ export const termsSections = [
   },
   {
     title: 'Payments',
-    body: `Online payments are processed by Paystack. Property staff may also record manual payments (cash, mobile money, card). Invoice totals include applicable Ghana taxes (NHIL, GETFund, COVID levy, VAT) as configured for the property.`,
+    body: `Payments are recorded manually by property staff (cash, mobile money, card, bank transfer). Invoice totals include applicable Ghana taxes (NHIL, GETFund, COVID levy, VAT) as configured for the property.`,
   },
   {
     title: 'Availability',
-    body: `The Platform is provided for hospitality operations. We do not guarantee uninterrupted service. Planned maintenance and third-party outages (SMS, email, payment providers) may affect notifications or payments.`,
+    body: `The Platform is provided for hospitality operations. We do not guarantee uninterrupted service. Planned maintenance and third-party outages (SMS, email) may affect notifications.`,
   },
   {
     title: 'Limitation of liability',

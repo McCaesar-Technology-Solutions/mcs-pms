@@ -53,7 +53,7 @@ const GHANA_REGIONS = [
 const LOADING_MESSAGES: Partial<Record<OnboardingStep, string>> = {
   welcome: 'Getting things ready…',
   property: 'Creating your property and rooms…',
-  compliance: 'Saving compliance details…',
+  compliance: 'Saving tax details…',
   team: 'Sending manager invite…',
   done: 'Opening your dashboard…',
 }
@@ -207,8 +207,6 @@ export function OnboardingWizard({ step, ownerName, property, compliance }: Onbo
                   run(() =>
                     completeComplianceStep(
                       {
-                        gtaLicenseNumber: '',
-                        gtaLicenseExpiry: '',
                         vatRegistrationNumber: '',
                         vatMode: 'exclusive',
                       },
@@ -366,14 +364,14 @@ function WelcomeStep({
       <StepHeader
         icon={Sparkles}
         title={`Welcome, ${ownerName.split(' ')[0]}`}
-        description="Let's configure your property, Ghana compliance fields, and optional manager access. This takes about five minutes."
+        description="Let's configure your property, tax & invoicing, and optional manager access. This takes about five minutes."
       />
       <ul className="grid gap-3 sm:grid-cols-2">
         {[
           'Room inventory & nightly rates',
           'GRA-ready invoicing on checkout',
           'Guest portal & complaints',
-          'OTA calendar sync (iCal)',
+          'Manual bookings by channel (Airbnb, walk-in, etc.)',
         ].map((item) => (
           <li
             key={item}
@@ -521,8 +519,6 @@ function ComplianceStep({
   onSubmit: (data: Record<string, unknown>) => void
   onSkip: () => void
 }) {
-  const [gtaLicenseNumber, setGtaLicenseNumber] = useState(initial?.gtaLicenseNumber ?? '')
-  const [gtaLicenseExpiry, setGtaLicenseExpiry] = useState(initial?.gtaLicenseExpiry ?? '')
   const [vatRegistrationNumber, setVatRegistrationNumber] = useState(initial?.vatRegistrationNumber ?? '')
   const [vatMode, setVatMode] = useState<'exclusive' | 'inclusive'>(initial?.vatMode ?? 'exclusive')
 
@@ -531,30 +527,14 @@ function ComplianceStep({
       className="space-y-5 text-white"
       onSubmit={(e) => {
         e.preventDefault()
-        onSubmit({ gtaLicenseNumber, gtaLicenseExpiry, vatRegistrationNumber, vatMode })
+        onSubmit({ vatRegistrationNumber, vatMode })
       }}
     >
       <StepHeader
         icon={FileText}
-        title="Ghana compliance"
-        description="Optional now — add GTA licence and VAT details for GRA reports and invoice exports."
+        title="Tax & invoicing"
+        description="Optional now — add VAT details for GRA reports and invoice exports."
       />
-      <Field label="GTA licence number">
-        <input
-          className={inputClass}
-          value={gtaLicenseNumber}
-          onChange={(e) => setGtaLicenseNumber(e.target.value)}
-          placeholder="GTA-XXXX"
-        />
-      </Field>
-      <Field label="GTA licence expiry">
-        <input
-          className={inputClass}
-          type="date"
-          value={gtaLicenseExpiry}
-          onChange={(e) => setGtaLicenseExpiry(e.target.value)}
-        />
-      </Field>
       <Field label="VAT registration (TIN)">
         <input
           className={inputClass}

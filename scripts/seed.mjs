@@ -65,8 +65,6 @@ async function main() {
       .insert({
         name: 'MOJO APARTMENTS',
         address: '14 Independence Ave, Accra, Ghana',
-        gta_license_number: 'GTA-2024-EL-0042',
-        gta_license_expiry: '2026-12-31',
         vat_registration_number: 'VATGH-10042',
       })
       .select('id')

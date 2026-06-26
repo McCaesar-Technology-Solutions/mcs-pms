@@ -16,8 +16,6 @@ import type { HotelSettings } from '@/lib/data/settings'
 import type { Profile, VatMode } from '@/types'
 import { ProfilePhoneEditor } from '@/components/dashboard/profile-phone-editor'
 import { MfaSettingsCard } from '@/components/dashboard/mfa-settings-card'
-import { GtaLicenseAlert } from '@/components/dashboard/gta-license-alert'
-import { assessGtaLicense } from '@/lib/compliance/gta-license'
 
 const GHANA_REGIONS = [
   'Greater Accra',
@@ -67,8 +65,6 @@ export function SettingsPanel({ hotelSettings, staffHref = '/owner/staff', profi
   const [address, setAddress] = useState('')
   const [city, setCity] = useState('')
   const [region, setRegion] = useState('Greater Accra')
-  const [gtaLicense, setGtaLicense] = useState('')
-  const [gtaExpiry, setGtaExpiry] = useState('')
   const [vatNumber, setVatNumber] = useState('')
   const [vatMode, setVatMode] = useState<VatMode>('exclusive')
   const [invoicePrefix, setInvoicePrefix] = useState('MOJO')
@@ -79,8 +75,6 @@ export function SettingsPanel({ hotelSettings, staffHref = '/owner/staff', profi
     setAddress(hotelSettings.address ?? '')
     setCity(hotelSettings.city ?? '')
     setRegion(hotelSettings.region ?? 'Greater Accra')
-    setGtaLicense(hotelSettings.gta_license_number ?? '')
-    setGtaExpiry(hotelSettings.gta_license_expiry ?? '')
     setVatNumber(hotelSettings.vat_registration_number ?? '')
     setVatMode(hotelSettings.vat_mode ?? 'exclusive')
     setInvoicePrefix(hotelSettings.invoice_prefix ?? 'MOJO')
@@ -103,8 +97,6 @@ export function SettingsPanel({ hotelSettings, staffHref = '/owner/staff', profi
         address,
         city,
         region,
-        gta_license_number: gtaLicense,
-        gta_license_expiry: gtaExpiry,
         vat_registration_number: vatNumber,
         vat_mode: vatMode,
         invoice_prefix: invoicePrefix,
@@ -144,14 +136,6 @@ export function SettingsPanel({ hotelSettings, staffHref = '/owner/staff', profi
 
   return (
     <>
-      {hotelSettings && (
-        <GtaLicenseAlert
-          check={assessGtaLicense({
-            licenseNumber: hotelSettings.gta_license_number,
-            expiryDate: hotelSettings.gta_license_expiry,
-          })}
-        />
-      )}
       {profile && (
         <div id="security" className="mb-6 scroll-mt-24 space-y-6">
           <ProfilePhoneEditor
@@ -355,27 +339,6 @@ export function SettingsPanel({ hotelSettings, staffHref = '/owner/staff', profi
             </div>
 
             <div className="space-y-4">
-              <div>
-                <label className="text-sm font-semibold text-foreground">GTA license number</label>
-                <input
-                  type="text"
-                  value={gtaLicense}
-                  onChange={(e) => setGtaLicense(e.target.value)}
-                  placeholder="e.g. GTA/HOT/2024/001"
-                  className="input-soft mt-2"
-                />
-              </div>
-
-              <div>
-                <label className="text-sm font-semibold text-foreground">GTA license expiry</label>
-                <input
-                  type="date"
-                  value={gtaExpiry}
-                  onChange={(e) => setGtaExpiry(e.target.value)}
-                  className="input-soft mt-2"
-                />
-              </div>
-
               <div>
                 <label className="text-sm font-semibold text-foreground">VAT registration (TIN)</label>
                 <input

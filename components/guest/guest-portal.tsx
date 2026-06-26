@@ -46,7 +46,6 @@ import {
   emailGuestInvoiceReceiptAction,
   fetchGuestPortalBundle,
 } from '@/app/actions/guest-portal'
-import { initiateGuestInvoicePayment } from '@/app/actions/payments'
 import { downloadInvoicePdf } from '@/lib/export/invoice-pdf'
 import { GuestPhoneEditor } from '@/components/guest/guest-phone-editor'
 import { GuestStayTimeline } from '@/components/guest/guest-stay-timeline'
@@ -103,9 +102,6 @@ interface GuestPortalProps {
   roomNumber: string | null
   propertyContacts: StaffContact[]
   context: GuestPortalContext
-  paystackEnabled?: boolean
-  paymentNotice?: 'paid' | 'error'
-  paymentError?: string
 }
 
 function PortalCard({
@@ -133,9 +129,6 @@ export function GuestPortal({
   roomNumber,
   propertyContacts,
   context,
-  paystackEnabled = false,
-  paymentNotice,
-  paymentError,
 }: GuestPortalProps) {
   const [activeTab, setActiveTab] = useState<TabId>('home')
   const [dnd, setDnd] = useState(Boolean((guest as Guest & { do_not_disturb?: boolean }).do_not_disturb))
@@ -171,16 +164,7 @@ export function GuestPortal({
   const [feedbackError, setFeedbackError] = useState<string | null>(null)
 
   const [receiptLoading, setReceiptLoading] = useState<string | null>(null)
-  const [paymentLoading, setPaymentLoading] = useState<string | null>(null)
   const [portalRequests, setPortalRequests] = useState(context.requests)
-
-  useEffect(() => {
-    if (paymentNotice === 'paid') {
-      setRequestSuccess('Payment received. Thank you!')
-    } else if (paymentNotice === 'error' && paymentError) {
-      setRequestError(paymentError)
-    }
-  }, [paymentNotice, paymentError])
 
   const { property, rules, localGuide, invoices, preArrival } = context
 
@@ -320,18 +304,6 @@ export function GuestPortal({
     setReceiptLoading(null)
     if (!result.success || !result.data) return
     downloadInvoicePdf(result.data.hotel, result.data.invoice)
-  }
-
-  async function payInvoice(invoiceId: string) {
-    setPaymentLoading(invoiceId)
-    setRequestError(null)
-    const result = await initiateGuestInvoicePayment(invoiceId)
-    setPaymentLoading(null)
-    if (result.success) {
-      window.location.href = result.data.authorizationUrl
-      return
-    }
-    setRequestError(result.error)
   }
 
   async function copyWifi() {
@@ -780,25 +752,11 @@ export function GuestPortal({
                           </button>
                         </div>
                       )}
-                      {inv.paymentStatus !== 'paid' && paystackEnabled && (
-                        <button
-                          type="button"
-                          onClick={() => payInvoice(inv.id)}
-                          disabled={paymentLoading === inv.id}
-                          className="rounded-lg bg-[#D4A62E] px-3 py-1.5 text-xs font-semibold text-[#22124C] disabled:opacity-50"
-                        >
-                          {paymentLoading === inv.id ? '…' : 'Pay online'}
-                        </button>
-                      )}
                     </li>
                   ))}
                 </ul>
               )}
-              <p className="text-xs text-white/45">
-                {paystackEnabled
-                  ? 'Pay online with card or mobile money, or settle at the front desk.'
-                  : 'Pay at the front desk — online payments are not configured for this property.'}
-              </p>
+              <p className="text-xs text-white/45">Pay at the front desk — staff will record your payment.</p>
               {emailReceiptMessage && (
                 <p className="text-xs text-[#D4A62E]">{emailReceiptMessage}</p>
               )}

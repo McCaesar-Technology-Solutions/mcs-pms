@@ -73,11 +73,6 @@ NEXT_PUBLIC_APP_URL=https://yourdomain.com
 # NOTIFICATION_CHANNELS=sms,whatsapp
 # MFA_OTP_SECRET=long-random-string
 
-# Payments (Paystack — Ghana)
-PAYSTACK_SECRET_KEY=sk_live_...
-# Optional public key for future client-side embeds
-# NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY=pk_live_...
-
 # Production hardening (required in production)
 MFA_OTP_SECRET=long-random-string
 GUEST_SESSION_SECRET=long-random-string
@@ -209,24 +204,16 @@ Configure `CRON_SECRET` in Vercel env vars. Vercel Cron sends `Authorization: Be
 | Route | Schedule | Purpose |
 |-------|----------|---------|
 | `/api/cron/cleanup` | Daily 03:00 UTC | Purge stale rate limits and MFA challenges |
-| `/api/cron/compliance` | Daily 08:00 UTC | GTA license expiry alerts to owners |
 
 **Hobby plan limit:** Vercel Hobby only allows cron jobs that run **once per day**. Sub-daily jobs are handled by [`.github/workflows/scheduled-crons.yml`](.github/workflows/scheduled-crons.yml) instead:
 
 | Route | Schedule | Purpose |
 |-------|----------|---------|
 | `/api/cron/notifications` | Every 5 min | Drain notification outbox |
-| `/api/cron/channel-sync` | Every 15 min | Pull iCal import feeds |
 
 Add GitHub repository secrets **`CRON_SECRET`** (same value as Vercel) and **`PRODUCTION_APP_URL`** (e.g. `https://your-app.vercel.app`). On Vercel Pro, you may move these back into `vercel.json` if you prefer.
 
-### 8. Paystack webhooks
-
-1. In Paystack Dashboard → Settings → Webhooks, set URL to `https://yourdomain.com/api/webhooks/paystack`
-2. Set `PAYSTACK_SECRET_KEY` in Vercel (server-only)
-3. Guest and staff checkout use Paystack Initialize; webhook confirms payment and marks invoices paid
-
-### 9. Production seed policy
+### 8. Production seed policy
 
 **Never run `npm run seed` in production.** The seed script exits when `NODE_ENV=production`. Create the owner account via controlled signup (`ALLOW_PUBLIC_SIGNUP=true` only if needed) or Supabase Auth admin.
 
@@ -494,7 +481,6 @@ git push origin v1.0.0
 - [ ] Set `MFA_OTP_SECRET`, `GUEST_SESSION_SECRET`, `CRON_SECRET`
 - [ ] Set `NEXT_PUBLIC_APP_URL` to production domain
 - [ ] Configure SMS (Arkesel) or email (Resend) provider
-- [ ] Set `PAYSTACK_SECRET_KEY` and register webhook URL
 - [ ] Disable public signup unless required (`ALLOW_PUBLIC_SIGNUP`)
 - [ ] Never run seed script against production database
 - [ ] Enable HTTPS (automatic on Vercel)

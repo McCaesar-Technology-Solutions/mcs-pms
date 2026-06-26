@@ -7,7 +7,6 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { ensureGuestPortalSlug } from '@/lib/guest-portal'
 import { ensureDefaultGuestRules } from '@/lib/data/guest-rules'
 import { seedDefaultRoomCategories } from '@/lib/data/room-categories'
-import { ensureExportFeedsForHotel } from '@/lib/channels/ensure-export-feeds'
 import { ensureOwnerOrganization } from '@/lib/saas/provision-organization'
 import { inviteStaff } from '@/app/actions/staff'
 import {
@@ -47,8 +46,6 @@ const propertyStepSchema = z.object({
 })
 
 const complianceStepSchema = z.object({
-  gtaLicenseNumber: z.string().max(80).optional().or(z.literal('')),
-  gtaLicenseExpiry: z.string().optional().or(z.literal('')),
   vatRegistrationNumber: z.string().max(80).optional().or(z.literal('')),
   vatMode: z.enum(['exclusive', 'inclusive']),
 })
@@ -293,7 +290,6 @@ export async function completePropertyStep(
     await seedRoomsForHotel(hotel.id, parsed.data.totalRooms, ctx.userId)
     await ensureGuestPortalSlug(hotel.id)
     await ensureDefaultGuestRules(hotel.id)
-    await ensureExportFeedsForHotel(hotel.id)
     await ensureOwnerOrganization(
       admin,
       ctx.userId,
@@ -343,8 +339,6 @@ export async function completeComplianceStep(
   const { error } = await admin
     .from('hotels')
     .update({
-      gta_license_number: parsed.data.gtaLicenseNumber?.trim() || null,
-      gta_license_expiry: parsed.data.gtaLicenseExpiry?.trim() || null,
       vat_registration_number: parsed.data.vatRegistrationNumber?.trim() || null,
       vat_mode: parsed.data.vatMode as VatMode,
     })

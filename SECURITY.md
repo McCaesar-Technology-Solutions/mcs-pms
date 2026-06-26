@@ -376,7 +376,6 @@ Before Production Deployment:
 - [x] RBAC implemented (middleware + RLS)
 - [x] Audit logging enabled (`audit_log`, guest ID view/export/erase)
 - [x] API keys in environment variables
-- [x] Paystack webhook signature verification
 - [x] Health / ready endpoints
 - [x] MFA mandatory for owner/manager in production
 - [x] Guest signed session tokens

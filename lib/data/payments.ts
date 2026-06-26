@@ -19,7 +19,6 @@ export interface PaymentRecordRow {
 
 export interface PaymentReconciliationSummary {
   totalCollected: number
-  paystackCollected: number
   manualCollected: number
   pendingInvoiceBalance: number
   recordCount: number
@@ -81,9 +80,6 @@ export async function getPaymentReconciliationSummary(): Promise<PaymentReconcil
 
   const rows = payments ?? []
   const totalCollected = rows.reduce((sum, r) => sum + Number(r.amount), 0)
-  const paystackCollected = rows
-    .filter((r) => r.provider === 'paystack')
-    .reduce((sum, r) => sum + Number(r.amount), 0)
   const manualCollected = rows
     .filter((r) => r.provider === 'manual')
     .reduce((sum, r) => sum + Number(r.amount), 0)
@@ -96,7 +92,6 @@ export async function getPaymentReconciliationSummary(): Promise<PaymentReconcil
 
   return {
     totalCollected: Math.round(totalCollected * 100) / 100,
-    paystackCollected: Math.round(paystackCollected * 100) / 100,
     manualCollected: Math.round(manualCollected * 100) / 100,
     pendingInvoiceBalance: Math.round(pendingInvoiceBalance * 100) / 100,
     recordCount: rows.length,

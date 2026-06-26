@@ -10,7 +10,7 @@ const PATH_MAP: Record<string, Partial<Record<UserRole, string>>> = {
   '/gra-reports': { owner: '/owner/gra-reports' },
   '/analytics': { owner: '/owner/analytics' },
   '/settings': { owner: '/owner/settings' },
-  '/channels': { owner: '/owner/channels' },
+  '/channels': { owner: '/owner/reservations' },
 }
 
 /** Map legacy top-level paths to role-scoped routes. */

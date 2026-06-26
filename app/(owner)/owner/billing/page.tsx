@@ -5,14 +5,13 @@ import { PageTabShell } from '@/components/dashboard/page-tab-shell'
 import { getInvoicesData } from '@/lib/data/billing'
 import { getPaymentRecordsData, getPaymentReconciliationSummary } from '@/lib/data/payments'
 import { getHotelExportInfo } from '@/lib/data/settings'
-import { isPaystackConfigured } from '@/lib/payments/paystack'
 
 export default async function BillingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; paid?: string; payment_error?: string }>
+  searchParams: Promise<{ q?: string }>
 }) {
-  const { q, paid, payment_error: paymentError } = await searchParams
+  const { q } = await searchParams
   const [invoices, hotel, paymentSummary, paymentRecords] = await Promise.all([
     getInvoicesData(),
     getHotelExportInfo(),
@@ -41,9 +40,6 @@ export default async function BillingPage({
               hotel={hotel}
               initialQuery={q}
               vatMode={hotel?.vatMode ?? 'exclusive'}
-              paystackEnabled={isPaystackConfigured()}
-              paymentNotice={paid ? 'paid' : paymentError ? 'error' : undefined}
-              paymentError={paymentError}
             />
           ),
           reconciliation: (

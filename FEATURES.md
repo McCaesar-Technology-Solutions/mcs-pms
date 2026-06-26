@@ -22,9 +22,9 @@ Production features shipped beyond the original UI prototype.
 - **Housekeeping** — kanban (desktop + `/mobile/housekeeping`); auto clean task on checkout.
 - **Complaints** — guest submit (or staff log on a guest's behalf) → manager assign → technician invoice → manager approve → work → completion approval → resolved. Owners get a **read-only** lifecycle view at `/owner/complaints`; assigned technicians can call/WhatsApp the guest.
 - **Staff** — invite managers and receptionists by **email**, technicians by **phone**; phone numbers editable on profiles.
-- **Billing / GRA / Analytics** — owner only; invoice numbering, PDF export, tax reports, Paystack checkout, partial payments and refunds, payment ledger reconciliation, guest folio posting with checkout rollup, night audit. Managers' dashboard hides revenue metrics.
+- **Billing / GRA / Analytics** — owner only; invoice numbering, PDF export, tax reports, manual payments (cash/MoMo/card), partial payments and refunds, payment ledger reconciliation, guest folio posting with checkout rollup, night audit. Managers' dashboard hides revenue metrics.
 - **Guest privacy** — owner export/erase PII; staff signed URL for pre-arrival ID docs with audit log.
-- **Production ops** — health/ready endpoints, Vercel cron (cleanup, notifications, GTA alerts), notification outbox with retries.
+- **Production ops** — health/ready endpoints, Vercel cron (cleanup, notifications), notification outbox with retries.
 
 ### Notifications and live updates
 
@@ -36,21 +36,21 @@ Production features shipped beyond the original UI prototype.
 
 The app is **production-ready as a custom PMS** for a hotel or portfolio operator (single company deployment). See also [README.md](README.md) and [ARCHITECTURE.md](ARCHITECTURE.md).
 
-#### 1. Payments (partial)
+#### 1. Payments
 
-- **Paystack** — staff and guest checkout, webhooks, `payment_records` reconciliation (done).
+- **Manual payments** — staff record cash, MoMo, card, partial pay, and refunds from billing (done).
 - **Partial payments & refunds** — staff record partial cash/card payments, full pay, and refunds from billing overview (done).
-- **Not yet:** Hubtel Pay.
+- **Not in this version:** Paystack, Hubtel Pay, or other online checkout.
 
 #### 2. Distribution
 
-- **iCal sync** — import Airbnb/Booking.com calendars; export per-room availability feeds; cron sync every 15 min (done).
-- **Not yet:** Airbnb OAuth API, channel manager, two-way rate sync.
+- **Manual channel tagging** — managers create reservations and pick source (Airbnb, Booking.com, walk-in, direct, other) for reporting.
+- **Not in this version:** OTA iCal sync, Airbnb OAuth, channel manager, automatic calendar import/export.
 
 #### 3. Optional / future
 
-- **Hubtel Pay** — alternative to Paystack for MoMo (not built).
-- **Airbnb OAuth** — beyond iCal import/export (not built).
+- **OTA calendar sync** — iCal import/export (not built).
+- **Online payments** — Paystack or Hubtel Pay (not built).
 
 #### 4. Production hardening (June 2026)
 
@@ -74,7 +74,7 @@ Realtime updates require an **open browser tab** — not push when the app is cl
 
 #### Recommended build order
 
-Operational pilot is feature-complete for a dedicated deployment. Optional next: Hubtel Pay, Airbnb OAuth API.
+Operational pilot is feature-complete for a dedicated deployment. Optional next: OTA calendar sync, online payments (Paystack/Hubtel).
 
 ---
 

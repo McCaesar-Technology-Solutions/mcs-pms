@@ -21,8 +21,6 @@ export interface HotelSettings {
   address: string | null
   city: string | null
   region: string | null
-  gta_license_number: string | null
-  gta_license_expiry: string | null
   vat_registration_number: string | null
   vat_mode: VatMode
   invoice_prefix: string | null
@@ -68,8 +66,6 @@ export async function getActiveHotelSettings(): Promise<HotelSettings | null> {
     address: h.address,
     city: h.city,
     region: h.region,
-    gta_license_number: h.gta_license_number,
-    gta_license_expiry: h.gta_license_expiry,
     vat_registration_number: h.vat_registration_number,
     vat_mode: (h.vat_mode ?? 'exclusive') as VatMode,
     invoice_prefix: h.invoice_prefix,

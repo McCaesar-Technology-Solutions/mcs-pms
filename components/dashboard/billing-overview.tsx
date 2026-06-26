@@ -1,11 +1,10 @@
 'use client'
 
-import { useEffect, useMemo, useState, useTransition } from 'react'
+import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Download, Plus, TrendingUp, CreditCard } from 'lucide-react'
+import { Download, Plus, TrendingUp } from 'lucide-react'
 import { toast } from 'sonner'
 import { createManualInvoice, recordInvoicePayment, recordPartialInvoicePayment, refundInvoicePayment } from '@/app/actions/invoices'
-import { initiateStaffInvoicePayment } from '@/app/actions/payments'
 import { invoiceBalanceDue } from '@/lib/billing/invoice-payments'
 import { CenteredModal, ModalBody, ModalFooter, ModalHeader } from '@/components/ui/centered-modal'
 import { PAYMENT_METHOD_LABELS, computeInvoiceTaxes, type VatMode } from '@/lib/tax'
@@ -97,9 +96,6 @@ interface BillingOverviewProps {
   hotel: ExportHotelInfo | null
   initialQuery?: string
   vatMode?: VatMode
-  paystackEnabled?: boolean
-  paymentNotice?: 'paid' | 'error'
-  paymentError?: string
 }
 
 export function BillingOverview({
@@ -107,9 +103,6 @@ export function BillingOverview({
   hotel,
   initialQuery = '',
   vatMode = 'exclusive',
-  paystackEnabled = false,
-  paymentNotice,
-  paymentError,
 }: BillingOverviewProps) {
   const router = useRouter()
   const [statusFilter, setStatusFilter] = useState<string | null>(null)
@@ -124,14 +117,6 @@ export function BillingOverview({
   const [partialAmount, setPartialAmount] = useState('')
   const [partialMethod, setPartialMethod] = useState<PaymentMethod>('cash')
   const [pending, startTransition] = useTransition()
-
-  useEffect(() => {
-    if (paymentNotice === 'paid') {
-      toast.success('Payment received via Paystack')
-    } else if (paymentNotice === 'error' && paymentError) {
-      toast.error(paymentError)
-    }
-  }, [paymentNotice, paymentError])
 
   const rows: BillingRow[] = useMemo(() => mapInvoices(invoices), [invoices])
 
@@ -196,17 +181,6 @@ export function BillingOverview({
         toast.success('Payment recorded')
         setDetail(null)
         router.refresh()
-      } else {
-        toast.error(result.error)
-      }
-    })
-  }
-
-  function payOnline(inv: InvoiceWithRoom) {
-    startTransition(async () => {
-      const result = await initiateStaffInvoicePayment(inv.id)
-      if (result.success) {
-        window.location.href = result.data.authorizationUrl
       } else {
         toast.error(result.error)
       }
@@ -560,17 +534,6 @@ export function BillingOverview({
                       Record partial payment
                     </button>
                   </div>
-                  {paystackEnabled && (
-                    <button
-                      type="button"
-                      disabled={pending}
-                      onClick={() => payOnline(detail)}
-                      className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#3C216C] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-                    >
-                      <CreditCard className="h-4 w-4" />
-                      Pay balance with Paystack
-                    </button>
-                  )}
                   <button
                     type="button"
                     disabled={pending}

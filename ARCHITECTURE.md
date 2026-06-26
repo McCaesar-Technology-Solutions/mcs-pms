@@ -133,9 +133,9 @@ See [SECURITY.md](SECURITY.md) for detail.
 | Supabase Realtime | Live (migrations `015`, `038`) | `components/realtime/*` |
 | Arkesel / Hubtel / Twilio SMS | Optional env | `lib/notifications/send.ts` |
 | Resend email | Optional env | `lib/notifications/send-email.ts` |
-| Paystack | Live (initialize + webhook) | `lib/payments/paystack.ts`, `app/actions/payments.ts` |
+| Manual payments | Live — billing, partial pay, ledger | `app/actions/invoices.ts`, `lib/billing/*` |
 | Hubtel Pay | **Not built** | — |
-| OTA / iCal | Live — import + export feeds, cron sync | `lib/channels/*`, `app/(owner)/owner/channels`, `app/api/ical/[token]` |
+| OTA / iCal | Not in this version — manual reservations with channel tag | — |
 | Supabase Storage | Live with RLS (migration `038`) | guest ID docs, property images |
 | Sentry | Optional (`SENTRY_DSN`) | `lib/monitoring/sentry.ts` |
 | Vercel Cron | Live | `app/api/cron/*`, `vercel.json` |

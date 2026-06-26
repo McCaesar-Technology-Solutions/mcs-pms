@@ -20,7 +20,7 @@ You own one or more properties. You handle money, tax compliance, portfolio sett
 ### First-time setup checklist
 
 1. **Settings** → add your phone number.
-2. **Settings** → complete property address, GTA license, VAT TIN, invoice prefix.
+2. **Settings** → complete property address, VAT TIN, invoice prefix.
 3. **Rooms** → review categories and nightly rates.
 4. **Staff** → invite at least one manager.
 5. Optional: add more properties via **Settings** or the sidebar property switcher.
@@ -262,7 +262,7 @@ Bookings, occupancy, avg stay, revenue growth, 7-day charts, repeat guests, peak
 - Your phone.
 - Portfolio: switch/add properties.
 - Property: name, address, city, region.
-- GRA: GTA license, expiry, VAT TIN, **invoice prefix**.
+- GRA: VAT TIN, **invoice prefix**.
 - **Manage staff** shortcut.
 
 ---

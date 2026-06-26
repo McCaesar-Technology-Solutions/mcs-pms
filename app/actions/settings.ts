@@ -26,8 +26,6 @@ export async function updateHotelSettings(input: {
   address: string
   city: string
   region: string
-  gta_license_number?: string
-  gta_license_expiry?: string
   vat_registration_number?: string
   vat_mode?: 'exclusive' | 'inclusive'
   invoice_prefix?: string
@@ -71,8 +69,6 @@ export async function updateHotelSettings(input: {
       address: parsed.data.address.trim(),
       city: parsed.data.city.trim(),
       region: parsed.data.region.trim(),
-      gta_license_number: parsed.data.gta_license_number?.trim() || null,
-      gta_license_expiry: parsed.data.gta_license_expiry || null,
       vat_registration_number: parsed.data.vat_registration_number?.trim() || null,
       ...(parsed.data.vat_mode ? { vat_mode: parsed.data.vat_mode } : {}),
       ...(parsed.data.invoice_prefix?.trim()

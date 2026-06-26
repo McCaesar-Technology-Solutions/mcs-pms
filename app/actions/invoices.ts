@@ -99,7 +99,7 @@ async function applyInvoicePayment(input: {
   hotelId: string
   amount: number
   paymentMethod: PaymentMethod
-  provider: 'manual' | 'paystack'
+  provider: 'manual'
   providerReference?: string
   actorId?: string
   actorName?: string

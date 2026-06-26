@@ -59,7 +59,7 @@ async function loadStaffProfile(supabase: ReturnType<typeof createServerClient<D
 export async function updateSession(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  if (pathname.startsWith('/api/health') || pathname.startsWith('/api/ready') || pathname.startsWith('/api/ical')) {
+  if (pathname.startsWith('/api/health') || pathname.startsWith('/api/ready')) {
     return NextResponse.next({ request })
   }
 

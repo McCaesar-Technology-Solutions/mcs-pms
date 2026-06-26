@@ -19,7 +19,7 @@ The app is a **working PMS** with real persistence, role-based access, and live 
 | Billing, GRA exports, analytics (owner) | Done |
 | SMS/WhatsApp notifications (Arkesel / Twilio / Hubtel SMS) | Done |
 | Live updates via Supabase Realtime | Done (run migration `015`) |
-| Online payments (Paystack / Hubtel pay) | Not started |
+| Online payments (Paystack / Hubtel) | Not in this version — manual front-desk recording |
 | OTA / channel manager | Not started |
 
 ---
@@ -125,7 +125,7 @@ docs/               role-specific user guides
 
 ## What's next (roadmap)
 
-Priority optional: Hubtel Pay, Airbnb OAuth API. Core ops (reservations, billing, OTA iCal, compliance) are shipped. Details in [FEATURES.md](FEATURES.md#what-is-incomplete).
+Priority optional: Hubtel Pay, OTA calendar sync. Core ops (reservations, billing, compliance) are shipped. Details in [FEATURES.md](FEATURES.md#what-is-incomplete).
 
 ---
 

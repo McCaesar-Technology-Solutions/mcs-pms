@@ -172,26 +172,7 @@ export interface GRATaxSummary {
   status: 'pending' | 'submitted' | 'approved'
 }
 
-// Channels & Distribution
-export type ChannelProvider = 'airbnb' | 'booking_com' | 'other'
-
-export interface ChannelIcalFeed {
-  id: string
-  hotelId: string
-  roomId: string | null
-  name: string
-  provider: ChannelProvider
-  direction: 'import' | 'export'
-  importUrl: string | null
-  exportToken: string
-  isActive: boolean
-  lastSyncAt: string | null
-  lastSyncStatus: 'ok' | 'error' | 'pending' | null
-  lastSyncMessage: string | null
-  eventsSynced: number
-  createdAt: string
-}
-
+// Channels & Distribution (manual booking source tracking)
 export interface ChannelPerformance {
   channel: 'website' | 'airbnb' | 'booking' | 'walk_in' | 'other'
   bookings: number

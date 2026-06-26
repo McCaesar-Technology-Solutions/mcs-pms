@@ -27,7 +27,6 @@ function revalidateOwnerViews() {
     '/owner/staff',
     '/owner/billing',
     '/owner/analytics',
-    '/owner/channels',
     '/owner/gra-reports',
     '/owner/settings',
     '/owner/guests',
