@@ -23,7 +23,7 @@ Production features shipped beyond the original UI prototype.
 - **Complaints** — guest submit (or staff log on a guest's behalf) → manager assign → technician invoice → manager approve → work → completion approval → resolved. Owners get a **read-only** lifecycle view at `/owner/complaints`; assigned technicians can call/WhatsApp the guest.
 - **Staff** — invite managers and receptionists by **email**, technicians by **phone**; phone numbers editable on profiles.
 - **Billing / GRA / Analytics** — owner only; invoice numbering, PDF export, tax reports, manual payments (cash/MoMo/card), partial payments and refunds, payment ledger reconciliation, guest folio posting with checkout rollup, night audit. Managers' dashboard hides revenue metrics.
-- **Guest privacy** — owner export/erase PII; staff signed URL for pre-arrival ID docs with audit log.
+- **Guest privacy** — owner export/erase PII from the staff dashboard.
 - **Production ops** — health/ready endpoints, Vercel cron (cleanup, notifications), notification outbox with retries.
 
 ### Notifications and live updates

@@ -3,7 +3,6 @@ import {
   canAccessBilling,
   canOwnerEraseGuestData,
   canStaffExportGuestData,
-  canStaffViewGuestIdDocument,
 } from '@/lib/auth/tenant-access'
 import { roleRequiredPath } from '@/lib/auth/roles'
 
@@ -24,12 +23,6 @@ describe('tenant access — guest PII', () => {
     expect(canOwnerEraseGuestData('owner')).toBe(true)
     expect(canOwnerEraseGuestData('manager')).toBe(false)
     expect(canOwnerEraseGuestData('receptionist')).toBe(false)
-  })
-
-  it('aligns ID document access with export roles', () => {
-    for (const role of ['owner', 'manager', 'receptionist', 'technician'] as const) {
-      expect(canStaffViewGuestIdDocument(role)).toBe(canStaffExportGuestData(role))
-    }
   })
 })
 

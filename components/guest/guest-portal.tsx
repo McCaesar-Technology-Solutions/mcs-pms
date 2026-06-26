@@ -56,7 +56,6 @@ import { pickGuestNextAction } from '@/lib/complaints/guest-next-action'
 import type { GuestNextAction, GuestNextActionFocus } from '@/lib/complaints/guest-next-action'
 import { guestStatusLabel } from '@/components/complaints/complaints-overview'
 import { GuestComplaintChat } from '@/components/guest/guest-complaint-chat'
-import { GuestPreArrivalForm } from '@/components/guest/guest-pre-arrival-form'
 import { GuestStatusAlerts } from '@/components/guest/guest-status-alerts'
 import { FormError } from '@/components/ui/form-error'
 import { RealtimeReconnectBanner } from '@/components/realtime/reconnect-banner'
@@ -166,7 +165,7 @@ export function GuestPortal({
   const [receiptLoading, setReceiptLoading] = useState<string | null>(null)
   const [portalRequests, setPortalRequests] = useState(context.requests)
 
-  const { property, rules, localGuide, invoices, preArrival } = context
+  const { property, rules, localGuide, invoices } = context
 
   useEffect(() => {
     setPortalRequests(context.requests)
@@ -673,20 +672,6 @@ export function GuestPortal({
                   </button>
                 </div>
               )}
-            </PortalCard>
-
-            <PortalCard>
-              <p className="text-xs font-bold uppercase tracking-widest text-[#D4A62E]">
-                Arrival details
-              </p>
-              <div className="mt-3">
-                <GuestPreArrivalForm
-                  initialEmail={preArrival.email}
-                  initialEta={preArrival.eta}
-                  initialNotes={preArrival.notes}
-                  submittedAt={preArrival.submittedAt}
-                />
-              </div>
             </PortalCard>
 
             {portalRequests.length > 0 && (

@@ -7,7 +7,7 @@ export const privacySections = [
   },
   {
     title: 'Data we collect',
-    body: `We process: name, email, phone, room assignment, stay dates, booking channel, complaint and service requests, pre-arrival information (including optional ID uploads), invoice and payment status, and staff account details (role, phone for SMS alerts). We do not store payment card numbers — payments are recorded manually by staff.`,
+    body: `We process: name, email, phone, room assignment, stay dates, booking channel, complaint and service requests, invoice and payment status, and staff account details (role, phone for SMS alerts). We do not store payment card numbers — payments are recorded manually by staff.`,
   },
   {
     title: 'Why we use your data',
@@ -19,7 +19,7 @@ export const privacySections = [
   },
   {
     title: 'Retention',
-    body: `Stay and invoice records are kept as required for GRA reporting and dispute resolution. Pre-arrival ID documents should be deleted after check-in unless your property policy requires longer retention. Owners may export or erase guest personal data from the staff dashboard subject to legal hold requirements.`,
+    body: `Stay and invoice records are kept as required for GRA reporting and dispute resolution. Owners may export or erase guest personal data from the staff dashboard subject to legal hold requirements.`,
   },
   {
     title: 'Your rights',

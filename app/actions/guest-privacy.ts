@@ -5,13 +5,10 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getProfile } from '@/lib/auth/get-profile'
-import {
-  canOwnerEraseGuestData,
-  canStaffExportGuestData,
-  canStaffViewGuestIdDocument,
-} from '@/lib/auth/tenant-access'
+import { canOwnerEraseGuestData, canStaffExportGuestData } from '@/lib/auth/tenant-access'
 import { writeAuditLog } from '@/lib/audit/log'
-import { GUEST_ID_DOCUMENT_BUCKET } from '@/lib/guest/id-documents'
+
+const GUEST_ID_DOCUMENT_BUCKET = 'guest-id-documents'
 
 export type GuestPrivacyResult =
   | { success: true; data?: unknown }
@@ -116,46 +113,4 @@ export async function eraseGuestPersonalData(guestId: string): Promise<GuestPriv
   revalidatePath('/owner/guests')
   revalidatePath('/manager/guests')
   return { success: true }
-}
-
-export async function getGuestIdDocumentSignedUrl(
-  guestId: string,
-): Promise<GuestPrivacyResult & { url?: string }> {
-  const profile = await getProfile()
-  if (!profile?.hotel_id || !canStaffViewGuestIdDocument(profile.role)) {
-    return { success: false, error: 'Not authorized.' }
-  }
-
-  const supabase = await createClient()
-  const { data: guest } = await supabase
-    .from('guests')
-    .select('pre_arrival_id_path, pre_arrival_id_mime, name, hotel_id')
-    .eq('id', guestId)
-    .eq('hotel_id', profile.hotel_id)
-    .maybeSingle()
-
-  if (!guest?.pre_arrival_id_path) {
-    return { success: false, error: 'No ID document on file for this guest.' }
-  }
-
-  const admin = createAdminClient()
-  const { data, error } = await admin.storage
-    .from(GUEST_ID_DOCUMENT_BUCKET)
-    .createSignedUrl(guest.pre_arrival_id_path, 300)
-
-  if (error || !data?.signedUrl) {
-    return { success: false, error: 'Could not open ID document.' }
-  }
-
-  void writeAuditLog({
-    hotelId: profile.hotel_id,
-    actorId: profile.id,
-    actorName: profile.name,
-    entityType: 'guest',
-    entityId: guestId,
-    action: 'view_id_document',
-    summary: `Viewed pre-arrival ID for ${guest.name}`,
-  })
-
-  return { success: true, url: data.signedUrl }
 }

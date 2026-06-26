@@ -10,7 +10,10 @@ import { getRoomRates } from '@/lib/pricing/room-rates'
 import { createReservationSchema, updateReservationSchema } from '@/lib/validations'
 import { phoneSchema } from '@/lib/phone'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { writeAuditLog, moneyDelta } from '@/lib/audit/log'
+import { writeAuditLog, moneyDelta, logRoomStatusChange } from '@/lib/audit/log'
+import { todayISO } from '@/lib/stays/helpers'
+import { revalidateStayViews } from '@/lib/stays/revalidate'
+import { createPostCheckoutCleanTask } from '@/lib/housekeeping/checkout-task'
 import type { PaymentMethod, ReservationChannel, ReservationStatus } from '@/types'
 
 export type ReservationActionResult = { success: true } | { success: false; error: string }
@@ -430,7 +433,7 @@ export async function cancelReservation(id: string): Promise<ReservationActionRe
 
   const { data: reservation } = await supabase
     .from('reservations')
-    .select('hotel_id, guest_name, check_in, check_out, status, guest_id, guests(phone)')
+    .select('hotel_id, guest_name, check_in, check_out, status, guest_id, room_id, guests(phone)')
     .eq('id', id)
     .maybeSingle()
 
@@ -439,8 +442,71 @@ export async function cancelReservation(id: string): Promise<ReservationActionRe
     return { success: false, error: 'This reservation is already cancelled.' }
   }
 
+  const previousStatus = reservation.status
   const result = await setReservationStatus(id, 'cancelled')
   if (!result.success) return result
+
+  const admin = createAdminClient()
+  const today = todayISO()
+  const now = new Date().toISOString()
+
+  if (reservation.guest_id) {
+    const endedCheckOut =
+      reservation.check_in > today ? reservation.check_in : today
+
+    await admin
+      .from('guests')
+      .update({
+        room_id: null,
+        check_out: endedCheckOut,
+        token: null,
+        token_expires_at: now,
+      })
+      .eq('id', reservation.guest_id)
+      .eq('hotel_id', reservation.hotel_id)
+  }
+
+  if (reservation.room_id && previousStatus === 'checked_in') {
+    const { data: room } = await admin
+      .from('rooms')
+      .select('number, status')
+      .eq('id', reservation.room_id)
+      .eq('hotel_id', reservation.hotel_id)
+      .maybeSingle()
+
+    await admin
+      .from('rooms')
+      .update({
+        status: 'cleaning',
+        updated_by: profile.id,
+        updated_at: now,
+      })
+      .eq('id', reservation.room_id)
+      .eq('hotel_id', reservation.hotel_id)
+
+    if (room && room.status !== 'cleaning') {
+      void logRoomStatusChange({
+        hotelId: reservation.hotel_id,
+        actorId: profile.id,
+        actorName: profile.name,
+        roomId: reservation.room_id,
+        roomNumber: room.number,
+        from: room.status ?? 'occupied',
+        to: 'cleaning',
+        reason: 'reservation cancelled',
+      })
+    }
+
+    await createPostCheckoutCleanTask(admin, {
+      hotelId: reservation.hotel_id,
+      roomId: reservation.room_id,
+      guestName: reservation.guest_name,
+      createdBy: profile.id,
+      notes: `Cancelled stay — ${reservation.guest_name}`,
+    })
+  }
+
+  revalidateStayViews()
 
   void writeAuditLog({
     hotelId: profile.hotel_id!,

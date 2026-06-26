@@ -78,7 +78,6 @@ export const GUEST_RATE_LIMITS = {
   complaint: { max: 10, windowMs: 60 * 60 * 1000, cooldownMs: 10_000 },
   message: { max: 60, windowMs: 15 * 60 * 1000, cooldownMs: 1_000 },
   request: { max: 20, windowMs: 60 * 60 * 1000, cooldownMs: 5_000 },
-  preArrival: { max: 10, windowMs: 60 * 60 * 1000, cooldownMs: 5_000 },
 } as const satisfies Record<string, RateLimitOptions>
 
 export const AUTH_RATE_LIMITS = {

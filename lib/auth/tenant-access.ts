@@ -10,11 +10,6 @@ export function canOwnerEraseGuestData(role: UserRole | string | null | undefine
   return role === 'owner'
 }
 
-/** Staff who may view pre-arrival ID documents (signed URL + audit). */
-export function canStaffViewGuestIdDocument(role: UserRole | string | null | undefined): boolean {
-  return canStaffExportGuestData(role)
-}
-
 /** Billing and payment records are owner-only at the app layer. */
 export function canAccessBilling(role: UserRole | string | null | undefined): boolean {
   return role === 'owner'

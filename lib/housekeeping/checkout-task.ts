@@ -26,6 +26,7 @@ export async function createPostCheckoutCleanTask(
     roomId: string
     guestName: string
     createdBy: string
+    notes?: string
   },
 ): Promise<void> {
   const assignee = await findHousekeepingAssignee(admin, input.hotelId)
@@ -50,7 +51,7 @@ export async function createPostCheckoutCleanTask(
       status: 'todo',
       priority: 'high',
       assigned_to: assignee,
-      notes: `Post checkout — ${input.guestName}`,
+      notes: input.notes ?? `Post checkout — ${input.guestName}`,
       created_by: input.createdBy,
       due_date: todayISO(),
     })
