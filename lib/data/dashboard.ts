@@ -17,6 +17,11 @@ import type {
   Room,
   RoomStatus,
 } from '@/types'
+import {
+  filterMetricsEligible,
+  filterOpenBookings,
+  isOccupancyBlockingStatus,
+} from '@/lib/reservations/lifecycle'
 
 export interface RoomOption {
   id: string
@@ -140,8 +145,9 @@ function computeMetrics(
   const occupied = dbRooms.filter((r) => r.status === 'occupied').length
   const occupancyRate = totalRooms > 0 ? occupied / totalRooms : 0
 
-  const activeReservations = reservations.filter((r) => r.status !== 'cancelled')
-  const nightlyRates = activeReservations
+  const activeReservations = filterOpenBookings(reservations)
+  const revenueEligible = filterMetricsEligible(reservations)
+  const nightlyRates = revenueEligible
     .map((r) => (r.numberOfNights > 0 ? r.totalPrice / r.numberOfNights : 0))
     .filter((n) => n > 0)
   const averageNightlyRate =
@@ -152,7 +158,7 @@ function computeMetrics(
   const invoiceRevenue = invoices
     .filter((inv) => inv.payment_status === 'paid')
     .reduce((sum, inv) => sum + (inv.total_amount ?? 0), 0)
-  const reservationRevenue = activeReservations.reduce((sum, r) => sum + r.totalPrice, 0)
+  const reservationRevenue = revenueEligible.reduce((sum, r) => sum + r.totalPrice, 0)
   const totalRevenue = invoiceRevenue > 0 ? invoiceRevenue : reservationRevenue
 
   const totalBookings = activeReservations.length
@@ -183,7 +189,10 @@ function computeAvailability(dbRooms: DbRoom[], reservations: Reservation[]): Av
     const dayStr = day.toISOString().split('T')[0]
 
     const spanning = reservations.filter(
-      (r) => r.status !== 'cancelled' && r.checkInDate <= dayStr && r.checkOutDate > dayStr,
+      (r) =>
+        isOccupancyBlockingStatus(r.status) &&
+        r.checkInDate <= dayStr &&
+        r.checkOutDate > dayStr,
     )
     const occupied = Math.min(
       totalRooms - maintenance,

@@ -1,3 +1,4 @@
+import { OCCUPANCY_BLOCKING_STATUSES } from '@/lib/reservations/lifecycle'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/lib/supabase/types'
 
@@ -14,8 +15,7 @@ import type { Database } from '@/lib/supabase/types'
 
 type Client = SupabaseClient<Database>
 
-// Reservations that actually hold a room. `checked_out` and `cancelled` free it.
-const BLOCKING_RESERVATION_STATUSES = ['confirmed', 'checked_in'] as const
+const BLOCKING_RESERVATION_STATUSES = OCCUPANCY_BLOCKING_STATUSES
 
 export interface OccupancySpan {
   roomId: string

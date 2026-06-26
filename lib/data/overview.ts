@@ -1,4 +1,5 @@
 import type { DbInvoice, Reservation } from '@/types'
+import { filterMetricsEligible, isOpenBookingStatus } from '@/lib/reservations/lifecycle'
 
 export interface ChannelPerf {
   channel: Reservation['source']
@@ -18,13 +19,13 @@ export interface GraSummary {
 
 export function getUpcomingBookings(reservations: Reservation[], limit = 5): Reservation[] {
   return reservations
-    .filter((r) => r.status === 'confirmed' || r.status === 'checked_in')
+    .filter((r) => isOpenBookingStatus(r.status))
     .sort((a, b) => new Date(a.checkInDate).getTime() - new Date(b.checkInDate).getTime())
     .slice(0, limit)
 }
 
 export function computeChannelPerformance(reservations: Reservation[]): ChannelPerf[] {
-  const active = reservations.filter((r) => r.status !== 'cancelled')
+  const active = filterMetricsEligible(reservations)
   const map = new Map<Reservation['source'], { bookings: number; revenue: number }>()
 
   for (const r of active) {

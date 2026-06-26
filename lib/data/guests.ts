@@ -1,5 +1,6 @@
 import { getProfile } from '@/lib/auth/get-profile'
 import { createClient } from '@/lib/supabase/server'
+import { isVoidedReservationStatus } from '@/lib/reservations/lifecycle'
 import type { DbReservation, ReservationChannel } from '@/types'
 
 export type GuestStatus = 'active' | 'vip' | 'returning' | 'new'
@@ -96,7 +97,9 @@ export async function getGuestsData(limit?: number): Promise<GuestRow[]> {
   const today = todayStr()
 
   return guests.map((guest) => {
-    const resList = (byGuest.get(guest.id) ?? []).filter((r) => r.status !== 'cancelled')
+    const resList = (byGuest.get(guest.id) ?? []).filter(
+      (r) => !isVoidedReservationStatus(r.status),
+    )
 
     const stays = resList.length > 0 ? resList.length : guest.check_in ? 1 : 0
     const totalSpent = resList.reduce((sum, r) => sum + (r.total_amount ?? 0), 0)

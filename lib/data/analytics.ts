@@ -1,5 +1,6 @@
 import type { ChannelPerf } from '@/lib/data/overview'
 import type { DbInvoice, KPIMetrics, Reservation } from '@/types'
+import { filterMetricsEligible } from '@/lib/reservations/lifecycle'
 
 export interface AnalyticsWeeklyPoint {
   day: string
@@ -62,7 +63,7 @@ export function computeAnalytics(input: {
   guestFeedback?: { averageRating: number | null; totalCount: number }
 }): AnalyticsData {
   const { reservations, metrics, invoices = [], channels = [], guestFeedback } = input
-  const active = reservations.filter((r) => r.status !== 'cancelled')
+  const active = filterMetricsEligible(reservations)
   const cancelled = reservations.filter((r) => r.status === 'cancelled').length
   const totalWithCancelled = reservations.length
   const cancellationRatePct =

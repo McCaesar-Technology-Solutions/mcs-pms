@@ -80,7 +80,13 @@ export interface Room {
 }
 
 // Reservations & Bookings
-export type BookingStatus = 'pending' | 'confirmed' | 'checked_in' | 'checked_out' | 'cancelled'
+export type BookingStatus =
+  | 'pending'
+  | 'confirmed'
+  | 'checked_in'
+  | 'checked_out'
+  | 'cancelled'
+  | 'no_show'
 
 export interface Reservation {
   id: string
@@ -216,7 +222,12 @@ export interface RoomCategory {
   created_at: string | null
 }
 
-export type ReservationStatus = 'confirmed' | 'checked_in' | 'checked_out' | 'cancelled'
+export type ReservationStatus =
+  | 'confirmed'
+  | 'checked_in'
+  | 'checked_out'
+  | 'cancelled'
+  | 'no_show'
 
 export type ReservationChannel = 'airbnb' | 'booking_com' | 'direct' | 'walk_in' | 'other'
 

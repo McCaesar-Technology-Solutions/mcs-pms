@@ -587,6 +587,7 @@ export async function checkOutStay(input: {
       .from('guests')
       .update({
         check_out: effectiveCheckOut,
+        room_id: null,
         token: null,
         token_expires_at: new Date().toISOString(),
       })
@@ -745,6 +746,7 @@ export async function checkOutStay(input: {
       .from('guests')
       .update({
         check_out: effectiveCheckOut,
+        room_id: null,
         token: null,
         token_expires_at: new Date().toISOString(),
       })
@@ -1032,7 +1034,7 @@ export async function markNoShow(reservationId: string): Promise<StayActionResul
 
   const { data: reservation } = await supabase
     .from('reservations')
-    .select('id, status, check_in, guest_name')
+    .select('id, status, check_in, guest_name, guest_id, hotel_id')
     .eq('id', reservationId)
     .maybeSingle()
 
@@ -1047,6 +1049,18 @@ export async function markNoShow(reservationId: string): Promise<StayActionResul
     .eq('id', reservationId)
 
   if (error) return { success: false, error: error.message }
+
+  if (reservation.guest_id) {
+    const admin = createAdminClient()
+    await admin
+      .from('guests')
+      .update({
+        token: null,
+        token_expires_at: new Date().toISOString(),
+      })
+      .eq('id', reservation.guest_id)
+      .eq('hotel_id', reservation.hotel_id)
+  }
 
   revalidateStayViews()
 

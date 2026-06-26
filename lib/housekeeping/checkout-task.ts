@@ -3,22 +3,6 @@ import { todayISO } from '@/lib/stays/helpers'
 
 type AdminClient = ReturnType<typeof createAdminClient>
 
-async function findHousekeepingAssignee(
-  admin: AdminClient,
-  hotelId: string,
-): Promise<string | null> {
-  const { data } = await admin
-    .from('profiles')
-    .select('id')
-    .eq('hotel_id', hotelId)
-    .eq('role', 'technician')
-    .eq('is_active', true)
-    .order('created_at')
-    .limit(1)
-
-  return data?.[0]?.id ?? null
-}
-
 export async function createPostCheckoutCleanTask(
   admin: AdminClient,
   input: {
@@ -29,8 +13,6 @@ export async function createPostCheckoutCleanTask(
     notes?: string
   },
 ): Promise<void> {
-  const assignee = await findHousekeepingAssignee(admin, input.hotelId)
-
   const { data: existing } = await admin
     .from('housekeeping_tasks')
     .select('id')
@@ -42,25 +24,15 @@ export async function createPostCheckoutCleanTask(
 
   if (existing && existing.length > 0) return
 
-  const { data: inserted } = await admin
-    .from('housekeeping_tasks')
-    .insert({
-      hotel_id: input.hotelId,
-      room_id: input.roomId,
-      task_type: 'clean',
-      status: 'todo',
-      priority: 'high',
-      assigned_to: assignee,
-      notes: input.notes ?? `Post checkout — ${input.guestName}`,
-      created_by: input.createdBy,
-      due_date: todayISO(),
-    })
-    .select('id')
-    .single()
-
-  if (assignee && inserted?.id) {
-    void import('@/lib/notifications/housekeeping').then(({ notifyHousekeepingTaskAssigned }) =>
-      notifyHousekeepingTaskAssigned(inserted.id).catch(() => undefined),
-    )
-  }
+  await admin.from('housekeeping_tasks').insert({
+    hotel_id: input.hotelId,
+    room_id: input.roomId,
+    task_type: 'clean',
+    status: 'todo',
+    priority: 'high',
+    assigned_to: null,
+    notes: input.notes ?? `Post checkout — ${input.guestName}`,
+    created_by: input.createdBy,
+    due_date: todayISO(),
+  })
 }

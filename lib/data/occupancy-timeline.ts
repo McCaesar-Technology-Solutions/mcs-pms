@@ -1,11 +1,12 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/lib/supabase/types'
 import { datesOverlap, type RoomRef } from '@/lib/data/occupancy'
+import { OCCUPANCY_BLOCKING_STATUSES } from '@/lib/reservations/lifecycle'
 import type { Reservation } from '@/types'
 
 type Client = SupabaseClient<Database>
 
-const BLOCKING_RESERVATION_STATUSES = ['confirmed', 'checked_in'] as const
+const BLOCKING_RESERVATION_STATUSES = OCCUPANCY_BLOCKING_STATUSES
 
 const CHANNEL_SOURCE_MAP: Record<string, Reservation['source']> = {
   airbnb: 'airbnb',

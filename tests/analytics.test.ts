@@ -48,16 +48,17 @@ describe('computeAnalytics', () => {
     expect(result.monthly).toHaveLength(6)
   })
 
-  it('excludes cancelled from booking counts', () => {
+  it('excludes cancelled and no_show from booking counts', () => {
     const result = computeAnalytics({
       reservations: [
         reservation({ id: 'a', status: 'confirmed' }),
         reservation({ id: 'b', status: 'cancelled', guestId: 'g2' }),
+        reservation({ id: 'c', status: 'no_show', guestId: 'g3' }),
       ],
       metrics: baseMetrics,
     })
     expect(result.totalBookings).toBe(1)
-    expect(result.cancellationRatePct).toBe(50)
+    expect(result.cancellationRatePct).toBe(33)
   })
 
   it('computes repeat guest rate', () => {

@@ -31,7 +31,7 @@ import type { OccupancySpan } from '@/lib/data/occupancy'
 import { PAYMENT_METHOD_LABELS } from '@/lib/tax'
 import { calculateStayTotal, rateTypeLabel } from '@/lib/pricing/stay-totals'
 
-const STATUS_FILTERS = ['all', 'checked_in', 'confirmed', 'checked_out', 'cancelled'] as const
+const STATUS_FILTERS = ['all', 'checked_in', 'confirmed', 'checked_out', 'cancelled', 'no_show'] as const
 
 const CHANNEL_LABELS: Record<ReservationChannel, string> = {
   airbnb: 'Airbnb',
@@ -55,6 +55,8 @@ function statusBadge(status: string) {
       return 'bg-[#E9ECEF] text-[#5E5872]'
     case 'cancelled':
       return 'bg-red-100 text-red-700'
+    case 'no_show':
+      return 'bg-amber-100 text-amber-800'
     default:
       return 'bg-gray-600 text-gray-50'
   }
@@ -394,6 +396,7 @@ function ReservationDrawer({ reservation, roomOptions, onClose, onMutated }: Res
   const today = new Date().toISOString().slice(0, 10)
   const canNoShow =
     reservation.status === 'confirmed' && reservation.checkInDate <= today
+  const canCancel = reservation.status === 'confirmed'
   const editDatesValid = editCheckOut > editCheckIn
   const editNights = Math.max(
     1,
@@ -505,7 +508,9 @@ function ReservationDrawer({ reservation, roomOptions, onClose, onMutated }: Res
             <p className="rounded-xl bg-red-50 px-3 py-2.5 text-sm text-red-700">{error}</p>
           )}
 
-          {reservation.status !== 'checked_out' && reservation.status !== 'cancelled' && (
+          {reservation.status !== 'checked_out' &&
+            reservation.status !== 'cancelled' &&
+            reservation.status !== 'no_show' && (
             <div className="space-y-2">
               {reservation.status === 'confirmed' && !checkingIn && !editing && (
                 <button
@@ -923,15 +928,31 @@ function ReservationDrawer({ reservation, roomOptions, onClose, onMutated }: Res
                       Mark no-show
                     </button>
                   ) : null}
-                  <button
-                    type="button"
-                    disabled={pending}
-                    onClick={() => run(() => cancelReservation(reservation.id))}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-white py-3 text-sm font-semibold text-red-600 shadow-elevation-1 transition-all hover:shadow-elevation-2 disabled:opacity-50"
-                  >
-                    <XCircle className="h-4 w-4" />
-                    Cancel reservation
-                  </button>
+                  {canCancel ? (
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() => {
+                        if (
+                          !window.confirm(
+                            'Cancel this reservation? This cannot be undone.',
+                          )
+                        ) {
+                          return
+                        }
+                        run(() => cancelReservation(reservation.id))
+                      }}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-white py-3 text-sm font-semibold text-red-600 shadow-elevation-1 transition-all hover:shadow-elevation-2 disabled:opacity-50"
+                    >
+                      <XCircle className="h-4 w-4" />
+                      Cancel reservation
+                    </button>
+                  ) : null}
+                  {reservation.status === 'checked_in' && (
+                    <p className="text-center text-xs text-muted-foreground">
+                      In-house guests must use Check out to settle payment and release the room.
+                    </p>
+                  )}
                 </>
               )}
             </div>
