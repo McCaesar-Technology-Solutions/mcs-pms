@@ -11,6 +11,7 @@ export type NavIconKey =
   | 'wrench'
   | 'user-cog'
   | 'bed-double'
+  | 'message-circle'
 
 /** Serializable nav item — safe to pass from Server → Client Components */
 export interface NavItem {
@@ -36,6 +37,7 @@ export const ownerNavigation: NavItem[] = [
 
 export const managerNavigation: NavItem[] = [
   { name: 'Dashboard', href: '/manager/dashboard', icon: 'layout-dashboard' },
+  { name: 'Messages', href: '/manager/messages', icon: 'message-circle' },
   { name: 'Rooms', href: '/manager/rooms', icon: 'bed-double' },
   { name: 'Guests', href: '/manager/guests', icon: 'users' },
   { name: 'Reservations', href: '/manager/reservations', icon: 'calendar' },
@@ -46,6 +48,7 @@ export const managerNavigation: NavItem[] = [
 
 export const receptionistNavigation: NavItem[] = [
   { name: 'Dashboard', href: '/receptionist/dashboard', icon: 'layout-dashboard' },
+  { name: 'Messages', href: '/receptionist/messages', icon: 'message-circle' },
   { name: 'Reservations', href: '/receptionist/reservations', icon: 'calendar' },
   { name: 'Guests', href: '/receptionist/guests', icon: 'users' },
   { name: 'Rooms', href: '/receptionist/rooms', icon: 'bed-double' },

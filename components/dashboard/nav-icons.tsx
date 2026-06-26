@@ -12,6 +12,7 @@ import {
   Wrench,
   UserCog,
   BedDouble,
+  MessageCircle,
 } from 'lucide-react'
 import type { NavIconKey } from '@/lib/navigation'
 
@@ -28,6 +29,7 @@ export const navIcons: Record<NavIconKey, LucideIcon> = {
   wrench: Wrench,
   'user-cog': UserCog,
   'bed-double': BedDouble,
+  'message-circle': MessageCircle,
 }
 
 export function getNavIcon(key: NavIconKey): LucideIcon {

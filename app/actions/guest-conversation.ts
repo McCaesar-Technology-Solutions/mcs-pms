@@ -1,0 +1,300 @@
+'use server'
+
+import { revalidatePath } from 'next/cache'
+import { z } from 'zod'
+import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { getGuestFromSession } from '@/app/actions/guest'
+import { guestNeedsRulesAcceptance } from '@/app/actions/guest-rules'
+import { ensureGuestConversation } from '@/lib/guest-conversation/ensure'
+import {
+  assertRateLimit,
+  GUEST_RATE_LIMITS,
+  guestRateKey,
+} from '@/lib/rate-limit'
+import type { Guest } from '@/types'
+
+export type GuestConversationActionResult<T = void> =
+  | { success: true; data?: T }
+  | { success: false; error: string }
+
+const stayMessageSchema = z.object({
+  body: z.string().min(1).max(2000),
+})
+
+const staffMessageSchema = z.object({
+  conversationId: z.string().uuid(),
+  body: z.string().min(1).max(2000),
+})
+
+const FRONT_DESK_ROLES = new Set(['owner', 'manager', 'receptionist'])
+
+async function requireGuestWithRules(): Promise<
+  | { ok: true; guest: Guest; roomNumber: string | null }
+  | { ok: false; error: string }
+> {
+  const session = await getGuestFromSession()
+  if (!session.success) {
+    return { ok: false, error: session.error ?? 'Session expired. Use your guest link again.' }
+  }
+  if (!session.data) {
+    return { ok: false, error: 'Session expired. Use your guest link again.' }
+  }
+  if (await guestNeedsRulesAcceptance(session.data.guest.id)) {
+    return { ok: false, error: 'Please accept the property rules first.' }
+  }
+  return {
+    ok: true,
+    guest: session.data.guest,
+    roomNumber: session.data.roomNumber,
+  }
+}
+
+async function requireFrontDeskProfile() {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return null
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  if (!profile?.hotel_id || !FRONT_DESK_ROLES.has(profile.role)) return null
+  return profile
+}
+
+async function assertConversationAccess(
+  conversationId: string,
+  hotelId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const admin = createAdminClient()
+  const { data } = await admin
+    .from('guest_conversations')
+    .select('id')
+    .eq('id', conversationId)
+    .eq('hotel_id', hotelId)
+    .maybeSingle()
+
+  if (!data) return { ok: false, error: 'Conversation not found.' }
+  return { ok: true }
+}
+
+function revalidateStayChatPaths() {
+  revalidatePath('/guest')
+  revalidatePath('/manager/messages')
+  revalidatePath('/receptionist/messages')
+  revalidatePath('/manager/dashboard')
+  revalidatePath('/receptionist/dashboard')
+}
+
+export async function getGuestStayConversationId(): Promise<
+  GuestConversationActionResult<{ conversationId: string }>
+> {
+  const auth = await requireGuestWithRules()
+  if (!auth.ok) return { success: false, error: auth.error }
+
+  const admin = createAdminClient()
+  const { id } = await ensureGuestConversation(admin, auth.guest.hotel_id, auth.guest.id)
+  return { success: true, data: { conversationId: id } }
+}
+
+export async function getGuestStayMessages(): Promise<
+  GuestConversationActionResult<{
+    conversationId: string
+    messages: { id: string; authorRole: string; body: string; createdAt: string }[]
+  }>
+> {
+  const auth = await requireGuestWithRules()
+  if (!auth.ok) return { success: false, error: auth.error }
+
+  const admin = createAdminClient()
+  const { id: conversationId } = await ensureGuestConversation(
+    admin,
+    auth.guest.hotel_id,
+    auth.guest.id,
+  )
+
+  const { data } = await admin
+    .from('guest_conversation_messages')
+    .select('id, author_role, body, created_at')
+    .eq('conversation_id', conversationId)
+    .order('created_at', { ascending: true })
+
+  return {
+    success: true,
+    data: {
+      conversationId,
+      messages: (data ?? []).map((m) => ({
+        id: m.id,
+        authorRole: m.author_role,
+        body: m.body,
+        createdAt: m.created_at ?? new Date(0).toISOString(),
+      })),
+    },
+  }
+}
+
+export async function postGuestStayMessage(input: unknown): Promise<GuestConversationActionResult> {
+  const auth = await requireGuestWithRules()
+  if (!auth.ok) return { success: false, error: auth.error }
+
+  const limit = await assertRateLimit(
+    guestRateKey('stay-chat', auth.guest.id),
+    GUEST_RATE_LIMITS.message,
+  )
+  if (limit) return { success: false, error: limit }
+
+  const parsed = stayMessageSchema.safeParse(input)
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid message.' }
+  }
+
+  const admin = createAdminClient()
+  const { id: conversationId } = await ensureGuestConversation(
+    admin,
+    auth.guest.hotel_id,
+    auth.guest.id,
+  )
+
+  const body = parsed.data.body.trim()
+  const now = new Date().toISOString()
+
+  const { error } = await admin.from('guest_conversation_messages').insert({
+    conversation_id: conversationId,
+    author_role: 'guest',
+    author_id: null,
+    body,
+  })
+
+  if (error) return { success: false, error: 'Could not send message.' }
+
+  await admin
+    .from('guest_conversations')
+    .update({ updated_at: now })
+    .eq('id', conversationId)
+
+  void import('@/lib/notifications/guest-conversation').then(({ notifyGuestStayMessageToManagers }) =>
+    notifyGuestStayMessageToManagers({
+      hotelId: auth.guest.hotel_id,
+      guestName: auth.guest.name,
+      roomNumber: auth.roomNumber,
+      messagePreview: body,
+      conversationId,
+    }).catch(() => undefined),
+  )
+
+  revalidateStayChatPaths()
+  return { success: true }
+}
+
+export async function getStaffGuestStayMessages(
+  conversationId: string,
+): Promise<
+  GuestConversationActionResult<
+    {
+      id: string
+      authorRole: string
+      body: string
+      createdAt: string
+      authorName: string | null
+    }[]
+  >
+> {
+  const profile = await requireFrontDeskProfile()
+  if (!profile) return { success: false, error: 'Not authorized.' }
+
+  const access = await assertConversationAccess(conversationId, profile.hotel_id!)
+  if (!access.ok) return { success: false, error: access.error }
+
+  const admin = createAdminClient()
+  const { data } = await admin
+    .from('guest_conversation_messages')
+    .select('id, author_role, body, created_at, author_id, profiles(name)')
+    .eq('conversation_id', conversationId)
+    .order('created_at', { ascending: true })
+
+  await admin
+    .from('guest_conversations')
+    .update({ staff_last_read_at: new Date().toISOString() })
+    .eq('id', conversationId)
+
+  return {
+    success: true,
+    data: (data ?? []).map((m) => {
+      const author =
+        m.profiles && typeof m.profiles === 'object' && 'name' in m.profiles
+          ? (m.profiles as { name: string }).name
+          : null
+      return {
+        id: m.id,
+        authorRole: m.author_role,
+        body: m.body,
+        createdAt: m.created_at ?? new Date(0).toISOString(),
+        authorName: author,
+      }
+    }),
+  }
+}
+
+export async function postStaffGuestStayMessage(
+  input: unknown,
+): Promise<GuestConversationActionResult> {
+  const profile = await requireFrontDeskProfile()
+  if (!profile) return { success: false, error: 'Not authorized.' }
+
+  const parsed = staffMessageSchema.safeParse(input)
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid message.' }
+  }
+
+  const access = await assertConversationAccess(parsed.data.conversationId, profile.hotel_id!)
+  if (!access.ok) return { success: false, error: access.error }
+
+  const admin = createAdminClient()
+  const { data: conversation } = await admin
+    .from('guest_conversations')
+    .select('guest_id, guests(name, phone, rooms(number))')
+    .eq('id', parsed.data.conversationId)
+    .maybeSingle()
+
+  if (!conversation) return { success: false, error: 'Conversation not found.' }
+
+  const body = parsed.data.body.trim()
+  const now = new Date().toISOString()
+
+  const { error } = await admin.from('guest_conversation_messages').insert({
+    conversation_id: parsed.data.conversationId,
+    author_role: 'staff',
+    author_id: profile.id,
+    body,
+  })
+
+  if (error) return { success: false, error: 'Could not send message.' }
+
+  await admin
+    .from('guest_conversations')
+    .update({ updated_at: now, staff_last_read_at: now })
+    .eq('id', parsed.data.conversationId)
+
+  const guest = conversation.guests as {
+    name?: string
+    phone?: string | null
+    rooms?: { number?: string } | null
+  } | null
+
+  void import('@/lib/notifications/guest-conversation').then(({ notifyStaffStayMessageToGuest }) =>
+    notifyStaffStayMessageToGuest({
+      hotelId: profile.hotel_id!,
+      guestId: conversation.guest_id,
+      guestPhone: guest?.phone?.trim() ?? null,
+      messagePreview: body,
+    }).catch(() => undefined),
+  )
+
+  revalidateStayChatPaths()
+  return { success: true }
+}

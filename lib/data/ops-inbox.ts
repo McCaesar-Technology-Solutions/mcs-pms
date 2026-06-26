@@ -1,8 +1,14 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { isPendingCompletion, needsGuestCompletionApproval } from '@/lib/complaints/workflow'
+import { loadGuestConversations } from '@/lib/data/guest-conversations'
 import type { Complaint } from '@/types'
 
-export type OpsInboxKind = 'complaint' | 'guest_request' | 'guest_message' | 'housekeeping'
+export type OpsInboxKind =
+  | 'complaint'
+  | 'guest_request'
+  | 'guest_message'
+  | 'guest_stay_chat'
+  | 'housekeeping'
 
 export interface OpsInboxItem {
   id: string
@@ -33,7 +39,8 @@ export async function loadOpsInbox(hotelId: string, limit = 12): Promise<OpsInbo
   const admin = createAdminClient()
   const items: OpsInboxItem[] = []
 
-  const [complaintsRes, requestsRes, housekeepingRes, complaintIdsRes] = await Promise.all([
+  const [complaintsRes, requestsRes, housekeepingRes, stayConversations, complaintIdsRes] =
+    await Promise.all([
     admin
       .from('complaints')
       .select('id, category, status, priority, assigned_to, approval_stage, guest_id, guest_completion_approved_at, submitted_at, rooms(number)')
@@ -55,6 +62,7 @@ export async function loadOpsInbox(hotelId: string, limit = 12): Promise<OpsInbo
       .neq('status', 'done')
       .order('created_at', { ascending: false })
       .limit(15),
+    loadGuestConversations(hotelId),
     admin.from('complaints').select('id').eq('hotel_id', hotelId),
   ])
 
@@ -132,6 +140,18 @@ export async function loadOpsInbox(hotelId: string, limit = 12): Promise<OpsInbo
       priority: isInspect ? 0 : isOverdue ? 1 : 3,
       href: '/manager/housekeeping',
       createdAt: task.created_at ?? new Date(0).toISOString(),
+    })
+  }
+
+  for (const conv of stayConversations.filter((c) => c.unread)) {
+    items.push({
+      id: conv.id,
+      kind: 'guest_stay_chat',
+      title: `Message from ${conv.guestName}`,
+      subtitle: `${conv.roomNumber ? `Room ${conv.roomNumber} · ` : ''}${conv.lastMessageBody?.slice(0, 60) ?? 'New message'}`,
+      priority: 1,
+      href: `/manager/messages?conversation=${conv.id}`,
+      createdAt: conv.lastMessageAt ?? new Date(0).toISOString(),
     })
   }
 

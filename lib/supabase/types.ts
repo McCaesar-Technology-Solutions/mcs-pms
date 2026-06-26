@@ -443,6 +443,60 @@ export type Database = {
         }
         Relationships: []
       }
+      guest_conversation_messages: {
+        Row: {
+          id: string
+          conversation_id: string
+          author_role: 'guest' | 'staff'
+          author_id: string | null
+          body: string
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          conversation_id: string
+          author_role: 'guest' | 'staff'
+          author_id?: string | null
+          body: string
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          conversation_id?: string
+          author_role?: 'guest' | 'staff'
+          author_id?: string | null
+          body?: string
+          created_at?: string | null
+        }
+        Relationships: []
+      }
+      guest_conversations: {
+        Row: {
+          id: string
+          hotel_id: string
+          guest_id: string
+          staff_last_read_at: string | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          hotel_id: string
+          guest_id: string
+          staff_last_read_at?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          hotel_id?: string
+          guest_id?: string
+          staff_last_read_at?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       guests: {
         Row: {
           id: string

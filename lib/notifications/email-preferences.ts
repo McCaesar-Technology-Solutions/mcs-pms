@@ -7,6 +7,7 @@ export const EMAIL_STAFF_TEMPLATE_KEYS = [
   'complaint_invoice_submitted',
   'complaint_visit_scheduled',
   'complaint_guest_message',
+  'guest_stay_chat',
   'guest_request',
   'guest_feedback',
   'guest_feedback_low',
@@ -43,7 +44,7 @@ export const EMAIL_PREF_GROUPS: {
   {
     title: 'Guest portal',
     description: 'Requests and reviews from the in-room guest app.',
-    keys: ['guest_request', 'guest_feedback', 'guest_feedback_low'],
+    keys: ['guest_request', 'guest_feedback', 'guest_feedback_low', 'guest_stay_chat'],
   },
   {
     title: 'Staff',
@@ -65,6 +66,7 @@ export const EMAIL_PREF_LABELS: Record<EmailStaffTemplateKey, string> = {
   complaint_invoice_submitted: 'Technician invoice submitted',
   complaint_visit_scheduled: 'Maintenance visit scheduled',
   complaint_guest_message: 'Guest chat message',
+  guest_stay_chat: 'Stay chat message',
   guest_request: 'Guest portal request',
   guest_feedback: 'Guest review submitted',
   guest_feedback_low: 'Low guest review (≤2 stars)',

@@ -56,6 +56,7 @@ import { pickGuestNextAction } from '@/lib/complaints/guest-next-action'
 import type { GuestNextAction, GuestNextActionFocus } from '@/lib/complaints/guest-next-action'
 import { guestStatusLabel } from '@/components/complaints/complaints-overview'
 import { GuestComplaintChat } from '@/components/guest/guest-complaint-chat'
+import { GuestStayChat } from '@/components/guest/guest-stay-chat'
 import { GuestStatusAlerts } from '@/components/guest/guest-status-alerts'
 import { FormError } from '@/components/ui/form-error'
 import { RealtimeReconnectBanner } from '@/components/realtime/reconnect-banner'
@@ -453,6 +454,19 @@ export function GuestPortal({
               </button>
             </div>
 
+            <button
+              type="button"
+              onClick={() => setActiveTab('stay')}
+              className="flex w-full items-center gap-3 rounded-2xl border border-[#D4A62E]/30 bg-[#D4A62E]/10 p-4 text-left"
+            >
+              <MessageCircle className="h-5 w-5 shrink-0 text-[#D4A62E]" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold">Message the team</p>
+                <p className="text-xs text-white/60">Chat with the front desk about your stay</p>
+              </div>
+              <ChevronRight className="h-4 w-4 shrink-0 text-white/50" />
+            </button>
+
             {primaryNextAction && (
               <GuestNextStepBanner action={primaryNextAction} onAction={handleGuestNextStep} />
             )}
@@ -602,6 +616,8 @@ export function GuestPortal({
                 checkOutTime={property.checkOutTime}
               />
             )}
+
+            <GuestStayChat />
 
             <PortalCard>
               <p className="text-xs font-bold uppercase tracking-widest text-[#D4A62E]">Requests</p>

@@ -8,6 +8,7 @@ export type GuestEmailTemplateKey =
   | 'guest_request_update'
   | 'guest_receipt'
   | 'guest_complaint_message'
+  | 'guest_stay_message'
 
 interface GuestContact {
   email: string

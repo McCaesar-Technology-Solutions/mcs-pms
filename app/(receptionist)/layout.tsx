@@ -4,6 +4,7 @@ import { AppShell } from '@/components/dashboard/app-shell'
 import { receptionistNavigation } from '@/lib/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getOccupancyToday, type OccupancyToday } from '@/lib/data/occupancy'
+import { countUnreadGuestConversations } from '@/lib/data/guest-conversations'
 
 export default async function ReceptionistLayout({
   children,
@@ -17,7 +18,13 @@ export default async function ReceptionistLayout({
   let occupancyToday: OccupancyToday | undefined
   if (profile.hotel_id) {
     const supabase = await createClient()
-    occupancyToday = await getOccupancyToday(supabase, profile.hotel_id)
+    const [occupancy, unreadMessages] = await Promise.all([
+      getOccupancyToday(supabase, profile.hotel_id),
+      countUnreadGuestConversations(profile.hotel_id),
+    ])
+    occupancyToday = occupancy
+    const messagesNav = navigation.find((n) => n.name === 'Messages')
+    if (messagesNav && unreadMessages > 0) messagesNav.badge = unreadMessages
   }
 
   return (

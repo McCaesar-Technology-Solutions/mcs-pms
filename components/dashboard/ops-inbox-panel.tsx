@@ -8,6 +8,7 @@ const kindIcon = {
   complaint: Wrench,
   guest_request: Bell,
   guest_message: MessageCircle,
+  guest_stay_chat: MessageCircle,
   housekeeping: Sparkles,
 } as const
 
