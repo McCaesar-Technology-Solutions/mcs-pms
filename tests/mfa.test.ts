@@ -87,7 +87,7 @@ describe('mfaGateForRole', () => {
 })
 
 describe('mfaRedirectPath', () => {
-  it('builds enroll and verify URLs with a safe next param', () => {
+  it('builds settings URLs with a safe next param', () => {
     expect(
       mfaRedirectPath(
         'owner',
@@ -102,7 +102,7 @@ describe('mfaRedirectPath', () => {
         '/owner/dashboard',
         '/owner/billing',
       ),
-    ).toBe('/enroll-mfa?next=%2Fowner%2Fbilling')
+    ).toBe('/owner/settings#security?next=%2Fowner%2Fbilling')
 
     expect(
       mfaRedirectPath(
@@ -117,7 +117,7 @@ describe('mfaRedirectPath', () => {
         },
         '/manager/dashboard',
       ),
-    ).toBe('/verify-mfa?next=%2Fmanager%2Fdashboard')
+    ).toBe('/manager/staff#security?next=%2Fmanager%2Fdashboard')
   })
 })
 

@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { requiresOnboarding, onboardingProgress } from '@/lib/onboarding/state'
+import {
+  canNavigateToOnboardingStep,
+  onboardingProgress,
+  requiresOnboarding,
+  resolveOnboardingStepAfterComplete,
+} from '@/lib/onboarding/state'
 
 describe('requiresOnboarding', () => {
   it('requires setup for owners who have not finished the wizard', () => {
@@ -32,5 +37,23 @@ describe('onboardingProgress', () => {
   it('tracks wizard completion', () => {
     expect(onboardingProgress('welcome')).toBe(20)
     expect(onboardingProgress('done')).toBe(100)
+  })
+})
+
+describe('canNavigateToOnboardingStep', () => {
+  it('allows backward navigation only', () => {
+    expect(canNavigateToOnboardingStep('team', 'property')).toBe(true)
+    expect(canNavigateToOnboardingStep('team', 'team')).toBe(true)
+    expect(canNavigateToOnboardingStep('property', 'compliance')).toBe(false)
+  })
+})
+
+describe('resolveOnboardingStepAfterComplete', () => {
+  it('returns the next step by default', () => {
+    expect(resolveOnboardingStepAfterComplete('property')).toBe('compliance')
+  })
+
+  it('restores furthest progress after editing an earlier step', () => {
+    expect(resolveOnboardingStepAfterComplete('property', 'team')).toBe('team')
   })
 })

@@ -8,8 +8,14 @@ import { ensureGuestPortalSlug } from '@/lib/guest-portal'
 import { ensureDefaultGuestRules } from '@/lib/data/guest-rules'
 import { seedDefaultRoomCategories } from '@/lib/data/room-categories'
 import { ensureExportFeedsForHotel } from '@/lib/channels/ensure-export-feeds'
+import { ensureOwnerOrganization } from '@/lib/saas/provision-organization'
 import { inviteStaff } from '@/app/actions/staff'
-import type { OnboardingStep, VatMode } from '@/types'
+import {
+  canNavigateToOnboardingStep,
+  resolveOnboardingStepAfterComplete,
+  type OnboardingStep,
+} from '@/lib/onboarding/state'
+import type { VatMode } from '@/types'
 
 export type OnboardingActionResult = { success: true } | { success: false; error: string }
 
@@ -52,6 +58,8 @@ const teamStepSchema = z.object({
   skip: z.boolean().optional(),
 })
 
+const resumeStepSchema = z.enum(['welcome', 'property', 'compliance', 'team', 'done']).optional()
+
 async function requireOnboardingOwner() {
   const supabase = await createClient()
   const {
@@ -61,7 +69,7 @@ async function requireOnboardingOwner() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('id, role, hotel_id, onboarding_step, onboarding_completed_at')
+    .select('id, role, hotel_id, onboarding_step, onboarding_completed_at, name')
     .eq('id', user.id)
     .maybeSingle()
 
@@ -72,6 +80,76 @@ async function requireOnboardingOwner() {
 async function advanceStep(userId: string, step: OnboardingStep) {
   const admin = createAdminClient()
   await admin.from('profiles').update({ onboarding_step: step }).eq('id', userId)
+}
+
+async function syncRoomCount(
+  hotelId: string,
+  targetCount: number,
+  ownerId: string,
+): Promise<void> {
+  const admin = createAdminClient()
+  const { count, error: countError } = await admin
+    .from('rooms')
+    .select('*', { count: 'exact', head: true })
+    .eq('hotel_id', hotelId)
+
+  if (countError) throw new Error(countError.message)
+
+  const current = count ?? 0
+  if (targetCount === current) return
+
+  if (targetCount > current) {
+    const { data: standardCategory } = await admin
+      .from('room_categories')
+      .select('id, default_nightly_rate')
+      .eq('hotel_id', hotelId)
+      .eq('name', 'Standard')
+      .maybeSingle()
+
+    if (!standardCategory?.id) throw new Error('Could not find a room category for new rooms.')
+
+    const nightlyRate = Number(standardCategory.default_nightly_rate ?? 250)
+    const rooms = Array.from({ length: targetCount - current }, (_, i) => ({
+      hotel_id: hotelId,
+      number: String(current + i + 1),
+      floor: 1,
+      category_id: standardCategory.id,
+      nightly_rate: nightlyRate,
+      status: 'available' as const,
+      updated_by: ownerId,
+    }))
+
+    const { error } = await admin.from('rooms').insert(rooms)
+    if (error) throw new Error(error.message)
+    return
+  }
+
+  const toRemove = current - targetCount
+  const { data: rooms, error: roomsError } = await admin
+    .from('rooms')
+    .select('id, number, status')
+    .eq('hotel_id', hotelId)
+    .order('number', { ascending: false })
+    .limit(toRemove)
+
+  if (roomsError) throw new Error(roomsError.message)
+  if ((rooms?.length ?? 0) < toRemove) {
+    throw new Error('Could not reduce room count.')
+  }
+
+  const blocked = rooms?.find((room) => room.status !== 'available')
+  if (blocked) {
+    throw new Error(
+      'Cannot remove rooms that are occupied or out of service. Free them in Rooms first, or keep the current count.',
+    )
+  }
+
+  const { error: deleteError } = await admin
+    .from('rooms')
+    .delete()
+    .in('id', rooms!.map((room) => room.id))
+
+  if (deleteError) throw new Error(deleteError.message)
 }
 
 async function seedRoomsForHotel(
@@ -112,16 +190,40 @@ function revalidateAll() {
   revalidatePath('/owner/dashboard')
 }
 
-export async function completeWelcomeStep(): Promise<OnboardingActionResult> {
+export async function goToOnboardingStep(targetStep: unknown): Promise<OnboardingActionResult> {
+  const parsed = resumeStepSchema.safeParse(targetStep)
+  if (!parsed.success || !parsed.data) {
+    return { success: false, error: 'Invalid step.' }
+  }
+
   const ctx = await requireOnboardingOwner()
   if (!ctx) return { success: false, error: 'Setup is not available.' }
 
-  await advanceStep(ctx.userId, 'property')
+  const current = (ctx.profile.onboarding_step ?? 'welcome') as OnboardingStep
+  if (!canNavigateToOnboardingStep(current, parsed.data)) {
+    return { success: false, error: 'Complete the current step before moving forward.' }
+  }
+
+  await advanceStep(ctx.userId, parsed.data)
   revalidateAll()
   return { success: true }
 }
 
-export async function completePropertyStep(input: unknown): Promise<OnboardingActionResult> {
+export async function completeWelcomeStep(resumeStep?: unknown): Promise<OnboardingActionResult> {
+  const ctx = await requireOnboardingOwner()
+  if (!ctx) return { success: false, error: 'Setup is not available.' }
+
+  const resume = resumeStepSchema.safeParse(resumeStep).data ?? null
+  const next = resolveOnboardingStepAfterComplete('welcome', resume)
+  await advanceStep(ctx.userId, next)
+  revalidateAll()
+  return { success: true }
+}
+
+export async function completePropertyStep(
+  input: unknown,
+  resumeStep?: unknown,
+): Promise<OnboardingActionResult> {
   const parsed = propertyStepSchema.safeParse(input)
   if (!parsed.success) {
     return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid property details.' }
@@ -130,13 +232,45 @@ export async function completePropertyStep(input: unknown): Promise<OnboardingAc
   const ctx = await requireOnboardingOwner()
   if (!ctx) return { success: false, error: 'Setup is not available.' }
 
+  const resume = resumeStepSchema.safeParse(resumeStep).data ?? null
+  const next = resolveOnboardingStepAfterComplete('property', resume)
+  const admin = createAdminClient()
+
   if (ctx.profile.hotel_id) {
-    await advanceStep(ctx.userId, 'compliance')
+    const { error: hotelError } = await admin
+      .from('hotels')
+      .update({
+        name: parsed.data.name.trim(),
+        address: parsed.data.address.trim(),
+        city: parsed.data.city.trim(),
+        region: parsed.data.region,
+      })
+      .eq('id', ctx.profile.hotel_id)
+
+    if (hotelError) {
+      return { success: false, error: hotelError.message ?? 'Could not update property.' }
+    }
+
+    try {
+      await syncRoomCount(ctx.profile.hotel_id, parsed.data.totalRooms, ctx.userId)
+      await ensureOwnerOrganization(
+        admin,
+        ctx.userId,
+        ctx.profile.name ?? 'Owner',
+        parsed.data.name.trim(),
+        ctx.profile.hotel_id,
+      )
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : 'Could not update room count.',
+      }
+    }
+
+    await advanceStep(ctx.userId, next)
     revalidateAll()
     return { success: true }
   }
-
-  const admin = createAdminClient()
 
   const { data: hotel, error: hotelError } = await admin
     .from('hotels')
@@ -160,6 +294,13 @@ export async function completePropertyStep(input: unknown): Promise<OnboardingAc
     await ensureGuestPortalSlug(hotel.id)
     await ensureDefaultGuestRules(hotel.id)
     await ensureExportFeedsForHotel(hotel.id)
+    await ensureOwnerOrganization(
+      admin,
+      ctx.userId,
+      ctx.profile.name ?? 'Owner',
+      parsed.data.name.trim(),
+      hotel.id,
+    )
   } catch (err) {
     await admin.from('rooms').delete().eq('hotel_id', hotel.id)
     await admin.from('hotels').delete().eq('id', hotel.id)
@@ -171,7 +312,7 @@ export async function completePropertyStep(input: unknown): Promise<OnboardingAc
 
   const { error: linkError } = await admin
     .from('profiles')
-    .update({ hotel_id: hotel.id, onboarding_step: 'compliance' })
+    .update({ hotel_id: hotel.id, onboarding_step: next })
     .eq('id', ctx.userId)
 
   if (linkError) {
@@ -182,7 +323,10 @@ export async function completePropertyStep(input: unknown): Promise<OnboardingAc
   return { success: true }
 }
 
-export async function completeComplianceStep(input: unknown): Promise<OnboardingActionResult> {
+export async function completeComplianceStep(
+  input: unknown,
+  resumeStep?: unknown,
+): Promise<OnboardingActionResult> {
   const parsed = complianceStepSchema.safeParse(input)
   if (!parsed.success) {
     return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid compliance details.' }
@@ -193,6 +337,8 @@ export async function completeComplianceStep(input: unknown): Promise<Onboarding
     return { success: false, error: 'Create your property first.' }
   }
 
+  const resume = resumeStepSchema.safeParse(resumeStep).data ?? null
+  const next = resolveOnboardingStepAfterComplete('compliance', resume)
   const admin = createAdminClient()
   const { error } = await admin
     .from('hotels')
@@ -206,12 +352,15 @@ export async function completeComplianceStep(input: unknown): Promise<Onboarding
 
   if (error) return { success: false, error: error.message }
 
-  await advanceStep(ctx.userId, 'team')
+  await advanceStep(ctx.userId, next)
   revalidateAll()
   return { success: true }
 }
 
-export async function completeTeamStep(input: unknown): Promise<OnboardingActionResult> {
+export async function completeTeamStep(
+  input: unknown,
+  resumeStep?: unknown,
+): Promise<OnboardingActionResult> {
   const parsed = teamStepSchema.safeParse(input)
   if (!parsed.success) {
     return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid input.' }
@@ -222,6 +371,9 @@ export async function completeTeamStep(input: unknown): Promise<OnboardingAction
     return { success: false, error: 'Create your property first.' }
   }
 
+  const resume = resumeStepSchema.safeParse(resumeStep).data ?? null
+  const next = resolveOnboardingStepAfterComplete('team', resume)
+
   const email = parsed.data.managerEmail?.trim()
   if (!parsed.data.skip && email) {
     const invite = await inviteStaff(email, 'manager')
@@ -230,7 +382,7 @@ export async function completeTeamStep(input: unknown): Promise<OnboardingAction
     }
   }
 
-  await advanceStep(ctx.userId, 'done')
+  await advanceStep(ctx.userId, next)
   revalidateAll()
   return { success: true }
 }
@@ -244,6 +396,25 @@ export async function finishOnboarding(): Promise<OnboardingActionResult> {
   }
 
   const admin = createAdminClient()
+
+  try {
+    const { data: hotel } = await admin
+      .from('hotels')
+      .select('name')
+      .eq('id', ctx.profile.hotel_id)
+      .maybeSingle()
+
+    await ensureOwnerOrganization(
+      admin,
+      ctx.userId,
+      ctx.profile.name ?? 'Owner',
+      hotel?.name ?? 'Property',
+      ctx.profile.hotel_id,
+    )
+  } catch (err) {
+    console.error('[finishOnboarding] organization provisioning failed:', err)
+  }
+
   const { error } = await admin
     .from('profiles')
     .update({

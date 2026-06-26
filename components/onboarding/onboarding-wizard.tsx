@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect, useState, useTransition, type ReactNode } from 'react'
+import { useEffect, useRef, useState, useTransition, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Building2,
   CheckCircle2,
+  ChevronLeft,
   ChevronRight,
   FileText,
   Loader2,
@@ -19,7 +20,9 @@ import {
   completeTeamStep,
   completeWelcomeStep,
   finishOnboarding,
+  goToOnboardingStep,
 } from '@/app/actions/onboarding'
+import type { OnboardingComplianceDraft, OnboardingPropertyDraft } from '@/lib/data/onboarding'
 import {
   ONBOARDING_STEP_LABELS,
   ONBOARDING_STEPS,
@@ -61,18 +64,29 @@ const inputClass =
 interface OnboardingWizardProps {
   step: OnboardingStep
   ownerName: string
+  property?: OnboardingPropertyDraft
+  compliance?: OnboardingComplianceDraft
 }
 
-export function OnboardingWizard({ step, ownerName }: OnboardingWizardProps) {
+export function OnboardingWizard({ step, ownerName, property, compliance }: OnboardingWizardProps) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [loadingMessage, setLoadingMessage] = useState<string | null>(null)
   const [visibleStep, setVisibleStep] = useState(step)
   const [animating, setAnimating] = useState(false)
+  const furthestStepRef = useRef<OnboardingStep>(step)
 
   const progress = onboardingProgress(step)
   const stepIndex = ONBOARDING_STEPS.indexOf(step)
+
+  useEffect(() => {
+    const currentIndex = ONBOARDING_STEPS.indexOf(step)
+    const furthestIndex = ONBOARDING_STEPS.indexOf(furthestStepRef.current)
+    if (currentIndex > furthestIndex) {
+      furthestStepRef.current = step
+    }
+  }, [step])
 
   useEffect(() => {
     if (step === visibleStep) return
@@ -84,6 +98,8 @@ export function OnboardingWizard({ step, ownerName }: OnboardingWizardProps) {
     }, 280)
     return () => window.clearTimeout(timer)
   }, [step, visibleStep])
+
+  const resumeStep = furthestStepRef.current
 
   function run(
     action: () => Promise<{ success: boolean; error?: string }>,
@@ -103,11 +119,28 @@ export function OnboardingWizard({ step, ownerName }: OnboardingWizardProps) {
     })
   }
 
+  function goBack(target: OnboardingStep) {
+    setError(null)
+    setLoadingMessage('Loading previous step…')
+    startTransition(async () => {
+      const result = await goToOnboardingStep(target)
+      if (!result.success) {
+        setLoadingMessage(null)
+        setError(result.error ?? 'Could not go back.')
+        toast.error(result.error ?? 'Could not go back.')
+        return
+      }
+      router.refresh()
+    })
+  }
+
+  const previousStep = stepIndex > 0 ? ONBOARDING_STEPS[stepIndex - 1] : null
+
   const showLoader = pending || loadingMessage !== null || animating
 
   return (
     <div className="mx-auto w-full max-w-3xl">
-      <StepIndicator current={step} />
+      <StepIndicator current={step} pending={pending} onStepClick={goBack} />
 
       <div className="mb-8">
         <div className="mb-3 flex items-center justify-between text-xs font-semibold uppercase tracking-widest text-white/50">
@@ -153,24 +186,34 @@ export function OnboardingWizard({ step, ownerName }: OnboardingWizardProps) {
               <WelcomeStep
                 ownerName={ownerName}
                 pending={pending}
-                onContinue={() => run(completeWelcomeStep)}
+                onContinue={() => run(() => completeWelcomeStep(resumeStep))}
               />
             )}
             {visibleStep === 'property' && (
-              <PropertyStep pending={pending} onSubmit={(data) => run(() => completePropertyStep(data))} />
+              <PropertyStep
+                pending={pending}
+                initial={property}
+                onBack={previousStep ? () => goBack(previousStep) : undefined}
+                onSubmit={(data) => run(() => completePropertyStep(data, resumeStep))}
+              />
             )}
             {visibleStep === 'compliance' && (
               <ComplianceStep
                 pending={pending}
-                onSubmit={(data) => run(() => completeComplianceStep(data))}
+                initial={compliance}
+                onBack={previousStep ? () => goBack(previousStep) : undefined}
+                onSubmit={(data) => run(() => completeComplianceStep(data, resumeStep))}
                 onSkip={() =>
                   run(() =>
-                    completeComplianceStep({
-                      gtaLicenseNumber: '',
-                      gtaLicenseExpiry: '',
-                      vatRegistrationNumber: '',
-                      vatMode: 'exclusive',
-                    }),
+                    completeComplianceStep(
+                      {
+                        gtaLicenseNumber: '',
+                        gtaLicenseExpiry: '',
+                        vatRegistrationNumber: '',
+                        vatMode: 'exclusive',
+                      },
+                      resumeStep,
+                    ),
                   )
                 }
               />
@@ -178,13 +221,17 @@ export function OnboardingWizard({ step, ownerName }: OnboardingWizardProps) {
             {visibleStep === 'team' && (
               <TeamStep
                 pending={pending}
-                onSubmit={(email) => run(() => completeTeamStep({ managerEmail: email, skip: !email }))}
-                onSkip={() => run(() => completeTeamStep({ skip: true }))}
+                onBack={previousStep ? () => goBack(previousStep) : undefined}
+                onSubmit={(email) =>
+                  run(() => completeTeamStep({ managerEmail: email, skip: !email }, resumeStep))
+                }
+                onSkip={() => run(() => completeTeamStep({ skip: true }, resumeStep))}
               />
             )}
             {visibleStep === 'done' && (
               <DoneStep
                 pending={pending}
+                onBack={previousStep ? () => goBack(previousStep) : undefined}
                 onLaunch={() =>
                   run(async () => {
                     const result = await finishOnboarding()
@@ -205,7 +252,15 @@ export function OnboardingWizard({ step, ownerName }: OnboardingWizardProps) {
   )
 }
 
-function StepIndicator({ current }: { current: OnboardingStep }) {
+function StepIndicator({
+  current,
+  pending,
+  onStepClick,
+}: {
+  current: OnboardingStep
+  pending: boolean
+  onStepClick: (step: OnboardingStep) => void
+}) {
   const currentIndex = ONBOARDING_STEPS.indexOf(current)
 
   return (
@@ -213,14 +268,22 @@ function StepIndicator({ current }: { current: OnboardingStep }) {
       {ONBOARDING_STEPS.map((step, index) => {
         const done = index < currentIndex
         const active = step === current
+        const clickable = done && !pending
+
         return (
           <li key={step} className="flex items-center gap-2 sm:gap-3">
-            <div
+            <button
+              type="button"
+              disabled={!clickable}
+              onClick={() => clickable && onStepClick(step)}
+              title={clickable ? `Edit ${ONBOARDING_STEP_LABELS[step]}` : undefined}
               className={cn(
                 'flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold transition-all duration-300',
                 done && 'bg-emerald-500/20 text-emerald-200',
                 active && 'bg-[#D4A62E]/25 text-[#F5D77A] ring-1 ring-[#D4A62E]/40',
                 !done && !active && 'bg-white/5 text-white/40',
+                clickable && 'cursor-pointer hover:bg-emerald-500/30 hover:ring-1 hover:ring-emerald-400/30',
+                !clickable && 'cursor-default',
               )}
             >
               <span
@@ -234,7 +297,7 @@ function StepIndicator({ current }: { current: OnboardingStep }) {
                 {done ? <CheckCircle2 className="h-3.5 w-3.5" /> : index + 1}
               </span>
               <span className="hidden sm:inline">{ONBOARDING_STEP_LABELS[step]}</span>
-            </div>
+            </button>
             {index < ONBOARDING_STEPS.length - 1 && (
               <span className={cn('hidden h-px w-4 sm:block', done ? 'bg-emerald-400/50' : 'bg-white/10')} />
             )}
@@ -329,18 +392,47 @@ function WelcomeStep({
   )
 }
 
+function StepActions({
+  pending,
+  onBack,
+  children,
+}: {
+  pending: boolean
+  onBack?: () => void
+  children: ReactNode
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-3 pt-1">
+      {onBack && (
+        <SecondaryButton pending={pending} onClick={onBack} className="gap-1.5">
+          <ChevronLeft className="h-4 w-4" />
+          Back
+        </SecondaryButton>
+      )}
+      {children}
+    </div>
+  )
+}
+
 function PropertyStep({
   pending,
+  initial,
+  onBack,
   onSubmit,
 }: {
   pending: boolean
+  initial?: OnboardingPropertyDraft
+  onBack?: () => void
   onSubmit: (data: Record<string, unknown>) => void
 }) {
-  const [name, setName] = useState('')
-  const [address, setAddress] = useState('')
-  const [city, setCity] = useState('Accra')
-  const [region, setRegion] = useState<(typeof GHANA_REGIONS)[number]>('Greater Accra')
-  const [totalRooms, setTotalRooms] = useState(10)
+  const isEditing = Boolean(initial?.name)
+  const [name, setName] = useState(initial?.name ?? '')
+  const [address, setAddress] = useState(initial?.address ?? '')
+  const [city, setCity] = useState(initial?.city ?? 'Accra')
+  const [region, setRegion] = useState<(typeof GHANA_REGIONS)[number]>(
+    (initial?.region as (typeof GHANA_REGIONS)[number]) ?? 'Greater Accra',
+  )
+  const [totalRooms, setTotalRooms] = useState(initial?.totalRooms ?? 10)
 
   return (
     <form
@@ -353,7 +445,11 @@ function PropertyStep({
       <StepHeader
         icon={Building2}
         title="Your property"
-        description="We create rooms and default rates automatically. You can refine categories later in Settings."
+        description={
+          isEditing
+            ? 'Update your property details below. Room count changes apply when rooms are available.'
+            : 'We create rooms and default rates automatically. You can refine categories later in Settings.'
+        }
       />
       <Field label="Property name">
         <input
@@ -402,27 +498,33 @@ function PropertyStep({
           required
         />
       </Field>
-      <PrimaryButton type="submit" pending={pending} className="w-full sm:w-auto">
-        Create property & continue
-        <ChevronRight className="h-4 w-4" />
-      </PrimaryButton>
+      <StepActions pending={pending} onBack={onBack}>
+        <PrimaryButton type="submit" pending={pending} className="w-full sm:w-auto">
+          {isEditing ? 'Save changes & continue' : 'Create property & continue'}
+          <ChevronRight className="h-4 w-4" />
+        </PrimaryButton>
+      </StepActions>
     </form>
   )
 }
 
 function ComplianceStep({
   pending,
+  initial,
+  onBack,
   onSubmit,
   onSkip,
 }: {
   pending: boolean
+  initial?: OnboardingComplianceDraft
+  onBack?: () => void
   onSubmit: (data: Record<string, unknown>) => void
   onSkip: () => void
 }) {
-  const [gtaLicenseNumber, setGtaLicenseNumber] = useState('')
-  const [gtaLicenseExpiry, setGtaLicenseExpiry] = useState('')
-  const [vatRegistrationNumber, setVatRegistrationNumber] = useState('')
-  const [vatMode, setVatMode] = useState<'exclusive' | 'inclusive'>('exclusive')
+  const [gtaLicenseNumber, setGtaLicenseNumber] = useState(initial?.gtaLicenseNumber ?? '')
+  const [gtaLicenseExpiry, setGtaLicenseExpiry] = useState(initial?.gtaLicenseExpiry ?? '')
+  const [vatRegistrationNumber, setVatRegistrationNumber] = useState(initial?.vatRegistrationNumber ?? '')
+  const [vatMode, setVatMode] = useState<'exclusive' | 'inclusive'>(initial?.vatMode ?? 'exclusive')
 
   return (
     <form
@@ -475,7 +577,7 @@ function ComplianceStep({
           </option>
         </select>
       </Field>
-      <div className="flex flex-wrap gap-3 pt-1">
+      <StepActions pending={pending} onBack={onBack}>
         <PrimaryButton type="submit" pending={pending}>
           Save & continue
           <ChevronRight className="h-4 w-4" />
@@ -483,17 +585,19 @@ function ComplianceStep({
         <SecondaryButton type="button" pending={pending} onClick={onSkip}>
           Skip for now
         </SecondaryButton>
-      </div>
+      </StepActions>
     </form>
   )
 }
 
 function TeamStep({
   pending,
+  onBack,
   onSubmit,
   onSkip,
 }: {
   pending: boolean
+  onBack?: () => void
   onSubmit: (email: string) => void
   onSkip: () => void
 }) {
@@ -515,7 +619,7 @@ function TeamStep({
           placeholder="manager@yourproperty.com"
         />
       </Field>
-      <div className="flex flex-wrap gap-3 pt-1">
+      <StepActions pending={pending} onBack={onBack}>
         <PrimaryButton pending={pending || !email.trim()} onClick={() => onSubmit(email.trim())}>
           Send invite & continue
           <ChevronRight className="h-4 w-4" />
@@ -523,12 +627,20 @@ function TeamStep({
         <SecondaryButton pending={pending} onClick={onSkip}>
           Skip — I&apos;ll invite later
         </SecondaryButton>
-      </div>
+      </StepActions>
     </div>
   )
 }
 
-function DoneStep({ pending, onLaunch }: { pending: boolean; onLaunch: () => void }) {
+function DoneStep({
+  pending,
+  onBack,
+  onLaunch,
+}: {
+  pending: boolean
+  onBack?: () => void
+  onLaunch: () => void
+}) {
   return (
     <div className="space-y-6 text-center text-white">
       <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-500/20 text-emerald-300">
@@ -540,10 +652,14 @@ function DoneStep({ pending, onLaunch }: { pending: boolean; onLaunch: () => voi
           Your property is live. Open the dashboard to create reservations and connect OTA calendars.
         </p>
       </div>
-      <PrimaryButton pending={pending} onClick={onLaunch} className="mx-auto min-w-[220px]">
-        Open dashboard
-        <ChevronRight className="h-4 w-4" />
-      </PrimaryButton>
+      <div className="flex justify-center">
+        <StepActions pending={pending} onBack={onBack}>
+          <PrimaryButton pending={pending} onClick={onLaunch} className="min-w-[220px]">
+            Open dashboard
+            <ChevronRight className="h-4 w-4" />
+          </PrimaryButton>
+        </StepActions>
+      </div>
     </div>
   )
 }

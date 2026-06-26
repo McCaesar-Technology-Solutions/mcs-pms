@@ -33,3 +33,29 @@ export function onboardingProgress(step: OnboardingStep): number {
   if (index < 0) return 0
   return Math.round(((index + 1) / ONBOARDING_STEPS.length) * 100)
 }
+
+export function onboardingStepIndex(step: OnboardingStep): number {
+  return ONBOARDING_STEPS.indexOf(step)
+}
+
+/** Allow navigating to any step at or before the current progress. */
+export function canNavigateToOnboardingStep(current: OnboardingStep, target: OnboardingStep): boolean {
+  const currentIndex = onboardingStepIndex(current)
+  const targetIndex = onboardingStepIndex(target)
+  return targetIndex >= 0 && targetIndex <= currentIndex
+}
+
+/** After saving an edited step, restore furthest progress when the user went back. */
+export function resolveOnboardingStepAfterComplete(
+  completed: OnboardingStep,
+  resume?: OnboardingStep | null,
+): OnboardingStep {
+  const completedIndex = onboardingStepIndex(completed)
+  const sequentialNext = ONBOARDING_STEPS[completedIndex + 1] ?? 'done'
+  if (!resume) return sequentialNext
+
+  const nextIndex = onboardingStepIndex(sequentialNext)
+  const resumeIndex = onboardingStepIndex(resume)
+  if (resumeIndex < nextIndex) return sequentialNext
+  return resume
+}

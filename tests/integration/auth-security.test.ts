@@ -17,14 +17,15 @@ describe('production auth policy', () => {
     vi.resetModules()
   })
 
-  it('requires MFA for owner and manager in production', async () => {
+  it('flags owner and manager roles for MFA policy messaging in production', async () => {
     vi.stubEnv('NODE_ENV', 'production')
     const { roleRequiresMfa, userNeedsMfa } = await loadMfa()
     expect(roleRequiresMfa('owner')).toBe(true)
     expect(roleRequiresMfa('manager')).toBe(true)
     expect(roleRequiresMfa('receptionist')).toBe(false)
     expect(roleRequiresMfa('technician')).toBe(false)
-    expect(userNeedsMfa('owner', false)).toBe(true)
+    expect(userNeedsMfa('owner', false)).toBe(false)
+    expect(userNeedsMfa('owner', true)).toBe(true)
   })
 
   it('does not require MFA in development', async () => {

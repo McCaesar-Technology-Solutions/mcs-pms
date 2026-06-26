@@ -153,7 +153,7 @@ export function SettingsPanel({ hotelSettings, staffHref = '/owner/staff', profi
         />
       )}
       {profile && (
-        <div className="mb-6 space-y-6">
+        <div id="security" className="mb-6 scroll-mt-24 space-y-6">
           <ProfilePhoneEditor
             initialPhone={profile.phone}
             roleLabel="property owner"

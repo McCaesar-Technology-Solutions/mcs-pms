@@ -276,7 +276,7 @@ export function StaffManager({ currentProfile, staff, invites }: StaffManagerPro
   return (
     <>
       {currentProfile.role !== 'technician' && (
-        <div className="space-y-6">
+        <div id="security" className="scroll-mt-24 space-y-6">
           <ProfilePhoneEditor
             initialPhone={currentProfile.phone}
             roleLabel={
