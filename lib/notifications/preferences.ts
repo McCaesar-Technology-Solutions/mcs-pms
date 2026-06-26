@@ -21,6 +21,7 @@ export const NOTIFICATION_TEMPLATE_KEYS = [
   'guest_feedback_low',
   'room_created',
   'housekeeping_assigned',
+  'housekeeping_clean_done',
   'staff_invite',
 ] as const
 
@@ -74,7 +75,7 @@ export const NOTIFICATION_PREF_GROUPS: {
   {
     title: 'Housekeeping & staff',
     description: 'Task assignments and team invites.',
-    keys: ['housekeeping_assigned', 'staff_invite'],
+    keys: ['housekeeping_assigned', 'housekeeping_clean_done', 'staff_invite'],
   },
 ]
 
@@ -100,6 +101,7 @@ export const NOTIFICATION_PREF_LABELS: Record<NotificationTemplateKey, string> =
   guest_feedback_low: 'Low guest review ≤2 stars (SMS + email)',
   room_created: 'New room added (owner)',
   housekeeping_assigned: 'Housekeeping task assigned',
+  housekeeping_clean_done: 'Clean complete — needs inspection (managers)',
   staff_invite: 'Staff invite link (technician SMS)',
 }
 

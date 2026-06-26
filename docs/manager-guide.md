@@ -171,13 +171,19 @@ Columns: **To Do** | **In Progress** | **Done**
 
 **Task types:** Clean, Inspect, Maintenance, Restock.
 
-**Per task:** change status, assign staff, delete.
+**Assignee rules:** Only the assigned technician can update task status. Managers see read-only status on others' tasks and use **Override** when needed.
+
+**Clean → inspect flow:** When a clean task is marked **Done**, the room moves to **Needs inspection** and an inspect task is auto-created. Mark the inspect task **Done** to set the room **Available**.
+
+**Per task:** assign staff, override status, delete (managers only).
+
+**Unassigned pool:** Technicians can **Claim & start** open tasks from their task list.
 
 **Add task:** room, type, priority, due date, notes, assignee.
 
 ### Auto clean on checkout
 
-Checkout creates a **Clean** task; room → Cleaning. Marking clean task **Done** can set room → Available.
+Checkout creates a **Clean** task; room → Cleaning. Completing clean → Needs inspection → inspect task → Available.
 
 ### Other panels
 

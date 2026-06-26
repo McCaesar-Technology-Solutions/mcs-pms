@@ -66,7 +66,7 @@ export default async function DashboardPage() {
             <ChevronRight className="h-4 w-4" />
           </Link>
         </div>
-        <TasksList tasks={tasks} />
+        <TasksList tasks={tasks} housekeepingHref="/owner/housekeeping" />
       </section>
 
       {guestFeedback && (

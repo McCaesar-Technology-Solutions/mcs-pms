@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { writeAuditLog } from '@/lib/audit/log'
 import { fulfillGuestRequest, notifyRequestStatus } from '@/lib/guest/request-fulfillment'
+import { createGuestHousekeepingTask } from '@/lib/housekeeping/guest-task'
 import { ownerOwnsHotel } from '@/lib/data/properties'
 import { getHotelLocalGuide, type LocalGuideRow } from '@/lib/data/local-guide'
 
@@ -307,6 +308,17 @@ export async function updateGuestRequestStatus(
     return { success: false, error: 'Request is no longer pending.' }
   }
 
+  if (parsed.data === 'acknowledged' && request.request_type === 'housekeeping' && request.room_id) {
+    await createGuestHousekeepingTask(admin, {
+      hotelId: profile.hotel_id,
+      roomId: request.room_id,
+      guestId: request.guest_id,
+      note: request.note,
+      createdBy: user.id,
+      guestRequestId: request.id,
+    })
+  }
+
   let fulfillmentDetail: string | undefined
   if (parsed.data === 'completed') {
     const fulfillment = await fulfillGuestRequest(request, 'completed')
@@ -343,6 +355,7 @@ export async function updateGuestRequestStatus(
 
   revalidatePath('/manager/dashboard')
   revalidatePath('/manager/housekeeping')
+  revalidatePath('/owner/housekeeping')
   revalidatePath('/technician/tasks')
   revalidatePath('/guest')
   return { success: true }

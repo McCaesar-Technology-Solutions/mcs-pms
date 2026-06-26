@@ -1,16 +1,24 @@
 'use client'
 
-import { HousekeepingKanban } from '@/components/dashboard/housekeeping-kanban'
-import type { HousekeepingTaskView } from '@/lib/data/housekeeping'
+import { TechnicianTaskCards } from '@/components/technician/technician-task-cards'
+import type { HousekeepingTaskView } from '@/lib/housekeeping/task-view'
 
 interface TechnicianHousekeepingProps {
-  tasks: HousekeepingTaskView[]
+  assignedTasks: HousekeepingTaskView[]
+  unassignedTasks?: HousekeepingTaskView[]
 }
 
-export function TechnicianHousekeeping({ tasks }: TechnicianHousekeepingProps) {
-  const openTasks = tasks.filter((t) => t.status !== 'done')
+export function TechnicianHousekeeping({
+  assignedTasks,
+  unassignedTasks = [],
+}: TechnicianHousekeepingProps) {
+  const hasWork =
+    assignedTasks.some((t) => t.status !== 'done') || (unassignedTasks?.length ?? 0) > 0
 
-  if (openTasks.length === 0) return null
+  if (!hasWork) return null
+
+  const openCount =
+    assignedTasks.filter((t) => t.status !== 'done').length + (unassignedTasks?.length ?? 0)
 
   return (
     <section className="mt-8 space-y-4">
@@ -18,14 +26,14 @@ export function TechnicianHousekeeping({ tasks }: TechnicianHousekeepingProps) {
         <div>
           <h2 className="text-lg font-semibold text-foreground">Housekeeping tasks</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Jobs assigned to you from the housekeeping board.
+            Start assigned jobs or claim open tasks from the board.
           </p>
         </div>
         <span className="rounded-full bg-[#3C216C]/10 px-3 py-1 text-xs font-bold text-[#3C216C]">
-          {openTasks.length} open
+          {openCount} open
         </span>
       </div>
-      <HousekeepingKanban tasks={openTasks} rooms={[]} staff={[]} statusOnly />
+      <TechnicianTaskCards assignedTasks={assignedTasks} unassignedTasks={unassignedTasks} />
     </section>
   )
 }

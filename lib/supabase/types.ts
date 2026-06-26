@@ -1005,6 +1005,8 @@ export type Database = {
           created_by: string | null
           created_at: string | null
           completed_at: string | null
+          started_at: string | null
+          completed_by: string | null
         }
         Insert: {
           id?: string
@@ -1019,6 +1021,8 @@ export type Database = {
           created_by?: string | null
           created_at?: string | null
           completed_at?: string | null
+          started_at?: string | null
+          completed_by?: string | null
         }
         Update: {
           id?: string
@@ -1033,6 +1037,8 @@ export type Database = {
           created_by?: string | null
           created_at?: string | null
           completed_at?: string | null
+          started_at?: string | null
+          completed_by?: string | null
         }
         Relationships: [
           {

@@ -49,3 +49,49 @@ export async function notifyHousekeepingTaskAssigned(taskId: string): Promise<vo
     includeWhatsApp: false,
   })
 }
+
+/** Clean task marked done — room needs inspection; alert managers to verify. */
+export async function notifyHousekeepingCleanCompleted(input: {
+  taskId: string
+  hotelId: string
+  roomId: string | null
+  priority: string
+  completedByName: string
+  inspectTaskId?: string
+}): Promise<void> {
+  const { createAdminClient } = await import('@/lib/supabase/admin')
+  const { notifyManagers } = await import('@/lib/notifications/manager-notify')
+  const { appUrl } = await import('@/lib/notifications/app-url')
+  const admin = createAdminClient()
+
+  let roomNumber: string | undefined
+  if (input.roomId) {
+    const { data: room } = await admin.from('rooms').select('number').eq('id', input.roomId).maybeSingle()
+    roomNumber = room?.number
+  }
+
+  const smsBody = smsLine(
+    'MOJO:',
+    'Clean done',
+    smsRoom(roomNumber),
+    `- ${input.completedByName}`,
+    'Needs inspection',
+    smsUrl('/manager/housekeeping'),
+  )
+
+  await notifyManagers({
+    hotelId: input.hotelId,
+    templateKey: 'housekeeping_clean_done',
+    smsBody,
+    email: {
+      subject: `Room ${roomNumber ?? '?'} ready for inspection`,
+      preview: `${input.completedByName} finished cleaning${roomNumber ? ` room ${roomNumber}` : ''}.`,
+      lines: [
+        `${input.completedByName} finished cleaning${roomNumber ? ` room ${roomNumber}` : ''}.`,
+        'An inspection task was created — approve before marking the room available.',
+      ],
+      actionUrl: appUrl('/manager/housekeeping'),
+      actionLabel: 'Open housekeeping board',
+    },
+  })
+}

@@ -54,6 +54,7 @@ export default async function MobileHousekeepingPage() {
           rooms={roomOptions}
           staff={assignableStaff}
           canManage={profile.role === 'owner' || profile.role === 'manager'}
+          currentUserId={profile.id}
         />
       </MobileRealtimeShell>
     </div>

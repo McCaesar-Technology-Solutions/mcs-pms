@@ -1,7 +1,10 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { applyHousekeepingSideEffects } from '@/lib/housekeeping/side-effects'
+import { canTransition, statusUpdateFields } from '@/lib/housekeeping/task-flow'
 import { createHousekeepingTaskSchema } from '@/lib/validations'
 import type { HousekeepingTaskType, Profile, TaskPriority, TaskStatus } from '@/types'
 
@@ -32,8 +35,13 @@ async function requireManager(): Promise<Profile | null> {
   return profile
 }
 
+function isManagerRole(role: string): boolean {
+  return role === 'owner' || role === 'manager'
+}
+
 function revalidate() {
   revalidatePath('/manager/housekeeping')
+  revalidatePath('/owner/housekeeping')
   revalidatePath('/manager/dashboard')
   revalidatePath('/owner/dashboard')
   revalidatePath('/mobile/housekeeping')
@@ -112,57 +120,115 @@ export async function assignHousekeepingTask(
   return { success: true }
 }
 
-export async function setHousekeepingTaskStatus(
-  taskId: string,
-  status: TaskStatus,
-): Promise<HousekeepingActionResult> {
+/** Technician self-assigns an unassigned open task. */
+export async function claimHousekeepingTask(taskId: string): Promise<HousekeepingActionResult> {
   const profile = await requireStaff()
-  if (!profile?.hotel_id) return { success: false, error: 'Not authorized.' }
+  if (!profile?.hotel_id || profile.role !== 'technician') {
+    return { success: false, error: 'Not authorized.' }
+  }
 
-  const supabase = await createClient()
-  const { data: task } = await supabase
+  const admin = createAdminClient()
+  const { data: task } = await admin
     .from('housekeeping_tasks')
-    .select('id, room_id, task_type, assigned_to')
+    .select('id, status, assigned_to')
     .eq('id', taskId)
     .eq('hotel_id', profile.hotel_id)
     .maybeSingle()
 
   if (!task) return { success: false, error: 'Task not found.' }
+  if (task.assigned_to) return { success: false, error: 'Task is already assigned.' }
+  if (task.status === 'done') return { success: false, error: 'Task is already complete.' }
 
-  if (profile.role === 'technician') {
-    if (task.assigned_to !== profile.id) {
-      return { success: false, error: 'Not authorized.' }
-    }
-  } else if (!['owner', 'manager'].includes(profile.role)) {
-    return { success: false, error: 'Not authorized.' }
-  }
-
-  const { error } = await supabase
+  const now = new Date().toISOString()
+  const { error } = await admin
     .from('housekeeping_tasks')
     .update({
-      status,
-      completed_at: status === 'done' ? new Date().toISOString() : null,
+      assigned_to: profile.id,
+      status: 'in_progress',
+      started_at: now,
     })
     .eq('id', taskId)
     .eq('hotel_id', profile.hotel_id)
 
+  if (error) return { success: false, error: 'Could not claim the task.' }
+
+  revalidate()
+  return { success: true }
+}
+
+export async function setHousekeepingTaskStatus(
+  taskId: string,
+  status: TaskStatus,
+  options?: { managerOverride?: boolean },
+): Promise<HousekeepingActionResult> {
+  const profile = await requireStaff()
+  if (!profile?.hotel_id) return { success: false, error: 'Not authorized.' }
+  const hotelId = profile.hotel_id
+
+  const supabase = await createClient()
+  const { data: task } = await supabase
+    .from('housekeeping_tasks')
+    .select('id, room_id, task_type, assigned_to, status, priority')
+    .eq('id', taskId)
+    .eq('hotel_id', hotelId)
+    .maybeSingle()
+
+  if (!task) return { success: false, error: 'Task not found.' }
+
+  const currentStatus = task.status as TaskStatus
+  const isManager = isManagerRole(profile.role)
+
+  if (profile.role === 'technician') {
+    if (task.assigned_to !== profile.id) {
+      return { success: false, error: 'Only the assigned technician can update this task.' }
+    }
+  } else if (!isManager) {
+    return { success: false, error: 'Not authorized.' }
+  }
+
+  const managerOverride = isManager && (options?.managerOverride ?? task.assigned_to !== profile.id)
+
+  if (!canTransition(currentStatus, status, isManager)) {
+    return { success: false, error: 'That status change is not allowed.' }
+  }
+
+  const extraFields = statusUpdateFields(currentStatus, status, profile.id)
+  const updatePayload = {
+    status,
+    ...extraFields,
+  }
+
+  const { error } = await supabase
+    .from('housekeeping_tasks')
+    .update(updatePayload)
+    .eq('id', taskId)
+    .eq('hotel_id', hotelId)
+
   if (error) return { success: false, error: 'Could not update the task.' }
 
-  if (
-    status === 'done' &&
-    task.task_type === 'clean' &&
-    task.room_id &&
-    ['owner', 'manager'].includes(profile.role)
-  ) {
-    await supabase
-      .from('rooms')
-      .update({
-        status: 'available',
-        updated_by: profile.id,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', task.room_id)
-      .eq('hotel_id', profile.hotel_id)
+  if (status === 'done') {
+    const admin = createAdminClient()
+    const sideEffect = await applyHousekeepingSideEffects(admin, {
+      hotelId,
+      taskId: task.id,
+      roomId: task.room_id,
+      taskType: task.task_type as HousekeepingTaskType,
+      newStatus: status,
+      actorId: profile.id,
+    })
+
+    if (task.task_type === 'clean') {
+      void import('@/lib/notifications/housekeeping').then(({ notifyHousekeepingCleanCompleted }) =>
+        notifyHousekeepingCleanCompleted({
+          taskId: task.id,
+          hotelId,
+          roomId: task.room_id,
+          priority: task.priority,
+          completedByName: profile.name,
+          inspectTaskId: sideEffect.inspectTaskId,
+        }).catch(() => undefined),
+      )
+    }
   }
 
   revalidate()

@@ -1,13 +1,14 @@
 'use client'
 
 import Link from 'next/link'
-import { Inbox, MessageCircle, Wrench, Bell, CheckCircle2 } from 'lucide-react'
+import { Inbox, MessageCircle, Wrench, Bell, CheckCircle2, Sparkles } from 'lucide-react'
 import type { OpsInboxItem } from '@/lib/data/ops-inbox'
 
 const kindIcon = {
   complaint: Wrench,
   guest_request: Bell,
   guest_message: MessageCircle,
+  housekeeping: Sparkles,
 } as const
 
 interface OpsInboxPanelProps {

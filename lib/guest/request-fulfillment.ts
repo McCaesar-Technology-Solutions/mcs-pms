@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { extendStay } from '@/app/actions/stays'
+import { createGuestHousekeepingTask } from '@/lib/housekeeping/guest-task'
 import { notifyGuestRequestStatusChanged } from '@/lib/notifications/guest-requests'
 
 interface GuestRequestRow {
@@ -58,27 +59,17 @@ export async function fulfillGuestRequest(
       return { error: 'No room linked to this request.' }
     }
 
-    const { data: guest } = await admin
-      .from('guests')
-      .select('do_not_disturb')
-      .eq('id', request.guest_id)
-      .maybeSingle()
-
-    const noteParts = [
-      request.note?.trim(),
-      guest?.do_not_disturb ? 'Guest has Do Not Disturb on — call before entering.' : null,
-    ].filter(Boolean)
-
-    const { error } = await admin.from('housekeeping_tasks').insert({
-      hotel_id: request.hotel_id,
-      room_id: request.room_id,
-      task_type: 'clean',
-      priority: 'medium',
-      notes: noteParts.length > 0 ? noteParts.join(' ') : 'Guest portal housekeeping request',
-      status: 'todo',
+    const result = await createGuestHousekeepingTask(admin, {
+      hotelId: request.hotel_id,
+      roomId: request.room_id,
+      guestId: request.guest_id,
+      note: request.note,
+      guestRequestId: request.id,
     })
 
-    if (error) return { error: 'Could not create housekeeping task.' }
+    if (!result.created && !result.taskId) {
+      return { error: 'Could not create housekeeping task.' }
+    }
     return { detail: 'Housekeeping has been scheduled for your room.' }
   }
 

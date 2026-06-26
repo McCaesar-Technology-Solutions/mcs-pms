@@ -1,8 +1,10 @@
 'use client'
 
-import { CheckCircle, AlertCircle, Clock } from 'lucide-react'
+import Link from 'next/link'
+import { CheckCircle, AlertCircle, Clock, ArrowRight } from 'lucide-react'
 import { DataEmptyState } from '@/components/dashboard/data-empty-state'
-import type { HousekeepingTaskView } from '@/lib/data/housekeeping'
+import type { HousekeepingTaskView } from '@/lib/housekeeping/task-view'
+import { countNeedsInspectionTasks, countOverdueTasks } from '@/lib/housekeeping/task-view'
 import type { TaskStatus } from '@/types'
 
 type ColumnId = TaskStatus
@@ -39,7 +41,13 @@ function getPriorityColor(priority: string) {
   }
 }
 
-export function TasksList({ tasks }: { tasks: HousekeepingTaskView[] }) {
+export function TasksList({
+  tasks,
+  housekeepingHref = '/manager/housekeeping',
+}: {
+  tasks: HousekeepingTaskView[]
+  housekeepingHref?: string
+}) {
   const byStatus: Record<ColumnId, HousekeepingTaskView[]> = {
     todo: tasks.filter((t) => t.status === 'todo'),
     in_progress: tasks.filter((t) => t.status === 'in_progress'),
@@ -47,13 +55,44 @@ export function TasksList({ tasks }: { tasks: HousekeepingTaskView[] }) {
   }
 
   const isEmpty = tasks.length === 0
+  const overdueCount = countOverdueTasks(tasks.filter((t) => t.status !== 'done'))
+  const inspectCount = countNeedsInspectionTasks(tasks)
 
   return (
     <div className="surface-card overflow-hidden">
       <div className="surface-card-accent" />
       <div className="surface-card-header">
-        <h3 className="text-lg font-semibold text-[#111827]">Task Summary</h3>
-        <p className="mt-1 text-sm text-muted-foreground">Housekeeping and maintenance across your rooms</p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-semibold text-[#111827]">Task Summary</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Housekeeping and maintenance across your rooms
+            </p>
+          </div>
+          {!isEmpty && (
+            <Link
+              href={housekeepingHref}
+              className="inline-flex items-center gap-1 text-sm font-semibold text-[#3C216C] hover:underline"
+            >
+              Open board
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          )}
+        </div>
+        {(overdueCount > 0 || inspectCount > 0) && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {overdueCount > 0 && (
+              <span className="rounded-full bg-red-500/15 px-3 py-1 text-xs font-semibold text-red-700">
+                {overdueCount} overdue
+              </span>
+            )}
+            {inspectCount > 0 && (
+              <span className="rounded-full bg-[#3C216C]/10 px-3 py-1 text-xs font-semibold text-[#3C216C]">
+                {inspectCount} need inspection
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {isEmpty ? (
@@ -71,7 +110,11 @@ export function TasksList({ tasks }: { tasks: HousekeepingTaskView[] }) {
 
               <div className="card-list-tray m-3 mt-0 space-y-2.5">
                 {byStatus[status].slice(0, 3).map((task) => (
-                  <div key={task.id} className="elevated-list-item flex items-start gap-2.5 p-3">
+                  <Link
+                    key={task.id}
+                    href={housekeepingHref}
+                    className="elevated-list-item flex items-start gap-2.5 p-3 transition-colors hover:bg-white/80"
+                  >
                     <div className="mt-0.5 shrink-0">{getTaskIcon(status)}</div>
                     <div className="min-w-0 flex-1">
                       <p className="text-xs font-bold text-[#111827]">
@@ -82,7 +125,7 @@ export function TasksList({ tasks }: { tasks: HousekeepingTaskView[] }) {
                         {task.priority}
                       </span>
                     </div>
-                  </div>
+                  </Link>
                 ))}
               </div>
             </div>

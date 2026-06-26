@@ -18,6 +18,7 @@ import {
   Plus,
   Trash2,
   User,
+  ShieldAlert,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import {
@@ -35,7 +36,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import type { HousekeepingTaskView } from '@/lib/data/housekeeping'
+import type { HousekeepingTaskView } from '@/lib/housekeeping/task-view'
 import type { HousekeepingTaskType, TaskPriority, TaskStatus } from '@/types'
 
 const TASK_TYPE_CONFIG: Record<HousekeepingTaskType, { label: string; icon: LucideIcon }> = {
@@ -50,6 +51,12 @@ const COLUMNS = [
   { id: 'in_progress', title: 'In Progress', icon: Clock, iconClass: 'text-amber-600', headerTint: 'bg-amber-500/8' },
   { id: 'done', title: 'Done', icon: CheckCircle, iconClass: 'text-[#3C216C]', headerTint: 'bg-[#3C216C]/8' },
 ] as const
+
+const STATUS_LABEL: Record<TaskStatus, string> = {
+  todo: 'To do',
+  in_progress: 'In progress',
+  done: 'Done',
+}
 
 function formatDueDate(dateStr: string) {
   return new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
@@ -69,10 +76,16 @@ interface HousekeepingKanbanProps {
   rooms: { id: string; number: string }[]
   staff: { id: string; name: string }[]
   canManage?: boolean
-  statusOnly?: boolean
+  currentUserId?: string
 }
 
-export function HousekeepingKanban({ tasks, rooms, staff, canManage, statusOnly }: HousekeepingKanbanProps) {
+export function HousekeepingKanban({
+  tasks,
+  rooms,
+  staff,
+  canManage,
+  currentUserId,
+}: HousekeepingKanbanProps) {
   if (tasks.length === 0 && !canManage) {
     return <DataEmptyState message="No housekeeping tasks assigned yet." />
   }
@@ -83,8 +96,81 @@ export function HousekeepingKanban({ tasks, rooms, staff, canManage, statusOnly 
       rooms={rooms}
       staff={staff}
       canManage={canManage}
-      statusOnly={statusOnly}
+      currentUserId={currentUserId}
     />
+  )
+}
+
+function TaskStatusControls({
+  task,
+  canManage,
+  currentUserId,
+  isPending,
+  onStatusChange,
+}: {
+  task: HousekeepingTaskView
+  canManage?: boolean
+  currentUserId?: string
+  isPending: boolean
+  onStatusChange: (status: TaskStatus, managerOverride?: boolean) => void
+}) {
+  const [overrideOpen, setOverrideOpen] = useState(false)
+  const isAssignedToOther =
+    canManage &&
+    task.assignedTo &&
+    currentUserId &&
+    task.assignedTo !== currentUserId
+
+  if (isAssignedToOther && !overrideOpen) {
+    return (
+      <div className="mt-3 border-t border-[#E9ECEF] pt-3">
+        <div className="flex items-center justify-between gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-lg bg-secondary px-2.5 py-1.5 text-xs font-semibold text-foreground">
+            {STATUS_LABEL[task.status]}
+          </span>
+          <button
+            type="button"
+            onClick={() => setOverrideOpen(true)}
+            className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-semibold text-[#3C216C] hover:bg-[#3C216C]/5"
+          >
+            <ShieldAlert className="h-3.5 w-3.5" />
+            Override
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="mt-3 flex items-center gap-2 border-t border-[#E9ECEF] pt-3">
+      {isAssignedToOther && overrideOpen && (
+        <span className="text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+          Override
+        </span>
+      )}
+      <select
+        value={task.status}
+        onChange={(e) =>
+          onStatusChange(e.target.value as TaskStatus, isAssignedToOther || overrideOpen)
+        }
+        disabled={isPending}
+        className="min-w-0 flex-1 rounded-lg border border-border bg-white px-2 py-1.5 text-xs"
+        aria-label="Task status"
+      >
+        <option value="todo">To Do</option>
+        <option value="in_progress">In Progress</option>
+        <option value="done">Done</option>
+      </select>
+      {isAssignedToOther && overrideOpen && (
+        <button
+          type="button"
+          onClick={() => setOverrideOpen(false)}
+          className="text-xs text-muted-foreground hover:text-foreground"
+        >
+          Cancel
+        </button>
+      )}
+    </div>
   )
 }
 
@@ -93,13 +179,13 @@ function DbKanban({
   rooms,
   staff,
   canManage,
-  statusOnly,
+  currentUserId,
 }: {
   tasks: HousekeepingTaskView[]
   rooms: { id: string; number: string }[]
   staff: { id: string; name: string }[]
   canManage?: boolean
-  statusOnly?: boolean
+  currentUserId?: string
 }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -113,17 +199,21 @@ function DbKanban({
 
   const staffById = useMemo(() => new Map(staff.map((s) => [s.id, s.name])), [staff])
 
+  const unassignedCount = tasks.filter((t) => !t.assignedTo && t.status !== 'done').length
+  const overdueCount = tasks.filter((t) => t.isOverdue).length
+  const inspectCount = tasks.filter((t) => t.taskType === 'inspect' && t.status !== 'done').length
+
   const tasksByStatus: Record<TaskStatus, HousekeepingTaskView[]> = {
     todo: tasks.filter((t) => t.status === 'todo'),
     in_progress: tasks.filter((t) => t.status === 'in_progress'),
     done: tasks.filter((t) => t.status === 'done'),
   }
 
-  function run(action: () => Promise<{ success: boolean; error?: string }>) {
+  function run(action: () => Promise<{ success: boolean; error?: string }>, message = 'Task updated') {
     startTransition(async () => {
       const result = await action()
       if (result.success) {
-        toast.success('Task updated')
+        toast.success(message)
         router.refresh()
       } else {
         toast.error(result.error ?? 'Update failed')
@@ -133,6 +223,26 @@ function DbKanban({
 
   return (
     <div className="space-y-4">
+      {(unassignedCount > 0 || overdueCount > 0 || inspectCount > 0) && canManage && (
+        <div className="flex flex-wrap gap-2">
+          {unassignedCount > 0 && (
+            <span className="rounded-full bg-amber-500/15 px-3 py-1 text-xs font-semibold text-amber-800">
+              {unassignedCount} unassigned
+            </span>
+          )}
+          {overdueCount > 0 && (
+            <span className="rounded-full bg-red-500/15 px-3 py-1 text-xs font-semibold text-red-700">
+              {overdueCount} overdue
+            </span>
+          )}
+          {inspectCount > 0 && (
+            <span className="rounded-full bg-[#3C216C]/10 px-3 py-1 text-xs font-semibold text-[#3C216C]">
+              {inspectCount} awaiting inspection
+            </span>
+          )}
+        </div>
+      )}
+
       {canManage && (
         <div className="flex justify-end">
           <Button onClick={() => setAdding(true)} className="bg-[#3C216C] text-white hover:bg-[#4c2a85]">
@@ -149,7 +259,9 @@ function DbKanban({
 
           return (
             <div key={column.id} className="surface-card overflow-hidden">
-              <div className={`relative flex items-center gap-2 border-b border-[#E9ECEF] ${column.headerTint} px-5 py-4`}>
+              <div
+                className={`relative flex items-center gap-2 border-b border-[#E9ECEF] ${column.headerTint} px-5 py-4`}
+              >
                 <ColumnIcon className={`h-5 w-5 ${column.iconClass}`} />
                 <h3 className="text-lg font-semibold text-[#111827]">{column.title}</h3>
                 <span className="ml-auto rounded-full bg-white/80 px-2.5 py-0.5 text-sm font-bold text-[#111827] shadow-elevation-1">
@@ -165,7 +277,10 @@ function DbKanban({
                     const assigneeName = task.assignedTo ? staffById.get(task.assignedTo) ?? 'Unknown' : null
 
                     return (
-                      <div key={task.id} className="elevated-list-item p-4">
+                      <div
+                        key={task.id}
+                        className={`elevated-list-item p-4 ${!task.assignedTo && task.status !== 'done' ? 'ring-2 ring-amber-200/80' : ''} ${task.isOverdue ? 'ring-2 ring-red-200' : ''}`}
+                      >
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <p className="text-base font-bold text-[#111827]">
@@ -195,64 +310,67 @@ function DbKanban({
                                 <span className="truncate font-medium text-[#374151]">{assigneeName}</span>
                               </>
                             ) : (
-                              <span className="flex items-center gap-1 text-muted-foreground">
+                              <span className="flex items-center gap-1 font-semibold text-amber-700">
                                 <User className="h-3.5 w-3.5" /> Unassigned
                               </span>
                             )}
                           </div>
                           {task.dueDate && (
-                            <div className="flex shrink-0 items-center gap-1 text-muted-foreground">
+                            <div
+                              className={`flex shrink-0 items-center gap-1 ${task.isOverdue ? 'font-bold text-red-600' : 'text-muted-foreground'}`}
+                            >
                               <CalendarDays className="h-3.5 w-3.5" />
                               <span>{formatDueDate(task.dueDate)}</span>
                             </div>
                           )}
                         </div>
 
-                        {(canManage || statusOnly) && (
-                          <div className="mt-3 flex items-center gap-2 border-t border-[#E9ECEF] pt-3">
-                            <select
-                              value={task.status}
-                              onChange={(e) =>
-                                run(() => setHousekeepingTaskStatus(task.id, e.target.value as TaskStatus))
+                        {canManage && (
+                          <>
+                            <TaskStatusControls
+                              task={task}
+                              canManage={canManage}
+                              currentUserId={currentUserId}
+                              isPending={isPending}
+                              onStatusChange={(status, managerOverride) =>
+                                run(() =>
+                                  setHousekeepingTaskStatus(task.id, status, { managerOverride }),
+                                  status === 'done' && task.taskType === 'clean'
+                                    ? 'Clean done — room sent for inspection'
+                                    : status === 'done' && task.taskType === 'inspect'
+                                      ? 'Inspection approved — room available'
+                                      : 'Task updated',
+                                )
                               }
-                              disabled={isPending}
-                              className="min-w-0 flex-1 rounded-lg border border-border bg-white px-2 py-1.5 text-xs"
-                              aria-label="Task status"
-                            >
-                              <option value="todo">To Do</option>
-                              <option value="in_progress">In Progress</option>
-                              <option value="done">Done</option>
-                            </select>
-                            {canManage && (
-                              <>
-                                <select
-                                  value={task.assignedTo ?? ''}
-                                  onChange={(e) =>
-                                    run(() => assignHousekeepingTask(task.id, e.target.value || null))
-                                  }
-                                  disabled={isPending}
-                                  className="min-w-0 flex-1 rounded-lg border border-border bg-white px-2 py-1.5 text-xs"
-                                  aria-label="Assign task"
-                                >
-                                  <option value="">Unassigned</option>
-                                  {staff.map((s) => (
-                                    <option key={s.id} value={s.id}>
-                                      {s.name}
-                                    </option>
-                                  ))}
-                                </select>
-                                <button
-                                  type="button"
-                                  onClick={() => run(() => deleteHousekeepingTask(task.id))}
-                                  disabled={isPending}
-                                  className="shrink-0 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
-                                  aria-label="Delete task"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </button>
-                              </>
-                            )}
-                          </div>
+                            />
+                            <div className="mt-2 flex items-center gap-2">
+                              <select
+                                value={task.assignedTo ?? ''}
+                                onChange={(e) =>
+                                  run(() => assignHousekeepingTask(task.id, e.target.value || null))
+                                }
+                                disabled={isPending}
+                                className="min-w-0 flex-1 rounded-lg border border-border bg-white px-2 py-1.5 text-xs"
+                                aria-label="Assign task"
+                              >
+                                <option value="">Unassigned</option>
+                                {staff.map((s) => (
+                                  <option key={s.id} value={s.id}>
+                                    {s.name}
+                                  </option>
+                                ))}
+                              </select>
+                              <button
+                                type="button"
+                                onClick={() => run(() => deleteHousekeepingTask(task.id))}
+                                disabled={isPending}
+                                className="shrink-0 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                                aria-label="Delete task"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </>
                         )}
                       </div>
                     )
