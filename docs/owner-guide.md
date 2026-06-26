@@ -1,159 +1,185 @@
-# Part 1 — Property Owner Guide
+# Owner guide — MOJO Apartments
 
-You own one or more properties. You handle money, tax compliance, portfolio settings, and high-level oversight. Day-to-day operations are usually done by your managers.
+You own the portfolio. You see **revenue**, **tax**, **billing**, and **settings**. Managers and receptionists run the front desk; you oversee money and compliance.
 
 ---
 
-## 1. Getting started
+## 1. Sign in and first-time setup
 
 ### Create your account
 
-1. Go to **Sign up** on the login page (`/signup`).
-2. Enter your name, email, and password.
-3. The system creates your owner account, your first property, default room categories, and numbered rooms.
+1. Go to **Sign up** (`/signup`).
+2. Enter name, email, password.
+3. The system creates your owner account, first property, room categories, and numbered rooms.
 
-### Sign in
+### After login
 
-- After login you land on **Dashboard** (`/owner/dashboard`).
-- Only users with the **Owner** role can access `/owner/*` pages.
+You land on **Dashboard** (`/owner/dashboard`). Only **Owner** accounts can open `/owner/*` pages.
 
-### First-time setup checklist
+### Setup checklist
 
-1. **Settings** → add your phone number.
-2. **Settings** → complete property address, VAT TIN, invoice prefix.
-3. **Rooms** → review categories and nightly rates.
-4. **Staff** → invite at least one manager.
-5. Optional: add more properties via **Settings** or the sidebar property switcher.
+| Step | Where | Why |
+|------|--------|-----|
+| Add your phone | Top bar → **Phone** | SMS alerts |
+| Property details | **Settings** | Address, VAT TIN, invoice prefix |
+| Room rates | **Rooms** → categories | Correct pricing on bookings |
+| Invite a manager | **Staff** | Day-to-day operations |
+| Run a test booking | **Reservations** | Confirm workflow before go-live |
+
+Optional: add more properties in **Settings** or the sidebar **property switcher**.
+
+### Security (production)
+
+Owners may be required to complete **SMS two-factor authentication** after login. Follow the on-screen prompts on `/enroll-mfa` or `/verify-mfa`.
 
 ---
 
-## 2. Navigation and global tools
-
-### Sidebar menu
+## 2. Navigation
 
 | Menu | Path | Purpose |
 |------|------|---------|
-| Dashboard | `/owner/dashboard` | Business overview, occupancy, revenue |
-| Rooms | `/owner/rooms` | Room inventory, categories, status |
-| Reservations | `/owner/reservations` | Bookings, check-in, check-out |
-| Guests | `/owner/guests` | Guest directory and history |
-| Complaints | `/owner/complaints` | Read-only complaint lifecycle |
-| Staff | `/owner/staff` | Invite managers & technicians |
-| Billing | `/owner/billing` | Invoices and payments *(owner only)* |
-| GRA Reports | `/owner/gra-reports` | Tax filing exports *(owner only)* |
-| Analytics | `/owner/analytics` | Trends and performance *(owner only)* |
-| Settings | `/owner/settings` | Property & tax configuration *(owner only)* |
+| Dashboard | `/owner/dashboard` | KPIs, occupancy, night audit |
+| Rooms | `/owner/rooms` | Inventory, categories, delete rooms |
+| Reservations | `/owner/reservations` | Full booking lifecycle + payments |
+| Guests | `/owner/guests` | Directory, folio, portal links |
+| Complaints | `/owner/complaints` | **Read-only** lifecycle view |
+| Housekeeping | `/owner/housekeeping` | Full kanban (same as manager) |
+| Staff | `/owner/staff` | Invite managers, receptionists, technicians |
+| Billing | `/owner/billing` | Invoices, payments, refunds |
+| GRA Reports | `/owner/gra-reports` | Tax filing exports |
+| Analytics | `/owner/analytics` | Trends and charts |
+| Settings | `/owner/settings` | Property, tax, portfolio |
 
-### Property switcher (owners only)
+### Property switcher
 
-- In the sidebar: switch between apartments in your portfolio.
-- **Add property** at the bottom: name, address, city, region, total rooms (1–999).
-- New properties get rooms numbered 1 through N automatically.
-- All data is scoped to the **active** property.
+- Switch between MOJO properties in the sidebar.
+- **Add property** → name, address, city, region, room count.
+- All lists and reports use the **active** property only.
 
-### Top bar (every owner page)
+### Top bar
 
-- **Search** — guests, reservations, rooms, **invoices** (owners only).
-- **Notifications** — overdue/pending invoices, check-outs today, open complaints (updates live).
-- **Phone** — add or edit your number (SMS alerts).
-- **Live updates** — dashboard and lists refresh when managers or staff change data (no manual refresh).
-- **User menu** — Edit phone, Settings, Logout.
-
-### Occupancy widget
-
-Sidebar shows today’s occupancy: “X of Y rooms occupied” and a percentage bar.
+- **Search** — guests, reservations, rooms, **invoices**.
+- **Notifications** — check-outs today, overdue invoices, open complaints.
+- **Live updates** — lists refresh when staff change data (keep tab open).
 
 ---
 
 ## 3. Dashboard
 
-**Path:** `/owner/dashboard`
+### KPI cards
 
-### Key metrics
+| Card | Meaning |
+|------|---------|
+| **Total revenue** | Paid invoice revenue (with RevPAR) |
+| **Occupancy rate** | Rooms occupied now |
+| **Average nightly rate** | Typical room rate (₵) |
+| **Total bookings** | Active reservations + guest count |
+| **Outstanding** | **Collectible balance** across open stays and unpaid invoices |
 
-- **Total revenue** — with RevPAR.
-- **Occupancy rate** — % of rooms occupied now.
-- **Average nightly rate** — in Ghana Cedis (₵).
-- **Total bookings** — with guest count.
+Use **Outstanding** every morning. If it is high, open **Billing** and **Reservations** (filter by payment status).
 
-### Room availability (14-day strip)
+### Other dashboard sections
 
-- Color-coded bar per day: Occupied, Reserved, Maintenance, Available.
-- Tap a day for breakdown.
-- **View All** on upcoming bookings → Reservations.
-
-### Operations snapshot
-
-- **Tasks summary** — read-only housekeeping (To Do / In Progress / Done). Manage tasks on the manager Housekeeping board.
-
-### Business intelligence
-
-- **Channel performance** — Direct, Airbnb, Booking.com, Walk-in, Other.
-- **GRA tax summary** — current period revenue, tax, invoice counts, compliance status.
+- **14-day availability** — occupied / reserved / maintenance / available.
+- **Upcoming bookings** — link to Reservations.
+- **Housekeeping tasks** — summary; full board on **Housekeeping**.
+- **Channel performance** & **GRA tax summary**.
+- **Night audit** — close the business day (see §12).
 
 ---
 
-## 4. Rooms
+## 4. Reservations and payments
 
-**Path:** `/owner/rooms` · Search: `?q=` pre-fills room search.
+**Path:** `/owner/reservations`
 
-### Room categories
+### List and filters
 
-- Name + **default nightly rate**.
-- Add, edit, delete (delete only if no rooms use the category).
+- Filter by **stay status** (confirmed, checked in, checked out, cancelled, no-show).
+- Filter by **payment** (unpaid, deposit paid, partial, paid, overdue).
+- Table shows **payment badge** and **balance due** when money is still owed.
 
-### Room grid statuses
+### Payment statuses (what they mean)
 
-| Status | Meaning |
-|--------|---------|
-| Available | Ready for guests |
-| Occupied | Guest in house |
-| Cleaning | Being cleaned |
-| Needs inspection | Post-clean check |
-| Maintenance | Out of service |
+| Status | Typical situation |
+|--------|------------------|
+| **Unpaid** | Booking created, nothing collected |
+| **Deposit paid** | Partial payment before checkout |
+| **Pending** | Checked out, invoice issued, not paid |
+| **Partial** | Some paid, balance remains |
+| **Paid** | Fully settled |
+| **Overdue** | Invoice past due date with balance |
+| **Refunded** | Invoice or deposit refunded |
 
-### Add or edit a room
-
-- Room number, floor, category, nightly rate (₵), status.
-- **Delete room** — owners only.
-
----
-
-## 5. Reservations
-
-**Path:** `/owner/reservations` · `?open={id}` opens a reservation.
-
-### Gantt chart
-
-21-day timeline by room, colored by booking source (read-only).
-
-### Create a reservation
+### Create a booking
 
 1. **New reservation**.
-2. Guest name, room, check-in/out dates, channel, nightly rate.
-3. Optional: search returning guest.
+2. Guest name, room, dates, **channel** (Airbnb, Booking.com, direct, walk-in, other).
+3. Nightly or monthly rate — total calculates automatically.
+4. Status starts as **Confirmed**, payment **Unpaid**.
+
+### Record a deposit (before checkout)
+
+1. Open the reservation.
+2. In **Payment**, tap **Record deposit**.
+3. Enter amount (cannot exceed balance due), payment method (cash, MoMo, card, etc.).
+4. **Save deposit** → status becomes **Deposit paid** (or **Paid** if full amount collected).
+
+**Channel prepaid** (Airbnb / Booking.com): use **Channel prepaid** to mark the stay as collected via the OTA (bank transfer method). Only use when you have actually received funds from the channel.
 
 ### Check in
 
-1. Open confirmed reservation → **Check in guest**.
-2. Phone required, name, optional email.
-3. Receive **guest portal link** — share with guest.
+1. Open **Confirmed** reservation → **Check in guest**.
+2. Phone required; optional email and guest link to existing profile.
+3. Share **guest portal link** or QR with the guest.
 
-### While checked in
+### While guest is in-house
 
-- **Check out**, **Extend stay**, **Move room**.
+- **Extend stay** — updates total; payment status recalculates.
+- **Move room** — change room if needed.
+- **Guest folio** — post minibar, laundry, etc. from **Guests** (see §6). Folio appears in reservation **Payment** as **Folio (unbilled)** and increases **Estimated total**.
 
 ### Check out
 
-1. Payment method: Cash, MTN MoMo, Telecel Cash, AirtelTigo, Visa, Mastercard, Bank transfer.
-2. **Early checkout** if needed.
-3. **Payment received now** to mark paid immediately.
-4. GRA tax invoice generated automatically → view in **Billing**.
+1. Open **Checked in** reservation → **Check out**.
+2. Choose **payment method**.
+3. **Early checkout** if leaving before booked date.
+4. **Payment received now**:
+   - **On** → invoice marked **Paid** (deposit counts toward total).
+   - **Off** → invoice **Pending**; collect later in **Billing**.
+5. **Confirm check-out** → GRA tax invoice created, room → **Cleaning**, clean task created.
 
-### Other actions
+### Cancel or no-show **with a deposit**
 
-- **Mark no-show** (confirmed, check-in date passed).
-- **Cancel reservation**.
+If money was collected, the system **requires** your choice:
+
+| Option | Who | Result |
+|--------|-----|--------|
+| **Forfeit deposit** | Owner, manager, receptionist | MOJO keeps the money; audit log recorded |
+| **Refund deposit** | **Owner only** | Deposit returned; `amount_paid` cleared |
+
+Without a deposit, cancel uses a normal confirmation dialog.
+
+**Rules:**
+
+- Only **Confirmed** bookings can be cancelled or marked no-show.
+- **Checked-in guests cannot be cancelled** — use **Check out**.
+- Cancel blocked if there is **unpaid folio** or **unpaid invoice** on the stay.
+
+---
+
+## 5. Rooms
+
+**Path:** `/owner/rooms`
+
+| Room status | Meaning |
+|-------------|---------|
+| Available | Ready to sell |
+| Occupied | Guest in house |
+| Cleaning | After checkout |
+| Needs inspection | Clean done; awaiting inspect |
+| Maintenance | Out of service |
+
+You can **add, edit, and delete** rooms. Managers cannot delete rooms.
 
 ---
 
@@ -163,127 +189,155 @@ Sidebar shows today’s occupancy: “X of Y rooms occupied” and a percentage 
 
 ### Directory
 
-- Search: name, email, phone.
-- Filters: All, Active, Returning, VIP, New.
+Search and filter guests. Open a guest to:
 
-### Guest detail
+- Edit name, phone, email.
+- **Guest portal** — copy link, QR, WhatsApp, regenerate, revoke.
+- **Guest folio** (in-house only) — post charges:
+  - Description, amount (₵), type (incidental, room, etc.).
+  - Charges roll into the **checkout invoice** with correct taxes.
+- **Check out** — same flow as Reservations checkout.
 
-- Edit contact (name, phone, email).
-- **Guest portal:** QR, copy link, WhatsApp share, regenerate, revoke.
-- **Check out** if in-house (same payment options as reservations).
-
-**Note:** Walk-in check-in wizard is on the **manager** Guests page. Owners use Reservations check-in.
-
----
-
-## 7. Complaints (read-only)
-
-**Path:** `/owner/complaints`
-
-Owners get full visibility into the complaint lifecycle without operating it — assigning technicians and approving work stays with managers.
-
-- **Filters:** all, open, assigned, in_progress, pending_approval, resolved.
-- **Detail panel:** description, guest and technician contacts (tap to call / WhatsApp), the technician’s invoice (materials, labour, total), and the full event timeline.
-- **Sidebar badge:** counts complaints awaiting manager approval.
-- Updates live as managers and technicians make changes.
+Walk-in wizard is on the **Manager** and **Receptionist** Guests page; owners can also check in via Reservations.
 
 ---
 
-## 8. Staff
+## 7. Billing and invoices
 
-**Path:** `/owner/staff`
+**Path:** `/owner/billing` — **owners only**
 
-### Invite staff
+### Summary cards
 
-1. **Invite staff** → choose role:
-   - **Manager** — enter their **email**.
-   - **Receptionist** — enter their **email** (front desk: bookings, check-in/out, room status, complaints).
-   - **Technician** — enter their **phone number** (for SMS job alerts).
-2. Share invite link (`/accept-invite?token=...`) via WhatsApp, SMS, or in person.
-
-### Manage team
-
-- Edit phone on manageable members.
-- **Disable** / **Reactivate** managers and technicians (not other owners, not yourself).
-- **Revoke** pending invites.
-
----
-
-## 9. Billing & invoices
-
-**Path:** `/owner/billing` — owners only
-
-### Summary
-
-Total revenue, paid count, pending count + amount, collection rate %.
+Total revenue, paid count, pending/overdue, collection rate %.
 
 ### Invoice list
 
-- **New Invoice**, search, filters (All / Paid / Pending / Overdue).
-- **Download PDF** per row.
+Filter: All / Paid / Pending / Overdue. Overdue updates automatically when due date passes.
 
-### Tax breakdown (GRA)
+### On an unpaid invoice
 
-Subtotal, NHIL (2.5%), GETFund (2.5%), COVID levy (1%), VAT (15%), **Total**.
+| Action | When to use |
+|--------|-------------|
+| **Record payment** | Guest pays full remaining balance |
+| **Partial payment** | Guest pays some now (enter amount + method) |
+| **Refund** | Reverse part or all of a payment (reason optional) |
+| **Download PDF** | Receipt / records |
 
-### Actions
+### Create manual invoice
 
-- **Record payment** on unpaid invoices.
-- **Create manual invoice** with live tax preview.
+For walk-in services **not** tied to a room stay: guest name, description, subtotal, payment method, mark paid or not.
+
+### Payment reconciliation tab
+
+Shows payment **ledger** (all recorded payments) and summary of pending invoice balances.
 
 ### Invoice numbers
 
-Uses prefix from Settings (e.g. `MOJO-2026-00001`). Sequence resets each January.
+Format from Settings prefix, e.g. `MOJO-2026-00001`. Sequence resets each calendar year.
 
 ---
 
-## 10. GRA tax reports
+## 8. GRA tax reports
 
-**Path:** `/owner/gra-reports` — owners only
+**Path:** `/owner/gra-reports`
 
-- Filing deadlines, compliance %, tax YTD.
-- **Export CSV**, **PDF**, or **ZIP** (all periods).
-- Month **Approved** when all issued invoices in that month are paid.
+- Period revenue, tax breakdown (NHIL, GETFund, COVID levy, VAT).
+- Export **CSV**, **PDF**, or **ZIP** for filing.
+- Month marked **Approved** when all issued invoices in that month are paid.
 
----
-
-## 11. Analytics
-
-**Path:** `/owner/analytics` — owners only
-
-Bookings, occupancy, avg stay, revenue growth, 7-day charts, repeat guests, peak day.
+**Month-end routine:** Billing payments up to date → GRA Reports → export → accountant.
 
 ---
 
-## 12. Settings
+## 9. Analytics
 
-**Path:** `/owner/settings` — owners only
+**Path:** `/owner/analytics`
+
+Charts for revenue, occupancy, bookings, channel mix, month-over-month trends. Use with Dashboard KPIs for owner reviews.
+
+---
+
+## 10. Complaints (read-only)
+
+**Path:** `/owner/complaints`
+
+You see the full complaint lifecycle but **do not** assign technicians or approve invoices. Managers handle that. Use this page to oversee SLA and guest satisfaction.
+
+---
+
+## 11. Housekeeping
+
+**Path:** `/owner/housekeeping` · Mobile: `/mobile/housekeeping`
+
+Same kanban as managers:
+
+1. **To do** → **In progress** → **Done**
+2. **Clean** task done → room **Needs inspection** → auto **Inspect** task
+3. **Inspect** done → room **Available**
+4. Only **assignee** updates status; you can **Override** as owner.
+
+Checkout auto-creates an **unassigned Clean** task. Technicians can **claim** open tasks from their phone.
+
+---
+
+## 12. Night audit
+
+**Path:** Dashboard → **Night audit** panel (owner and manager)
+
+Once per business day:
+
+1. Confirm check-outs and payments are recorded.
+2. **Run night audit** (optional notes).
+3. System snapshots occupancy, arrivals, departures, revenue posted.
+
+Cannot run twice for the same date. Use this as your end-of-day control.
+
+---
+
+## 13. Staff
+
+**Path:** `/owner/staff`
+
+| Role | Invite by | Can do |
+|------|-----------|--------|
+| Manager | Email | Full ops except billing/GRA/settings |
+| Receptionist | Email | Front desk only |
+| Technician | Phone (SMS) | Maintenance + HK tasks |
+
+Share invite link after creating. Disable/reactivate staff; revoke pending invites.
+
+---
+
+## 14. Settings
+
+**Path:** `/owner/settings`
 
 - Your phone.
-- Portfolio: switch/add properties.
-- Property: name, address, city, region.
-- GRA: VAT TIN, **invoice prefix**.
-- **Manage staff** shortcut.
+- Portfolio: add/switch properties.
+- Property: name, address, city, region, logo.
+- GRA: VAT TIN, **invoice prefix**, VAT mode (exclusive/inclusive).
+- Notification preferences.
 
 ---
 
-## 13. Owner limitations
+## 15. What owners should not do
 
-| Cannot do in app | Alternative |
-|------------------|-------------|
-| Assign / approve complaints | Manager account (owner view is read-only) |
-| Housekeeping kanban | Manager account |
-| Walk-in button on Guests | Reservations check-in |
-| Online payment gateway | Record payments manually |
+| Avoid | Do instead |
+|-------|------------|
+| Cancel a checked-in guest | **Check out** |
+| Skip deposit disposition on cancel | Choose forfeit or refund |
+| Ignore **Outstanding** KPI | Collect or follow up in Billing |
+| Approve complaints here | Use manager account or ask manager |
+| Expect online card pay in app | Record MoMo/cash/card manually |
 
 ---
 
-## 14. End-to-end workflows
+## 16. Recommended routines
 
-**New property:** Settings → Add property → tax fields → Rooms → Staff.
+**Daily:** Dashboard (Outstanding, notifications) → departures in Reservations → Billing overdue.
 
-**Book and bill:** Reservations → Check in → portal link → Check out → Billing → PDF.
+**Weekly:** GRA summary check; staff phones up to date.
 
-**Month-end tax:** Settings complete → Billing payments → GRA Reports → Export.
+**Month-end:** All invoices paid or noted → GRA export → accountant.
 
-**Hire manager:** Staff → Invite Manager → share link.
+**New property:** Settings → Rooms → Staff → test reservation end-to-end.

@@ -1,157 +1,145 @@
-# Part 3 — Guest Guide
+# Guest guide — MOJO Apartments
 
-Guests use a **mobile-friendly portal** — no password. Access is via a **link or QR code** from the front desk.
+Welcome. You use a **simple mobile portal** — no password. Front desk gives you a **link or QR code** when you check in.
 
 ---
 
-## 1. Getting access
+## 1. Getting into the portal
 
-### How you get in
+### How access works
 
 1. Staff checks you in (reservation or walk-in).
 2. You receive a **link** or **QR code**.
-3. Link format: `{website}/guest/enter?token=...`
-4. Opening it opens the guest portal (`/guest`).
+3. Link looks like: `{website}/guest/enter?token=...`
+4. Opens **Guest portal** (`/guest`).
 
-### No account needed
+### No account
 
-- No email/password for guests.
-- Session tied to your stay’s access token.
+- No email/password to remember.
+- Link is tied to **your stay**.
 
-### When access ends
+### When access stops
 
-- **End of checkout day** (midnight on your checkout date).
-- Staff **checks you out** (immediate revoke).
-- Staff **revokes** your link.
+| Event | Result |
+|-------|--------|
+| Checkout day ends (midnight) | Link expires |
+| Staff checks you out | Immediate revoke |
+| Staff revokes link | Link stops working |
 
-### If the link fails
-
-| Message | What to do |
-|---------|------------|
-| Link expired | Ask front desk for a new link |
-| Invalid/missing | Use only the link staff gave you |
+**Link expired?** Ask front desk for a new one.
 
 ---
 
-## 2. Guest portal home
-
-**Path:** `/guest`
-
-### Header
+## 2. Portal home
 
 - **MOJO APARTMENTS** branding.
-- **Room {number}** (if assigned).
+- **Room number** (when assigned).
 - **Hi {your name}**.
 
 ### Your phone number
 
-- **Add** or **Edit** contact number (Ghana format, e.g. +233 24 123 4567).
-- Helps staff call you back.
+Tap **Add** or **Edit** — Ghana format e.g. `+233 24 123 4567`. Helps staff call you back.
 
-### Contact your manager
+### Contact managers
 
-- **Call** and **WhatsApp** buttons for **managers only**.
-- Owner phone numbers are **not shown**.
+**Call** and **WhatsApp** buttons for **managers only** (not the property owner).
 
 ---
 
-## 3. Submit a complaint
+## 3. Report a problem (complaint)
 
-### Step 1 — Category (required)
-
-Tap one:
+### Step 1 — Category
 
 | Category | Examples |
 |----------|----------|
 | Plumbing | Leaks, no water |
 | Electrical | Power, lights |
-| HVAC | AC, heating |
-| Furniture | Broken chair, bed |
+| HVAC | AC not cooling |
+| Furniture | Broken bed, chair |
 | Cleaning | Room not clean |
 | Noise | Disturbance |
 | Other | Anything else |
 
-### Step 2 — Description (required)
+### Step 2 — Description
 
 - At least **10 characters**.
-- Be specific: location, when it started, severity.
+- Be specific: where, when it started, how bad.
 
 ### Step 3 — Priority
 
-| Button | Meaning |
-|--------|---------|
-| **Normal** | Standard request |
-| **Urgent** | Needs fast attention (flooding, no power, safety) |
+| Button | Use when |
+|--------|----------|
+| **Normal** | Standard issues |
+| **Urgent** | Safety, flooding, no power, security |
 
 ### Submit
 
-- Fixed bottom button: **Submit complaint**.
-- Disabled until category + valid description.
-
-### After submit
-
-- **Reference number** (8 characters) — save it.
-- “Team notified by SMS/WhatsApp.”
-- **Back to portal** returns to main screen.
+- **Submit complaint** (bottom button).
+- You get a **reference number** — save it.
+- Team is notified by SMS/WhatsApp.
 
 ### Limits
 
-- Max **3 complaints per 15 minutes**.
-- Max **10 complaints per stay**.
-- Cannot edit or cancel after submit.
+- Max 3 complaints per 15 minutes.
+- Max 10 per stay.
+- Cannot edit or delete after submit.
 
 ---
 
 ## 4. Track your complaints
 
-Section: **My complaints**
+**My complaints** shows simple status (not internal costs or technician names):
 
-| What you see | What it means |
-|--------------|---------------|
-| Being handled | Team is working on it |
-| Quote under review | Technician invoice awaiting manager approval |
-| Almost done | Work finished, manager sign-off pending |
-| Resolved ✓ | Closed |
-| Being reviewed again | Sent back for more work |
+| Status | Meaning |
+|--------|---------|
+| Being handled | Team working on it |
+| Quote under review | Cost approval in progress |
+| Almost done | Waiting final sign-off |
+| Resolved ✓ | Fixed |
+| Being reviewed again | More work needed |
 
-You do **not** see technician names, costs, or internal notes.
-
-### Live updates
-
-- Status updates appear automatically when staff change your complaint (checks every ~12 seconds).
-- If Realtime is connected, updates can appear sooner.
-- **Reconnect** banner if your connection drops — tap to retry.
+Updates appear automatically when staff progress your case.
 
 ---
 
-## 5. What guests cannot do
+## 5. Paying your bill
 
-- Log in as staff or see other guests.
-- Pay bills in the portal.
-- Contact the property owner directly.
-- Use portal after checkout or link expiry.
-- Choose low/high priority (only Normal/Urgent).
+**Payment is not done in this portal.**
+
+- Pay at the **front desk** (cash, MoMo, card).
+- Ask reception for your **balance** before checkout.
+- Receipts come from the property after payment.
 
 ---
 
-## 6. Tips
+## 6. What guests cannot do
 
-- Bookmark or save your portal link during your stay.
+- See other guests or staff screens.
+- Pay bills online here.
+- Contact the owner directly (managers only).
+- Use portal after checkout or if link expired.
+- Choose low/medium/high priority (only Normal/Urgent).
+
+---
+
+## 7. Tips for a smooth stay
+
+- Save or bookmark your portal link.
 - Add your phone number early.
 - Use **Urgent** only for real emergencies.
 - Quote your **reference number** at the desk when following up.
+- Check out at reception so your room and bill are closed properly.
 
 ---
 
-## 7. Behind the scenes (what staff does)
+## 8. What happens after you complain (behind the scenes)
 
-You won’t see these steps, but it helps to know the flow:
+You only see status updates, but this is the flow:
 
-1. Your complaint → manager notified.
-2. Manager assigns a technician.
-3. Technician submits a cost invoice → manager approves.
-4. Technician does the work.
-5. Technician marks complete → manager approves.
-6. Your status updates to **Resolved ✓**.
+1. Front desk / manager receives complaint.
+2. Technician assigned.
+3. Technician sends cost estimate → manager approves.
+4. Work is done.
+5. Manager signs off → you see **Resolved ✓**.
 
-Typical timeline: hours for urgent, same day or next day for normal issues.
+**Urgent:** often same day. **Normal:** same day or next day depending on workload.

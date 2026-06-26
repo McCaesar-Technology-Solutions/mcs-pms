@@ -1,6 +1,9 @@
-# Part 4 — Technician Guide
+# Technician guide — MOJO Apartments
 
-Technicians see **assigned maintenance jobs** on mobile. Submit invoices, wait for approval, do the work, mark complete.
+You work from your **phone**. Two types of work appear on **My tasks** (`/technician/tasks`):
+
+1. **Maintenance complaints** — guest issues (plumbing, AC, etc.).
+2. **Housekeeping tasks** — cleaning and inspection (claim from pool or assigned by manager).
 
 ---
 
@@ -8,186 +11,177 @@ Technicians see **assigned maintenance jobs** on mobile. Submit invoices, wait f
 
 ### Join the team
 
-1. Owner or manager creates an invite with your **phone number** and shares the link (`/accept-invite?token=...`) via WhatsApp, SMS, or in person.
-2. Open the link, enter your name, phone, and password.
-3. Land on **My tasks** (`/technician/tasks`).
+1. Manager or owner invites you with your **phone number**.
+2. Open link `/accept-invite?token=...` (WhatsApp/SMS).
+3. Set name, password, confirm phone.
+4. Land on **My tasks**.
 
-### First-time setup
+### First thing
 
-1. Add **phone** (banner, header **Phone** button, or inline editor).
-2. Note **Call manager** in header — managers only, not owner.
+Add or verify **phone** (header button or amber banner). SMS alerts for new jobs and approved invoices require it.
 
 ---
 
-## 2. App layout
-
-### Header
+## 2. Screen layout
 
 | Element | Purpose |
 |---------|---------|
-| Your name + specialty | Identity |
-| **Phone** / **Add phone** | Edit contact |
+| Your name + specialty | Your profile |
+| **Phone** / **Add phone** | Contact for SMS |
+| **Call manager** | Tap to call/WhatsApp managers (not owner) |
 | **Sign out** | Log out |
-| **Call manager** | Tap-to-call / WhatsApp managers |
 
-### Phone banner
+### Live updates
 
-If no phone: amber **“Add your phone number”** at top — required for SMS job alerts.
-
-### Live alerts (toasts)
-
-- New task assigned.
-- **Invoice approved** — you can start the job.
-- Job sent back — read manager note.
-- **Job approved and closed** — work is complete.
-- New housekeeping task (no housekeeping screen for technicians).
-
-Task list updates automatically when status changes.
+- Task list refreshes when managers change status.
+- Toasts: new assignment, invoice approved, job sent back, job closed, new housekeeping task.
 
 ---
 
-## 3. My tasks
-
-**Path:** `/technician/tasks`
+## Part A — Maintenance complaints
 
 ### Tabs
 
-| Tab | Shows |
-|-----|-------|
+| Tab | Content |
+|-----|---------|
 | **My tasks** | Active jobs |
-| **Completed (30d)** | Resolved in last 30 days |
+| **Completed (30d)** | Recently resolved |
 
-Sorted: Urgent → High → Medium → Low.
-
-### Task card
-
-- Room number, priority, category, description.
-- **Status badge** (see table below).
-- Tap to expand for actions.
-- **Guest contact** — on active jobs the expanded card shows the guest’s name with **call** and **WhatsApp** buttons so you can reach them directly.
+Sorted urgent → high → medium → low.
 
 ### Status labels
 
-| Label | Meaning |
-|-------|---------|
-| Submit invoice | Assigned, need to send invoice |
-| Invoice pending approval | Waiting for manager |
+| Label | What you do |
+|-------|-------------|
+| Submit invoice | Send cost estimate to manager |
+| Invoice pending approval | Wait |
 | Invoice sent back | Fix and resubmit |
-| Ready to start | Invoice approved |
-| In progress | Working on site |
-| Completion pending approval | Waiting for manager sign-off |
+| Ready to start | Tap **Start job** |
+| In progress | On site working |
+| Completion pending approval | Wait for manager |
 | Resolved | Done |
 
----
+### Step-by-step
 
-## 4. Full job workflow
+**1. Assigned** — manager picks you; SMS if phone on file.
 
-### Step 1 — Receive assignment
+**2. Submit invoice** (before physical work):
 
-Manager assigns you → **Assigned**. SMS alert if phone on file.
+- Materials: name, qty, unit cost (₵) — optional rows.
+- Labour cost (₵).
+- Note to manager.
+- **Submit invoice to manager**.
 
-### Step 2 — Submit invoice (before work)
+You **cannot start** until manager approves.
 
-Expand task → **Submit invoice to manager**.
+**3. Rejected?** Read **Manager note**, update invoice, resubmit.
 
-| Field | Details |
-|-------|---------|
-| Materials | Rows: name, qty, unit cost (₵). Optional. |
-| Labour cost | Your labour (₵). |
-| Note to manager | Scope, assumptions. |
-| Total | Auto-calculated |
+**4. Approved** → **Ready to start** → **Start job** → **In progress**.
 
-Click **Submit invoice to manager**.
+**5. On site** — call manager or **guest** (call/WhatsApp on expanded card) for access.
 
-- Status → **Invoice pending approval**.
-- **You cannot start until manager approves.**
+**6. Done** → **Mark job complete** → manager approves → **Resolved**.
 
-If rejected: read **Manager note**, **Update & resubmit invoice**.
+If manager sends back: finish work, mark complete again.
 
-### Step 3 — Start job
+### Invoice tips
 
-After approval → **Ready to start** → tap **Start job** → **In progress**.
-
-SMS: “Invoice approved — you can now start.”
-
-### Step 4 — Do the work
-
-Complete repairs. Use **Call manager** if needed, or contact the **guest** directly from the expanded task card (call / WhatsApp) to arrange access.
-
-### Step 5 — Mark complete
-
-Tap **Mark job complete** → **Completion pending approval**.
-
-Manager **Approves & resolve** or sends back with note.
-
-If sent back: finish work, **Mark job complete** again.
-
-### Step 6 — Resolved
-
-Moves to **Completed (30d)** tab.
-
----
-
-## 5. Workflow diagram
-
-```
-Assigned
-   ↓ submit invoice
-Invoice pending → manager approves → Ready to start
-                → manager rejects → revise & resubmit
-   ↓ Start job
-In progress
-   ↓ Mark complete
-Completion pending → manager resolves → Resolved
-                    → manager rejects → back to In progress
-```
-
----
-
-## 6. Invoice form tips
-
-- Currency: **₵** (Ghana Cedis).
-- Labour-only invoices are allowed.
-- Be specific on materials (“PVC pipe ½ inch”, not “pipes”).
+- Be specific (“½ inch PVC elbow”, not “pipes”).
+- Labour-only invoices are OK.
 - Submit before large purchases when possible.
 
 ---
 
-## 7. Phone number
+## Part B — Housekeeping tasks
 
-- Header **Phone** / **Add phone** opens editor.
-- Format: `+233 XX XXX XXXX`.
-- Used for SMS when assigned and when invoice approved.
+Below maintenance jobs you may see **Housekeeping tasks**.
+
+### Assigned tasks
+
+Tasks with your name — tap **Start**, then **Complete** when finished.
+
+### Claim pool
+
+**Available to claim** — open tasks nobody owns yet:
+
+1. Tap **Claim & start**.
+2. Task is yours; complete it like assigned work.
+
+### Task types
+
+| Type | What “done” means |
+|------|-------------------|
+| **Clean** | Room cleaned after checkout → system sets **Needs inspection** |
+| **Inspect** | Manager QA → room becomes **Available** |
+| Maintenance | Repair/clean as described |
+| Restock | Amenities restocked |
+
+### Clean → inspect rule
+
+When you finish **Clean**, you do **not** set the room Available yourself. An **Inspect** task is created. You or a colleague completes **Inspect** to release the room for sale.
+
+### Who can update?
+
+- **You** — only tasks assigned to you (or that you claimed).
+- **Manager** — can override if stuck.
 
 ---
 
-## 8. What technicians cannot do
+## 3. Workflow diagram (maintenance)
+
+```
+Assigned
+   ↓ submit invoice
+Invoice pending → approved → Ready to start
+               → rejected → revise
+   ↓ Start job
+In progress
+   ↓ Mark complete
+Completion pending → resolved
+                    → rejected → back to in progress
+```
+
+---
+
+## 4. What technicians cannot do
 
 | Cannot | Notes |
-|--------|-------|
-| Start without invoice approval | System enforced |
+|--------|--------|
+| Start without invoice approval | System blocks |
 | See owner phone | Managers only |
-| Housekeeping UI | Toasts only |
-| Assign jobs | Manager only |
 | Approve own invoice | Manager only |
-| Billing / GRA / settings | Owner only |
+| Billing / reservations | Not your role |
+| Assign complaints to others | Manager only |
 
 ---
 
-## 9. SMS notifications you receive
+## 5. SMS you may receive
 
-| Event | Message |
-|-------|---------|
-| New assignment | Job details + link to tasks |
-| Invoice approved | You can start work |
+| Event | Typical message |
+|-------|-----------------|
+| New complaint assigned | Job summary + link |
+| Invoice approved | You may start work |
+| New housekeeping task | Room and type |
 
-(Managers get alerts when you submit invoice and mark complete.)
+Keep phone number current in the app.
 
 ---
 
-## 10. Tips
+## 6. Daily habits
 
-- Read **Manager note** immediately when status is “sent back.”
-- Keep phone number current.
-- Expand task to see full description before quoting materials.
-- After marking complete, wait for manager — don’t leave site if they may send back.
+- Open **My tasks** at shift start.
+- Claim unassigned **Clean** tasks after checkouts.
+- Expand card and read full description before quoting.
+- Read manager notes immediately when status is “sent back.”
+- Do not leave site on **Completion pending** until manager confirms or messages you.
+
+---
+
+## 7. Getting unstuck
+
+| Problem | Action |
+|---------|--------|
+| Cannot start job | Invoice not approved — wait or call manager |
+| Wrong room status | Tell manager — they override on HK board |
+| Guest not in room | Use guest call/WhatsApp on card |
+| No tasks showing | Refresh; confirm manager assigned or check claim pool |

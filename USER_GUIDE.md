@@ -1,39 +1,58 @@
-# MOJO Apartments — User Documentation
+# MOJO Apartments — User documentation
 
-Complete guides for every role in the property management system.
+Complete guides for every role. Written for MOJO staff and guests — plain language, step by step.
 
 | Guide | Audience | File |
 |-------|----------|------|
-| **Part 1 — Owner** | Property owners (billing, GRA, portfolio, analytics) | [docs/owner-guide.md](docs/owner-guide.md) |
-| **Part 2 — Manager** | Daily operations (guests, complaints, housekeeping) | [docs/manager-guide.md](docs/manager-guide.md) |
-| **Part 3 — Guest** | In-house guests (complaint portal via link/QR) | [docs/guest-guide.md](docs/guest-guide.md) |
-| **Part 4 — Technician** | Maintenance staff (tasks, invoices, job workflow) | [docs/technician-guide.md](docs/technician-guide.md) |
-| **Part 5 — Receptionist** | Front desk (bookings, check-in/out, room status, complaints) | [docs/receptionist-guide.md](docs/receptionist-guide.md) |
+| **Owner** | Money, tax, portfolio, oversight | [docs/owner-guide.md](docs/owner-guide.md) |
+| **Manager** | Daily ops, complaints, housekeeping | [docs/manager-guide.md](docs/manager-guide.md) |
+| **Receptionist** | Front desk, bookings, check-in/out | [docs/receptionist-guide.md](docs/receptionist-guide.md) |
+| **Technician** | Maintenance jobs + housekeeping tasks | [docs/technician-guide.md](docs/technician-guide.md) |
+| **Guest** | Portal via link/QR | [docs/guest-guide.md](docs/guest-guide.md) |
+
+Index and deposit policy summary: [docs/README.md](docs/README.md)
 
 ## Quick links
 
-- **Sign in:** `/login`
-- **Owner sign up:** `/signup`
-- **Staff invite:** `/accept-invite?token=...`
-- **Guest portal:** `/guest/enter?token=...` (link from front desk)
+| Task | URL |
+|------|-----|
+| Staff login | `/login` |
+| Owner sign-up | `/signup` |
+| Staff invite | `/accept-invite?token=...` |
+| Guest portal | `/guest/enter?token=...` |
+| Mobile housekeeping | `/mobile/housekeeping` |
 
 ## Roles at a glance
 
 | Feature | Owner | Manager | Receptionist | Technician | Guest |
 |---------|:-----:|:-------:|:------------:|:----------:|:-----:|
-| Dashboard / KPIs | ✓ (+ revenue) | ✓ (no revenue) | ✓ (no revenue) | — | — |
-| Reservations | ✓ | ✓ | ✓ | — | — |
-| Guest directory | ✓ | ✓ (+ walk-in) | ✓ (+ walk-in) | — | Portal only |
+| Dashboard KPIs | ✓ (+ revenue) | ✓ (no revenue) | ✓ (no revenue) | — | — |
+| Outstanding balance KPI | ✓ | ✓ | ✓ | — | — |
+| Reservations + deposits | ✓ | ✓ | ✓ | — | — |
+| Refund deposit | ✓ | — | — | — | — |
+| Guest folio posting | ✓ | ✓ | ✓ | — | — |
+| Walk-in check-in | ✓ | ✓ | ✓ | — | — |
 | Rooms | ✓ (+ delete) | ✓ | Status only | — | — |
-| Complaints UI | Read-only | ✓ (+ log for guest) | Log + read-only | Tasks only | Submit only |
-| Housekeeping | Summary only | ✓ | — | — | — |
-| Billing / GRA / Analytics | ✓ | — | — | — | — |
+| Complaints | Read-only | ✓ full | Log + track | Tasks | Submit |
+| Housekeeping board | ✓ | ✓ | — | Claim/tasks | — |
+| Billing / partial pay / refunds | ✓ | — | — | — | — |
+| GRA / Analytics | ✓ | — | — | — | — |
+| Night audit | ✓ | ✓ | — | — | — |
 | Settings / multi-property | ✓ | — | — | — | — |
+
+## Payments (MOJO)
+
+- **Deposits** recorded on reservation before checkout.
+- **Folio** charges (minibar, etc.) posted on guest profile; included at checkout.
+- **Checkout** creates GRA invoice; pay now or bill later (owner in Billing).
+- **Cancel / no-show with deposit** → forfeit (staff) or refund (owner only).
+
+Details: [docs/README.md#mojo-deposit-policy-summary](docs/README.md#mojo-deposit-policy-summary)
 
 ## Live updates
 
-Owner, manager, technician, and guest views refresh automatically when data changes (Supabase Realtime). Keep the browser tab open; use the **Reconnect** banner if Wi‑Fi drops.
+Staff and guest views refresh when data changes (Supabase Realtime). Keep the browser tab open. Use **Reconnect** if Wi‑Fi drops.
 
-## Support
+## Technical setup
 
-For Hubtel SMS setup, apply Supabase migrations `001`–`016` (see [DEPLOYMENT.md](DEPLOYMENT.md)), and configure `.env.local` per `.env.example`.
+Hubtel/Arkesel SMS, Supabase migrations through **044**, `.env.local` — see [DEPLOYMENT.md](DEPLOYMENT.md).
