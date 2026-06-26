@@ -2,7 +2,9 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { getProfile } from '@/lib/auth/get-profile'
+import { reconcileHotelBillingState } from '@/lib/billing/reconcile-hotel-billing'
 import { writeAuditLog } from '@/lib/audit/log'
 import { todayISO } from '@/lib/stays/helpers'
 
@@ -18,6 +20,9 @@ export async function runNightAudit(notes?: string): Promise<NightAuditResult> {
 
   const businessDate = todayISO()
   const supabase = await createClient()
+  const admin = createAdminClient()
+
+  await reconcileHotelBillingState(admin, profile.hotel_id)
 
   const { data: existing } = await supabase
     .from('night_audits')

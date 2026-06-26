@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { PaymentMethod } from '@/types'
 import { deriveInvoicePaymentStatus, invoiceBalanceDue } from '@/lib/billing/invoice-payments'
+import { syncReservationPaymentFromInvoice } from '@/lib/billing/reservation-payment'
 
 export async function applyInvoicePaymentRecord(
   admin: SupabaseClient,
@@ -16,7 +17,7 @@ export async function applyInvoicePaymentRecord(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const { data: invoice } = await admin
     .from('invoices')
-    .select('id, guest_id, total_amount, amount_paid, payment_status')
+    .select('id, guest_id, reservation_id, total_amount, amount_paid, payment_status')
     .eq('id', input.invoiceId)
     .eq('hotel_id', input.hotelId)
     .maybeSingle()
@@ -50,6 +51,7 @@ export async function applyInvoicePaymentRecord(
     await admin.from('payment_records').insert({
       hotel_id: input.hotelId,
       invoice_id: input.invoiceId,
+      reservation_id: invoice.reservation_id,
       guest_id: invoice.guest_id,
       provider: input.provider,
       provider_reference: input.providerReference ?? null,
@@ -75,6 +77,10 @@ export async function applyInvoicePaymentRecord(
       paid_at: newStatus === 'paid' ? now : null,
     })
     .eq('id', input.invoiceId)
+
+  if (invoice.reservation_id) {
+    await syncReservationPaymentFromInvoice(admin, invoice.reservation_id)
+  }
 
   return { ok: true }
 }

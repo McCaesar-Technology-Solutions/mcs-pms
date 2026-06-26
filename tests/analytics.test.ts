@@ -19,6 +19,11 @@ function reservation(overrides: Partial<Reservation>): Reservation {
     numberOfNights: 2,
     totalPrice: 200,
     paidAmount: 0,
+    folioSubtotal: 0,
+    estimatedTotal: 200,
+    balanceDue: 200,
+    paymentStatus: 'unpaid',
+    depositAmount: 0,
     currency: 'GHS',
     source: 'walk_in',
     channel: 'walk_in',
@@ -38,6 +43,8 @@ const baseMetrics: KPIMetrics = {
   totalBookings: 2,
   totalGuests: 2,
   reviParMetric: 250,
+  outstandingBalance: 0,
+  outstandingCount: 0,
 }
 
 describe('computeAnalytics', () => {

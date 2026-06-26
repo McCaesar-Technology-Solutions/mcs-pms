@@ -104,6 +104,12 @@ export interface Reservation {
   numberOfNights: number
   totalPrice: number
   paidAmount: number
+  folioSubtotal: number
+  estimatedTotal: number
+  balanceDue: number
+  paymentStatus: ReservationPaymentStatus
+  depositAmount: number
+  paymentMethod?: PaymentMethod | null
   currency: string
   source: 'website' | 'airbnb' | 'booking' | 'walk_in' | 'other'
   channel: ReservationChannel
@@ -195,6 +201,8 @@ export interface KPIMetrics {
   totalBookings: number
   totalGuests: number
   reviParMetric: number
+  outstandingBalance: number
+  outstandingCount: number
 }
 
 export interface Availability {
@@ -305,6 +313,16 @@ export type PaymentMethod =
 
 export type PaymentStatus = 'pending' | 'partial' | 'paid' | 'overdue' | 'refunded'
 
+export type ReservationPaymentStatus =
+  | 'unpaid'
+  | 'deposit_paid'
+  | 'pending'
+  | 'partial'
+  | 'paid'
+  | 'overdue'
+  | 'refunded'
+  | 'complimentary'
+
 export interface DbRoom {
   id: string
   hotel_id: string
@@ -354,6 +372,10 @@ export interface DbReservation {
   nightly_rate: number | null
   monthly_rate: number | null
   total_amount: number | null
+  payment_status: ReservationPaymentStatus | null
+  amount_paid: number | null
+  deposit_amount: number | null
+  payment_method: PaymentMethod | null
   ical_uid: string | null
   ical_feed_id: string | null
   created_by: string | null

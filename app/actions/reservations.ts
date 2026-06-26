@@ -12,6 +12,17 @@ import { phoneSchema } from '@/lib/phone'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { writeAuditLog, moneyDelta } from '@/lib/audit/log'
 import { validateReservationCancellation } from '@/lib/reservations/cancel-eligibility'
+import {
+  applyDepositDisposition,
+  type DepositDisposition,
+  requiresDepositDisposition,
+  validateDepositDispositionInput,
+} from '@/lib/billing/deposit-disposition'
+import {
+  derivePreCheckoutPaymentStatus,
+  refreshPreCheckoutPaymentStatus,
+  reservationBalanceDue,
+} from '@/lib/billing/reservation-payment'
 import { todayISO } from '@/lib/stays/helpers'
 import { revalidateStayViews } from '@/lib/stays/revalidate'
 import type { PaymentMethod, ReservationChannel, ReservationStatus } from '@/types'
@@ -145,6 +156,9 @@ export async function createReservation(input: unknown): Promise<CreateReservati
       nightly_rate: nightlyRate,
       monthly_rate: monthlyRate,
       total_amount: total,
+      payment_status: 'unpaid',
+      amount_paid: 0,
+      deposit_amount: 0,
       created_by: profile.id,
     })
     .select('id')
@@ -324,6 +338,8 @@ export async function updateReservation(id: string, input: unknown): Promise<Cre
     .eq('id', id)
   if (error) return { success: false, error: error.message }
 
+  await refreshPreCheckoutPaymentStatus(admin, id)
+
   const guestName = parsed.data.guestName?.trim() ?? existing.guest_name
   const changes: string[] = []
   if (existing.guest_name !== guestName) changes.push(`Guest: ${existing.guest_name} → ${guestName}`)
@@ -425,7 +441,10 @@ export async function checkOutReservation(
   return { success: true }
 }
 
-export async function cancelReservation(id: string): Promise<ReservationActionResult> {
+export async function cancelReservation(
+  id: string,
+  options?: { depositDisposition?: DepositDisposition },
+): Promise<ReservationActionResult> {
   const { supabase, profile } = await requireManager()
   if (!profile || !['owner', 'manager', 'receptionist'].includes(profile.role)) {
     return { success: false, error: 'Not authorized.' }
@@ -433,7 +452,9 @@ export async function cancelReservation(id: string): Promise<ReservationActionRe
 
   const { data: reservation } = await supabase
     .from('reservations')
-    .select('hotel_id, guest_name, check_in, check_out, status, guest_id, room_id, guests(phone)')
+    .select(
+      'hotel_id, guest_name, check_in, check_out, status, guest_id, room_id, amount_paid, guests(phone)',
+    )
     .eq('id', id)
     .maybeSingle()
 
@@ -447,6 +468,29 @@ export async function cancelReservation(id: string): Promise<ReservationActionRe
     hotel_id: reservation.hotel_id,
   })
   if (!eligibility.ok) return { success: false, error: eligibility.error }
+
+  const amountPaid = Number(reservation.amount_paid ?? 0)
+  const depositCheck = validateDepositDispositionInput(
+    amountPaid,
+    options?.depositDisposition,
+    profile.role,
+  )
+  if (!depositCheck.ok) return { success: false, error: depositCheck.error }
+
+  if (requiresDepositDisposition(amountPaid) && options?.depositDisposition) {
+    const applied = await applyDepositDisposition(admin, {
+      hotelId: reservation.hotel_id,
+      reservationId: id,
+      guestId: reservation.guest_id,
+      guestName: reservation.guest_name,
+      amountPaid,
+      disposition: options.depositDisposition,
+      reason: 'cancelled',
+      actorId: profile.id,
+      actorName: profile.name ?? 'Staff',
+    })
+    if (!applied.ok) return { success: false, error: applied.error }
+  }
 
   const result = await setReservationStatus(id, 'cancelled')
   if (!result.success) return result
@@ -497,4 +541,157 @@ export async function cancelReservation(id: string): Promise<ReservationActionRe
   }
 
   return { success: true }
+}
+
+const depositSchema = z.object({
+  reservationId: z.string().uuid(),
+  amount: z.coerce.number().positive('Amount must be greater than zero'),
+  paymentMethod: z.enum([
+    'mtn_momo',
+    'telecel_cash',
+    'airteltigo',
+    'visa',
+    'mastercard',
+    'cash',
+    'bank_transfer',
+  ]),
+  reference: z.string().max(120).optional(),
+})
+
+export async function recordReservationDeposit(input: unknown): Promise<ReservationActionResult> {
+  const parsed = depositSchema.safeParse(input)
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid deposit.' }
+  }
+
+  const { profile } = await requireManager()
+  if (!profile || !['owner', 'manager', 'receptionist'].includes(profile.role) || !profile.hotel_id) {
+    return { success: false, error: 'Not authorized.' }
+  }
+
+  const admin = createAdminClient()
+  const { data: reservation } = await admin
+    .from('reservations')
+    .select('id, hotel_id, guest_id, guest_name, status, total_amount, amount_paid')
+    .eq('id', parsed.data.reservationId)
+    .eq('hotel_id', profile.hotel_id)
+    .maybeSingle()
+
+  if (!reservation) return { success: false, error: 'Reservation not found.' }
+  if (reservation.status !== 'confirmed' && reservation.status !== 'checked_in') {
+    return { success: false, error: 'Deposits can only be recorded before check-out.' }
+  }
+
+  const total = Number(reservation.total_amount ?? 0)
+  const currentPaid = Number(reservation.amount_paid ?? 0)
+  const balance = reservationBalanceDue(total, currentPaid)
+  if (parsed.data.amount > balance + 0.009) {
+    return { success: false, error: `Deposit exceeds balance due (₵${balance}).` }
+  }
+
+  const newPaid = Math.round((currentPaid + parsed.data.amount) * 100) / 100
+  const now = new Date().toISOString()
+  const idempotencyKey = parsed.data.reference
+    ? `deposit:${parsed.data.reservationId}:${parsed.data.reference}`
+    : `deposit:${parsed.data.reservationId}:${now}`
+
+  const { data: existingPayment } = await admin
+    .from('payment_records')
+    .select('id')
+    .eq('idempotency_key', idempotencyKey)
+    .maybeSingle()
+
+  if (existingPayment) {
+    return { success: true }
+  }
+
+  await admin.from('payment_records').insert({
+    hotel_id: profile.hotel_id,
+    reservation_id: reservation.id,
+    guest_id: reservation.guest_id,
+    provider: 'manual',
+    provider_reference: parsed.data.reference ?? null,
+    amount: parsed.data.amount,
+    currency: 'GHS',
+    status: 'success',
+    idempotency_key: idempotencyKey,
+    completed_at: now,
+    metadata: { type: 'deposit' },
+  })
+
+  await admin
+    .from('reservations')
+    .update({
+      amount_paid: newPaid,
+      payment_method: parsed.data.paymentMethod,
+      payment_status: derivePreCheckoutPaymentStatus(total, newPaid),
+    })
+    .eq('id', reservation.id)
+
+  void writeAuditLog({
+    hotelId: profile.hotel_id,
+    actorId: profile.id,
+    actorName: profile.name,
+    entityType: 'reservation',
+    entityId: reservation.id,
+    action: 'deposit',
+    summary: `Deposit ₵${parsed.data.amount} on ${reservation.guest_name} booking`,
+  })
+
+  revalidateReservationViews()
+  return { success: true }
+}
+
+const channelPrepaidSchema = z.object({
+  reservationId: z.string().uuid(),
+  paymentMethod: z
+    .enum([
+      'mtn_momo',
+      'telecel_cash',
+      'airteltigo',
+      'visa',
+      'mastercard',
+      'cash',
+      'bank_transfer',
+    ])
+    .default('bank_transfer'),
+})
+
+export async function markChannelPrepaid(input: unknown): Promise<ReservationActionResult> {
+  const parsed = channelPrepaidSchema.safeParse(input)
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid input.' }
+  }
+
+  const { profile } = await requireManager()
+  if (!profile || !['owner', 'manager', 'receptionist'].includes(profile.role) || !profile.hotel_id) {
+    return { success: false, error: 'Not authorized.' }
+  }
+
+  const admin = createAdminClient()
+  const { data: reservation } = await admin
+    .from('reservations')
+    .select('id, hotel_id, guest_id, guest_name, status, channel, total_amount, amount_paid')
+    .eq('id', parsed.data.reservationId)
+    .eq('hotel_id', profile.hotel_id)
+    .maybeSingle()
+
+  if (!reservation) return { success: false, error: 'Reservation not found.' }
+  if (reservation.status !== 'confirmed' && reservation.status !== 'checked_in') {
+    return { success: false, error: 'Channel prepayment applies before check-out.' }
+  }
+  if (reservation.channel !== 'airbnb' && reservation.channel !== 'booking_com') {
+    return { success: false, error: 'Use deposits for direct and walk-in bookings.' }
+  }
+
+  const total = Number(reservation.total_amount ?? 0)
+  const balance = reservationBalanceDue(total, Number(reservation.amount_paid ?? 0))
+  if (balance <= 0) return { success: true }
+
+  return recordReservationDeposit({
+    reservationId: parsed.data.reservationId,
+    amount: balance,
+    paymentMethod: parsed.data.paymentMethod,
+    reference: `channel:${reservation.channel}`,
+  })
 }

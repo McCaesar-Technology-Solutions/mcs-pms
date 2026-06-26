@@ -1,5 +1,7 @@
 import { getProfile } from '@/lib/auth/get-profile'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { reconcileHotelBillingState } from '@/lib/billing/reconcile-hotel-billing'
 import { formatInvoiceNumber } from '@/lib/invoices/numbering'
 import { clampLimit } from '@/lib/data/pagination'
 import { invoiceBalanceDue } from '@/lib/billing/invoice-payments'
@@ -65,6 +67,8 @@ export async function getPaymentReconciliationSummary(): Promise<PaymentReconcil
   if (!profile?.hotel_id || profile.role !== 'owner') return null
 
   const supabase = await createClient()
+  await reconcileHotelBillingState(createAdminClient(), profile.hotel_id)
+
   const [{ data: payments }, { data: invoices }] = await Promise.all([
     supabase
       .from('payment_records')

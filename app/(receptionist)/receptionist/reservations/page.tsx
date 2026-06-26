@@ -2,6 +2,7 @@ import { ReservationsManager } from '@/components/dashboard/reservations-manager
 import { ReservationsTimelineSection } from '@/components/dashboard/reservations-timeline-section'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { getDashboardData } from '@/lib/data/dashboard'
+import { getProfile } from '@/lib/auth/get-profile'
 
 export default async function ReceptionistReservationsPage({
   searchParams,
@@ -9,8 +10,8 @@ export default async function ReceptionistReservationsPage({
   searchParams: Promise<{ q?: string; open?: string; checkIn?: string }>
 }) {
   const { q, open, checkIn } = await searchParams
-  const { reservations, roomOptions, occupancySpans, timelineRooms, timelineBars } =
-    await getDashboardData()
+  const [profile, { reservations, roomOptions, occupancySpans, timelineRooms, timelineBars }] =
+    await Promise.all([getProfile(), getDashboardData()])
 
   return (
     <div className="page-shell space-y-6">
@@ -26,6 +27,7 @@ export default async function ReceptionistReservationsPage({
             reservations={reservations}
             roomOptions={roomOptions}
             occupancySpans={occupancySpans}
+            staffRole={profile?.role ?? 'receptionist'}
             initialSearch={q}
             openReservationId={open}
             initialNewFlow={checkIn === '1' ? 'check_in' : undefined}

@@ -9,6 +9,8 @@ import {
   cancelReservation,
   checkOutReservation,
   createReservation,
+  markChannelPrepaid,
+  recordReservationDeposit,
   updateReservation,
 } from '@/app/actions/reservations'
 import {
@@ -25,13 +27,23 @@ import {
   ModalFooter,
   ModalHeader,
 } from '@/components/ui/centered-modal'
-import type { PaymentMethod, Reservation, ReservationChannel, RateType } from '@/types'
+import type { PaymentMethod, Reservation, ReservationChannel, ReservationPaymentStatus, RateType, UserRole } from '@/types'
+import type { DepositDisposition } from '@/lib/billing/deposit-disposition'
 import type { RoomOption } from '@/lib/data/dashboard'
 import type { OccupancySpan } from '@/lib/data/occupancy'
 import { PAYMENT_METHOD_LABELS } from '@/lib/tax'
 import { calculateStayTotal, rateTypeLabel } from '@/lib/pricing/stay-totals'
 
 const STATUS_FILTERS = ['all', 'checked_in', 'confirmed', 'checked_out', 'cancelled', 'no_show'] as const
+
+const PAYMENT_FILTERS = [
+  'all',
+  'unpaid',
+  'deposit_paid',
+  'partial',
+  'paid',
+  'overdue',
+] as const
 
 const CHANNEL_LABELS: Record<ReservationChannel, string> = {
   airbnb: 'Airbnb',
@@ -62,6 +74,30 @@ function statusBadge(status: string) {
   }
 }
 
+function paymentBadge(status: ReservationPaymentStatus) {
+  switch (status) {
+    case 'paid':
+      return 'bg-emerald-100 text-emerald-800'
+    case 'deposit_paid':
+    case 'partial':
+      return 'bg-sky-100 text-sky-800'
+    case 'overdue':
+      return 'bg-red-100 text-red-700'
+    case 'refunded':
+      return 'bg-gray-100 text-gray-600'
+    case 'complimentary':
+      return 'bg-violet-100 text-violet-800'
+    case 'pending':
+    case 'unpaid':
+    default:
+      return 'bg-amber-100 text-amber-800'
+  }
+}
+
+function formatPaymentStatus(status: ReservationPaymentStatus) {
+  return status.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
 function sourceBadge(source: string) {
   const colors: Record<string, string> = {
     website: 'bg-[#3C216C]/10 text-[#3C216C]',
@@ -80,6 +116,7 @@ interface ReservationsManagerProps {
   initialSearch?: string
   openReservationId?: string
   initialNewFlow?: 'book' | 'check_in'
+  staffRole?: UserRole
 }
 
 export function ReservationsManager({
@@ -89,11 +126,13 @@ export function ReservationsManager({
   initialSearch = '',
   openReservationId,
   initialNewFlow,
+  staffRole = 'receptionist',
 }: ReservationsManagerProps) {
   const router = useRouter()
   const [selectedId, setSelectedId] = useState<string | null>(openReservationId ?? null)
   const [search, setSearch] = useState(initialSearch)
   const [statusFilter, setStatusFilter] = useState<(typeof STATUS_FILTERS)[number]>('all')
+  const [paymentFilter, setPaymentFilter] = useState<(typeof PAYMENT_FILTERS)[number]>('all')
   const [creating, setCreating] = useState(Boolean(initialNewFlow))
 
   const filtered = useMemo(() => {
@@ -105,9 +144,10 @@ export function ReservationsManager({
         res.bookingRef.toLowerCase().includes(q) ||
         res.roomNumber.includes(q)
       const matchesStatus = statusFilter === 'all' || res.status === statusFilter
-      return matchesSearch && matchesStatus
+      const matchesPayment = paymentFilter === 'all' || res.paymentStatus === paymentFilter
+      return matchesSearch && matchesStatus && matchesPayment
     })
-  }, [reservations, search, statusFilter])
+  }, [reservations, search, statusFilter, paymentFilter])
 
   const selected = selectedId ? reservations.find((r) => r.id === selectedId) ?? null : null
 
@@ -163,6 +203,24 @@ export function ReservationsManager({
               </button>
             ))}
           </div>
+
+          <div className="flex items-center gap-2 overflow-x-auto pb-1">
+            {PAYMENT_FILTERS.map((status) => (
+              <button
+                key={status}
+                type="button"
+                aria-pressed={paymentFilter === status}
+                onClick={() => setPaymentFilter(status)}
+                className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold transition-all ${
+                  paymentFilter === status
+                    ? 'bg-[#3C216C] text-white shadow-elevation-1'
+                    : 'bg-secondary text-muted-foreground hover:bg-secondary/80'
+                }`}
+              >
+                {status === 'all' ? 'Any payment' : formatPaymentStatus(status as ReservationPaymentStatus)}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Mobile cards */}
@@ -193,11 +251,18 @@ export function ReservationsManager({
                   <span className="text-foreground"> · {res.numberOfNights}n</span>
                 </p>
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                  <span
-                    className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusBadge(res.status)}`}
-                  >
-                    {formatStatus(res.status)}
-                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusBadge(res.status)}`}
+                    >
+                      {formatStatus(res.status)}
+                    </span>
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-xs font-semibold ${paymentBadge(res.paymentStatus)}`}
+                    >
+                      {formatPaymentStatus(res.paymentStatus)}
+                    </span>
+                  </div>
                   <span className="font-semibold text-foreground">₵{res.totalPrice}</span>
                 </div>
               </button>
@@ -215,6 +280,7 @@ export function ReservationsManager({
                 <th className="px-4 py-4 text-left font-semibold text-foreground">Room</th>
                 <th className="px-4 py-4 text-left font-semibold text-foreground">Stay</th>
                 <th className="px-4 py-4 text-left font-semibold text-foreground">Status</th>
+                <th className="px-4 py-4 text-left font-semibold text-foreground">Payment</th>
                 <th className="px-4 py-4 text-left font-semibold text-foreground">Source</th>
                 <th className="px-4 py-4 text-right font-semibold text-foreground">Amount</th>
                 <th className="w-10 px-4 py-4 text-center font-semibold text-foreground" />
@@ -223,7 +289,7 @@ export function ReservationsManager({
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">
+                  <td colSpan={9} className="px-4 py-12 text-center text-muted-foreground">
                     No reservations match your filters.
                   </td>
                 </tr>
@@ -263,6 +329,16 @@ export function ReservationsManager({
                     </td>
                     <td className="px-4 py-4">
                       <span
+                        className={`rounded-full px-3 py-1.5 text-xs font-semibold ${paymentBadge(res.paymentStatus)}`}
+                      >
+                        {formatPaymentStatus(res.paymentStatus)}
+                      </span>
+                      {res.balanceDue > 0 && (
+                        <p className="mt-1 text-xs text-amber-700">₵{res.balanceDue} due</p>
+                      )}
+                    </td>
+                    <td className="px-4 py-4">
+                      <span
                         className={`rounded-full px-3 py-1.5 text-xs font-medium ${sourceBadge(res.source)}`}
                       >
                         {formatStatus(res.source)}
@@ -286,6 +362,7 @@ export function ReservationsManager({
         <ReservationDrawer
           reservation={selected}
           roomOptions={roomOptions}
+          staffRole={staffRole}
           onClose={() => setSelectedId(null)}
           onMutated={() => {
             setSelectedId(null)
@@ -320,6 +397,7 @@ function formatDate(value: string) {
 interface ReservationDrawerProps {
   reservation: Reservation
   roomOptions: RoomOption[]
+  staffRole: UserRole
   onClose: () => void
   onMutated: () => void
 }
@@ -334,7 +412,7 @@ const PAYMENT_METHODS: PaymentMethod[] = [
   'bank_transfer',
 ]
 
-function ReservationDrawer({ reservation, roomOptions, onClose, onMutated }: ReservationDrawerProps) {
+function ReservationDrawer({ reservation, roomOptions, staffRole, onClose, onMutated }: ReservationDrawerProps) {
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
   const [checkingOut, setCheckingOut] = useState(false)
@@ -342,7 +420,10 @@ function ReservationDrawer({ reservation, roomOptions, onClose, onMutated }: Res
   const [editing, setEditing] = useState(false)
   const [extending, setExtending] = useState(false)
   const [moving, setMoving] = useState(false)
+  const [voidDialog, setVoidDialog] = useState<'cancel' | 'no_show' | null>(null)
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
+  const [depositAmount, setDepositAmount] = useState('')
+  const [recordingDeposit, setRecordingDeposit] = useState(false)
   const [earlyCheckout, setEarlyCheckout] = useState(false)
   const [markAsPaid, setMarkAsPaid] = useState(true)
   const [phone, setPhone] = useState(reservation.guestPhone)
@@ -392,7 +473,14 @@ function ReservationDrawer({ reservation, roomOptions, onClose, onMutated }: Res
     })
   }
 
-  const balance = reservation.totalPrice - reservation.paidAmount
+  const balance = reservation.balanceDue
+  const hasCollectedDeposit = reservation.paidAmount > 0.009
+  const canRefundDeposit = staffRole === 'owner'
+  const canRecordDeposit =
+    (reservation.status === 'confirmed' || reservation.status === 'checked_in') && balance > 0
+  const canMarkChannelPrepaid =
+    canRecordDeposit &&
+    (reservation.channel === 'airbnb' || reservation.channel === 'booking_com')
   const today = new Date().toISOString().slice(0, 10)
   const canNoShow =
     reservation.status === 'confirmed' && reservation.checkInDate <= today
@@ -449,6 +537,11 @@ function ReservationDrawer({ reservation, roomOptions, onClose, onMutated }: Res
             >
               {formatStatus(reservation.source)}
             </span>
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-semibold ${paymentBadge(reservation.paymentStatus)}`}
+            >
+              {formatPaymentStatus(reservation.paymentStatus)}
+            </span>
           </div>
         </div>
 
@@ -489,6 +582,18 @@ function ReservationDrawer({ reservation, roomOptions, onClose, onMutated }: Res
                 </span>
                 <span className="font-bold text-foreground">₵{reservation.totalPrice}</span>
               </div>
+              {reservation.folioSubtotal > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Folio (unbilled)</span>
+                  <span className="font-semibold text-foreground">₵{reservation.folioSubtotal}</span>
+                </div>
+              )}
+              {reservation.folioSubtotal > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Estimated total</span>
+                  <span className="font-bold text-foreground">₵{reservation.estimatedTotal}</span>
+                </div>
+              )}
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Paid</span>
                 <span className="font-semibold text-foreground">₵{reservation.paidAmount}</span>
@@ -499,7 +604,106 @@ function ReservationDrawer({ reservation, roomOptions, onClose, onMutated }: Res
                   <span className="font-bold text-amber-800">₵{balance}</span>
                 </div>
               )}
+              {reservation.paymentMethod && (
+                <p className="pt-1 text-xs text-muted-foreground">
+                  Method: {PAYMENT_METHOD_LABELS[reservation.paymentMethod]}
+                </p>
+              )}
             </div>
+
+            {canRecordDeposit && !recordingDeposit && (
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() => setRecordingDeposit(true)}
+                  className="flex-1 rounded-xl bg-white py-2.5 text-sm font-semibold text-foreground shadow-elevation-1 transition-all hover:shadow-elevation-2 disabled:opacity-50"
+                >
+                  Record deposit
+                </button>
+                {canMarkChannelPrepaid && (
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() =>
+                      run(() =>
+                        markChannelPrepaid({
+                          reservationId: reservation.id,
+                          paymentMethod: 'bank_transfer',
+                        }),
+                      )
+                    }
+                    className="flex-1 rounded-xl bg-[#3C216C]/10 py-2.5 text-sm font-semibold text-[#3C216C] transition-all hover:bg-[#3C216C]/15 disabled:opacity-50"
+                  >
+                    Channel prepaid
+                  </button>
+                )}
+              </div>
+            )}
+
+            {canRecordDeposit && recordingDeposit && (
+              <div className="mt-4 space-y-3 border-t border-[#E9ECEF] pt-4">
+                <Field label={`Amount (max ₵${balance})`}>
+                  <input
+                    type="number"
+                    min={0.01}
+                    max={balance}
+                    step={0.01}
+                    value={depositAmount}
+                    onChange={(e) => setDepositAmount(e.target.value)}
+                    className={fieldClass}
+                    placeholder="0.00"
+                  />
+                </Field>
+                <Field label="Payment method">
+                  <select
+                    value={paymentMethod}
+                    onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
+                    className={fieldClass}
+                  >
+                    {PAYMENT_METHODS.map((m) => (
+                      <option key={m} value={m}>
+                        {PAYMENT_METHOD_LABELS[m]}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() => {
+                      setRecordingDeposit(false)
+                      setDepositAmount('')
+                    }}
+                    className="flex-1 rounded-xl bg-secondary py-2.5 text-sm font-semibold text-foreground"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={pending || !depositAmount || Number(depositAmount) <= 0}
+                    onClick={() =>
+                      run(
+                        () =>
+                          recordReservationDeposit({
+                            reservationId: reservation.id,
+                            amount: Number(depositAmount),
+                            paymentMethod,
+                          }),
+                        () => {
+                          setRecordingDeposit(false)
+                          setDepositAmount('')
+                        },
+                      )
+                    }
+                    className="flex-1 rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+                  >
+                    Save deposit
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {portalUrl && <PortalLinkPanel loginUrl={portalUrl} />}
@@ -917,22 +1121,100 @@ function ReservationDrawer({ reservation, roomOptions, onClose, onMutated }: Res
 
               {!checkingOut && !checkingIn && !extending && !moving && !editing && (
                 <>
-                  {canNoShow ? (
+                  {voidDialog && (
+                    <div className="space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
+                      <p className="text-sm font-semibold text-amber-950">
+                        ₵{reservation.paidAmount} deposit collected
+                      </p>
+                      <p className="text-xs text-amber-900">
+                        Choose how to handle the deposit before{' '}
+                        {voidDialog === 'cancel' ? 'cancelling' : 'marking no-show'}.
+                      </p>
+                      <div className="flex flex-col gap-2">
+                        <button
+                          type="button"
+                          disabled={pending}
+                          onClick={() =>
+                            run(
+                              () =>
+                                voidDialog === 'cancel'
+                                  ? cancelReservation(reservation.id, {
+                                      depositDisposition: 'forfeit' as DepositDisposition,
+                                    })
+                                  : markNoShow(reservation.id, {
+                                      depositDisposition: 'forfeit' as DepositDisposition,
+                                    }),
+                              () => setVoidDialog(null),
+                            )
+                          }
+                          className="rounded-xl bg-white py-2.5 text-sm font-semibold text-foreground shadow-elevation-1"
+                        >
+                          Forfeit deposit (hotel keeps)
+                        </button>
+                        {canRefundDeposit ? (
+                          <button
+                            type="button"
+                            disabled={pending}
+                            onClick={() =>
+                              run(
+                                () =>
+                                  voidDialog === 'cancel'
+                                    ? cancelReservation(reservation.id, {
+                                        depositDisposition: 'refund' as DepositDisposition,
+                                      })
+                                    : markNoShow(reservation.id, {
+                                        depositDisposition: 'refund' as DepositDisposition,
+                                      }),
+                                () => setVoidDialog(null),
+                              )
+                            }
+                            className="rounded-xl bg-[#3C216C] py-2.5 text-sm font-semibold text-white"
+                          >
+                            Refund deposit
+                          </button>
+                        ) : (
+                          <p className="text-center text-xs text-amber-800">
+                            Refunds require the property owner.
+                          </p>
+                        )}
+                        <button
+                          type="button"
+                          disabled={pending}
+                          onClick={() => setVoidDialog(null)}
+                          className="text-sm font-medium text-muted-foreground"
+                        >
+                          Back
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {!voidDialog && canNoShow ? (
                     <button
                       type="button"
                       disabled={pending}
-                      onClick={() => run(() => markNoShow(reservation.id))}
+                      onClick={() => {
+                        if (hasCollectedDeposit) {
+                          setVoidDialog('no_show')
+                          return
+                        }
+                        run(() => markNoShow(reservation.id))
+                      }}
                       className="flex w-full items-center justify-center gap-2 rounded-xl bg-amber-50 py-3 text-sm font-semibold text-amber-800 shadow-elevation-1"
                     >
                       <UserX className="h-4 w-4" />
                       Mark no-show
                     </button>
                   ) : null}
-                  {canCancel ? (
+                  {!voidDialog && canCancel ? (
                     <button
                       type="button"
                       disabled={pending}
                       onClick={() => {
+                        if (hasCollectedDeposit) {
+                          setVoidDialog('cancel')
+                          return
+                        }
                         if (
                           !window.confirm(
                             'Cancel this reservation? This cannot be undone.',

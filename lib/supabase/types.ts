@@ -541,6 +541,27 @@ export type Database = {
           nightly_rate: number | null
           monthly_rate: number | null
           total_amount: number | null
+          payment_status:
+            | 'unpaid'
+            | 'deposit_paid'
+            | 'pending'
+            | 'partial'
+            | 'paid'
+            | 'overdue'
+            | 'refunded'
+            | 'complimentary'
+            | null
+          amount_paid: number | null
+          deposit_amount: number | null
+          payment_method:
+            | 'mtn_momo'
+            | 'telecel_cash'
+            | 'airteltigo'
+            | 'visa'
+            | 'mastercard'
+            | 'cash'
+            | 'bank_transfer'
+            | null
           ical_uid: string | null
           ical_feed_id: string | null
           created_by: string | null
@@ -560,6 +581,27 @@ export type Database = {
           nightly_rate?: number | null
           monthly_rate?: number | null
           total_amount?: number | null
+          payment_status?:
+            | 'unpaid'
+            | 'deposit_paid'
+            | 'pending'
+            | 'partial'
+            | 'paid'
+            | 'overdue'
+            | 'refunded'
+            | 'complimentary'
+            | null
+          amount_paid?: number | null
+          deposit_amount?: number | null
+          payment_method?:
+            | 'mtn_momo'
+            | 'telecel_cash'
+            | 'airteltigo'
+            | 'visa'
+            | 'mastercard'
+            | 'cash'
+            | 'bank_transfer'
+            | null
           ical_uid?: string | null
           ical_feed_id?: string | null
           created_by?: string | null
@@ -579,6 +621,27 @@ export type Database = {
           nightly_rate?: number | null
           monthly_rate?: number | null
           total_amount?: number | null
+          payment_status?:
+            | 'unpaid'
+            | 'deposit_paid'
+            | 'pending'
+            | 'partial'
+            | 'paid'
+            | 'overdue'
+            | 'refunded'
+            | 'complimentary'
+            | null
+          amount_paid?: number | null
+          deposit_amount?: number | null
+          payment_method?:
+            | 'mtn_momo'
+            | 'telecel_cash'
+            | 'airteltigo'
+            | 'visa'
+            | 'mastercard'
+            | 'cash'
+            | 'bank_transfer'
+            | null
           ical_uid?: string | null
           ical_feed_id?: string | null
           created_by?: string | null
@@ -1512,6 +1575,7 @@ export type Database = {
           id: string
           hotel_id: string
           invoice_id: string | null
+          reservation_id: string | null
           guest_id: string | null
           provider: 'paystack' | 'hubtel' | 'manual'
           provider_reference: string | null
@@ -1527,6 +1591,7 @@ export type Database = {
           id?: string
           hotel_id: string
           invoice_id?: string | null
+          reservation_id?: string | null
           guest_id?: string | null
           provider: 'paystack' | 'hubtel' | 'manual'
           provider_reference?: string | null
@@ -1542,6 +1607,7 @@ export type Database = {
           id?: string
           hotel_id?: string
           invoice_id?: string | null
+          reservation_id?: string | null
           guest_id?: string | null
           provider?: 'paystack' | 'hubtel' | 'manual'
           provider_reference?: string | null

@@ -1,6 +1,6 @@
 'use client'
 
-import { TrendingUp, Users, Percent, Banknote } from 'lucide-react'
+import { TrendingUp, Users, Percent, Banknote, AlertCircle } from 'lucide-react'
 import { DataEmptyState } from '@/components/dashboard/data-empty-state'
 import type { KPIMetrics } from '@/types'
 
@@ -59,10 +59,25 @@ export function KPICards({ metrics, showRevenue = true }: KPICardsProps) {
       tint: 'bg-[#D4A62E]/10',
       iconBg: 'bg-[#D4A62E]/15 text-[#B88D24] ring-[#D4A62E]/25',
     },
+    {
+      icon: AlertCircle,
+      label: 'Outstanding',
+      value: `₵${kpiMetrics.outstandingBalance.toLocaleString()}`,
+      subtext:
+        kpiMetrics.outstandingCount > 0
+          ? `${kpiMetrics.outstandingCount} open balance${kpiMetrics.outstandingCount === 1 ? '' : 's'}`
+          : 'All settled',
+      trend: kpiMetrics.outstandingBalance > 0 ? 'neutral' : 'up',
+      tint: kpiMetrics.outstandingBalance > 0 ? 'bg-amber-500/10' : 'bg-emerald-500/10',
+      iconBg:
+        kpiMetrics.outstandingBalance > 0
+          ? 'bg-amber-500/15 text-amber-800 ring-amber-500/20'
+          : 'bg-emerald-500/15 text-emerald-700 ring-emerald-500/20',
+    },
   ]
 
   return (
-    <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
       {cards.map((card, idx) => {
         const Icon = card.icon
         return (

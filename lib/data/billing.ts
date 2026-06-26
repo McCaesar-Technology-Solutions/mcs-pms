@@ -1,5 +1,7 @@
 import { getProfile } from '@/lib/auth/get-profile'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { reconcileHotelBillingState } from '@/lib/billing/reconcile-hotel-billing'
 import { stayNights } from '@/lib/stays/helpers'
 import type { DbInvoice } from '@/types'
 
@@ -25,6 +27,8 @@ export async function getInvoicesData(limit?: number): Promise<InvoiceWithRoom[]
   if (!profile?.hotel_id) return []
 
   const supabase = await createClient()
+  await reconcileHotelBillingState(createAdminClient(), profile.hotel_id)
+
   const { data } = await supabase
     .from('invoices')
     .select('*, reservations(check_in, check_out, rooms(number))')

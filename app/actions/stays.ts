@@ -22,6 +22,11 @@ import {
   prepareCheckoutTaxesWithFolio,
 } from '@/lib/folio/rollup'
 import { writeAuditLog, logRoomStatusChange } from '@/lib/audit/log'
+import {
+  buildCheckoutInvoicePaymentState,
+  finalizeReservationCheckoutPayment,
+  refreshPreCheckoutPaymentStatus,
+} from '@/lib/billing/reservation-payment'
 import type { PaymentMethod, ReservationChannel } from '@/types'
 import { z } from 'zod'
 
@@ -458,6 +463,7 @@ export async function checkOutStay(input: {
     monthly_rate: number | null
     rate_type: string | null
     total_amount: number | null
+    amount_paid: number | null
     check_in: string
     check_out: string
     status: string | null
@@ -530,6 +536,11 @@ export async function checkOutStay(input: {
     const dueAt = paidNow
       ? now
       : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+    const checkoutPayment = buildCheckoutInvoicePaymentState({
+      invoiceTotal: taxes.total,
+      priorDeposit: 0,
+      paidNow,
+    })
 
     const { data: newRes } = await admin
       .from('reservations')
@@ -544,6 +555,9 @@ export async function checkOutStay(input: {
         channel: 'walk_in',
         nightly_rate: nightlyRate,
         total_amount: taxes.total,
+        amount_paid: checkoutPayment.amountPaid,
+        payment_status: checkoutPayment.paymentStatus,
+        payment_method: input.paymentMethod,
         created_by: userId,
       })
       .select('id')
@@ -566,11 +580,11 @@ export async function checkOutStay(input: {
         elevy_amount: taxes.elevy,
         total_amount: taxes.total,
         payment_method: input.paymentMethod,
-        payment_status: paidNow ? 'paid' : 'pending',
-        amount_paid: paidNow ? taxes.total : 0,
+        payment_status: checkoutPayment.paymentStatus,
+        amount_paid: checkoutPayment.amountPaid,
         issued_at: now,
         due_at: dueAt,
-        paid_at: paidNow ? now : null,
+        paid_at: checkoutPayment.paymentStatus === 'paid' ? now : null,
       })
       .select('id')
       .single()
@@ -581,6 +595,20 @@ export async function checkOutStay(input: {
         folioCharges.map((c) => c.id),
         invoiceRow.id,
       )
+    }
+
+    if (invoiceRow?.id && newRes?.id) {
+      await finalizeReservationCheckoutPayment(admin, {
+        reservationId: newRes.id,
+        invoiceId: invoiceRow.id,
+        hotelId: profile.hotel_id,
+        guestId: guest.id,
+        invoiceTotal: taxes.total,
+        priorDeposit: 0,
+        paidNow,
+        paymentMethod: input.paymentMethod,
+        now,
+      })
     }
 
     await admin
@@ -689,6 +717,12 @@ export async function checkOutStay(input: {
   const dueAt = paidNow
     ? now
     : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+  const priorDeposit = Number(reservation.amount_paid ?? 0)
+  const checkoutPayment = buildCheckoutInvoicePaymentState({
+    invoiceTotal: taxes.total,
+    priorDeposit,
+    paidNow,
+  })
 
   const { data: existingInvoice } = await admin
     .from('invoices')
@@ -714,11 +748,11 @@ export async function checkOutStay(input: {
         elevy_amount: taxes.elevy,
         total_amount: taxes.total,
         payment_method: input.paymentMethod,
-        payment_status: paidNow ? 'paid' : 'pending',
-        amount_paid: paidNow ? taxes.total : 0,
+        payment_status: checkoutPayment.paymentStatus,
+        amount_paid: checkoutPayment.amountPaid,
         issued_at: now,
         due_at: dueAt,
-        paid_at: paidNow ? now : null,
+        paid_at: checkoutPayment.paymentStatus === 'paid' ? now : null,
       })
       .select('id')
       .single()
@@ -730,6 +764,20 @@ export async function checkOutStay(input: {
         invoiceRow.id,
       )
     }
+
+    if (invoiceRow?.id) {
+      await finalizeReservationCheckoutPayment(admin, {
+        reservationId: reservation.id,
+        invoiceId: invoiceRow.id,
+        hotelId: reservation.hotel_id,
+        guestId: reservation.guest_id,
+        invoiceTotal: taxes.total,
+        priorDeposit,
+        paidNow,
+        paymentMethod: input.paymentMethod,
+        now,
+      })
+    }
   }
 
   await admin
@@ -738,6 +786,13 @@ export async function checkOutStay(input: {
       status: 'checked_out',
       check_out: effectiveCheckOut,
       total_amount: taxes.total,
+      ...(existingInvoice
+        ? {}
+        : {
+            amount_paid: checkoutPayment.amountPaid,
+            payment_status: checkoutPayment.paymentStatus,
+            payment_method: input.paymentMethod,
+          }),
     })
     .eq('id', reservation.id)
 
@@ -886,6 +941,8 @@ export async function extendStay(
     .update({ check_out: newCheckOut, total_amount: total })
     .eq('id', reservationId)
 
+  await refreshPreCheckoutPaymentStatus(admin, reservationId)
+
   if (reservation.guest_id) {
     await admin
       .from('guests')
@@ -1026,7 +1083,10 @@ export async function moveStayRoom(
   return { success: true }
 }
 
-export async function markNoShow(reservationId: string): Promise<StayActionResult> {
+export async function markNoShow(
+  reservationId: string,
+  options?: { depositDisposition?: import('@/lib/billing/deposit-disposition').DepositDisposition },
+): Promise<StayActionResult> {
   const { supabase, profile } = await requireManager()
   if (!profile || !['owner', 'manager', 'receptionist'].includes(profile.role)) {
     return { success: false, error: 'Not authorized.' }
@@ -1034,13 +1094,52 @@ export async function markNoShow(reservationId: string): Promise<StayActionResul
 
   const { data: reservation } = await supabase
     .from('reservations')
-    .select('id, status, check_in, guest_name, guest_id, hotel_id')
+    .select('id, status, check_in, guest_name, guest_id, hotel_id, amount_paid')
     .eq('id', reservationId)
     .maybeSingle()
 
   if (!reservation) return { success: false, error: 'Reservation not found.' }
   if (reservation.status !== 'confirmed') {
     return { success: false, error: 'Only confirmed reservations can be marked as no-show.' }
+  }
+
+  const admin = createAdminClient()
+  const { validateReservationCancellation } = await import('@/lib/reservations/cancel-eligibility')
+  const eligibility = await validateReservationCancellation(admin, {
+    id: reservationId,
+    status: reservation.status,
+    guest_id: reservation.guest_id,
+    hotel_id: reservation.hotel_id,
+  })
+  if (!eligibility.ok) return { success: false, error: eligibility.error }
+
+  const {
+    applyDepositDisposition,
+    requiresDepositDisposition,
+    validateDepositDispositionInput,
+  } = await import('@/lib/billing/deposit-disposition')
+
+  const amountPaid = Number(reservation.amount_paid ?? 0)
+  const depositCheck = validateDepositDispositionInput(
+    amountPaid,
+    options?.depositDisposition,
+    profile.role,
+  )
+  if (!depositCheck.ok) return { success: false, error: depositCheck.error }
+
+  if (requiresDepositDisposition(amountPaid) && options?.depositDisposition) {
+    const applied = await applyDepositDisposition(admin, {
+      hotelId: reservation.hotel_id,
+      reservationId,
+      guestId: reservation.guest_id,
+      guestName: reservation.guest_name,
+      amountPaid,
+      disposition: options.depositDisposition,
+      reason: 'no_show',
+      actorId: profile.id,
+      actorName: profile.name ?? 'Staff',
+    })
+    if (!applied.ok) return { success: false, error: applied.error }
   }
 
   const { error } = await supabase

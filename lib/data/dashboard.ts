@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { getProfile } from '@/lib/auth/get-profile'
 import { getOccupancySpans, type OccupancySpan } from '@/lib/data/occupancy'
 import {
@@ -6,6 +7,10 @@ import {
   type OccupancyTimelineBar,
 } from '@/lib/data/occupancy-timeline'
 import { calculateStayTotal } from '@/lib/pricing/stay-totals'
+import { reconcileHotelBillingState } from '@/lib/billing/reconcile-hotel-billing'
+import { computeHotelOutstandingBalance } from '@/lib/billing/outstanding-balance'
+import { reservationBalanceDue } from '@/lib/billing/reservation-payment'
+import { folioSubtotalForStay, loadFolioSubtotalMap } from '@/lib/folio/batch-totals'
 import type {
   Availability,
   DbInvoice,
@@ -14,6 +19,7 @@ import type {
   DbRoomStatus,
   KPIMetrics,
   Reservation,
+  ReservationPaymentStatus,
   Room,
   RoomStatus,
 } from '@/types'
@@ -97,7 +103,7 @@ interface ReservationRow extends DbReservation {
   guests?: { email: string | null; phone: string | null } | null
 }
 
-function mapReservation(row: ReservationRow): Reservation {
+function mapReservation(row: ReservationRow, folioMap: Map<string, number>): Reservation {
   const nights = nightsBetween(row.check_in, row.check_out)
   const rateType = (row.rate_type ?? 'nightly') as Reservation['rateType']
   const nightlyRate = Number(row.nightly_rate ?? 0)
@@ -106,7 +112,15 @@ function mapReservation(row: ReservationRow): Reservation {
     row.total_amount ??
     calculateStayTotal(rateType, row.check_in, row.check_out, nightlyRate, monthlyRate)
   const status = (row.status ?? 'confirmed') as Reservation['status']
-  const paidAmount = status === 'checked_in' || status === 'checked_out' ? total : 0
+  const paidAmount = Number(row.amount_paid ?? 0)
+  const paymentStatus = (row.payment_status ?? 'unpaid') as ReservationPaymentStatus
+  const depositAmount = Number(row.deposit_amount ?? 0)
+  const folioSubtotal =
+    status === 'checked_in'
+      ? folioSubtotalForStay(folioMap, row.guest_id, row.id)
+      : 0
+  const estimatedTotal = total + folioSubtotal
+  const balanceDue = reservationBalanceDue(estimatedTotal, paidAmount)
   const channel = (row.channel ?? 'direct') as Reservation['channel']
 
   return {
@@ -125,6 +139,12 @@ function mapReservation(row: ReservationRow): Reservation {
     numberOfNights: nights,
     totalPrice: total,
     paidAmount,
+    folioSubtotal,
+    estimatedTotal,
+    balanceDue,
+    paymentStatus,
+    depositAmount,
+    paymentMethod: row.payment_method ?? null,
     currency: 'GHS',
     source: CHANNEL_SOURCE_MAP[channel] ?? 'other',
     channel,
@@ -164,6 +184,8 @@ function computeMetrics(
   const totalBookings = activeReservations.length
   const totalGuests = new Set(activeReservations.map((r) => r.guestId).filter(Boolean)).size
 
+  const outstanding = computeHotelOutstandingBalance(reservations, invoices)
+
   return {
     totalRevenue,
     occupancyRate,
@@ -171,6 +193,8 @@ function computeMetrics(
     totalBookings,
     totalGuests,
     reviParMetric: totalRooms > 0 ? Math.round(totalRevenue / totalRooms) : 0,
+    outstandingBalance: outstanding.total,
+    outstandingCount: outstanding.reservationCount + outstanding.invoiceOnlyCount,
   }
 }
 
@@ -210,6 +234,17 @@ function computeAvailability(dbRooms: DbRoom[], reservations: Reservation[]): Av
   return out
 }
 
+const EMPTY_METRICS: KPIMetrics = {
+  totalRevenue: 0,
+  occupancyRate: 0,
+  averageNightlyRate: 0,
+  totalBookings: 0,
+  totalGuests: 0,
+  reviParMetric: 0,
+  outstandingBalance: 0,
+  outstandingCount: 0,
+}
+
 export async function getDashboardData(): Promise<DashboardData> {
   const empty: DashboardData = {
     hotelId: null,
@@ -217,14 +252,7 @@ export async function getDashboardData(): Promise<DashboardData> {
     dbRooms: [],
     reservations: [],
     invoices: [],
-    metrics: {
-      totalRevenue: 0,
-      occupancyRate: 0,
-      averageNightlyRate: 0,
-      totalBookings: 0,
-      totalGuests: 0,
-      reviParMetric: 0,
-    },
+    metrics: EMPTY_METRICS,
     availability: [],
     roomOptions: [],
     occupancySpans: [],
@@ -236,7 +264,10 @@ export async function getDashboardData(): Promise<DashboardData> {
   if (!profile?.hotel_id) return empty
 
   const supabase = await createClient()
+  const admin = createAdminClient()
   const hotelId = profile.hotel_id
+
+  await reconcileHotelBillingState(admin, hotelId)
 
   const [roomsRes, reservationsRes, invoicesRes, occupancySpans, timeline] = await Promise.all([
     supabase
@@ -255,9 +286,12 @@ export async function getDashboardData(): Promise<DashboardData> {
   ])
 
   const dbRooms = (roomsRes.data ?? []) as DbRoom[]
-  const reservations = ((reservationsRes.data ?? []) as unknown as ReservationRow[]).map(
-    mapReservation,
-  )
+  const reservationRows = (reservationsRes.data ?? []) as unknown as ReservationRow[]
+  const inHouseGuestIds = reservationRows
+    .filter((r) => r.status === 'checked_in' && r.guest_id)
+    .map((r) => r.guest_id as string)
+  const folioMap = await loadFolioSubtotalMap(admin, hotelId, inHouseGuestIds)
+  const reservations = reservationRows.map((row) => mapReservation(row, folioMap))
   const invoices = (invoicesRes.data ?? []) as DbInvoice[]
 
   return {

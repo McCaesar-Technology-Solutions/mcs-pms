@@ -12,6 +12,7 @@ import {
   invoiceBalanceDue,
 } from '@/lib/billing/invoice-payments'
 import { applyInvoicePaymentRecord } from '@/lib/billing/apply-payment'
+import { syncReservationPaymentFromInvoice } from '@/lib/billing/reservation-payment'
 import { writeAuditLog } from '@/lib/audit/log'
 import type { PaymentMethod } from '@/types'
 
@@ -86,6 +87,9 @@ function revalidateBilling() {
   revalidatePath('/owner/billing')
   revalidatePath('/owner/gra-reports')
   revalidatePath('/owner/dashboard')
+  revalidatePath('/owner/reservations')
+  revalidatePath('/manager/reservations')
+  revalidatePath('/receptionist/reservations')
 }
 
 function dueDateISO(daysFromNow: number): string {
@@ -213,7 +217,7 @@ export async function refundInvoicePayment(input: unknown): Promise<InvoiceActio
   const admin = createAdminClient()
   const { data: invoice } = await admin
     .from('invoices')
-    .select('id, guest_id, guest_name, total_amount, amount_paid, payment_status')
+    .select('id, guest_id, guest_name, reservation_id, total_amount, amount_paid, payment_status')
     .eq('id', parsed.data.invoiceId)
     .eq('hotel_id', profile.hotel_id)
     .maybeSingle()
@@ -261,6 +265,10 @@ export async function refundInvoicePayment(input: unknown): Promise<InvoiceActio
     .eq('id', parsed.data.invoiceId)
 
   if (error) return { success: false, error: error.message }
+
+  if (invoice.reservation_id) {
+    await syncReservationPaymentFromInvoice(admin, invoice.reservation_id)
+  }
 
   void writeAuditLog({
     hotelId: profile.hotel_id,
