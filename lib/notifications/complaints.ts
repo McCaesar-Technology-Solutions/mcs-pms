@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { notifyPhones } from '@/lib/notifications/send'
 import { appUrl } from '@/lib/notifications/app-url'
+import { smsLine, smsRoom, smsTruncate, smsUrl } from '@/lib/notifications/sms-format'
 import { formatComplaintVisit } from '@/lib/complaints/visit'
 import { technicianPhone } from '@/lib/notifications/recipients'
 import { notifyManagers } from '@/lib/notifications/manager-notify'
@@ -59,8 +60,7 @@ async function loadComplaintContext(complaintId: string): Promise<ComplaintNotif
 
 function refLine(ctx: ComplaintNotifyContext): string {
   const cat = CATEGORY_LABELS[ctx.category] ?? ctx.category
-  const room = ctx.roomNumber ? `Room ${ctx.roomNumber}` : 'Room —'
-  return `${room} · ${cat}`
+  return `${smsRoom(ctx.roomNumber)}, ${cat}`
 }
 
 /** Guest filed a new complaint — alert front desk / manager. */
@@ -72,13 +72,14 @@ export async function notifyComplaintSubmitted(complaintId: string): Promise<voi
   const urgent = ctx.priority === 'urgent' ? ' [URGENT]' : ''
   const guest = ctx.guestName ? `${ctx.guestName}: ` : ''
   const dashboardUrl = appUrl('/manager/complaints')
-  const body = [
-    `MOJO: New guest complaint${urgent}`,
+  const body = smsLine(
+    'MOJO:',
+    `Complaint${urgent}`,
     refLine(ctx),
-    `${guest}${ctx.description.slice(0, 120)}`,
-    `Ref ${ref}`,
-    dashboardUrl,
-  ].join('\n')
+    smsTruncate(`${guest}${ctx.description}`, 80),
+    `Ref ${ref}.`,
+    smsUrl('/manager/complaints'),
+  )
 
   await notifyManagers({
     hotelId: ctx.hotelId,
@@ -104,12 +105,13 @@ export async function notifyGuestComplaintReceived(complaintId: string): Promise
   if (!ctx?.guestPhone) return
 
   const ref = complaintId.slice(0, 8).toUpperCase()
-  const body = [
-    'MOJO: Complaint received',
+  const body = smsLine(
+    'MOJO:',
+    'Complaint received',
     refLine(ctx),
-    `Ref ${ref}. Our team will follow up shortly.`,
-    appUrl('/guest'),
-  ].join('\n')
+    `Ref ${ref}.`,
+    smsUrl('/guest'),
+  )
 
   await notifyPhones([ctx.guestPhone], body, {
     hotelId: ctx.hotelId,
@@ -136,12 +138,13 @@ export async function notifyComplaintAssigned(
   const phone = await technicianPhone(technicianId)
   if (!ctx || !phone) return
 
-  const body = [
-    'MOJO: New maintenance assignment',
+  const body = smsLine(
+    'MOJO:',
+    'New job',
     refLine(ctx),
-    ctx.description.slice(0, 140),
-    appUrl('/technician/tasks'),
-  ].join('\n')
+    smsTruncate(ctx.description, 80),
+    smsUrl('/technician/tasks'),
+  )
 
   await notifyPhones([phone], body, {
     hotelId: ctx.hotelId,
@@ -156,12 +159,12 @@ export async function notifyComplaintCompletionRequested(complaintId: string): P
   if (!ctx) return
 
   const dashboardUrl = appUrl('/manager/complaints')
-  const body = [
-    'MOJO: Job ready for approval',
+  const body = smsLine(
+    'MOJO:',
+    'Job ready for approval',
     refLine(ctx),
-    'Technician marked work complete. Review in the dashboard.',
-    dashboardUrl,
-  ].join('\n')
+    smsUrl('/manager/complaints'),
+  )
 
   await notifyManagers({
     hotelId: ctx.hotelId,
@@ -177,12 +180,13 @@ export async function notifyComplaintCompletionRequested(complaintId: string): P
   })
 
   if (ctx.guestPhone) {
-    const body = [
-      'MOJO: Maintenance update',
+    const body = smsLine(
+      'MOJO:',
+      'Work complete',
       refLine(ctx),
-      'Work is complete. Please confirm in your guest portal.',
-      appUrl('/guest'),
-    ].join('\n')
+      'Confirm in portal:',
+      smsUrl('/guest'),
+    )
 
     await notifyPhones([ctx.guestPhone], body, {
       hotelId: ctx.hotelId,
@@ -204,13 +208,13 @@ export async function notifyComplaintVisitScheduled(
   const appointment = when ? `Appointment: ${when}` : 'A visit time was set.'
 
   if (ctx.guestPhone) {
-    const body = [
-      'MOJO: Maintenance visit confirmed',
+    const body = smsLine(
+      'MOJO:',
+      'Visit confirmed',
       refLine(ctx),
-      appointment,
-      'Your technician agreed this time with you.',
-      appUrl('/guest'),
-    ].join('\n')
+      when ?? '',
+      smsUrl('/guest'),
+    )
 
     await notifyPhones([ctx.guestPhone], body, {
       hotelId: ctx.hotelId,
@@ -229,12 +233,13 @@ export async function notifyComplaintVisitScheduled(
   }
 
   const dashboardUrl = appUrl('/manager/complaints')
-  const body = [
-    'MOJO: Maintenance visit scheduled',
+  const body = smsLine(
+    'MOJO:',
+    'Visit scheduled',
     refLine(ctx),
-    appointment,
-    dashboardUrl,
-  ].join('\n')
+    when ?? '',
+    smsUrl('/manager/complaints'),
+  )
 
   await notifyManagers({
     hotelId: ctx.hotelId,
@@ -257,12 +262,12 @@ export async function notifyGuestApprovedCompletion(complaintId: string): Promis
 
   const guest = ctx.guestName ? `${ctx.guestName} confirmed` : 'Guest confirmed'
   const dashboardUrl = appUrl('/manager/complaints')
-  const body = [
-    'MOJO: Guest sign-off received',
+  const body = smsLine(
+    'MOJO:',
+    'Guest sign-off',
     refLine(ctx),
-    `${guest} the work is complete. Complaint resolved.`,
-    dashboardUrl,
-  ].join('\n')
+    smsUrl('/manager/complaints'),
+  )
 
   await notifyManagers({
     hotelId: ctx.hotelId,
@@ -293,13 +298,13 @@ export async function notifyComplaintInvoiceSubmitted(
     maximumFractionDigits: 2,
   })
   const dashboardUrl = appUrl('/manager/complaints')
-  const body = [
-    `MOJO: Technician invoice${tech}`,
+  const body = smsLine(
+    'MOJO:',
+    `Invoice${tech}`,
     refLine(ctx),
-    `Total: GHS ${total}`,
-    'Awaiting your approval to start work.',
-    dashboardUrl,
-  ].join('\n')
+    `GHS ${total}.`,
+    smsUrl('/manager/complaints'),
+  )
 
   await notifyManagers({
     hotelId: ctx.hotelId,
@@ -329,12 +334,12 @@ export async function notifyComplaintEstimateApproved(
   const phone = await technicianPhone(technicianId)
   if (!ctx || !phone) return
 
-  const body = [
-    'MOJO: Invoice approved',
+  const body = smsLine(
+    'MOJO:',
+    'Invoice approved',
     refLine(ctx),
-    'You can now start the job.',
-    appUrl('/technician/tasks'),
-  ].join('\n')
+    smsUrl('/technician/tasks'),
+  )
 
   await notifyPhones([phone], body, {
     hotelId: ctx.hotelId,
@@ -354,12 +359,13 @@ export async function notifyComplaintRejected(
   const phone = await technicianPhone(ctx.assignedTo)
   if (!phone) return
 
-  const body = [
-    'MOJO: Job sent back',
+  const body = smsLine(
+    'MOJO:',
+    'Job sent back',
     refLine(ctx),
-    rejectionNote.slice(0, 160),
-    appUrl('/technician/tasks'),
-  ].join('\n')
+    smsTruncate(rejectionNote, 80),
+    smsUrl('/technician/tasks'),
+  )
 
   await notifyPhones([phone], body, {
     hotelId: ctx.hotelId,
@@ -383,12 +389,13 @@ export async function notifyComplaintGuestMessage(
   await notifyManagers({
     hotelId: ctx.hotelId,
     templateKey: 'complaint_guest_message',
-    smsBody: [
-      'MOJO: Guest message',
+    smsBody: smsLine(
+      'MOJO:',
+      'Guest message',
       refLine(ctx),
-      `${guestLabel}${preview}`,
-      chatUrl,
-    ].join('\n'),
+      smsTruncate(`${guestLabel}${preview}`, 80),
+      smsUrl('/manager/complaints'),
+    ),
     email: {
       subject: `Guest message — ${refLine(ctx)}`,
       preview: `${ctx.guestName ?? 'A guest'} sent a message in the guest portal.`,
@@ -412,12 +419,13 @@ export async function notifyComplaintStaffMessageToGuest(
   if (!ctx) return
 
   const preview = messagePreview.slice(0, 120)
-  const smsBody = [
-    'MOJO: Message from our team',
+  const smsBody = smsLine(
+    'MOJO:',
+    'Team message',
     refLine(ctx),
-    preview,
-    appUrl('/guest'),
-  ].join('\n')
+    smsTruncate(preview, 80),
+    smsUrl('/guest'),
+  )
 
   if (ctx.guestPhone) {
     await notifyPhones([ctx.guestPhone], smsBody, {

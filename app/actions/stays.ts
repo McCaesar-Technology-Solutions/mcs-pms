@@ -307,7 +307,7 @@ export async function checkInStay(
       guestName,
       roomNumber: roomRow?.number ?? null,
       checkOut: reservation.check_out,
-      loginUrl,
+      portalToken: token,
     }).catch(() => undefined),
   )
 

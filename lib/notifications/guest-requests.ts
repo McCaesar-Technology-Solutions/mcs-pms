@@ -1,8 +1,8 @@
-import { createAdminClient } from '@/lib/supabase/admin'
 import { notifyManagers } from '@/lib/notifications/manager-notify'
 import { notifyPhones } from '@/lib/notifications/send'
 import { notifyGuestRequestStatusEmail } from '@/lib/notifications/guest-email'
 import { appUrl } from '@/lib/notifications/app-url'
+import { smsLine, smsRoom, smsTruncate, smsUrl } from '@/lib/notifications/sms-format'
 
 const REQUEST_LABELS: Record<string, string> = {
   housekeeping: 'Housekeeping',
@@ -12,12 +12,13 @@ const REQUEST_LABELS: Record<string, string> = {
 }
 
 const STATUS_SMS: Record<string, string> = {
-  acknowledged: 'We have received your request and will follow up shortly.',
-  completed: 'Your request has been approved.',
-  declined: 'We could not approve this request. Please contact the front desk.',
+  acknowledged: 'Received, we will follow up.',
+  completed: 'Approved.',
+  declined: 'Not approved — see front desk.',
 }
 
 export async function notifyGuestRequestCreated(requestId: string): Promise<void> {
+  const { createAdminClient } = await import('@/lib/supabase/admin')
   const admin = createAdminClient()
   const { data } = await admin
     .from('guest_requests')
@@ -37,18 +38,18 @@ export async function notifyGuestRequestCreated(requestId: string): Promise<void
       : null
 
   const label = REQUEST_LABELS[data.request_type] ?? 'Guest request'
-  const roomPart = roomNumber ? ` · Room ${roomNumber}` : ''
-  const notePart = data.note?.trim() ? ` — ${data.note.trim()}` : ''
+  const roomPart = roomNumber ? smsRoom(roomNumber) : null
+  const notePart = data.note?.trim() ? smsTruncate(data.note.trim(), 50) : null
 
   await notifyManagers({
     hotelId: data.hotel_id,
     templateKey: 'guest_request',
-    smsBody: `${label} from ${guestName}${roomPart}${notePart}. Open the dashboard to respond.`,
+    smsBody: smsLine(label, 'from', guestName, roomPart, notePart ? `- ${notePart}` : null, smsUrl('/manager/dashboard')),
     email: {
       subject: `${label} — ${guestName}`,
       preview: `${guestName} submitted a ${label.toLowerCase()} request.`,
       lines: [
-        `${guestName}${roomPart} submitted a ${label.toLowerCase()} request.`,
+        `${guestName}${roomNumber ? ` · Room ${roomNumber}` : ''} submitted a ${label.toLowerCase()} request.`,
         ...(data.note?.trim() ? [data.note.trim()] : []),
       ],
       actionUrl: appUrl('/manager/dashboard'),
@@ -62,6 +63,7 @@ export async function notifyGuestRequestStatusChanged(
   status: 'acknowledged' | 'completed' | 'declined',
   detail?: string,
 ): Promise<void> {
+  const { createAdminClient } = await import('@/lib/supabase/admin')
   const admin = createAdminClient()
   const { data } = await admin
     .from('guest_requests')
@@ -73,16 +75,17 @@ export async function notifyGuestRequestStatusChanged(
 
   const guest = data.guests as { name?: string; phone?: string | null; email?: string | null } | null
   const label = REQUEST_LABELS[data.request_type] ?? 'Request'
-  const statusLine = STATUS_SMS[status] ?? 'Your request was updated.'
+  const statusLine = STATUS_SMS[status] ?? 'Request updated.'
   const detailLine = detail?.trim()
 
   if (guest?.phone) {
-    const body = [
-      `MOJO: ${label} update`,
+    const body = smsLine(
+      'MOJO:',
+      `${label}:`,
       statusLine,
-      ...(detailLine ? [detailLine] : []),
-      appUrl('/guest'),
-    ].join('\n')
+      detailLine ? smsTruncate(detailLine, 60) : null,
+      smsUrl('/guest'),
+    )
 
     await notifyPhones([guest.phone], body, {
       hotelId: data.hotel_id,

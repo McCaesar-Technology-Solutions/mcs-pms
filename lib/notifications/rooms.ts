@@ -2,6 +2,7 @@ import { notifyPhones } from '@/lib/notifications/send'
 import { notifyEmails } from '@/lib/notifications/send-email'
 import { ownerEmails, ownerPhones } from '@/lib/notifications/recipients'
 import { appUrl } from '@/lib/notifications/app-url'
+import { smsLine, smsRoom, smsUrl } from '@/lib/notifications/sms-format'
 import type { StaffEmailContent } from '@/lib/notifications/email-template'
 
 /** SMS and email to the property owner (via hotels.owner_id). */
@@ -41,13 +42,13 @@ export async function notifyOwnerRoomCreated(input: {
   nightlyRate: number
   categoryName?: string | null
 }): Promise<void> {
-  const categoryPart = input.categoryName ? ` · ${input.categoryName}` : ''
-  const smsBody = [
-    'MOJO: New room added',
-    `Room ${input.roomNumber} (floor ${input.floor})${categoryPart}`,
-    `Added by ${input.managerName}`,
-    appUrl('/owner/rooms'),
-  ].join('\n')
+  const categoryPart = input.categoryName ? `, ${input.categoryName}` : ''
+  const smsBody = smsLine(
+    'MOJO:',
+    `New ${smsRoom(input.roomNumber)} fl ${input.floor}${categoryPart}.`,
+    `By ${input.managerName}.`,
+    smsUrl('/owner/rooms'),
+  )
 
   const email: StaffEmailContent = {
     subject: `New room ${input.roomNumber} added`,

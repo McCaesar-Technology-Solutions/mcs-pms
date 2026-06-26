@@ -33,13 +33,26 @@ function describeSmsDelivery(results: import('@/lib/notifications/send').SendRes
 } {
   const sms = results.find((r) => r.channel === 'sms')
   const whatsapp = results.find((r) => r.channel === 'whatsapp')
-  if (whatsapp?.success) {
-    return { sent: true, channel: 'whatsapp', detail: 'Invite sent via WhatsApp.' }
-  }
+
+  // Technician invites are SMS-first — don't report WhatsApp alone as success if SMS failed.
   if (sms?.success) {
-    return { sent: true, channel: 'sms', detail: 'Invite sent via SMS.' }
+    return {
+      sent: true,
+      channel: 'sms',
+      detail:
+        'SMS submitted to the network. If nothing arrives in a few minutes, copy the link below and send it yourself.',
+    }
   }
-  const err = whatsapp?.error ?? sms?.error ?? 'Could not send the invite message.'
+  if (whatsapp?.success && !sms) {
+    return {
+      sent: true,
+      channel: 'whatsapp',
+      detail:
+        'WhatsApp message submitted. If nothing arrives, copy the link below and send it yourself.',
+    }
+  }
+
+  const err = sms?.error ?? whatsapp?.error ?? 'Could not send the invite message.'
   return { sent: false, channel: 'none', detail: err }
 }
 
@@ -169,7 +182,11 @@ export async function inviteStaff(
     })
 
     const delivery = emailResult.success
-      ? { sent: true, channel: 'email' as const, detail: `Invite email sent to ${normalizedEmail}.` }
+      ? {
+          sent: true,
+          channel: 'email' as const,
+          detail: `Invite email submitted to ${normalizedEmail}. If it doesn't arrive, check spam or copy the link below.`,
+        }
       : {
           sent: false,
           channel: 'none' as const,

@@ -1,15 +1,7 @@
-import { createAdminClient } from '@/lib/supabase/admin'
 import { notifyPhones } from '@/lib/notifications/send'
 import { appUrl } from '@/lib/notifications/app-url'
+import { smsLine, smsRoom, smsShortDate, smsGuestEnterUrl, smsUrl } from '@/lib/notifications/sms-format'
 import { notifyManagers } from '@/lib/notifications/manager-notify'
-
-function formatStayDate(isoDate: string): string {
-  return new Date(isoDate + 'T12:00:00').toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  })
-}
 
 /** Guest checked in — send portal link by SMS. */
 export async function notifyGuestCheckedIn(input: {
@@ -18,15 +10,15 @@ export async function notifyGuestCheckedIn(input: {
   guestName: string
   roomNumber: string | null
   checkOut: string
-  loginUrl: string
+  portalToken: string
 }): Promise<void> {
-  const room = input.roomNumber ? `Room ${input.roomNumber}` : 'Your room'
-  const body = [
-    `MOJO: Welcome ${input.guestName.trim()}!`,
-    `${room} · checkout ${formatStayDate(input.checkOut)}`,
-    'Guest portal:',
-    input.loginUrl,
-  ].join('\n')
+  const body = smsLine(
+    'MOJO:',
+    `Welcome ${input.guestName.trim()}!`,
+    smsRoom(input.roomNumber),
+    `out ${smsShortDate(input.checkOut)}.`,
+    smsGuestEnterUrl(input.portalToken),
+  )
 
   await notifyPhones([input.phone], body, {
     hotelId: input.hotelId,
@@ -44,13 +36,13 @@ export async function notifyGuestReservationConfirmed(input: {
   checkIn: string
   checkOut: string
 }): Promise<void> {
-  const room = input.roomNumber ? `Room ${input.roomNumber}` : 'Room TBC'
-  const body = [
-    `MOJO: Booking confirmed for ${input.guestName.trim()}`,
-    `${room}`,
-    `Check-in ${formatStayDate(input.checkIn)} · checkout ${formatStayDate(input.checkOut)}`,
-    appUrl('/guest'),
-  ].join('\n')
+  const body = smsLine(
+    'MOJO:',
+    `Booking confirmed ${input.guestName.trim()},`,
+    smsRoom(input.roomNumber),
+    `in ${smsShortDate(input.checkIn)} out ${smsShortDate(input.checkOut)}.`,
+    smsUrl('/guest'),
+  )
 
   await notifyPhones([input.phone], body, {
     hotelId: input.hotelId,
@@ -67,15 +59,17 @@ export async function notifyGuestCheckedOut(input: {
   totalGhs: number
   paid: boolean
 }): Promise<void> {
-  const payment = input.paid
-    ? `Total GHS ${input.totalGhs.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} — paid. Thank you!`
-    : `Balance GHS ${input.totalGhs.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} due. See front desk.`
+  const amount = input.totalGhs.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
+  const payment = input.paid ? `GHS ${amount} paid. Thanks!` : `GHS ${amount} due at desk.`
 
-  const body = [
-    `MOJO: Thank you ${input.guestName.trim()}!`,
-    'We hope you enjoyed your stay.',
+  const body = smsLine(
+    'MOJO:',
+    `Thanks ${input.guestName.trim()}!`,
     payment,
-  ].join('\n')
+  )
 
   await notifyPhones([input.phone], body, {
     hotelId: input.hotelId,
@@ -87,6 +81,7 @@ export async function notifyGuestCheckedOut(input: {
 export async function loadGuestPhoneForReservation(
   reservationId: string,
 ): Promise<{ hotelId: string; phone: string; guestName: string } | null> {
+  const { createAdminClient } = await import('@/lib/supabase/admin')
   const admin = createAdminClient()
   const { data } = await admin
     .from('reservations')
@@ -111,30 +106,30 @@ export async function notifyManagersNewReservation(input: {
   checkOut: string
   channel: string
 }): Promise<void> {
-  const room = input.roomNumber ? `Room ${input.roomNumber}` : 'Room TBC'
-  const reservationsUrl = appUrl('/manager/reservations')
-  const body = [
-    'MOJO: New reservation',
-    `${input.guestName.trim()} · ${room}`,
-    `Check-in ${formatStayDate(input.checkIn)} · checkout ${formatStayDate(input.checkOut)}`,
-    `Source: ${input.channel.replace(/_/g, ' ')}`,
+  const reservationsUrl = smsUrl('/manager/reservations')
+  const body = smsLine(
+    'MOJO:',
+    `New booking ${input.guestName.trim()},`,
+    smsRoom(input.roomNumber),
+    `in ${smsShortDate(input.checkIn)} out ${smsShortDate(input.checkOut)}`,
+    `(${input.channel.replace(/_/g, ' ')}).`,
     reservationsUrl,
-  ].join('\n')
+  )
 
   await notifyManagers({
     hotelId: input.hotelId,
     templateKey: 'reservation_new_manager',
     smsBody: body,
     email: {
-      subject: `New booking · ${input.guestName.trim()} · ${room}`,
+      subject: `New booking · ${input.guestName.trim()} · ${smsRoom(input.roomNumber)}`,
       preview: 'A new reservation was created for your property.',
       lines: [
         `Guest: ${input.guestName.trim()}`,
-        room,
-        `Check-in ${formatStayDate(input.checkIn)} · checkout ${formatStayDate(input.checkOut)}`,
+        smsRoom(input.roomNumber),
+        `Check-in ${smsShortDate(input.checkIn)} · checkout ${smsShortDate(input.checkOut)}`,
         `Source: ${input.channel.replace(/_/g, ' ')}`,
       ],
-      actionUrl: reservationsUrl,
+      actionUrl: appUrl('/manager/reservations'),
       actionLabel: 'View reservations',
     },
   })
@@ -148,11 +143,11 @@ export async function notifyGuestReservationCancelled(input: {
   checkIn: string
   checkOut: string
 }): Promise<void> {
-  const body = [
-    `MOJO: Booking cancelled for ${input.guestName.trim()}`,
-    `Was ${formatStayDate(input.checkIn)} – ${formatStayDate(input.checkOut)}.`,
-    'Contact the property if this is unexpected.',
-  ].join('\n')
+  const body = smsLine(
+    'MOJO:',
+    `Booking cancelled ${input.guestName.trim()},`,
+    `was ${smsShortDate(input.checkIn)}-${smsShortDate(input.checkOut)}.`,
+  )
 
   await notifyPhones([input.phone], body, {
     hotelId: input.hotelId,

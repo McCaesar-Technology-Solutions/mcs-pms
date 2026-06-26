@@ -17,7 +17,7 @@ export default async function GuestPage({
 
   // Legacy links (?token=) — hand off to the route handler that can set the session cookie.
   if (params.token) {
-    redirect(`/guest/enter?token=${encodeURIComponent(params.token)}`)
+    redirect(`/guest/enter?t=${encodeURIComponent(params.token)}`)
   }
 
   const session = await getGuestFromSession()

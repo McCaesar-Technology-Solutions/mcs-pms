@@ -1,6 +1,6 @@
 import { sendToPhone, type SendResult } from '@/lib/notifications/send'
 import { isSmsConfigured } from '@/lib/notifications/sms-provider'
-import { appUrl } from '@/lib/notifications/app-url'
+import { smsInviteUrl, smsLine } from '@/lib/notifications/sms-format'
 
 /** Technician invite — SMS and WhatsApp (when configured) with accept-invite link. */
 export async function notifyStaffInvite(input: {
@@ -15,13 +15,11 @@ export async function notifyStaffInvite(input: {
   }
 
   const property = input.hotelName?.trim() || 'MOJO Apartments'
-  const link = appUrl(`/accept-invite?token=${input.inviteToken}`)
-
-  const body = [
-    `MOJO: You're invited to join ${property} as a technician.`,
-    'Create your account:',
-    link,
-  ].join('\n')
+  const body = smsLine(
+    'MOJO:',
+    `Tech invite at ${property}.`,
+    smsInviteUrl(input.inviteToken),
+  )
 
   return sendToPhone(input.phone, body, {
     hotelId: input.hotelId,

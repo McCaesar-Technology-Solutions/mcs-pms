@@ -24,5 +24,5 @@ export async function buildGuestLoginUrl(token: string): Promise<string> {
     const proto = h.get('x-forwarded-proto') ?? 'https'
     appUrl = host ? `${proto}://${host}` : 'http://localhost:3000'
   }
-  return `${appUrl}/guest/enter?token=${token}`
+  return `${appUrl.replace(/\/$/, '')}/guest/enter?t=${encodeURIComponent(token)}`
 }

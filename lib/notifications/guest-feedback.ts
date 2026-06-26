@@ -8,6 +8,7 @@ import {
   ownerPhones,
 } from '@/lib/notifications/recipients'
 import { appUrl } from '@/lib/notifications/app-url'
+import { smsLine, smsTruncate, smsUrl } from '@/lib/notifications/sms-format'
 import type { StaffEmailContent } from '@/lib/notifications/email-template'
 
 const LOW_RATING_THRESHOLD = 2
@@ -80,11 +81,12 @@ export async function notifyGuestFeedbackSubmitted(feedbackId: string): Promise<
     return
   }
 
-  const smsBody = [
-    `MOJO: Low guest review (${stars})`,
-    `${guestName}${room ? ` · ${room}` : ''}`,
-    ...(commentLine ? [commentLine] : []),
-  ].join('\n')
+  const smsBody = smsLine(
+    'MOJO:',
+    `Low review (${stars})`,
+    `${guestName}${room ? `, ${room.replace('Room ', 'Rm ')}` : ''}`,
+    commentLine ? smsTruncate(commentLine.replace(/^"|"$/g, ''), 60) : null,
+  )
 
   const [managerPhones, ownerPhoneList] = await Promise.all([
     managerOnlyPhones(data.hotel_id),
@@ -107,7 +109,7 @@ export async function notifyGuestFeedbackSubmitted(feedbackId: string): Promise<
     managerPhones.length > 0
       ? notifyPhones(
           managerPhones,
-          `${smsBody}\n${appUrl(MANAGER_REVIEWS_URL)}`,
+          `${smsBody} ${smsUrl(MANAGER_REVIEWS_URL)}`,
           {
             hotelId: data.hotel_id,
             templateKey,
@@ -118,7 +120,7 @@ export async function notifyGuestFeedbackSubmitted(feedbackId: string): Promise<
     ownerPhoneList.length > 0
       ? notifyPhones(
           ownerPhoneList,
-          `${smsBody}\n${appUrl(OWNER_REVIEWS_URL)}`,
+          `${smsBody} ${smsUrl(OWNER_REVIEWS_URL)}`,
           {
             hotelId: data.hotel_id,
             templateKey,

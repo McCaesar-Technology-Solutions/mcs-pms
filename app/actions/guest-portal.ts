@@ -186,7 +186,7 @@ async function requireGuestWithRules() {
 }
 
 const guestRequestSchema = z.object({
-  requestType: z.enum(['housekeeping', 'late_checkout', 'extension', 'self_checkout']),
+  requestType: z.enum(['housekeeping', 'late_checkout', 'extension']),
   note: z.string().max(500).optional(),
   requestedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   requestedTime: z.string().max(50).optional(),

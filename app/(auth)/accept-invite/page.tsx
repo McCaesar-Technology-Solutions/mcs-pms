@@ -9,7 +9,7 @@ import { acceptInvite } from '@/app/actions/auth'
 
 function AcceptInviteForm() {
   const searchParams = useSearchParams()
-  const token = searchParams.get('token') ?? ''
+  const token = searchParams.get('token') ?? searchParams.get('t') ?? ''
 
   const [name, setName] = useState('')
   const [password, setPassword] = useState('')

@@ -16,7 +16,6 @@ import {
   Sparkles,
   Clock,
   CalendarPlus,
-  LogOut,
   FileText,
   MapPin,
   Star,
@@ -80,7 +79,6 @@ const REQUEST_SUCCESS_LABELS: Record<string, string> = {
   housekeeping: 'Housekeeping request sent — the front desk has been notified.',
   late_checkout: 'Late checkout request sent — we will confirm shortly.',
   extension: 'Stay extension request sent — we will confirm shortly.',
-  self_checkout: 'Self check-out request sent — the front desk has been notified.',
 }
 
 const categories: { id: ComplaintCategory; label: string; icon: typeof Droplets }[] = [
@@ -97,7 +95,7 @@ const REQUEST_LABELS: Record<string, string> = {
   housekeeping: 'Housekeeping',
   late_checkout: 'Late checkout',
   extension: 'Stay extension',
-  self_checkout: 'Self check-out',
+  self_checkout: 'Self check-out', // legacy requests only
 }
 
 interface GuestPortalProps {
@@ -645,7 +643,6 @@ export function GuestPortal({
                     { type: 'housekeeping', icon: Sparkles, label: 'Housekeeping' },
                     { type: 'late_checkout', icon: Clock, label: 'Late checkout' },
                     { type: 'extension', icon: CalendarPlus, label: 'Extend stay' },
-                    { type: 'self_checkout', icon: LogOut, label: 'Self check-out' },
                   ] as const
                 ).map(({ type, icon: Icon, label }) => (
                   <button

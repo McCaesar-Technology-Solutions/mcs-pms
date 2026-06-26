@@ -77,7 +77,10 @@ async function sendArkeselSms(to: string, body: string): Promise<SendResult> {
   const data = (await res.json()) as {
     status?: string
     message?: string
-    data?: Array<{ id?: string; recipient?: string }>
+    data?: Array<
+      | { id?: string; recipient?: string }
+      | { 'invalid numbers'?: string[] }
+    >
   }
 
   if (!res.ok || data.status !== 'success') {
@@ -88,8 +91,35 @@ async function sendArkeselSms(to: string, body: string): Promise<SendResult> {
     }
   }
 
-  const messageId = data.data?.[0]?.id
-  return { channel: 'sms', success: true, providerId: messageId }
+  const recipient = toArkeselRecipient(to)
+  const invalidNumbers = data.data
+    ?.flatMap((item) => ('invalid numbers' in item ? item['invalid numbers'] ?? [] : []))
+    .map((n) => n.replace(/\D/g, ''))
+
+  if (invalidNumbers?.includes(recipient.replace(/\D/g, ''))) {
+    return {
+      channel: 'sms',
+      success: false,
+      error: 'Invalid phone number for SMS (check the number and try again).',
+    }
+  }
+
+  const accepted = data.data?.find(
+    (item): item is { id: string; recipient: string } =>
+      'recipient' in item &&
+      Boolean(item.id) &&
+      item.recipient?.replace(/\D/g, '') === recipient.replace(/\D/g, ''),
+  )
+
+  if (!accepted?.id) {
+    return {
+      channel: 'sms',
+      success: false,
+      error: data.message ?? 'SMS was not accepted for this phone number.',
+    }
+  }
+
+  return { channel: 'sms', success: true, providerId: accepted.id }
 }
 
 async function sendSmsViaProvider(provider: SmsProvider, to: string, body: string): Promise<SendResult> {

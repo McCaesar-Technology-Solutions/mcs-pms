@@ -526,7 +526,7 @@ function GuestAccessLink({ guest }: { guest: GuestRow }) {
     setError(null)
   }, [guest.id, guest.token, guest.tokenExpiresAt])
 
-  const url = token ? `${window.location.origin}/guest/enter?token=${token}` : ''
+  const url = token ? `${window.location.origin}/guest/enter?t=${encodeURIComponent(token)}` : ''
   const expired = expiresAt ? new Date(expiresAt).getTime() < Date.now() : false
   const linkActive = Boolean(token) && !expired
 
