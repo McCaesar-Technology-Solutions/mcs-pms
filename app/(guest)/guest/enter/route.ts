@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server'
-import { validateGuestToken } from '@/app/actions/guest'
+import { validateGuestAccessToken } from '@/lib/guest/access-token'
 import {
   createGuestSessionToken,
   GUEST_SESSION_COOKIE,
@@ -13,20 +13,25 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL('/guest?error=missing', request.url))
   }
 
-  const result = await validateGuestToken(token)
+  try {
+    const result = await validateGuestAccessToken(token)
 
-  if (!result.success || !result.data) {
-    const error = result.success ? 'invalid' : result.error
-    return NextResponse.redirect(
-      new URL(`/guest?error=${encodeURIComponent(error)}`, request.url),
+    if (!result.ok) {
+      return NextResponse.redirect(
+        new URL(`/guest?error=${encodeURIComponent(result.error)}`, request.url),
+      )
+    }
+
+    const sessionToken = await createGuestSessionToken(result.guest.id, result.expiresAt)
+    const response = NextResponse.redirect(new URL('/guest', request.url))
+    response.cookies.set(
+      GUEST_SESSION_COOKIE,
+      sessionToken,
+      guestSessionCookieOptions(result.expiresAt),
     )
+    return response
+  } catch (err) {
+    console.error('[guest/enter]', err)
+    return NextResponse.redirect(new URL('/guest?error=config', request.url))
   }
-
-  const expiresAt = new Date(result.data.expiresAt)
-  const sessionToken = await createGuestSessionToken(result.data.guest.id, expiresAt)
-
-  const response = NextResponse.redirect(new URL('/guest', request.url))
-  response.cookies.set(GUEST_SESSION_COOKIE, sessionToken, guestSessionCookieOptions(expiresAt))
-
-  return response
 }

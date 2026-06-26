@@ -1,6 +1,7 @@
 'use server'
 
 import { createAdminClient } from '@/lib/supabase/admin'
+import { validateGuestAccessToken } from '@/lib/guest/access-token'
 import { getGuestSessionId } from '@/lib/guest-session'
 import { guestNeedsRulesAcceptance } from '@/app/actions/guest-rules'
 import { submitComplaintSchema } from '@/lib/validations'
@@ -20,37 +21,22 @@ const MAX_PER_STAY = 10
 export async function validateGuestToken(token: string): Promise<
   GuestActionResult<{ guest: Guest; roomNumber: string | null; expiresAt: string }>
 > {
-  if (!token) {
-    return { success: false, error: 'Missing access token.' }
-  }
-
-  const admin = createAdminClient()
-  const { data: guest, error } = await admin
-    .from('guests')
-    .select('*, rooms(number)')
-    .eq('token', token)
-    .maybeSingle()
-
-  if (error || !guest) {
-    return { success: false, error: 'Invalid or expired link.' }
-  }
-
-  if (guest.token_expires_at && new Date(guest.token_expires_at) <= new Date()) {
-    return { success: false, error: 'expired' }
-  }
-
-  const expiresAt = guest.token_expires_at
-    ? new Date(guest.token_expires_at)
-    : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-
-  const roomNumber =
-    guest.rooms && typeof guest.rooms === 'object' && 'number' in guest.rooms
-      ? (guest.rooms as { number: string }).number
-      : null
-
-  return {
-    success: true,
-    data: { guest: guest as Guest, roomNumber, expiresAt: expiresAt.toISOString() },
+  try {
+    const result = await validateGuestAccessToken(token)
+    if (!result.ok) {
+      return { success: false, error: result.error }
+    }
+    return {
+      success: true,
+      data: {
+        guest: result.guest,
+        roomNumber: result.roomNumber,
+        expiresAt: result.expiresAt.toISOString(),
+      },
+    }
+  } catch (err) {
+    console.error('[validateGuestToken]', err)
+    return { success: false, error: 'config' }
   }
 }
 

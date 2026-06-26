@@ -71,6 +71,9 @@ function messageForError(error?: string): string {
   if (error === 'invalid' || error === 'Invalid or expired link.') {
     return 'This guest link is not valid. Ask the front desk for a new QR code or link.'
   }
+  if (error === 'config') {
+    return 'Guest sign-in is temporarily unavailable. Please contact the front desk.'
+  }
   return 'Please scan the property QR code or use the link from the front desk.'
 }
 
