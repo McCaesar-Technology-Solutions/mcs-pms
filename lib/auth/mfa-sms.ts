@@ -1,6 +1,6 @@
 export const MFA_OTP_TTL_MS = 5 * 60 * 1000
-export const MFA_SEND_COOLDOWN_MS = 60 * 1000
-export const MFA_SEND_MAX_PER_15_MIN = 5
+export const MFA_SEND_COOLDOWN_MS = 30 * 1000
+export const MFA_SEND_MAX_PER_15_MIN = 8
 
 export { hashOtp, hashSessionKey } from '@/lib/auth/mfa-crypto'
 

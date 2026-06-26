@@ -160,7 +160,7 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(new URL('/login', request.url))
     }
 
-    if (profile.onboarding_completed_at || profile.hotel_id) {
+    if (profile.onboarding_completed_at) {
       return NextResponse.redirect(new URL('/owner/dashboard', request.url))
     }
 
@@ -228,7 +228,6 @@ export async function updateSession(request: NextRequest) {
     if (
       profile.role === 'owner' &&
       !profile.onboarding_completed_at &&
-      !profile.hotel_id &&
       !pathname.startsWith('/get-started')
     ) {
       return NextResponse.redirect(new URL('/get-started', request.url))

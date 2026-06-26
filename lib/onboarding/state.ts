@@ -18,16 +18,14 @@ export const ONBOARDING_STEP_LABELS: Record<OnboardingStep, string> = {
   done: 'Launch',
 }
 
-/** Owners need setup until they finish the wizard (or already had a property linked). */
+/** Owners need setup until they finish the wizard. */
 export function requiresOnboarding(
-  profile: Pick<Profile, 'role' | 'hotel_id'> & {
+  profile: Pick<Profile, 'role'> & {
     onboarding_completed_at?: string | null
   },
 ): boolean {
   if (profile.role !== 'owner') return false
-  if (profile.onboarding_completed_at) return false
-  if (profile.hotel_id) return false
-  return true
+  return !profile.onboarding_completed_at
 }
 
 export function onboardingProgress(step: OnboardingStep): number {

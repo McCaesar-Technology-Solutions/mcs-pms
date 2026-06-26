@@ -73,20 +73,20 @@ export async function assertRateLimit(
 }
 
 export const GUEST_RATE_LIMITS = {
-  portalEntry: { max: 8, windowMs: 15 * 60 * 1000, cooldownMs: 5_000 },
-  portalEntryIp: { max: 20, windowMs: 15 * 60 * 1000, cooldownMs: 3_000 },
-  complaint: { max: 5, windowMs: 60 * 60 * 1000, cooldownMs: 30_000 },
-  message: { max: 30, windowMs: 15 * 60 * 1000, cooldownMs: 2_000 },
-  request: { max: 10, windowMs: 60 * 60 * 1000, cooldownMs: 10_000 },
-  preArrival: { max: 5, windowMs: 60 * 60 * 1000, cooldownMs: 10_000 },
+  portalEntry: { max: 20, windowMs: 15 * 60 * 1000, cooldownMs: 1_500 },
+  portalEntryIp: { max: 60, windowMs: 15 * 60 * 1000, cooldownMs: 1_000 },
+  complaint: { max: 10, windowMs: 60 * 60 * 1000, cooldownMs: 10_000 },
+  message: { max: 60, windowMs: 15 * 60 * 1000, cooldownMs: 1_000 },
+  request: { max: 20, windowMs: 60 * 60 * 1000, cooldownMs: 5_000 },
+  preArrival: { max: 10, windowMs: 60 * 60 * 1000, cooldownMs: 5_000 },
 } as const satisfies Record<string, RateLimitOptions>
 
 export const AUTH_RATE_LIMITS = {
-  signIn: { max: 10, windowMs: 15 * 60 * 1000, cooldownMs: 2_000 },
-  signUp: { max: 3, windowMs: 60 * 60 * 1000, cooldownMs: 30_000 },
-  passwordReset: { max: 5, windowMs: 60 * 60 * 1000, cooldownMs: 60_000 },
-  acceptInvite: { max: 5, windowMs: 60 * 60 * 1000, cooldownMs: 10_000 },
-  mfaVerify: { max: 8, windowMs: 15 * 60 * 1000, cooldownMs: 1_000 },
+  signIn: { max: 20, windowMs: 15 * 60 * 1000, cooldownMs: 1_000 },
+  signUp: { max: 10, windowMs: 60 * 60 * 1000, cooldownMs: 5_000 },
+  passwordReset: { max: 10, windowMs: 60 * 60 * 1000, cooldownMs: 15_000 },
+  acceptInvite: { max: 10, windowMs: 60 * 60 * 1000, cooldownMs: 3_000 },
+  mfaVerify: { max: 15, windowMs: 15 * 60 * 1000, cooldownMs: 500 },
 } as const satisfies Record<string, RateLimitOptions>
 
 export function guestRateKey(scope: string, guestId: string): string {

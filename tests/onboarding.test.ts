@@ -2,24 +2,22 @@ import { describe, expect, it } from 'vitest'
 import { requiresOnboarding, onboardingProgress } from '@/lib/onboarding/state'
 
 describe('requiresOnboarding', () => {
-  it('requires setup for new owners without a property', () => {
+  it('requires setup for owners who have not finished the wizard', () => {
     expect(
-      requiresOnboarding({ role: 'owner', hotel_id: null, onboarding_completed_at: null }),
+      requiresOnboarding({ role: 'owner', onboarding_completed_at: null }),
+    ).toBe(true)
+    expect(
+      requiresOnboarding({
+        role: 'owner',
+        onboarding_completed_at: null,
+      }),
     ).toBe(true)
   })
 
-  it('skips setup for owners with a property or completion flag', () => {
+  it('skips setup once onboarding is completed', () => {
     expect(
       requiresOnboarding({
         role: 'owner',
-        hotel_id: 'hotel-1',
-        onboarding_completed_at: null,
-      }),
-    ).toBe(false)
-    expect(
-      requiresOnboarding({
-        role: 'owner',
-        hotel_id: null,
         onboarding_completed_at: '2026-01-01T00:00:00Z',
       }),
     ).toBe(false)

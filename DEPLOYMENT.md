@@ -228,7 +228,7 @@ Add GitHub repository secrets **`CRON_SECRET`** (same value as Vercel) and **`PR
 
 ### 9. Production seed policy
 
-**Never run `npm run seed` in production.** The seed script exits when `NODE_ENV=production`. Owner accounts are created via `/signup` (enabled by default). Set `DISABLE_PUBLIC_SIGNUP=true` to block new registrations.
+**Never run `npm run seed` in production.** The seed script exits when `NODE_ENV=production`. Create the owner account via controlled signup (`ALLOW_PUBLIC_SIGNUP=true` only if needed) or Supabase Auth admin.
 
 ## Authentication Setup
 
@@ -495,7 +495,7 @@ git push origin v1.0.0
 - [ ] Set `NEXT_PUBLIC_APP_URL` to production domain
 - [ ] Configure SMS (Arkesel) or email (Resend) provider
 - [ ] Set `PAYSTACK_SECRET_KEY` and register webhook URL
-- [ ] Set `DISABLE_PUBLIC_SIGNUP=true` if you want to block new owner signups
+- [ ] Disable public signup unless required (`ALLOW_PUBLIC_SIGNUP`)
 - [ ] Never run seed script against production database
 - [ ] Enable HTTPS (automatic on Vercel)
 - [ ] Set security headers in next.config.mjs

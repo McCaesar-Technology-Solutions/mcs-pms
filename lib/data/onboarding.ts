@@ -9,7 +9,7 @@ export interface OnboardingPageData {
 export async function getOnboardingPageData(): Promise<OnboardingPageData | null> {
   const profile = await getProfile()
   if (!profile || profile.role !== 'owner') return null
-  if (profile.onboarding_completed_at || profile.hotel_id) return null
+  if (profile.onboarding_completed_at) return null
 
   return {
     step: (profile.onboarding_step ?? 'welcome') as OnboardingStep,
