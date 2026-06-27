@@ -722,17 +722,53 @@
   }
 
   .kpi-card--tile-elevated {
-    background: #ffffff;
     border-color: rgba(var(--shadow-tint), 0.08);
     box-shadow:
       0 1px 2px rgba(var(--shadow-tint), 0.04),
-      0 1px 0 rgba(255, 255, 255, 0.9) inset;
+      0 1px 0 rgba(255, 255, 255, 0.85) inset;
+  }
+
+  .kpi-card--tile-tone-rate {
+    background: linear-gradient(165deg, #ffffff 55%, var(--comp-slate-soft) 100%);
+    border-color: rgba(90, 109, 140, 0.1);
+  }
+
+  .kpi-card--tile-tone-bookings {
+    background: linear-gradient(165deg, #ffffff 55%, var(--comp-teal-soft) 100%);
+    border-color: rgba(45, 143, 133, 0.1);
+  }
+
+  .kpi-card--tile-tone-balance-ok {
+    background: linear-gradient(165deg, #ffffff 55%, var(--comp-sage-soft) 100%);
+    border-color: rgba(107, 145, 104, 0.1);
+  }
+
+  .kpi-card--tile-tone-balance-warn {
+    background: linear-gradient(165deg, #ffffff 55%, var(--comp-coral-soft) 100%);
+    border-color: rgba(196, 97, 74, 0.12);
   }
 
   .kpi-card--tile-elevated:hover {
-    border-color: rgba(var(--shadow-tint), 0.12);
+    border-color: rgba(var(--shadow-tint), 0.14);
     box-shadow: 0 8px 24px rgba(var(--shadow-tint), 0.07);
     transform: translateY(-1px);
+  }
+
+  .kpi-card--tile-tone-rate:hover {
+    border-color: rgba(90, 109, 140, 0.16);
+  }
+
+  .kpi-card--tile-tone-bookings:hover {
+    border-color: rgba(45, 143, 133, 0.16);
+  }
+
+  .kpi-card--tile-tone-balance-ok:hover {
+    border-color: rgba(107, 145, 104, 0.16);
+  }
+
+  .kpi-card--tile-tone-balance-warn:hover {
+    border-color: rgba(196, 97, 74, 0.2);
+    box-shadow: 0 8px 24px rgba(196, 97, 74, 0.06);
   }
 
   .kpi-card--tile:hover {
@@ -741,29 +777,6 @@
 
   .kpi-card--tile-accent-teal {
     border-top: none;
-  }
-
-  .kpi-card--tile-accent-teal:hover {
-    border-color: rgba(var(--shadow-tint), 0.12);
-  }
-
-  .kpi-card--tile-accent-slate {
-    border-top: none;
-  }
-
-  .kpi-card--tile-accent-slate:hover {
-    border-color: rgba(var(--shadow-tint), 0.12);
-  }
-
-  .kpi-card--tile-warning {
-    border-top: none;
-    border-color: rgba(196, 97, 74, 0.16);
-    background: #ffffff;
-  }
-
-  .kpi-card--tile-warning:hover {
-    border-color: rgba(196, 97, 74, 0.24);
-    box-shadow: 0 8px 24px rgba(196, 97, 74, 0.08);
   }
 
   .kpi-metric-pill--on-dark {

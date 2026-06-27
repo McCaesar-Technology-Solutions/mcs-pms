@@ -85,6 +85,7 @@ function MetricTile({
   warning,
   sparkline,
   trendUp,
+  tone = 'rate',
 }: {
   label: string
   value: string
@@ -94,9 +95,21 @@ function MetricTile({
   warning?: boolean
   sparkline?: number[]
   trendUp?: boolean
+  tone?: 'rate' | 'bookings' | 'balance'
 }) {
+  const toneClass = warning
+    ? 'kpi-card--tile-tone-balance-warn'
+    : tone === 'bookings'
+      ? 'kpi-card--tile-tone-bookings'
+      : tone === 'balance'
+        ? 'kpi-card--tile-tone-balance-ok'
+        : 'kpi-card--tile-tone-rate'
+
+  const sparklineTone =
+    tone === 'bookings' ? 'teal' : tone === 'balance' && !warning ? 'emerald' : 'slate'
+
   return (
-    <div className={`kpi-card kpi-card--tile kpi-card--tile-elevated ${warning ? 'kpi-card--tile-warning' : ''}`}>
+    <div className={`kpi-card kpi-card--tile kpi-card--tile-elevated ${toneClass}`}>
       <p className="kpi-card__label">{label}</p>
       <div className="mt-2 flex items-end justify-between gap-3">
         <p className="kpi-card__value kpi-card__value--tile">
@@ -113,7 +126,7 @@ function MetricTile({
             </span>
           )}
           {hasSparklineVariance(sparkline) && (
-            <MiniSparkline values={sparkline!} tone="slate" className="h-9 w-[5.5rem]" />
+            <MiniSparkline values={sparkline!} tone={sparklineTone} className="h-9 w-[5.5rem]" />
           )}
         </div>
       </div>
@@ -149,6 +162,7 @@ export function KPICards({
         label="Avg. nightly rate"
         value={`₵${m.averageNightlyRate}`}
         subtext="Average daily rate"
+        tone="rate"
       />
       <MetricTile
         label="Active bookings"
@@ -158,6 +172,7 @@ export function KPICards({
         subtext={`${m.totalGuests} guest${m.totalGuests === 1 ? '' : 's'} on record`}
         sparkline={bookingsSparkline}
         trendUp={m.totalBookings > 0}
+        tone="bookings"
       />
       <MetricTile
         label="Unpaid balances"
@@ -170,6 +185,7 @@ export function KPICards({
             : 'All guest balances settled'
         }
         warning={balanceWarning}
+        tone="balance"
       />
     </div>
   )
@@ -181,6 +197,7 @@ export function KPICards({
           label="Typical room rate"
           value={`₵${m.averageNightlyRate}`}
           subtext="List price benchmark"
+          tone="rate"
         />
         <MetricTile
           label="Active bookings"
@@ -189,6 +206,7 @@ export function KPICards({
           formatValue={(n) => Math.round(n).toString()}
           subtext={`${m.totalGuests} guest${m.totalGuests === 1 ? '' : 's'} on record`}
           sparkline={bookingsSparkline}
+          tone="bookings"
         />
         <MetricTile
           label="Unpaid balances"
@@ -201,6 +219,7 @@ export function KPICards({
               : 'All guest balances settled'
           }
           warning={balanceWarning}
+          tone="balance"
         />
       </div>
     )
