@@ -16,6 +16,7 @@ function StatChip({
   detail,
   progress,
   accent = 'gold',
+  emphasis = false,
 }: {
   icon: typeof Percent
   label: string
@@ -23,9 +24,14 @@ function StatChip({
   detail?: string
   progress?: number
   accent?: 'gold' | 'teal' | 'sky' | 'coral'
+  emphasis?: boolean
 }) {
   return (
-    <div className={`stat-chip stat-chip--light stat-chip--tone-${accent} min-w-0 flex-1`}>
+    <div
+      className={`stat-chip stat-chip--light stat-chip--tone-${accent} min-w-0 flex-1 ${
+        emphasis ? 'stat-chip--emphasis' : ''
+      }`}
+    >
       <div className="flex items-center gap-2">
         <Icon
           className={`stat-chip__icon--${accent} h-3.5 w-3.5 shrink-0`}
@@ -79,6 +85,7 @@ export function DashboardToolbar({
             detail={occupancy ? `${occupancy.occupied} of ${occupancy.total} rooms` : undefined}
             progress={occupancy?.percent}
             accent="gold"
+            emphasis
           />
           <StatChip
             icon={Users}

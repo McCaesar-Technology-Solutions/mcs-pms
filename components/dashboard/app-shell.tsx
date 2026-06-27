@@ -54,7 +54,7 @@ export function AppShell({
       >
         Skip to content
       </a>
-      <div className="flex h-dvh w-full overflow-hidden">
+      <div className="app-shell-layout flex h-dvh w-full overflow-hidden">
       <Sidebar
         mobileOpen={mobileNavOpen}
         onMobileClose={() => setMobileNavOpen(false)}

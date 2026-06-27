@@ -101,9 +101,9 @@ export default function Sidebar({
       )}
 
       <aside
-        className={`sidebar-elevated flex h-dvh shrink-0 flex-col overflow-x-hidden transition-[transform,width] duration-300 ease-in-out max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-50 max-md:w-64 ${
+        className={`sidebar-elevated sidebar-floating flex shrink-0 flex-col overflow-hidden transition-[transform,width,box-shadow] duration-300 ease-in-out max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-50 max-md:h-dvh max-md:w-64 max-md:rounded-none max-md:overflow-x-hidden ${
           mobileOpen ? 'max-md:translate-x-0' : 'max-md:-translate-x-full'
-        } ${collapsed ? 'md:w-[4.5rem]' : 'md:relative md:z-30 md:w-64 md:translate-x-0'}`}
+        } ${collapsed ? 'md:w-[4.5rem]' : 'md:w-64 md:translate-x-0'}`}
       >
         <div className={`shrink-0 ${collapsed ? 'px-2.5 pt-4' : 'px-4 pt-4'}`}>
           <div

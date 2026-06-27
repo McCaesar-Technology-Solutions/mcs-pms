@@ -1,23 +1,19 @@
 import { KPICards } from '@/components/dashboard/kpi-cards'
-import { AvailabilityStrip } from '@/components/dashboard/availability-strip'
 import { BookingsList } from '@/components/dashboard/bookings-list'
-import { TasksList } from '@/components/dashboard/tasks-list'
-import { ChannelPerformanceWidget } from '@/components/dashboard/channel-performance'
-import { GRATaxSummary } from '@/components/dashboard/gra-tax-summary'
 import { GuestFeedbackPanel } from '@/components/dashboard/guest-feedback-panel'
 import { DashboardAttention } from '@/components/dashboard/dashboard-attention'
 import { DashboardHero } from '@/components/dashboard/dashboard-hero'
+import { DashboardMoreLinks } from '@/components/dashboard/dashboard-more-links'
 import { DashboardToolbar } from '@/components/dashboard/dashboard-toolbar'
+import { OperationsSummary } from '@/components/dashboard/operations-summary'
 import { SectionHeading } from '@/components/dashboard/section-heading'
-import Link from 'next/link'
-import { ChevronRight } from 'lucide-react'
 import { getDashboardData } from '@/lib/data/dashboard'
 import { loadHotelGuestFeedback } from '@/lib/data/guest-feedback'
 import { getHousekeepingTasks } from '@/lib/data/housekeeping'
+import { countOverdueTasks } from '@/lib/housekeeping/task-view'
 import {
   computeBookingsSparkline,
-  computeChannelPerformance,
-  computeGraSummary,
+  computeOccupancySparkline,
   computeRevenueSparkline,
   computeTodayOperations,
   computeRevenueTrend,
@@ -42,34 +38,37 @@ export default async function DashboardPage() {
     hotelId ? getOccupancyToday(supabase, hotelId) : undefined,
   ])
 
-  const channels = computeChannelPerformance(reservations)
-  const graSummary = computeGraSummary(invoices)
   const todayOps = computeTodayOperations(reservations)
   const revenueTrend = computeRevenueTrend(invoices)
   const revenueSparkline = computeRevenueSparkline(invoices)
   const bookingsSparkline = computeBookingsSparkline(reservations)
+  const occupancySparkline = computeOccupancySparkline(availability)
+  const overdueTasks = countOverdueTasks(tasks.filter((t) => t.status !== 'done'))
   const businessDate = todayISO()
   const todayClosed = nightAudits.some((a) => a.business_date === businessDate)
 
   return (
-    <div className="page-shell pb-10">
+    <div className="page-shell dashboard-launchpad pb-8">
       <DashboardHero>
         <DashboardToolbar occupancy={occupancyToday} today={todayOps} />
-        <DashboardAttention today={todayOps} metrics={metrics} />
+        <DashboardAttention
+          today={todayOps}
+          metrics={metrics}
+          overdueTasks={overdueTasks}
+        />
       </DashboardHero>
 
       <div className="page-content-stack page-shell--after-hero">
-        <section className="dashboard-section dashboard-section--featured space-y-5">
-          <SectionHeading
-            prominent
-            title="Business overview"
-            description="Revenue, bookings, and balances"
-          />
+        <section className="dashboard-section dashboard-section--featured">
+          <SectionHeading prominent title="Business overview" />
           <KPICards
             metrics={metrics}
             revenueTrend={revenueTrend}
             revenueSparkline={revenueSparkline}
             bookingsSparkline={bookingsSparkline}
+            occupancyToday={occupancyToday}
+            occupancySparkline={occupancySparkline}
+            compactMetrics
             aside={
               <BookingsList
                 reservations={reservations}
@@ -80,46 +79,29 @@ export default async function DashboardPage() {
           />
         </section>
 
-        <section className="dashboard-section space-y-4">
-          <SectionHeading title="Room availability" description="Rooms free to sell over the next 14 days" />
-          <AvailabilityStrip data={availability} />
+        <section className="dashboard-section dashboard-section--compact">
+          <OperationsSummary tasks={tasks} />
         </section>
 
-        <section className="dashboard-section space-y-4">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <SectionHeading title="Operations" description="Housekeeping and maintenance tasks" />
-            <Link
-              href="/owner/housekeeping"
-              className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:text-primary/80"
-            >
-              Housekeeping board
-              <ChevronRight className="h-4 w-4" />
-            </Link>
-          </div>
-          <TasksList tasks={tasks} housekeepingHref="/owner/housekeeping" />
-        </section>
+        <DashboardMoreLinks
+          showGuestReviews={Boolean(guestFeedback)}
+          showNightAudit
+          todayClosed={todayClosed}
+        />
 
-        {guestFeedback && (
-          <section className="dashboard-section space-y-4">
-            <SectionHeading title="Guest reviews" description="Feedback from the guest portal" />
-            <GuestFeedbackPanel summary={guestFeedback} />
-          </section>
-        )}
+        <div className="dashboard-below-fold">
+          {guestFeedback && (
+            <section id="guest-feedback" className="dashboard-section dashboard-section--compact scroll-mt-24">
+              <SectionHeading title="Guest reviews" />
+              <GuestFeedbackPanel summary={guestFeedback} />
+            </section>
+          )}
 
-        <section className="dashboard-section space-y-4">
-          <SectionHeading title="Business intelligence" description="Revenue sources and tax compliance" />
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <ChannelPerformanceWidget channels={channels} />
-            <GRATaxSummary summary={graSummary} />
-          </div>
-        </section>
-
-        <section className="dashboard-section space-y-4">
-          <SectionHeading title="End of day" description="Night audit and business date close" />
-          <div className="night-audit-shell">
+          <section id="night-audit" className="dashboard-section dashboard-section--compact scroll-mt-24">
+            <SectionHeading title="End of day" />
             <NightAuditPanel audits={nightAudits} todayClosed={todayClosed} />
-          </div>
-        </section>
+          </section>
+        </div>
       </div>
     </div>
   )
