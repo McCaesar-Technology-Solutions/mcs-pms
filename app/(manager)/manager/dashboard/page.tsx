@@ -1,5 +1,7 @@
 import { KPICards } from '@/components/dashboard/kpi-cards'
-import { PageHeader } from '@/components/dashboard/page-header'
+import { DashboardAttention } from '@/components/dashboard/dashboard-attention'
+import { DashboardToolbar } from '@/components/dashboard/dashboard-toolbar'
+import { DarkSection } from '@/components/dashboard/dark-section'
 import { SectionHeading } from '@/components/dashboard/section-heading'
 import { TasksList } from '@/components/dashboard/tasks-list'
 import { NotificationLogPanel } from '@/components/dashboard/notification-log-panel'
@@ -20,7 +22,10 @@ import { getDashboardData } from '@/lib/data/dashboard'
 import { getHousekeepingTasks } from '@/lib/data/housekeeping'
 import { getNotificationLog } from '@/lib/data/notification-log'
 import { getAuditLog } from '@/lib/data/audit-log'
+import { computeTodayOperations, computeOccupancySparkline } from '@/lib/data/overview'
+import { getOccupancyToday } from '@/lib/data/occupancy'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { createClient } from '@/lib/supabase/server'
 import { getRecentNightAudits } from '@/app/actions/night-audit'
 import { NightAuditPanel } from '@/components/dashboard/night-audit-panel'
 import { todayISO } from '@/lib/stays/helpers'
@@ -34,7 +39,7 @@ const MANAGER_HASH_TO_TAB: Record<string, string> = {
 }
 
 export default async function ManagerDashboardPage() {
-  const [complaints, { metrics, hotelId }, tasks, notificationLog, auditLog, nightAudits] =
+  const [complaints, { metrics, availability, reservations, hotelId }, tasks, notificationLog, auditLog, nightAudits] =
     await Promise.all([
       fetchHotelComplaints(),
       getDashboardData(),
@@ -43,6 +48,11 @@ export default async function ManagerDashboardPage() {
       getAuditLog(50),
       getRecentNightAudits(),
     ])
+
+  const supabase = await createClient()
+  const occupancyToday = hotelId ? await getOccupancyToday(supabase, hotelId) : undefined
+  const todayOps = computeTodayOperations(reservations)
+  const occupancySparkline = computeOccupancySparkline(availability)
 
   let propertyName = 'Property'
   let guestRequests: Awaited<ReturnType<typeof loadHotelGuestRequests>> = []
@@ -78,81 +88,94 @@ export default async function ManagerDashboardPage() {
   const todayClosed = nightAudits.some((a) => a.business_date === businessDate)
 
   return (
-    <div className="page-shell space-y-6">
-      <PageHeader
-        badge="Operations"
-        title="Manager Dashboard"
-        description="Monitor guest complaints, room status, and daily operations."
-      />
+    <>
+      <DarkSection variant="ops" className="dashboard-section">
+        <div className="space-y-4">
+          <DashboardToolbar
+            title="Manager dashboard"
+            eyebrow="Operations"
+            occupancy={occupancyToday}
+            today={todayOps}
+          />
+          <DashboardAttention
+            today={todayOps}
+            metrics={metrics}
+            reservationsHref="/manager/reservations"
+            billingHref="/manager/reservations"
+          />
+        </div>
+      </DarkSection>
 
-      <PageTabShell
-        hashToTab={MANAGER_HASH_TO_TAB}
-        defaultTab="overview"
-        tabs={[
-          { id: 'overview', label: 'Overview', badge: overviewBadge },
-          { id: 'guest-portal', label: 'Guest portal', badge: guestPortalBadge },
-          { id: 'activity', label: 'Activity' },
-        ]}
-        panels={{
-          overview: (
-            <>
-              <section className="space-y-4">
-                <SectionHeading
-                  title="Key metrics"
-                  description="Today's operational snapshot"
+      <div className="page-shell space-y-6 pb-8 pt-6">
+        <PageTabShell
+          hashToTab={MANAGER_HASH_TO_TAB}
+          defaultTab="overview"
+          tabs={[
+            { id: 'overview', label: 'Overview', badge: overviewBadge },
+            { id: 'guest-portal', label: 'Guest portal', badge: guestPortalBadge },
+            { id: 'activity', label: 'Activity' },
+          ]}
+          panels={{
+            overview: (
+              <>
+                <section className="dashboard-section space-y-4">
+                  <h2 className="sr-only">Business overview</h2>
+                  <KPICards
+                    metrics={metrics}
+                    showRevenue={false}
+                    occupancySparkline={occupancySparkline}
+                  />
+                </section>
+
+                <OpsInboxPanel items={opsInbox} />
+
+                <div className="grid gap-6 xl:grid-cols-2">
+                  <section className="dashboard-section space-y-4">
+                    <SectionHeading title="Complaints" description="Open and in-progress issues" />
+                    <ComplaintsOverviewLive initialComplaints={complaints} limit={5} />
+                  </section>
+
+                  <section className="dashboard-section space-y-4">
+                    <SectionHeading title="Tasks" description="Housekeeping and maintenance" />
+                    <TasksList tasks={tasks} />
+                  </section>
+                </div>
+              </>
+            ),
+            'guest-portal': hotelId ? (
+              <>
+                <GuestRequestsPanel hotelId={hotelId} initialRequests={guestRequests} />
+                {guestFeedback && <GuestFeedbackPanel summary={guestFeedback} />}
+                <ManagerNotificationSummary smsPrefs={smsPrefs} emailPrefs={emailPrefs} />
+                <p className="text-sm text-muted-foreground">
+                  Guest portal content and house rules are managed by the property owner in Settings.
+                </p>
+                <GuestPortalSettingsPanel
+                  hotelId={hotelId}
+                  propertyName={propertyName}
+                  canEdit={false}
                 />
-                <KPICards metrics={metrics} showRevenue={false} />
-              </section>
-
-              <OpsInboxPanel items={opsInbox} />
-
+                <GuestRulesPanel hotelId={hotelId} propertyName={propertyName} canEdit={false} />
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">No property linked to this account.</p>
+            ),
+            activity: (
               <div className="grid gap-6 xl:grid-cols-2">
-                <section className="space-y-4">
-                  <SectionHeading
-                    title="Complaints"
-                    description="Open and in-progress issues"
-                  />
-                  <ComplaintsOverviewLive initialComplaints={complaints} limit={5} />
-                </section>
-
-                <section className="space-y-4">
-                  <SectionHeading
-                    title="Tasks"
-                    description="Housekeeping and maintenance"
-                  />
-                  <TasksList tasks={tasks} />
-                </section>
+                <AuditLogPanel entries={auditLog} />
+                <NotificationLogPanel entries={notificationLog} />
               </div>
+            ),
+          }}
+        />
+      </div>
 
-              <NightAuditPanel audits={nightAudits} todayClosed={todayClosed} />
-            </>
-          ),
-          'guest-portal': hotelId ? (
-            <>
-              <GuestRequestsPanel hotelId={hotelId} initialRequests={guestRequests} />
-              {guestFeedback && <GuestFeedbackPanel summary={guestFeedback} />}
-              <ManagerNotificationSummary smsPrefs={smsPrefs} emailPrefs={emailPrefs} />
-              <p className="text-sm text-muted-foreground">
-                Guest portal content and house rules are managed by the property owner in Settings.
-              </p>
-              <GuestPortalSettingsPanel
-                hotelId={hotelId}
-                propertyName={propertyName}
-                canEdit={false}
-              />
-              <GuestRulesPanel hotelId={hotelId} propertyName={propertyName} canEdit={false} />
-            </>
-          ) : (
-            <p className="text-sm text-muted-foreground">No property linked to this account.</p>
-          ),
-          activity: (
-            <div className="grid gap-6 xl:grid-cols-2">
-              <AuditLogPanel entries={auditLog} />
-              <NotificationLogPanel entries={notificationLog} />
-            </div>
-          ),
-        }}
-      />
-    </div>
+      <DarkSection variant="depth" className="dashboard-section">
+        <section className="space-y-4 py-2">
+          <SectionHeading onDark title="End of day" description="Night audit and business date close" />
+          <NightAuditPanel audits={nightAudits} todayClosed={todayClosed} />
+        </section>
+      </DarkSection>
+    </>
   )
 }

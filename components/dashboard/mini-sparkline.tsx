@@ -1,7 +1,7 @@
 interface MiniSparklineProps {
   values: number[]
   className?: string
-  tone?: 'primary' | 'gold' | 'emerald' | 'amber'
+  tone?: 'primary' | 'gold' | 'emerald' | 'amber' | 'light'
 }
 
 const toneStroke: Record<NonNullable<MiniSparklineProps['tone']>, string> = {
@@ -9,6 +9,7 @@ const toneStroke: Record<NonNullable<MiniSparklineProps['tone']>, string> = {
   gold: 'stroke-[var(--brand-gold-dark)]/55',
   emerald: 'stroke-emerald-600/50',
   amber: 'stroke-amber-600/50',
+  light: 'stroke-[var(--brand-gold)]/70',
 }
 
 const toneFill: Record<NonNullable<MiniSparklineProps['tone']>, string> = {
@@ -16,6 +17,7 @@ const toneFill: Record<NonNullable<MiniSparklineProps['tone']>, string> = {
   gold: 'fill-[var(--brand-gold)]/12',
   emerald: 'fill-emerald-500/10',
   amber: 'fill-amber-500/10',
+  light: 'fill-[var(--brand-gold)]/18',
 }
 
 export function MiniSparkline({ values, className = '', tone = 'primary' }: MiniSparklineProps) {

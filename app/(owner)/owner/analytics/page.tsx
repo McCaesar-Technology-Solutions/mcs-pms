@@ -1,4 +1,5 @@
 import { AnalyticsDashboard } from '@/components/dashboard/analytics-dashboard'
+import { DarkSection } from '@/components/dashboard/dark-section'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { computeAnalytics } from '@/lib/data/analytics'
 import { getDashboardData } from '@/lib/data/dashboard'
@@ -27,7 +28,9 @@ export default async function AnalyticsPage() {
         description="Revenue, occupancy, booking channels, and guest satisfaction — updated from your live reservation and billing data."
       />
 
-      <AnalyticsDashboard data={analytics} />
+      <DarkSection variant="inset">
+        <AnalyticsDashboard data={analytics} />
+      </DarkSection>
     </div>
   )
 }

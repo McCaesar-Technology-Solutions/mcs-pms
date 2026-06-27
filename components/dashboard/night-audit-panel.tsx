@@ -52,7 +52,7 @@ export function NightAuditPanel({ audits, todayClosed }: NightAuditPanelProps) {
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <Moon className="h-5 w-5 text-primary" />
+            <Moon className="h-5 w-5 text-[var(--brand-gold-light)]" />
             <h3 className="text-lg font-semibold">Night audit</h3>
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -74,14 +74,14 @@ export function NightAuditPanel({ audits, todayClosed }: NightAuditPanelProps) {
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             rows={2}
-            className="w-full rounded-lg border border-[#E9ECEF] px-3 py-2 text-sm"
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
             placeholder="Variance notes, late check-outs, etc."
           />
           <button
             type="button"
             disabled={pending}
             onClick={closeAudit}
-            className="rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+            className="rounded-lg bg-[var(--brand-gold)] px-4 py-2.5 text-sm font-semibold text-[var(--brand-purple-ink)] transition hover:bg-[var(--brand-gold-light)] disabled:opacity-50"
           >
             {pending ? 'Closing…' : 'Run night audit'}
           </button>
@@ -101,7 +101,7 @@ export function NightAuditPanel({ audits, todayClosed }: NightAuditPanelProps) {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-[#E9ECEF] text-left text-xs uppercase tracking-wide text-muted-foreground">
+              <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
                 <th className="py-2 pr-4">Date</th>
                 <th className="py-2 pr-4">Occupied</th>
                 <th className="py-2 pr-4">Arrivals</th>
@@ -111,7 +111,7 @@ export function NightAuditPanel({ audits, todayClosed }: NightAuditPanelProps) {
             </thead>
             <tbody>
               {audits.slice(0, 7).map((row) => (
-                <tr key={row.id} className="border-b border-[#E9ECEF]/60">
+                <tr key={row.id} className="border-b border-border/60">
                   <td className="py-2 pr-4 font-medium">{row.business_date}</td>
                   <td className="py-2 pr-4">{row.rooms_occupied}</td>
                   <td className="py-2 pr-4">{row.arrivals}</td>

@@ -5,6 +5,8 @@ import type { TodayOperations } from '@/lib/data/overview'
 interface DashboardToolbarProps {
   occupancy?: OccupancyToday
   today: TodayOperations
+  title?: string
+  eyebrow?: string
 }
 
 type StatAccent = 'occupancy' | 'in-house' | 'arrivals' | 'departures'
@@ -55,7 +57,12 @@ function StatChip({
   )
 }
 
-export function DashboardToolbar({ occupancy, today }: DashboardToolbarProps) {
+export function DashboardToolbar({
+  occupancy,
+  today,
+  title = 'Dashboard',
+  eyebrow = 'Operations centre',
+}: DashboardToolbarProps) {
   const dateLabel = new Date().toLocaleDateString('en-GB', {
     weekday: 'long',
     day: 'numeric',
@@ -65,11 +72,11 @@ export function DashboardToolbar({ occupancy, today }: DashboardToolbarProps) {
   return (
     <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
       <div className="min-w-0">
-        <p className="label-eyebrow label-eyebrow-accent">Operations centre</p>
-        <h1 className="font-display mt-1 text-[1.75rem] font-semibold tracking-tight text-foreground sm:text-[2rem]">
-          Dashboard
+        <p className="label-eyebrow label-eyebrow-accent">{eyebrow}</p>
+        <h1 className="font-display mt-1 text-[1.75rem] font-semibold tracking-tight text-white sm:text-[2rem]">
+          {title}
         </h1>
-        <p className="mt-1 text-sm text-muted-foreground">{dateLabel}</p>
+        <p className="mt-1 text-sm text-white/58">{dateLabel}</p>
       </div>
 
       <div className="grid w-full grid-cols-2 gap-2.5 sm:grid-cols-4 lg:max-w-[42rem] lg:flex-1">

@@ -36,7 +36,7 @@ interface KpiCardDef {
   variant?: CardVariant
   status?: CardStatus
   sparkline?: number[]
-  sparkTone?: 'primary' | 'gold' | 'emerald' | 'amber'
+  sparkTone?: 'primary' | 'gold' | 'emerald' | 'amber' | 'light'
   occupancyPercent?: number
   extra?: ReactNode
 }
@@ -81,12 +81,18 @@ function KpiCard({ card }: { card: KpiCardDef }) {
             </span>
             <p className="kpi-card__label">{card.label}</p>
           </div>
-          {card.trendPercent != null && <TrendBadge value={card.trendPercent} />}
+          {card.trendPercent != null && (
+            <TrendBadge value={card.trendPercent} onDark={isRevenue} />
+          )}
         </div>
 
         <div className="mt-4 flex items-end justify-between gap-4">
           <p
-            className={`min-w-0 font-bold tabular-nums tracking-tight text-foreground ${
+            className={`min-w-0 font-bold tabular-nums tracking-tight ${
+              isRevenue
+                ? 'text-[var(--brand-gold-light)]'
+                : 'text-foreground'
+            } ${
               isRevenue
                 ? 'text-[2.5rem] leading-none sm:text-[3.25rem]'
                 : isOccupancy || isHero
@@ -123,43 +129,67 @@ function KpiCard({ card }: { card: KpiCardDef }) {
 
         {card.extra}
 
-        <div className="mt-auto flex items-center gap-1.5 border-t border-border/50 pt-3.5">
+        <div
+          className={`mt-auto flex items-center gap-1.5 border-t pt-3.5 ${
+            isRevenue ? 'border-white/10' : 'border-border/50'
+          }`}
+        >
           {card.trend === 'up' && (
             <TrendingUp
-              className={`shrink-0 ${isAccent ? 'text-[var(--brand-gold-dark)]' : 'text-emerald-600'}`}
+              className={`shrink-0 ${
+                isRevenue
+                  ? 'text-emerald-400'
+                  : isAccent
+                    ? 'text-[var(--brand-gold-dark)]'
+                    : 'text-emerald-600'
+              }`}
               style={{ width: isHero ? 14 : 12, height: isHero ? 14 : 12 }}
             />
           )}
           {card.trend === 'down' && (
-            <TrendingDown className="h-3.5 w-3.5 shrink-0 text-[var(--brand-orange)]" />
+            <TrendingDown
+              className={`h-3.5 w-3.5 shrink-0 ${isRevenue ? 'text-orange-300' : 'text-[var(--brand-orange)]'}`}
+            />
           )}
-          <p className={`text-muted-foreground ${isHero ? 'text-sm' : 'text-xs'}`}>{card.subtext}</p>
+          <p
+            className={`${isHero ? 'text-sm' : 'text-xs'} ${
+              isRevenue ? 'text-white/55' : 'text-muted-foreground'
+            }`}
+          >
+            {card.subtext}
+          </p>
         </div>
       </div>
     </div>
   )
 }
 
-function RevenueTrendBlock({ trend }: { trend: RevenueTrend }) {
+function RevenueTrendBlock({ trend, onDark = false }: { trend: RevenueTrend; onDark?: boolean }) {
   const hasComparison = trend.lastMonth > 0 || trend.thisMonth > 0
   if (!hasComparison) return null
 
   return (
     <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-      <div className="kpi-metric-pill">
+      <div className={`kpi-metric-pill ${onDark ? 'kpi-metric-pill--on-dark' : ''}`}>
         <p className="kpi-metric-pill__label">This month</p>
         <p className="kpi-metric-pill__value">₵{trend.thisMonth.toLocaleString()}</p>
       </div>
-      <div className="kpi-metric-pill">
+      <div className={`kpi-metric-pill ${onDark ? 'kpi-metric-pill--on-dark' : ''}`}>
         <p className="kpi-metric-pill__label">Last month</p>
         <p className="kpi-metric-pill__value">₵{trend.lastMonth.toLocaleString()}</p>
       </div>
       {trend.changePercent != null && (
-        <div className="kpi-metric-pill col-span-2 sm:col-span-1">
+        <div className={`kpi-metric-pill col-span-2 sm:col-span-1 ${onDark ? 'kpi-metric-pill--on-dark' : ''}`}>
           <p className="kpi-metric-pill__label">Month change</p>
           <p
             className={`kpi-metric-pill__value ${
-              trend.changePercent >= 0 ? 'text-emerald-700' : 'text-[var(--brand-orange)]'
+              trend.changePercent >= 0
+                ? onDark
+                  ? 'text-emerald-300'
+                  : 'text-emerald-700'
+                : onDark
+                  ? 'text-orange-300'
+                  : 'text-[var(--brand-orange)]'
             }`}
           >
             {trend.changePercent >= 0 ? '+' : ''}
@@ -213,8 +243,8 @@ export function KPICards({
           tier: 'hero',
           variant: 'revenue',
           sparkline: revenueSparkline,
-          sparkTone: 'primary',
-          extra: revenueTrend ? <RevenueTrendBlock trend={revenueTrend} /> : undefined,
+          sparkTone: 'light',
+          extra: revenueTrend ? <RevenueTrendBlock trend={revenueTrend} onDark /> : undefined,
         },
         {
           icon: Percent,

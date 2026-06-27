@@ -7,6 +7,7 @@ import { GRATaxSummary } from '@/components/dashboard/gra-tax-summary'
 import { GuestFeedbackPanel } from '@/components/dashboard/guest-feedback-panel'
 import { DashboardAttention } from '@/components/dashboard/dashboard-attention'
 import { DashboardToolbar } from '@/components/dashboard/dashboard-toolbar'
+import { DarkSection } from '@/components/dashboard/dark-section'
 import { SectionHeading } from '@/components/dashboard/section-heading'
 import Link from 'next/link'
 import { ChevronRight } from 'lucide-react'
@@ -44,67 +45,79 @@ export default async function DashboardPage() {
   const todayClosed = nightAudits.some((a) => a.business_date === businessDate)
 
   return (
-    <div className="page-shell space-y-8">
-      <div className="dashboard-section space-y-4">
-        <DashboardToolbar occupancy={occupancyToday} today={todayOps} />
-        <DashboardAttention today={todayOps} metrics={metrics} />
+    <>
+      <DarkSection variant="ops" className="dashboard-section">
+        <div className="space-y-4">
+          <DashboardToolbar occupancy={occupancyToday} today={todayOps} />
+          <DashboardAttention today={todayOps} metrics={metrics} />
+        </div>
+      </DarkSection>
+
+      <div className="page-shell space-y-8 pb-8">
+        <section className="dashboard-section">
+          <h2 className="sr-only">Business overview</h2>
+          <KPICards
+            metrics={metrics}
+            revenueTrend={revenueTrend}
+            occupancySparkline={occupancySparkline}
+            revenueSparkline={revenueSparkline}
+          />
+        </section>
+
+        <section className="dashboard-section space-y-4">
+          <SectionHeading title="Room availability" description="Rooms free to sell over the next 14 days" />
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+            <div className="lg:col-span-2">
+              <AvailabilityStrip data={availability} />
+            </div>
+            <div>
+              <BookingsList reservations={reservations} viewAllHref="/owner/reservations" />
+            </div>
+          </div>
+        </section>
+
+        <section className="dashboard-section space-y-4">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <SectionHeading title="Operations" description="Housekeeping and maintenance tasks" />
+            <Link
+              href="/owner/housekeeping"
+              className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:text-primary/80"
+            >
+              Housekeeping board
+              <ChevronRight className="h-4 w-4" />
+            </Link>
+          </div>
+          <TasksList tasks={tasks} housekeepingHref="/owner/housekeeping" />
+        </section>
+
+        {guestFeedback && (
+          <section className="dashboard-section space-y-4">
+            <SectionHeading title="Guest reviews" description="Feedback from the guest portal" />
+            <GuestFeedbackPanel summary={guestFeedback} />
+          </section>
+        )}
       </div>
 
-      <section className="dashboard-section">
-        <h2 className="sr-only">Business overview</h2>
-        <KPICards
-          metrics={metrics}
-          revenueTrend={revenueTrend}
-          occupancySparkline={occupancySparkline}
-          revenueSparkline={revenueSparkline}
-        />
-      </section>
+      <DarkSection variant="depth" className="dashboard-section">
+        <div className="space-y-10 py-2">
+          <section className="space-y-4">
+            <SectionHeading
+              onDark
+              title="Business intelligence"
+              description="Revenue sources and tax compliance"
+            />
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              <ChannelPerformanceWidget channels={channels} />
+              <GRATaxSummary summary={graSummary} />
+            </div>
+          </section>
 
-      <section className="dashboard-section space-y-4">
-        <SectionHeading title="Room availability" description="Rooms free to sell over the next 14 days" />
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          <div className="lg:col-span-2">
-            <AvailabilityStrip data={availability} />
-          </div>
-          <div>
-            <BookingsList reservations={reservations} viewAllHref="/owner/reservations" />
-          </div>
+          <section className="space-y-4">
+            <SectionHeading onDark title="End of day" description="Night audit and business date close" />
+            <NightAuditPanel audits={nightAudits} todayClosed={todayClosed} />
+          </section>
         </div>
-      </section>
-
-      <section className="dashboard-section space-y-4">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <SectionHeading title="Operations" description="Housekeeping and maintenance tasks" />
-          <Link
-            href="/owner/housekeeping"
-            className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:text-primary/80"
-          >
-            Housekeeping board
-            <ChevronRight className="h-4 w-4" />
-          </Link>
-        </div>
-        <TasksList tasks={tasks} housekeepingHref="/owner/housekeeping" />
-      </section>
-
-      {guestFeedback && (
-        <section className="dashboard-section space-y-4">
-          <SectionHeading title="Guest reviews" description="Feedback from the guest portal" />
-          <GuestFeedbackPanel summary={guestFeedback} />
-        </section>
-      )}
-
-      <section className="dashboard-section space-y-4">
-        <SectionHeading title="Business intelligence" description="Revenue sources and tax compliance" />
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <ChannelPerformanceWidget channels={channels} />
-          <GRATaxSummary summary={graSummary} />
-        </div>
-      </section>
-
-      <section className="dashboard-section space-y-4">
-        <SectionHeading title="End of day" description="Night audit and business date close" />
-        <NightAuditPanel audits={nightAudits} todayClosed={todayClosed} />
-      </section>
-    </div>
+      </DarkSection>
+    </>
   )
 }
