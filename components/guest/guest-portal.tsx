@@ -113,7 +113,7 @@ function PortalCard({
 }) {
   return (
     <div
-      className={`rounded-2xl border border-white/12 bg-white/[0.08] p-5 shadow-[0_8px_32px_rgba(0,0,0,0.18)] backdrop-blur-md transition hover:border-[var(--brand-gold)]/22 hover:bg-white/[0.1] ${className}`}
+      className={`rounded-2xl border border-white/10 bg-white/[0.09] p-5 shadow-[0_8px_32px_rgba(0,0,0,0.22)] backdrop-blur-md transition hover:border-white/18 hover:bg-white/[0.12] hover:shadow-[0_12px_40px_rgba(0,0,0,0.28)] ${className}`}
     >
       {children}
     </div>
@@ -372,7 +372,13 @@ export function GuestPortal({
   }
 
   return (
-    <div className="guest-portal-shell relative min-h-dvh bg-gradient-to-b from-[var(--brand-purple-deep)] via-[var(--brand-purple-ink)] to-[#12082a] text-white">
+    <div className="guest-portal-shell relative min-h-dvh bg-[var(--brand-purple-ink)] text-white">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-b from-[var(--brand-purple-deep)]/80 via-[var(--brand-purple-ink)] to-[#0e0620]" />
+        <div className="absolute -right-24 -top-20 h-72 w-72 rounded-full bg-[var(--brand-purple)]/30 blur-3xl" />
+        <div className="absolute -left-16 top-1/3 h-48 w-48 rounded-full bg-[var(--brand-purple-bright)]/20 blur-2xl" />
+        <div className="absolute bottom-0 left-1/2 h-64 w-[120%] -translate-x-1/2 rounded-[100%] bg-[var(--brand-purple)]/15 blur-3xl" />
+      </div>
       {disconnected && (
         <RealtimeReconnectBanner
           onReconnect={() => setRetryKey((k) => k + 1)}
@@ -380,9 +386,8 @@ export function GuestPortal({
         />
       )}
 
-      <header className="guest-portal-header">
-        <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-[var(--brand-gold)]/12 blur-3xl" />
-        <div className="pointer-events-none absolute -left-20 top-24 h-32 w-32 rounded-full bg-[var(--brand-purple)]/20 blur-2xl" />
+      <header className="guest-portal-header relative z-10">
+        <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-[var(--brand-purple-bright)]/25 blur-3xl" />
         <div className="relative flex items-start gap-4">
           {property.imageUrl ? (
             <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl ring-2 ring-white/20">
@@ -418,7 +423,7 @@ export function GuestPortal({
         )}
       </header>
 
-      <main className="guest-portal-main">
+      <main className="guest-portal-main relative z-10">
         <GuestStatusAlerts
           complaints={complaints}
           requests={portalRequests}
@@ -458,7 +463,7 @@ export function GuestPortal({
             <button
               type="button"
               onClick={() => setActiveTab('stay')}
-              className="guest-btn guest-quick-card flex w-full items-center gap-3 rounded-2xl border border-[var(--brand-gold)]/30 bg-[var(--brand-gold)]/10 p-4 text-left transition hover:border-[var(--brand-gold)]/45 hover:bg-[var(--brand-gold)]/14"
+              className="guest-btn guest-quick-card flex w-full items-center gap-3 rounded-2xl border border-white/12 bg-white/[0.08] p-4 text-left transition hover:border-white/20 hover:bg-white/[0.12]"
             >
               <MessageCircle className="h-5 w-5 shrink-0 text-[var(--brand-gold)]" />
               <div className="min-w-0 flex-1">
@@ -641,7 +646,7 @@ export function GuestPortal({
                     }}
                     className={`guest-btn flex items-center gap-2 rounded-xl px-3 py-3 text-left text-sm transition ${
                       showRequestForm === type
-                        ? 'bg-[var(--brand-gold)]/20 ring-1 ring-[var(--brand-gold)]/50'
+                        ? 'bg-white/12 ring-1 ring-white/25'
                         : 'bg-white/5 hover:bg-white/10'
                     }`}
                   >
@@ -781,10 +786,10 @@ export function GuestPortal({
                       key={id}
                       type="button"
                       onClick={() => setCategory(id)}
-                      className={`flex flex-col items-center gap-1.5 rounded-xl p-2.5 text-[10px] transition ${
+                      className={`guest-btn flex flex-col items-center gap-1.5 rounded-xl p-2.5 text-[10px] transition ${
                         category === id
-                          ? 'bg-[#D4A62E]/20 ring-1 ring-[#D4A62E]'
-                          : 'bg-white/5'
+                          ? 'bg-white/12 ring-1 ring-white/25'
+                          : 'bg-white/5 hover:bg-white/10'
                       }`}
                     >
                       <Icon className="h-5 w-5" />

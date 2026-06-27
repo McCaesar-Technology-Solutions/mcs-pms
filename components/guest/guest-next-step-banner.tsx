@@ -24,27 +24,28 @@ export function GuestNextStepBanner({
 }: GuestNextStepBannerProps) {
   const Icon = iconForType[action.type]
   const isHome = variant === 'home'
+  const isConfirm = action.type === 'confirm_complete'
 
   return (
     <div
       className={`overflow-hidden rounded-2xl border ${
-        action.type === 'confirm_complete'
-          ? 'border-[#D85A30]/40 bg-gradient-to-br from-[#D85A30]/20 to-[#3C216C]/30'
-          : 'border-[#D4A62E]/30 bg-gradient-to-br from-[#D4A62E]/15 to-[#3C216C]/25'
+        isConfirm
+          ? 'border-[var(--brand-orange)]/35 bg-gradient-to-br from-[var(--brand-orange)]/20 to-[var(--brand-purple)]/35'
+          : 'border-white/14 bg-gradient-to-br from-white/10 to-[var(--brand-purple)]/30'
       } ${isHome ? 'p-5' : 'p-3.5'}`}
     >
       <div className="flex items-start gap-3">
         <div
           className={`flex shrink-0 items-center justify-center rounded-xl ${
-            action.type === 'confirm_complete'
-              ? 'bg-[#D85A30]/25 text-[#ffb899]'
-              : 'bg-[#D4A62E]/20 text-[#D4A62E]'
+            isConfirm
+              ? 'bg-[var(--brand-orange)]/25 text-[var(--brand-orange-light)]'
+              : 'bg-white/12 text-white'
           } ${isHome ? 'h-11 w-11' : 'h-9 w-9'}`}
         >
           <Icon className={isHome ? 'h-5 w-5' : 'h-4 w-4'} />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-[#D4A62E]">
+          <p className="label-eyebrow text-white/55">
             Next step · {action.reference}
           </p>
           <p className={`mt-0.5 font-semibold text-white ${isHome ? 'text-base' : 'text-sm'}`}>
@@ -57,10 +58,10 @@ export function GuestNextStepBanner({
       <button
         type="button"
         onClick={() => onAction(action)}
-        className={`mt-4 flex w-full items-center justify-center gap-2 rounded-xl font-semibold text-white transition ${
-          action.type === 'confirm_complete'
-            ? 'bg-[#D85A30] py-3.5 hover:bg-[#c24e28]'
-            : 'bg-[#3C216C] py-3 hover:bg-[#4c2a85]'
+        className={`guest-btn mt-4 flex w-full items-center justify-center gap-2 rounded-xl font-semibold text-white ${
+          isConfirm
+            ? 'guest-btn-accent py-3.5'
+            : 'guest-btn-primary py-3'
         } ${isHome ? 'text-sm' : 'py-2.5 text-sm'}`}
       >
         {action.actionLabel}

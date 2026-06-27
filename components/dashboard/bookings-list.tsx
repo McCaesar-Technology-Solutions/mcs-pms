@@ -17,22 +17,21 @@ export function BookingsList({ reservations, viewAllHref = '/owner/reservations'
   const getStatusBadgeColor = (status: string) => {
     switch (status) {
       case 'checked_in':
-        return 'bg-amber-100 text-amber-700'
+        return 'bg-primary/12 text-primary'
       case 'confirmed':
-        return 'bg-blue-100 text-blue-700'
+        return 'bg-[var(--brand-purple-soft)] text-primary'
       default:
-        return 'bg-gray-100 text-gray-700'
+        return 'bg-muted text-muted-foreground'
     }
   }
 
   return (
     <div className="surface-card overflow-hidden">
-      <div className="surface-card-accent" />
       <div className="surface-card-header">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-lg font-semibold text-foreground">Upcoming bookings</h3>
-            <p className="text-sm text-muted-foreground mt-1">Next 5 reservations</p>
+            <p className="mt-1 text-sm text-muted-foreground">Next 5 reservations</p>
           </div>
           <Link
             href={viewAllHref}
@@ -60,8 +59,8 @@ export function BookingsList({ reservations, viewAllHref = '/owner/reservations'
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="mb-2 flex flex-wrap items-center gap-2">
-                      <p className="font-semibold text-[#111827]">{booking.guestName}</p>
-                      <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${getStatusBadgeColor(booking.status)}`}>
+                      <p className="font-semibold text-foreground">{booking.guestName}</p>
+                      <span className={`rounded-md px-2.5 py-1 text-xs font-semibold ${getStatusBadgeColor(booking.status)}`}>
                         {booking.status === 'checked_in' ? 'Checked In' : 'Confirmed'}
                       </span>
                     </div>
@@ -71,7 +70,7 @@ export function BookingsList({ reservations, viewAllHref = '/owner/reservations'
                     </p>
                   </div>
                   <div className="shrink-0 text-right">
-                    <p className="font-semibold text-[#111827]">₵{booking.totalPrice.toLocaleString()}</p>
+                    <p className="font-semibold tabular-nums text-foreground">₵{booking.totalPrice.toLocaleString()}</p>
                     <p className="text-xs text-muted-foreground">{booking.numberOfNights} nights</p>
                   </div>
                 </div>

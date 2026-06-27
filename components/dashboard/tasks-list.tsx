@@ -60,11 +60,10 @@ export function TasksList({
 
   return (
     <div className="surface-card overflow-hidden">
-      <div className="surface-card-accent" />
       <div className="surface-card-header">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h3 className="text-lg font-semibold text-[#111827]">Task Summary</h3>
+            <h3 className="text-lg font-semibold text-foreground">Task summary</h3>
             <p className="mt-1 text-sm text-muted-foreground">
               Housekeeping and maintenance across your rooms
             </p>
@@ -72,7 +71,7 @@ export function TasksList({
           {!isEmpty && (
             <Link
               href={housekeepingHref}
-              className="inline-flex items-center gap-1 text-sm font-semibold text-[#3C216C] hover:underline"
+              className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline"
             >
               Open board
               <ArrowRight className="h-4 w-4" />

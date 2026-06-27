@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { X } from 'lucide-react'
+import { Bell, X } from 'lucide-react'
 import type { Complaint } from '@/types'
 import type { GuestPortalRequest } from '@/lib/data/guest-portal'
 import { pickGuestNextAction } from '@/lib/complaints/guest-next-action'
@@ -61,17 +61,22 @@ export function GuestStatusAlerts({ complaints, requests, onOpenHelp }: GuestSta
   }
 
   return (
-    <div className="rounded-2xl border border-[#D4A62E]/40 bg-[#D4A62E]/15 p-5">
+    <div className="rounded-2xl border border-white/14 bg-gradient-to-br from-white/10 to-[var(--brand-purple)]/25 p-5 shadow-[0_8px_28px_rgba(0,0,0,0.2)]">
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-[#D4A62E]">Update</p>
-          <p className="mt-0.5 text-sm font-semibold text-white">{title}</p>
-          <p className="mt-1 text-sm text-white/75">{detail}</p>
+        <div className="flex gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/12">
+            <Bell className="h-4 w-4 text-white" />
+          </div>
+          <div>
+            <p className="label-eyebrow text-white/55">Update</p>
+            <p className="mt-0.5 text-sm font-semibold text-white">{title}</p>
+            <p className="mt-1 text-sm text-white/75">{detail}</p>
+          </div>
         </div>
         <button
           type="button"
           onClick={dismiss}
-          className="shrink-0 rounded-lg p-1 text-white/50 hover:bg-white/10 hover:text-white"
+          className="guest-icon-btn shrink-0 text-white/50 hover:text-white"
           aria-label="Dismiss"
         >
           <X className="h-4 w-4" />
@@ -83,7 +88,7 @@ export function GuestStatusAlerts({ complaints, requests, onOpenHelp }: GuestSta
           dismiss()
           onOpenHelp()
         }}
-        className="mt-3 w-full rounded-xl bg-[#3C216C] py-2.5 text-sm font-semibold text-white"
+        className="guest-btn guest-btn-primary mt-3 w-full py-2.5 text-sm"
       >
         View in Help
       </button>

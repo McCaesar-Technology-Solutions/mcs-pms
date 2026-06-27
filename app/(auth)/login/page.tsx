@@ -52,7 +52,7 @@ function LoginForm() {
 
   return (
     <div className="flex min-h-dvh items-center justify-center bg-[var(--brand-purple-ink)] px-4 py-12">
-      <div className="w-full max-w-md rounded-2xl border border-white/10 bg-white/[0.07] p-8 shadow-2xl backdrop-blur-md ring-1 ring-[var(--brand-gold)]/10">
+      <div className="w-full max-w-md rounded-2xl border border-white/12 bg-white/[0.08] p-8 shadow-2xl backdrop-blur-md">
         <div className="mb-8 text-center">
           <p className="font-display text-3xl font-semibold tracking-wide text-[var(--brand-gold)]">
             MOJO APARTMENTS

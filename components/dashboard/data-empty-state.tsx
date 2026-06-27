@@ -21,7 +21,7 @@ export function DataEmptyState({
 }: DataEmptyStateProps) {
   const content = (
     <>
-      <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/8 ring-1 ring-primary/12">
+      <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 ring-1 ring-primary/15">
         <Icon className="h-6 w-6 text-primary" strokeWidth={1.75} />
       </div>
       {title && <p className="text-base font-semibold text-foreground">{title}</p>}

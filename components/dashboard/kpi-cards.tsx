@@ -32,7 +32,7 @@ export function KPICards({ metrics, showRevenue = true }: KPICardsProps) {
             subtext: `RevPAR ₵${kpiMetrics.reviParMetric.toLocaleString()}`,
             trend: 'up' as const,
             tint: 'bg-primary/10',
-            iconBg: 'bg-primary/15 text-primary ring-primary/20',
+            iconBg: 'bg-primary/15 text-primary ring-primary/25',
           },
         ]
       : []),
@@ -42,8 +42,8 @@ export function KPICards({ metrics, showRevenue = true }: KPICardsProps) {
       value: `${(kpiMetrics.occupancyRate * 100).toFixed(0)}%`,
       subtext: 'Rooms occupied now',
       trend: 'up' as const,
-      tint: 'bg-[var(--brand-gold)]/12',
-      iconBg: 'bg-[var(--brand-gold)]/18 text-[var(--brand-gold-dark)] ring-[var(--brand-gold)]/25',
+      tint: 'bg-primary/8',
+      iconBg: 'bg-primary/12 text-primary ring-primary/20',
     },
     {
       icon: Banknote,
@@ -60,8 +60,8 @@ export function KPICards({ metrics, showRevenue = true }: KPICardsProps) {
       value: kpiMetrics.totalBookings.toString(),
       subtext: `${kpiMetrics.totalGuests} guests`,
       trend: 'up' as const,
-      tint: 'bg-[var(--brand-gold)]/10',
-      iconBg: 'bg-[var(--brand-gold)]/15 text-[var(--brand-gold-dark)] ring-[var(--brand-gold)]/25',
+      tint: 'bg-primary/6',
+      iconBg: 'bg-primary/10 text-primary ring-primary/18',
     },
     {
       icon: AlertCircle,
@@ -96,13 +96,13 @@ export function KPICards({ metrics, showRevenue = true }: KPICardsProps) {
                     {card.value}
                   </p>
                 </div>
-                <div className={`shrink-0 rounded-xl p-3 ring-1 transition-transform duration-300 group-hover:scale-105 ${card.iconBg}`}>
+                <div className={`shrink-0 rounded-xl p-3 ring-1 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3 ${card.iconBg}`}>
                   <Icon className="h-5 w-5" strokeWidth={2.25} />
                 </div>
               </div>
               <div className="flex items-center gap-2">
                 {card.trend === 'up' && (
-                  <TrendingUp className="h-3.5 w-3.5 text-[var(--brand-gold)]" />
+                  <TrendingUp className="h-3.5 w-3.5 text-primary" />
                 )}
                 <p className="text-sm font-medium text-muted-foreground">{card.subtext}</p>
               </div>

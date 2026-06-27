@@ -31,19 +31,21 @@ export default async function DashboardPage() {
   const todayClosed = nightAudits.some((a) => a.business_date === businessDate)
 
   return (
-    <div className="page-shell space-y-8">
-      <PageHeader
-        badge="Overview"
-        title="Dashboard"
-        description="Occupancy, revenue, housekeeping, and guest feedback at a glance."
-      />
+    <div className="page-shell space-y-10">
+      <div className="dashboard-section">
+        <PageHeader
+          badge="Overview"
+          title="Dashboard"
+          description="Occupancy, revenue, housekeeping, and guest feedback at a glance."
+        />
+      </div>
 
-      <section className="space-y-4">
+      <section className="dashboard-section space-y-4">
         <SectionHeading title="Key metrics" description="Real-time overview of your performance" />
         <KPICards metrics={metrics} />
       </section>
 
-      <section className="space-y-4">
+      <section className="dashboard-section space-y-4">
         <SectionHeading title="Room availability" description="See how many rooms are free to sell over the next 14 days" />
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2">
@@ -55,7 +57,7 @@ export default async function DashboardPage() {
         </div>
       </section>
 
-      <section className="space-y-4">
+      <section className="dashboard-section space-y-4">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <SectionHeading title="Operations" description="Housekeeping and maintenance tasks" />
           <Link
@@ -70,13 +72,13 @@ export default async function DashboardPage() {
       </section>
 
       {guestFeedback && (
-        <section className="space-y-4">
+        <section className="dashboard-section space-y-4">
           <SectionHeading title="Guest reviews" description="Feedback from the guest portal" />
           <GuestFeedbackPanel summary={guestFeedback} />
         </section>
       )}
 
-      <section className="space-y-4">
+      <section className="dashboard-section space-y-4">
         <SectionHeading title="Business intelligence" description="Revenue sources and tax compliance" />
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <ChannelPerformanceWidget channels={channels} />
@@ -84,7 +86,7 @@ export default async function DashboardPage() {
         </div>
       </section>
 
-      <section className="space-y-4">
+      <section className="dashboard-section space-y-4">
         <SectionHeading title="End of day" description="Night audit and business date close" />
         <NightAuditPanel audits={nightAudits} todayClosed={todayClosed} />
       </section>
