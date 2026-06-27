@@ -729,23 +729,23 @@
   }
 
   .kpi-card--tile-tone-rate {
-    background: linear-gradient(165deg, #ffffff 55%, var(--comp-slate-soft) 100%);
-    border-color: rgba(90, 109, 140, 0.1);
+    background: linear-gradient(168deg, #eef1f7 0%, #d8e0eb 100%);
+    border-color: rgba(90, 109, 140, 0.16);
   }
 
   .kpi-card--tile-tone-bookings {
-    background: linear-gradient(165deg, #ffffff 55%, var(--comp-teal-soft) 100%);
-    border-color: rgba(45, 143, 133, 0.1);
+    background: linear-gradient(168deg, #e8f5f3 0%, #cce8e3 100%);
+    border-color: rgba(45, 143, 133, 0.16);
   }
 
   .kpi-card--tile-tone-balance-ok {
-    background: linear-gradient(165deg, #ffffff 55%, var(--comp-sage-soft) 100%);
-    border-color: rgba(107, 145, 104, 0.1);
+    background: linear-gradient(168deg, #eef4ec 0%, #d5e6d2 100%);
+    border-color: rgba(107, 145, 104, 0.16);
   }
 
   .kpi-card--tile-tone-balance-warn {
-    background: linear-gradient(165deg, #ffffff 55%, var(--comp-coral-soft) 100%);
-    border-color: rgba(196, 97, 74, 0.12);
+    background: linear-gradient(168deg, #faf0ec 0%, #edd5cc 100%);
+    border-color: rgba(196, 97, 74, 0.18);
   }
 
   .kpi-card--tile-elevated:hover {
@@ -755,20 +755,23 @@
   }
 
   .kpi-card--tile-tone-rate:hover {
-    border-color: rgba(90, 109, 140, 0.16);
+    border-color: rgba(90, 109, 140, 0.22);
+    box-shadow: 0 8px 24px rgba(90, 109, 140, 0.1);
   }
 
   .kpi-card--tile-tone-bookings:hover {
-    border-color: rgba(45, 143, 133, 0.16);
+    border-color: rgba(45, 143, 133, 0.22);
+    box-shadow: 0 8px 24px rgba(45, 143, 133, 0.09);
   }
 
   .kpi-card--tile-tone-balance-ok:hover {
-    border-color: rgba(107, 145, 104, 0.16);
+    border-color: rgba(107, 145, 104, 0.22);
+    box-shadow: 0 8px 24px rgba(107, 145, 104, 0.09);
   }
 
   .kpi-card--tile-tone-balance-warn:hover {
-    border-color: rgba(196, 97, 74, 0.2);
-    box-shadow: 0 8px 24px rgba(196, 97, 74, 0.06);
+    border-color: rgba(196, 97, 74, 0.24);
+    box-shadow: 0 8px 24px rgba(196, 97, 74, 0.1);
   }
 
   .kpi-card--tile:hover {
@@ -1446,14 +1449,53 @@
 
   .stat-chip--light {
     border-radius: calc(var(--radius) - 2px);
-    border: 1px solid rgba(var(--shadow-tint), 0.09);
-    background: #ffffff;
+    border: 1px solid rgba(var(--shadow-tint), 0.1);
     padding: 0.75rem 0.875rem;
-    box-shadow: 0 1px 2px rgba(var(--shadow-tint), 0.04);
+    box-shadow: 0 1px 3px rgba(var(--shadow-tint), 0.05);
     transition:
       transform 0.2s ease,
       box-shadow 0.2s ease,
       border-color 0.2s ease;
+  }
+
+  .stat-chip--tone-gold {
+    background: linear-gradient(168deg, #faf5e8 0%, #ede0c4 100%);
+    border-color: rgba(184, 141, 36, 0.18);
+  }
+
+  .stat-chip--tone-teal {
+    background: linear-gradient(168deg, #e8f5f3 0%, #cce8e3 100%);
+    border-color: rgba(45, 143, 133, 0.16);
+  }
+
+  .stat-chip--tone-sky {
+    background: linear-gradient(168deg, #eaf2f9 0%, #cddfea 100%);
+    border-color: rgba(74, 125, 173, 0.16);
+  }
+
+  .stat-chip--tone-coral {
+    background: linear-gradient(168deg, #faf0ec 0%, #edd5cc 100%);
+    border-color: rgba(196, 97, 74, 0.16);
+  }
+
+  .stat-chip--tone-gold:hover {
+    border-color: rgba(184, 141, 36, 0.24);
+    box-shadow: 0 4px 14px rgba(184, 141, 36, 0.1);
+  }
+
+  .stat-chip--tone-teal:hover {
+    border-color: rgba(45, 143, 133, 0.22);
+    box-shadow: 0 4px 14px rgba(45, 143, 133, 0.08);
+  }
+
+  .stat-chip--tone-sky:hover {
+    border-color: rgba(74, 125, 173, 0.22);
+    box-shadow: 0 4px 14px rgba(74, 125, 173, 0.08);
+  }
+
+  .stat-chip--tone-coral:hover {
+    border-color: rgba(196, 97, 74, 0.22);
+    box-shadow: 0 4px 14px rgba(196, 97, 74, 0.08);
   }
 
   .stat-chip--light .stat-chip__label {
@@ -1492,23 +1534,43 @@
     height: 0.25rem;
     overflow: hidden;
     border-radius: 999px;
-    background: var(--muted);
+    background: rgba(var(--shadow-tint), 0.08);
+  }
+
+  .stat-chip--tone-gold .stat-chip__progress-track {
+    background: rgba(184, 141, 36, 0.18);
+  }
+
+  .stat-chip--tone-teal .stat-chip__progress-track {
+    background: rgba(45, 143, 133, 0.15);
+  }
+
+  .stat-chip--tone-sky .stat-chip__progress-track {
+    background: rgba(74, 125, 173, 0.15);
+  }
+
+  .stat-chip--tone-coral .stat-chip__progress-track {
+    background: rgba(196, 97, 74, 0.15);
   }
 
   .stat-chip--light .stat-chip__icon--gold {
     color: var(--brand-gold-dark);
+    opacity: 1;
   }
 
   .stat-chip--light .stat-chip__icon--teal {
-    color: var(--comp-teal);
+    color: var(--comp-teal-ink);
+    opacity: 1;
   }
 
   .stat-chip--light .stat-chip__icon--sky {
-    color: var(--comp-sky);
+    color: var(--comp-sky-ink);
+    opacity: 1;
   }
 
   .stat-chip--light .stat-chip__icon--coral {
-    color: var(--comp-coral);
+    color: var(--comp-coral-ink);
+    opacity: 1;
   }
 
   .attention-strip {

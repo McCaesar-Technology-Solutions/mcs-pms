@@ -25,10 +25,10 @@ function StatChip({
   accent?: 'gold' | 'teal' | 'sky' | 'coral'
 }) {
   return (
-    <div className="stat-chip stat-chip--light min-w-0 flex-1">
+    <div className={`stat-chip stat-chip--light stat-chip--tone-${accent} min-w-0 flex-1`}>
       <div className="flex items-center gap-2">
         <Icon
-          className={`stat-chip__icon--${accent} h-3.5 w-3.5 shrink-0 opacity-80`}
+          className={`stat-chip__icon--${accent} h-3.5 w-3.5 shrink-0`}
           strokeWidth={2}
           aria-hidden
         />
