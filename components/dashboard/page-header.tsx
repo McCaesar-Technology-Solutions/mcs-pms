@@ -1,11 +1,9 @@
 import type { ReactNode } from 'react'
-import { DarkSection } from '@/components/dashboard/dark-section'
 
 interface PageHeaderProps {
   title: string
   description?: string
   badge?: string
-  /** Slim header for inner panels — stays on light background. */
   compact?: boolean
   actions?: ReactNode
 }
@@ -25,7 +23,7 @@ export function PageHeader({
             {badge}
           </span>
         )}
-        <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground">{title}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">{title}</h1>
         {description && (
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{description}</p>
         )}
@@ -34,19 +32,19 @@ export function PageHeader({
   }
 
   return (
-    <DarkSection variant="ops" className="page-header-bleed dashboard-section">
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div className="min-w-0">
-          {badge && <p className="label-eyebrow label-eyebrow-accent">{badge}</p>}
-          <h1 className="font-display mt-1 text-[1.75rem] font-semibold tracking-tight text-white sm:text-[2rem]">
-            {title}
-          </h1>
-          {description && (
-            <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-white/58">{description}</p>
-          )}
-        </div>
-        {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
-      </header>
-    </DarkSection>
+    <header className="page-header flex flex-col gap-3 border-b border-border/80 pb-5 sm:flex-row sm:items-end sm:justify-between">
+      <div className="min-w-0">
+        {badge && <p className="label-eyebrow label-eyebrow-accent">{badge}</p>}
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-foreground sm:text-[1.75rem]">
+          {title}
+        </h1>
+        {description && (
+          <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+            {description}
+          </p>
+        )}
+      </div>
+      {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
+    </header>
   )
 }

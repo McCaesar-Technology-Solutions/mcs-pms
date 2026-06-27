@@ -1,7 +1,7 @@
 import { KPICards } from '@/components/dashboard/kpi-cards'
 import { DashboardAttention } from '@/components/dashboard/dashboard-attention'
+import { DashboardHero } from '@/components/dashboard/dashboard-hero'
 import { DashboardToolbar } from '@/components/dashboard/dashboard-toolbar'
-import { DarkSection } from '@/components/dashboard/dark-section'
 import { SectionHeading } from '@/components/dashboard/section-heading'
 import { TasksList } from '@/components/dashboard/tasks-list'
 import { NotificationLogPanel } from '@/components/dashboard/notification-log-panel'
@@ -22,7 +22,7 @@ import { getDashboardData } from '@/lib/data/dashboard'
 import { getHousekeepingTasks } from '@/lib/data/housekeeping'
 import { getNotificationLog } from '@/lib/data/notification-log'
 import { getAuditLog } from '@/lib/data/audit-log'
-import { computeTodayOperations, computeOccupancySparkline } from '@/lib/data/overview'
+import { computeTodayOperations } from '@/lib/data/overview'
 import { getOccupancyToday } from '@/lib/data/occupancy'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
@@ -39,7 +39,7 @@ const MANAGER_HASH_TO_TAB: Record<string, string> = {
 }
 
 export default async function ManagerDashboardPage() {
-  const [complaints, { metrics, availability, reservations, hotelId }, tasks, notificationLog, auditLog, nightAudits] =
+  const [complaints, { metrics, reservations, hotelId }, tasks, notificationLog, auditLog, nightAudits] =
     await Promise.all([
       fetchHotelComplaints(),
       getDashboardData(),
@@ -52,7 +52,6 @@ export default async function ManagerDashboardPage() {
   const supabase = await createClient()
   const occupancyToday = hotelId ? await getOccupancyToday(supabase, hotelId) : undefined
   const todayOps = computeTodayOperations(reservations)
-  const occupancySparkline = computeOccupancySparkline(availability)
 
   let propertyName = 'Property'
   let guestRequests: Awaited<ReturnType<typeof loadHotelGuestRequests>> = []
@@ -88,9 +87,9 @@ export default async function ManagerDashboardPage() {
   const todayClosed = nightAudits.some((a) => a.business_date === businessDate)
 
   return (
-    <>
-      <DarkSection variant="ops" className="dashboard-section">
-        <div className="space-y-4">
+    <div className="page-shell page-content-stack pb-10">
+      <DashboardHero>
+        <div className="space-y-5 p-5 sm:p-6">
           <DashboardToolbar
             title="Manager dashboard"
             eyebrow="Operations"
@@ -104,10 +103,9 @@ export default async function ManagerDashboardPage() {
             billingHref="/manager/reservations"
           />
         </div>
-      </DarkSection>
+      </DashboardHero>
 
-      <div className="page-shell page-shell--after-hero page-content-stack pb-8">
-        <PageTabShell
+      <PageTabShell
           hashToTab={MANAGER_HASH_TO_TAB}
           defaultTab="overview"
           tabs={[
@@ -118,13 +116,9 @@ export default async function ManagerDashboardPage() {
           panels={{
             overview: (
               <>
-                <section className="dashboard-section space-y-4">
-                  <h2 className="sr-only">Business overview</h2>
-                  <KPICards
-                    metrics={metrics}
-                    showRevenue={false}
-                    occupancySparkline={occupancySparkline}
-                  />
+                <section className="dashboard-section space-y-3">
+                  <SectionHeading title="Property snapshot" description="Rates, bookings, and balances" />
+                  <KPICards metrics={metrics} showRevenue={false} />
                 </section>
 
                 <OpsInboxPanel items={opsInbox} />
@@ -140,6 +134,11 @@ export default async function ManagerDashboardPage() {
                     <TasksList tasks={tasks} />
                   </section>
                 </div>
+
+                <section className="dashboard-section space-y-4">
+                  <SectionHeading title="End of day" description="Night audit and business date close" />
+                  <NightAuditPanel audits={nightAudits} todayClosed={todayClosed} />
+                </section>
               </>
             ),
             'guest-portal': hotelId ? (
@@ -166,16 +165,8 @@ export default async function ManagerDashboardPage() {
                 <NotificationLogPanel entries={notificationLog} />
               </div>
             ),
-          }}
-        />
-      </div>
-
-      <DarkSection variant="depth" className="dashboard-section">
-        <section className="space-y-4 py-2">
-          <SectionHeading onDark title="End of day" description="Night audit and business date close" />
-          <NightAuditPanel audits={nightAudits} todayClosed={todayClosed} />
-        </section>
-      </DarkSection>
-    </>
+        }}
+      />
+    </div>
   )
 }

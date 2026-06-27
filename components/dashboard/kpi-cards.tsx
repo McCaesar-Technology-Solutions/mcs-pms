@@ -117,7 +117,8 @@ function KpiCard({ card }: { card: KpiCardDef }) {
             />
           ) : (
             card.sparkline &&
-            card.sparkline.length >= 2 && (
+            card.sparkline.length >= 2 &&
+            new Set(card.sparkline).size > 1 && (
               <MiniSparkline
                 values={card.sparkline}
                 tone={card.sparkTone}
@@ -262,34 +263,7 @@ export function KPICards({
           sparkTone: occStatus === 'warning' ? 'amber' : 'gold',
         },
       ]
-    : [
-        {
-          icon: Percent,
-          label: 'Occupancy rate',
-          value: `${occupancyRate.toFixed(0)}%`,
-          rawValue: occupancyRate,
-          formatValue: (n) => `${Math.round(n)}%`,
-          subtext: 'Rooms occupied right now',
-          trend: occStatus === 'success' ? 'up' : undefined,
-          tier: 'hero',
-          variant: 'occupancy',
-          status: occStatus,
-          occupancyPercent: occupancyRate,
-          sparkline: occupancySparkline,
-          sparkTone: occStatus === 'warning' ? 'amber' : 'emerald',
-        },
-        {
-          icon: Users,
-          label: 'Active bookings',
-          value: m.totalBookings.toString(),
-          rawValue: m.totalBookings,
-          formatValue: (n) => Math.round(n).toString(),
-          subtext: `${m.totalGuests} guests on record`,
-          trend: 'up',
-          tier: 'accent',
-          sparkTone: 'primary',
-        },
-      ]
+    : []
 
   const balanceStatus: CardStatus = m.outstandingBalance > 0 ? 'warning' : 'success'
 
@@ -301,20 +275,16 @@ export function KPICards({
       subtext: showRevenue ? 'Average daily rate' : 'List price benchmark',
       tier: 'standard',
     },
-    ...(showRevenue
-      ? [
-          {
-            icon: Users,
-            label: 'Active bookings',
-            value: m.totalBookings.toString(),
-            rawValue: m.totalBookings,
-            formatValue: (n: number) => Math.round(n).toString(),
-            subtext: `${m.totalGuests} guests on record`,
-            trend: 'up' as const,
-            tier: 'standard' as const,
-          },
-        ]
-      : []),
+    {
+      icon: Users,
+      label: 'Active bookings',
+      value: m.totalBookings.toString(),
+      rawValue: m.totalBookings,
+      formatValue: (n: number) => Math.round(n).toString(),
+      subtext: `${m.totalGuests} guests on record`,
+      trend: 'up' as const,
+      tier: 'standard' as const,
+    },
     {
       icon: AlertCircle,
       label: 'Unpaid balances',
@@ -330,33 +300,26 @@ export function KPICards({
     },
   ]
 
+  if (!showRevenue) {
+    return (
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        {standardCards.map((card) => (
+          <KpiCard key={card.label} card={card} />
+        ))}
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-4">
-      <div
-        className={`grid grid-cols-1 gap-4 ${
-          showRevenue ? 'lg:grid-cols-5' : 'lg:grid-cols-2'
-        }`}
-      >
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
         {heroCards.map((card, i) => (
-          <div
-            key={card.label}
-            className={
-              showRevenue
-                ? i === 0
-                  ? 'lg:col-span-3'
-                  : 'lg:col-span-2'
-                : undefined
-            }
-          >
+          <div key={card.label} className={i === 0 ? 'lg:col-span-3' : 'lg:col-span-2'}>
             <KpiCard card={card} />
           </div>
         ))}
       </div>
-      <div
-        className={`grid grid-cols-1 gap-3 sm:grid-cols-2 ${
-          showRevenue ? 'lg:grid-cols-3' : 'lg:grid-cols-2'
-        }`}
-      >
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {standardCards.map((card) => (
           <KpiCard key={card.label} card={card} />
         ))}
