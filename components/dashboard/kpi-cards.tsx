@@ -33,23 +33,23 @@ function RevenueBanner({
 }) {
   return (
     <div className="kpi-card kpi-card--revenue">
-      <div className="flex flex-col gap-5 p-5 sm:p-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div className="kpi-card--revenue__body">
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0 flex-1">
-            <p className="kpi-card__label">Total revenue</p>
-            <div className="mt-2 flex items-end justify-between gap-4">
-              <p className="text-[2.35rem] font-bold tabular-nums leading-none tracking-tight text-[var(--brand-gold-light)] sm:text-[2.85rem]">
+            <p className="kpi-card__label kpi-card__label--on-dark">Total revenue</p>
+            <div className="mt-3 flex items-end justify-between gap-4">
+              <p className="kpi-card__value kpi-card__value--revenue">
                 <AnimatedMetric
                   value={metrics.totalRevenue}
                   format={(n) => `₵${Math.round(n).toLocaleString()}`}
                 />
               </p>
               {hasSparklineVariance(revenueSparkline) && (
-                <MiniSparkline values={revenueSparkline!} tone="light" className="h-10 w-28" />
+                <MiniSparkline values={revenueSparkline!} tone="light" className="h-11 w-32" />
               )}
             </div>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <p className="text-sm text-white/55">
+            <div className="mt-4 flex flex-wrap items-center gap-2.5">
+              <p className="kpi-card__subtext kpi-card__subtext--on-dark">
                 RevPAR ₵{metrics.reviParMetric.toLocaleString()} per room
               </p>
               {revenueTrend?.changePercent != null && (
@@ -59,7 +59,7 @@ function RevenueBanner({
           </div>
 
           {revenueTrend && (revenueTrend.lastMonth > 0 || revenueTrend.thisMonth > 0) && (
-            <div className="grid w-full grid-cols-2 gap-2 sm:max-w-xs sm:grid-cols-1">
+            <div className="grid w-full grid-cols-2 gap-2.5 sm:max-w-[13rem] sm:grid-cols-1">
               <div className="kpi-metric-pill kpi-metric-pill--on-dark">
                 <p className="kpi-metric-pill__label">This month</p>
                 <p className="kpi-metric-pill__value">₵{revenueTrend.thisMonth.toLocaleString()}</p>
@@ -85,7 +85,6 @@ function MetricTile({
   warning,
   sparkline,
   trendUp,
-  accent,
 }: {
   label: string
   value: string
@@ -95,43 +94,30 @@ function MetricTile({
   warning?: boolean
   sparkline?: number[]
   trendUp?: boolean
-  accent?: 'slate' | 'teal'
 }) {
-  const accentClass = warning
-    ? 'kpi-card--tile-warning'
-    : accent === 'teal'
-      ? 'kpi-card--tile-accent-teal'
-      : accent === 'slate'
-        ? 'kpi-card--tile-accent-slate'
-        : ''
-
   return (
-    <div className={`kpi-card kpi-card--tile ${accentClass}`}>
-      <div className="flex items-start justify-between gap-3">
-        <p className="kpi-card__label">{label}</p>
-        {trendUp && (
-          <span className="inline-flex items-center gap-0.5 text-[11px] font-semibold text-emerald-600">
-            <TrendingUp className="h-3 w-3" />
-          </span>
-        )}
-      </div>
-      <div className="mt-3 flex items-end justify-between gap-3">
-        <p className="kpi-card__value">
+    <div className={`kpi-card kpi-card--tile kpi-card--tile-elevated ${warning ? 'kpi-card--tile-warning' : ''}`}>
+      <p className="kpi-card__label">{label}</p>
+      <div className="mt-2 flex items-end justify-between gap-3">
+        <p className="kpi-card__value kpi-card__value--tile">
           {rawValue != null && formatValue ? (
             <AnimatedMetric value={rawValue} format={formatValue} />
           ) : (
             value
           )}
         </p>
-        {hasSparklineVariance(sparkline) && (
-          <MiniSparkline
-            values={sparkline!}
-            tone={accent === 'teal' ? 'teal' : 'slate'}
-            className="h-8 w-20"
-          />
-        )}
+        <div className="flex items-center gap-2">
+          {trendUp && (
+            <span className="inline-flex items-center text-[var(--comp-teal)]">
+              <TrendingUp className="h-3.5 w-3.5" strokeWidth={2.25} />
+            </span>
+          )}
+          {hasSparklineVariance(sparkline) && (
+            <MiniSparkline values={sparkline!} tone="slate" className="h-9 w-[5.5rem]" />
+          )}
+        </div>
       </div>
-      <p className="kpi-card__subtext mt-auto pt-3">{subtext}</p>
+      <p className="kpi-card__subtext mt-auto pt-4">{subtext}</p>
     </div>
   )
 }
@@ -163,7 +149,6 @@ export function KPICards({
         label="Avg. nightly rate"
         value={`₵${m.averageNightlyRate}`}
         subtext="Average daily rate"
-        accent="slate"
       />
       <MetricTile
         label="Active bookings"
@@ -173,7 +158,6 @@ export function KPICards({
         subtext={`${m.totalGuests} guest${m.totalGuests === 1 ? '' : 's'} on record`}
         sparkline={bookingsSparkline}
         trendUp={m.totalBookings > 0}
-        accent="teal"
       />
       <MetricTile
         label="Unpaid balances"
@@ -197,7 +181,6 @@ export function KPICards({
           label="Typical room rate"
           value={`₵${m.averageNightlyRate}`}
           subtext="List price benchmark"
-          accent="slate"
         />
         <MetricTile
           label="Active bookings"
@@ -206,7 +189,6 @@ export function KPICards({
           formatValue={(n) => Math.round(n).toString()}
           subtext={`${m.totalGuests} guest${m.totalGuests === 1 ? '' : 's'} on record`}
           sparkline={bookingsSparkline}
-          accent="teal"
         />
         <MetricTile
           label="Unpaid balances"
@@ -225,7 +207,7 @@ export function KPICards({
   }
 
   const main = (
-    <div className="space-y-3">
+    <div className="space-y-3.5">
       <RevenueBanner
         metrics={m}
         revenueTrend={revenueTrend}

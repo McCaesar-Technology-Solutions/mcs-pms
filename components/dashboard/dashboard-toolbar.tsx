@@ -25,27 +25,25 @@ function StatChip({
   accent?: 'gold' | 'teal' | 'sky' | 'coral'
 }) {
   return (
-    <div className="stat-chip min-w-0 flex-1 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-3 sm:px-4 sm:py-3.5">
+    <div className="stat-chip stat-chip--light min-w-0 flex-1">
       <div className="flex items-center gap-2">
         <Icon
-          className={`stat-chip__icon--${accent} h-3.5 w-3.5 shrink-0`}
+          className={`stat-chip__icon--${accent} h-3.5 w-3.5 shrink-0 opacity-80`}
           strokeWidth={2}
           aria-hidden
         />
-        <span className="text-[11px] font-medium text-white/50">{label}</span>
+        <span className="stat-chip__label">{label}</span>
       </div>
-      <p className="mt-2 text-2xl font-semibold tabular-nums leading-none tracking-tight text-white sm:text-[2rem]">
-        {value}
-      </p>
+      <p className="stat-chip__value">{value}</p>
       {progress != null && (
-        <div className="mt-2.5 h-1 overflow-hidden rounded-full bg-white/10">
+        <div className="stat-chip__progress-track">
           <div
             className={`stat-chip__progress--${accent} h-full rounded-full transition-[width] duration-500`}
             style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
           />
         </div>
       )}
-      {detail && <p className="mt-1.5 truncate text-[11px] text-white/45">{detail}</p>}
+      {detail && <p className="stat-chip__detail">{detail}</p>}
     </div>
   )
 }
@@ -63,19 +61,17 @@ export function DashboardToolbar({
   })
 
   return (
-    <header className="flex flex-col gap-5">
-      <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+    <header className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="min-w-0">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--brand-gold-light)]">
-            {eyebrow}
-          </p>
-          <h1 className="font-display mt-1.5 text-[1.75rem] font-semibold tracking-tight text-white sm:text-[2.1rem]">
+          <p className="text-sm font-medium text-muted-foreground">{eyebrow}</p>
+          <h1 className="font-display mt-1 text-[1.625rem] font-semibold tracking-tight text-foreground text-balance sm:text-[1.875rem]">
             {title}
           </h1>
-          <p className="mt-1 text-sm text-white/50">{dateLabel}</p>
+          <p className="mt-0.5 text-sm text-muted-foreground">{dateLabel}</p>
         </div>
 
-        <div className="grid w-full grid-cols-2 gap-2 sm:grid-cols-4 lg:max-w-[38rem] lg:flex-1">
+        <div className="grid w-full grid-cols-2 gap-2.5 sm:grid-cols-4 lg:max-w-[40rem] lg:flex-1">
           <StatChip
             icon={Percent}
             label="Occupancy"

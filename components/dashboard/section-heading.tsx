@@ -2,21 +2,27 @@ interface SectionHeadingProps {
   title: string
   description?: string
   onDark?: boolean
+  prominent?: boolean
 }
 
-export function SectionHeading({ title, description, onDark = false }: SectionHeadingProps) {
+export function SectionHeading({
+  title,
+  description,
+  onDark = false,
+  prominent = false,
+}: SectionHeadingProps) {
   return (
-    <div className="mb-4">
+    <div className="section-heading">
       <h2
-        className={`text-lg font-semibold tracking-tight ${
-          onDark ? 'text-white' : 'text-foreground'
-        }`}
+        className={`section-heading__title ${
+          prominent ? 'section-heading__title--prominent' : ''
+        } ${onDark ? 'text-white' : 'text-foreground'}`}
       >
         {title}
       </h2>
       {description && (
         <p
-          className={`mt-1 max-w-2xl text-sm leading-relaxed ${
+          className={`section-heading__description ${
             onDark ? 'text-white/55' : 'text-muted-foreground'
           }`}
         >

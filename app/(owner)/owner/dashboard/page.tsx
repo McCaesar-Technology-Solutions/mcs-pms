@@ -59,8 +59,12 @@ export default async function DashboardPage() {
       </DashboardHero>
 
       <div className="page-content-stack page-shell--after-hero">
-        <section className="dashboard-section space-y-4">
-          <SectionHeading title="Business overview" description="Revenue, bookings, and balances" />
+        <section className="dashboard-section dashboard-section--featured space-y-5">
+          <SectionHeading
+            prominent
+            title="Business overview"
+            description="Revenue, bookings, and balances"
+          />
           <KPICards
             metrics={metrics}
             revenueTrend={revenueTrend}
