@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { ChevronDown, LogOut, Menu, Phone } from 'lucide-react'
+import { ChevronDown, LogOut, Menu, Phone, Plus } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import {
   NotificationsMenu,
@@ -9,7 +9,9 @@ import {
   settingsMenuLabel,
 } from '@/components/dashboard/notifications-menu'
 import { AccountPhoneDialog } from '@/components/dashboard/account-phone-dialog'
+import { TopbarSearch } from '@/components/dashboard/topbar-search'
 import { signOut } from '@/app/actions/auth'
+import { getDashboardPrimaryAction } from '@/lib/dashboard/primary-actions'
 import { hasPhoneNumber } from '@/lib/phone'
 import type { Profile } from '@/types'
 
@@ -33,6 +35,7 @@ export default function Topbar({ onMenuOpen, profile }: TopbarProps) {
   const [scrolled, setScrolled] = useState(false)
   const userMenuRef = useRef<HTMLDivElement>(null)
   const canManagePhone = profile?.role === 'owner' || profile?.role === 'manager'
+  const primaryAction = getDashboardPrimaryAction(profile?.role)
 
   useEffect(() => {
     const main = document.querySelector('main.app-main')
@@ -81,7 +84,15 @@ export default function Topbar({ onMenuOpen, profile }: TopbarProps) {
             <Menu className="h-5 w-5" />
           </button>
 
+          <TopbarSearch profile={profile} />
+
           <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2 md:gap-3">
+            {primaryAction && (
+              <Link href={primaryAction.href} className="topbar-primary-action hidden sm:inline-flex">
+                <Plus className="h-4 w-4" strokeWidth={2.25} />
+                {primaryAction.label}
+              </Link>
+            )}
             {canManagePhone && !hasPhoneNumber(profile?.phone) && (
               <button
                 type="button"

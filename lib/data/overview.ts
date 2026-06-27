@@ -92,6 +92,41 @@ export function getUpcomingBookings(reservations: Reservation[], limit = 5): Res
     .slice(0, limit)
 }
 
+export function getTodayArrivals(
+  reservations: Reservation[],
+  today = new Date().toISOString().split('T')[0],
+): Reservation[] {
+  return reservations
+    .filter((r) => r.status === 'confirmed' && r.checkInDate === today)
+    .sort((a, b) => a.guestName.localeCompare(b.guestName))
+}
+
+export function getTodayDepartures(
+  reservations: Reservation[],
+  today = new Date().toISOString().split('T')[0],
+): Reservation[] {
+  return reservations
+    .filter((r) => r.status === 'checked_in' && r.checkOutDate === today)
+    .sort((a, b) => a.guestName.localeCompare(b.guestName))
+}
+
+export function computeBookingsSparkline(reservations: Reservation[], days = 14): number[] {
+  const totals = Array.from({ length: days }, () => 0)
+  const today = new Date()
+  today.setHours(12, 0, 0, 0)
+
+  for (let i = 0; i < days; i++) {
+    const d = new Date(today)
+    d.setDate(d.getDate() - (days - 1 - i))
+    const key = d.toISOString().split('T')[0]
+    totals[i] = reservations.filter(
+      (r) => isOpenBookingStatus(r.status) && r.checkInDate <= key && r.checkOutDate > key,
+    ).length
+  }
+
+  return totals
+}
+
 export function computeTodayOperations(
   reservations: Reservation[],
   today = new Date().toISOString().split('T')[0],

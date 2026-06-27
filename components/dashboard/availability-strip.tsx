@@ -56,7 +56,7 @@ function OccupancyHeatmap({
   onSelect: (date: string) => void
 }) {
   return (
-    <div className="border-b border-border/60 px-6 py-5">
+    <div className="py-1">
       <div className="mb-3 flex items-end justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-foreground">Occupancy calendar</p>
@@ -150,8 +150,8 @@ export function AvailabilityStrip({ data }: { data?: Availability[] }) {
       <div className="surface-card-header">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h3 className="text-lg font-semibold text-foreground">Room Availability</h3>
-            <p className="text-sm text-muted-foreground mt-1">
+            <h3 className="text-lg font-semibold text-foreground">Room availability</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
               {activeProperty.name} · {totalRooms} rooms · 14-day forecast
             </p>
           </div>
@@ -164,6 +164,8 @@ export function AvailabilityStrip({ data }: { data?: Availability[] }) {
         </div>
       </div>
 
+      <div className="surface-card-body">
+      <div className="surface-card-section--muted">
       <OccupancyHeatmap
         availability={availability}
         totalRooms={totalRooms}
@@ -171,10 +173,10 @@ export function AvailabilityStrip({ data }: { data?: Availability[] }) {
         selectedDate={selectedDate}
         onSelect={setSelectedDate}
       />
+      </div>
 
-      {/* Today at a glance */}
       {today && (
-        <div className="grid grid-cols-2 gap-3 border-b border-border/60 px-6 py-4 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 px-3 sm:grid-cols-4">
           {SEGMENTS.map(({ key, label, color, text }) => (
             <div key={key} className="surface-inset rounded-xl p-3">
               <div className="flex items-center gap-2">
@@ -188,8 +190,7 @@ export function AvailabilityStrip({ data }: { data?: Availability[] }) {
         </div>
       )}
 
-      {/* 14-day calendar strip */}
-      <div className="availability-day-strip mb-4">
+      <div className="surface-card-section availability-day-strip">
         <div className="availability-day-strip__hint">
           <p className="text-xs leading-relaxed text-muted-foreground">
             Each bar shows all {totalRooms} rooms.{' '}
@@ -253,7 +254,7 @@ export function AvailabilityStrip({ data }: { data?: Availability[] }) {
 
       {/* Selected day detail panel */}
       {selected && (
-        <div className="mx-6 mb-6 surface-inset rounded-xl p-4">
+        <div className="surface-card-section--muted mx-3">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
               <div className="gradient-primary flex h-10 w-10 items-center justify-center rounded-xl text-primary-foreground shadow-elevation-1">
@@ -319,13 +320,14 @@ export function AvailabilityStrip({ data }: { data?: Availability[] }) {
       )}
 
       {/* Legend */}
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 px-6 pb-6">
+      <div className="surface-card-section flex flex-wrap items-center gap-x-5 gap-y-2">
         {SEGMENTS.map(({ label, color }) => (
           <div key={label} className="flex items-center gap-2">
             <div className={`h-2.5 w-2.5 rounded-full ${color}`} />
             <span className="text-xs text-muted-foreground">{label}</span>
           </div>
         ))}
+      </div>
       </div>
     </div>
   )

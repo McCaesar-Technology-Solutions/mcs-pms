@@ -72,13 +72,16 @@ export function GuestRequestsPanel({ initialRequests = [] }: GuestRequestsPanelP
       </div>
 
       {requests.length === 0 ? (
-        <p className="border-t border-border/60 px-4 py-10 text-center text-sm text-muted-foreground">
+        <p className="list-empty text-sm text-muted-foreground">
           No guest requests yet. Requests from the guest portal Stay tab will appear here.
         </p>
       ) : (
-        <ul className="divide-y divide-border/60 border-t border-border/60">
+        <div className="list-stack">
           {requests.slice(0, 10).map((req) => (
-            <li key={req.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+            <div
+              key={req.id}
+              className="list-row flex-wrap items-center justify-between"
+            >
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-foreground">
                   {REQUEST_LABELS[req.requestType] ?? req.requestType}
@@ -116,9 +119,9 @@ export function GuestRequestsPanel({ initialRequests = [] }: GuestRequestsPanelP
                   {req.status}
                 </span>
               )}
-            </li>
+            </div>
           ))}
-        </ul>
+        </div>
       )}
     </div>
   )

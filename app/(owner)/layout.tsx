@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { getProfile } from '@/lib/auth/get-profile'
 import { AppShell } from '@/components/dashboard/app-shell'
-import { ownerNavigation } from '@/lib/navigation'
+import { ownerNavGroups } from '@/lib/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { requiresOnboarding } from '@/lib/onboarding/state'
 import { getOccupancyToday, type OccupancyToday } from '@/lib/data/occupancy'
@@ -28,7 +28,10 @@ export default async function OwnerLayout({
     redirect('/get-started')
   }
 
-  const navigation = ownerNavigation.map((item) => ({ ...item }))
+  const navGroups = ownerNavGroups.map((group) => ({
+    ...group,
+    items: group.items.map((item) => ({ ...item })),
+  }))
   let occupancyToday: OccupancyToday | undefined
   if (profile.hotel_id) {
     const supabase = await createClient()
@@ -36,13 +39,15 @@ export default async function OwnerLayout({
       getPendingApprovalsCount(profile.hotel_id),
       getOccupancyToday(supabase, profile.hotel_id),
     ])
-    const complaintsNav = navigation.find((n) => n.href.includes('complaints'))
-    if (complaintsNav && pending > 0) complaintsNav.badge = pending
+    for (const group of navGroups) {
+      const complaintsNav = group.items.find((n) => n.href.includes('complaints'))
+      if (complaintsNav && pending > 0) complaintsNav.badge = pending
+    }
     occupancyToday = occupancy
   }
 
   return (
-    <AppShell navigation={navigation} profile={profile} enableRealtime occupancyToday={occupancyToday}>
+    <AppShell navGroups={navGroups} profile={profile} enableRealtime occupancyToday={occupancyToday}>
       {children}
     </AppShell>
   )

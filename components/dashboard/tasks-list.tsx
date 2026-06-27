@@ -101,13 +101,11 @@ export function TasksList({
       ) : (
         <div className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-3 sm:p-6">
           {(['todo', 'in_progress', 'done'] as ColumnId[]).map((status) => (
-            <div key={status} className={`overflow-hidden rounded-xl ${columnMeta[status].tint}`}>
-              <div className="border-b border-[#E9ECEF] px-4 py-3">
-                <h4 className="text-sm font-semibold text-[#111827]">{columnMeta[status].label}</h4>
-                <p className="mt-1 text-3xl font-bold text-[#4c1d95]">{byStatus[status].length}</p>
-              </div>
+            <div key={status} className={`overflow-hidden rounded-xl p-4 ${columnMeta[status].tint}`}>
+              <h4 className="text-sm font-semibold text-foreground">{columnMeta[status].label}</h4>
+              <p className="mt-1 text-3xl font-bold text-primary">{byStatus[status].length}</p>
 
-              <div className="card-list-tray m-3 mt-0 space-y-2.5">
+              <div className="card-list-tray mt-3 space-y-2.5">
                 {byStatus[status].slice(0, 3).map((task) => (
                   <Link
                     key={task.id}

@@ -35,6 +35,22 @@ export const ownerNavigation: NavItem[] = [
   { name: 'Settings', href: '/owner/settings', icon: 'settings' },
 ]
 
+export interface NavGroup {
+  label: string
+  items: NavItem[]
+}
+
+export const ownerNavGroups: NavGroup[] = [
+  {
+    label: 'Operations',
+    items: ownerNavigation.slice(0, 6),
+  },
+  {
+    label: 'Finance & admin',
+    items: ownerNavigation.slice(6),
+  },
+]
+
 export const managerNavigation: NavItem[] = [
   { name: 'Dashboard', href: '/manager/dashboard', icon: 'layout-dashboard' },
   { name: 'Messages', href: '/manager/messages', icon: 'message-circle' },

@@ -1,203 +1,123 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { TrendingDown, TrendingUp, Users, Percent, Banknote, AlertCircle, BarChart3 } from 'lucide-react'
+import { BarChart3, TrendingUp } from 'lucide-react'
 import { AnimatedMetric } from '@/components/dashboard/animated-metric'
 import { DataEmptyState } from '@/components/dashboard/data-empty-state'
 import { MiniSparkline } from '@/components/dashboard/mini-sparkline'
-import { OccupancyRing } from '@/components/dashboard/occupancy-ring'
 import { TrendBadge } from '@/components/dashboard/trend-badge'
 import type { RevenueTrend } from '@/lib/data/overview'
 import type { KPIMetrics } from '@/types'
-import type { LucideIcon } from 'lucide-react'
 
 interface KPICardsProps {
   metrics?: KPIMetrics
   revenueTrend?: RevenueTrend
-  occupancySparkline?: number[]
   revenueSparkline?: number[]
+  bookingsSparkline?: number[]
   showRevenue?: boolean
+  aside?: ReactNode
 }
 
-type CardTier = 'hero' | 'accent' | 'standard'
-type CardStatus = 'success' | 'warning' | 'neutral'
-type CardVariant = 'revenue' | 'occupancy' | 'default'
-
-interface KpiCardDef {
-  icon: LucideIcon
-  label: string
-  value: string
-  rawValue?: number
-  formatValue?: (n: number) => string
-  subtext: string
-  trend?: 'up' | 'down'
-  trendPercent?: number | null
-  tier: CardTier
-  variant?: CardVariant
-  status?: CardStatus
-  sparkline?: number[]
-  sparkTone?: 'primary' | 'gold' | 'emerald' | 'amber' | 'light'
-  occupancyPercent?: number
-  extra?: ReactNode
+function hasSparklineVariance(values?: number[]) {
+  return values && values.length >= 2 && new Set(values).size > 1
 }
 
-function statusClass(status?: CardStatus) {
-  if (status === 'success') return 'kpi-card--status-success'
-  if (status === 'warning') return 'kpi-card--status-warning'
-  return ''
-}
-
-function variantClass(variant?: CardVariant) {
-  if (variant === 'revenue') return 'kpi-card--revenue'
-  if (variant === 'occupancy') return 'kpi-card--occupancy'
-  return ''
-}
-
-function occupancyStatus(rate: number): CardStatus {
-  if (rate >= 0.7) return 'success'
-  if (rate < 0.4) return 'warning'
-  return 'neutral'
-}
-
-function KpiCard({ card }: { card: KpiCardDef }) {
-  const Icon = card.icon
-  const isHero = card.tier === 'hero'
-  const isAccent = card.tier === 'accent'
-  const isRevenue = card.variant === 'revenue'
-  const isOccupancy = card.variant === 'occupancy'
-
+function RevenueBanner({
+  metrics,
+  revenueTrend,
+  revenueSparkline,
+}: {
+  metrics: KPIMetrics
+  revenueTrend?: RevenueTrend
+  revenueSparkline?: number[]
+}) {
   return (
-    <div
-      className={`kpi-card group ${statusClass(card.status)} ${variantClass(card.variant)} ${
-        isHero ? 'kpi-card--hero' : isAccent ? 'kpi-card--accent' : 'kpi-card--standard'
-      }`}
-    >
-      <div className="kpi-card__glow" aria-hidden />
-      <div className="relative z-10 flex h-full flex-col p-5 sm:p-6">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-2">
-            <span className="kpi-card__icon">
-              <Icon strokeWidth={2} />
-            </span>
-            <p className="kpi-card__label">{card.label}</p>
+    <div className="kpi-card kpi-card--revenue">
+      <div className="flex flex-col gap-5 p-5 sm:p-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0 flex-1">
+            <p className="kpi-card__label">Total revenue</p>
+            <div className="mt-2 flex items-end justify-between gap-4">
+              <p className="text-[2.35rem] font-bold tabular-nums leading-none tracking-tight text-[var(--brand-gold-light)] sm:text-[2.85rem]">
+                <AnimatedMetric
+                  value={metrics.totalRevenue}
+                  format={(n) => `₵${Math.round(n).toLocaleString()}`}
+                />
+              </p>
+              {hasSparklineVariance(revenueSparkline) && (
+                <MiniSparkline values={revenueSparkline!} tone="light" className="h-10 w-28" />
+              )}
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <p className="text-sm text-white/55">
+                RevPAR ₵{metrics.reviParMetric.toLocaleString()} per room
+              </p>
+              {revenueTrend?.changePercent != null && (
+                <TrendBadge value={revenueTrend.changePercent} onDark label="" />
+              )}
+            </div>
           </div>
-          {card.trendPercent != null && (
-            <TrendBadge value={card.trendPercent} onDark={isRevenue} />
-          )}
-        </div>
 
-        <div className="mt-4 flex items-end justify-between gap-4">
-          <p
-            className={`min-w-0 font-bold tabular-nums tracking-tight ${
-              isRevenue
-                ? 'text-[var(--brand-gold-light)]'
-                : 'text-foreground'
-            } ${
-              isRevenue
-                ? 'text-[2.5rem] leading-none sm:text-[3.25rem]'
-                : isOccupancy || isHero
-                  ? 'text-4xl leading-none sm:text-5xl'
-                  : isAccent
-                    ? 'text-3xl leading-none sm:text-4xl'
-                    : 'text-2xl'
-            }`}
-          >
-            {card.rawValue != null && card.formatValue ? (
-              <AnimatedMetric value={card.rawValue} format={card.formatValue} />
-            ) : (
-              card.value
-            )}
-          </p>
-
-          {isOccupancy && card.occupancyPercent != null ? (
-            <OccupancyRing
-              percent={card.occupancyPercent}
-              size={isHero || isAccent ? 64 : 52}
-              showLabel={false}
-            />
-          ) : (
-            card.sparkline &&
-            card.sparkline.length >= 2 &&
-            new Set(card.sparkline).size > 1 && (
-              <MiniSparkline
-                values={card.sparkline}
-                tone={card.sparkTone}
-                className={isHero ? 'h-10 w-24' : ''}
-              />
-            )
+          {revenueTrend && (revenueTrend.lastMonth > 0 || revenueTrend.thisMonth > 0) && (
+            <div className="grid w-full grid-cols-2 gap-2 sm:max-w-xs sm:grid-cols-1">
+              <div className="kpi-metric-pill kpi-metric-pill--on-dark">
+                <p className="kpi-metric-pill__label">This month</p>
+                <p className="kpi-metric-pill__value">₵{revenueTrend.thisMonth.toLocaleString()}</p>
+              </div>
+              <div className="kpi-metric-pill kpi-metric-pill--on-dark">
+                <p className="kpi-metric-pill__label">Last month</p>
+                <p className="kpi-metric-pill__value">₵{revenueTrend.lastMonth.toLocaleString()}</p>
+              </div>
+            </div>
           )}
-        </div>
-
-        {card.extra}
-
-        <div
-          className={`mt-auto flex items-center gap-1.5 border-t pt-3.5 ${
-            isRevenue ? 'border-white/10' : 'border-border/50'
-          }`}
-        >
-          {card.trend === 'up' && (
-            <TrendingUp
-              className={`shrink-0 ${
-                isRevenue
-                  ? 'text-emerald-400'
-                  : isAccent
-                    ? 'text-[var(--brand-gold-dark)]'
-                    : 'text-emerald-600'
-              }`}
-              style={{ width: isHero ? 14 : 12, height: isHero ? 14 : 12 }}
-            />
-          )}
-          {card.trend === 'down' && (
-            <TrendingDown
-              className={`h-3.5 w-3.5 shrink-0 ${isRevenue ? 'text-orange-300' : 'text-[var(--brand-orange)]'}`}
-            />
-          )}
-          <p
-            className={`${isHero ? 'text-sm' : 'text-xs'} ${
-              isRevenue ? 'text-white/55' : 'text-muted-foreground'
-            }`}
-          >
-            {card.subtext}
-          </p>
         </div>
       </div>
     </div>
   )
 }
 
-function RevenueTrendBlock({ trend, onDark = false }: { trend: RevenueTrend; onDark?: boolean }) {
-  const hasComparison = trend.lastMonth > 0 || trend.thisMonth > 0
-  if (!hasComparison) return null
-
+function MetricTile({
+  label,
+  value,
+  rawValue,
+  formatValue,
+  subtext,
+  warning,
+  sparkline,
+  trendUp,
+}: {
+  label: string
+  value: string
+  rawValue?: number
+  formatValue?: (n: number) => string
+  subtext: string
+  warning?: boolean
+  sparkline?: number[]
+  trendUp?: boolean
+}) {
   return (
-    <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-      <div className={`kpi-metric-pill ${onDark ? 'kpi-metric-pill--on-dark' : ''}`}>
-        <p className="kpi-metric-pill__label">This month</p>
-        <p className="kpi-metric-pill__value">₵{trend.thisMonth.toLocaleString()}</p>
+    <div className={`kpi-card kpi-card--tile ${warning ? 'kpi-card--tile-warning' : ''}`}>
+      <div className="flex items-start justify-between gap-3">
+        <p className="kpi-card__label">{label}</p>
+        {trendUp && (
+          <span className="inline-flex items-center gap-0.5 text-[11px] font-semibold text-emerald-600">
+            <TrendingUp className="h-3 w-3" />
+          </span>
+        )}
       </div>
-      <div className={`kpi-metric-pill ${onDark ? 'kpi-metric-pill--on-dark' : ''}`}>
-        <p className="kpi-metric-pill__label">Last month</p>
-        <p className="kpi-metric-pill__value">₵{trend.lastMonth.toLocaleString()}</p>
+      <div className="mt-3 flex items-end justify-between gap-3">
+        <p className="kpi-card__value">
+          {rawValue != null && formatValue ? (
+            <AnimatedMetric value={rawValue} format={formatValue} />
+          ) : (
+            value
+          )}
+        </p>
+        {hasSparklineVariance(sparkline) && (
+          <MiniSparkline values={sparkline!} tone="gold" className="h-8 w-20" />
+        )}
       </div>
-      {trend.changePercent != null && (
-        <div className={`kpi-metric-pill col-span-2 sm:col-span-1 ${onDark ? 'kpi-metric-pill--on-dark' : ''}`}>
-          <p className="kpi-metric-pill__label">Month change</p>
-          <p
-            className={`kpi-metric-pill__value ${
-              trend.changePercent >= 0
-                ? onDark
-                  ? 'text-emerald-300'
-                  : 'text-emerald-700'
-                : onDark
-                  ? 'text-orange-300'
-                  : 'text-[var(--brand-orange)]'
-            }`}
-          >
-            {trend.changePercent >= 0 ? '+' : ''}
-            {trend.changePercent}%
-          </p>
-        </div>
-      )}
+      <p className="kpi-card__subtext mt-auto pt-3">{subtext}</p>
     </div>
   )
 }
@@ -205,125 +125,104 @@ function RevenueTrendBlock({ trend, onDark = false }: { trend: RevenueTrend; onD
 export function KPICards({
   metrics,
   revenueTrend,
-  occupancySparkline,
   revenueSparkline,
+  bookingsSparkline,
   showRevenue = true,
+  aside,
 }: KPICardsProps) {
   if (!metrics) {
     return (
       <DataEmptyState
         icon={BarChart3}
         title="No metrics yet"
-        message="Add reservations and room data to see occupancy, revenue, and booking trends here."
+        message="Add reservations and room data to see revenue and booking trends here."
       />
     )
   }
 
   const m = metrics
-  const occupancyRate = m.occupancyRate * 100
-  const occStatus = occupancyStatus(m.occupancyRate)
+  const balanceWarning = m.outstandingBalance > 0
 
-  const revenueTrendDir =
-    revenueTrend?.changePercent != null
-      ? revenueTrend.changePercent >= 0
-        ? 'up'
-        : 'down'
-      : undefined
-
-  const heroCards: KpiCardDef[] = showRevenue
-    ? [
-        {
-          icon: Banknote,
-          label: 'Total revenue',
-          value: `₵${m.totalRevenue.toLocaleString()}`,
-          rawValue: m.totalRevenue,
-          formatValue: (n) => `₵${Math.round(n).toLocaleString()}`,
-          subtext: `RevPAR ₵${m.reviParMetric.toLocaleString()} per available room`,
-          trend: revenueTrendDir ?? 'up',
-          trendPercent: revenueTrend?.changePercent ?? null,
-          tier: 'hero',
-          variant: 'revenue',
-          sparkline: revenueSparkline,
-          sparkTone: 'light',
-          extra: revenueTrend ? <RevenueTrendBlock trend={revenueTrend} onDark /> : undefined,
-        },
-        {
-          icon: Percent,
-          label: 'Occupancy rate',
-          value: `${occupancyRate.toFixed(0)}%`,
-          rawValue: occupancyRate,
-          formatValue: (n) => `${Math.round(n)}%`,
-          subtext: 'Rooms occupied right now',
-          trend: occStatus === 'success' ? 'up' : undefined,
-          tier: 'accent',
-          variant: 'occupancy',
-          status: occStatus,
-          occupancyPercent: occupancyRate,
-          sparkline: occupancySparkline,
-          sparkTone: occStatus === 'warning' ? 'amber' : 'gold',
-        },
-      ]
-    : []
-
-  const balanceStatus: CardStatus = m.outstandingBalance > 0 ? 'warning' : 'success'
-
-  const standardCards: KpiCardDef[] = [
-    {
-      icon: Banknote,
-      label: showRevenue ? 'Avg. nightly rate' : 'Typical room rate',
-      value: `₵${m.averageNightlyRate}`,
-      subtext: showRevenue ? 'Average daily rate' : 'List price benchmark',
-      tier: 'standard',
-    },
-    {
-      icon: Users,
-      label: 'Active bookings',
-      value: m.totalBookings.toString(),
-      rawValue: m.totalBookings,
-      formatValue: (n: number) => Math.round(n).toString(),
-      subtext: `${m.totalGuests} guests on record`,
-      trend: 'up' as const,
-      tier: 'standard' as const,
-    },
-    {
-      icon: AlertCircle,
-      label: 'Unpaid balances',
-      value: `₵${m.outstandingBalance.toLocaleString()}`,
-      rawValue: m.outstandingBalance,
-      formatValue: (n) => `₵${Math.round(n).toLocaleString()}`,
-      subtext:
-        m.outstandingCount > 0
-          ? `${m.outstandingCount} invoice${m.outstandingCount === 1 ? '' : 's'} awaiting payment`
-          : 'All guest balances settled',
-      tier: 'standard',
-      status: balanceStatus,
-    },
-  ]
+  const tiles = (
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <MetricTile
+        label="Avg. nightly rate"
+        value={`₵${m.averageNightlyRate}`}
+        subtext="Average daily rate"
+      />
+      <MetricTile
+        label="Active bookings"
+        value={m.totalBookings.toString()}
+        rawValue={m.totalBookings}
+        formatValue={(n) => Math.round(n).toString()}
+        subtext={`${m.totalGuests} guest${m.totalGuests === 1 ? '' : 's'} on record`}
+        sparkline={bookingsSparkline}
+        trendUp={m.totalBookings > 0}
+      />
+      <MetricTile
+        label="Unpaid balances"
+        value={`₵${m.outstandingBalance.toLocaleString()}`}
+        rawValue={m.outstandingBalance}
+        formatValue={(n) => `₵${Math.round(n).toLocaleString()}`}
+        subtext={
+          m.outstandingCount > 0
+            ? `${m.outstandingCount} invoice${m.outstandingCount === 1 ? '' : 's'} awaiting payment`
+            : 'All guest balances settled'
+        }
+        warning={balanceWarning}
+      />
+    </div>
+  )
 
   if (!showRevenue) {
     return (
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        {standardCards.map((card) => (
-          <KpiCard key={card.label} card={card} />
-        ))}
+        <MetricTile
+          label="Typical room rate"
+          value={`₵${m.averageNightlyRate}`}
+          subtext="List price benchmark"
+        />
+        <MetricTile
+          label="Active bookings"
+          value={m.totalBookings.toString()}
+          rawValue={m.totalBookings}
+          formatValue={(n) => Math.round(n).toString()}
+          subtext={`${m.totalGuests} guest${m.totalGuests === 1 ? '' : 's'} on record`}
+          sparkline={bookingsSparkline}
+        />
+        <MetricTile
+          label="Unpaid balances"
+          value={`₵${m.outstandingBalance.toLocaleString()}`}
+          rawValue={m.outstandingBalance}
+          formatValue={(n) => `₵${Math.round(n).toLocaleString()}`}
+          subtext={
+            m.outstandingCount > 0
+              ? `${m.outstandingCount} invoice${m.outstandingCount === 1 ? '' : 's'} awaiting payment`
+              : 'All guest balances settled'
+          }
+          warning={balanceWarning}
+        />
       </div>
     )
   }
 
+  const main = (
+    <div className="space-y-3">
+      <RevenueBanner
+        metrics={m}
+        revenueTrend={revenueTrend}
+        revenueSparkline={revenueSparkline}
+      />
+      {tiles}
+    </div>
+  )
+
+  if (!aside) return main
+
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
-        {heroCards.map((card, i) => (
-          <div key={card.label} className={i === 0 ? 'lg:col-span-3' : 'lg:col-span-2'}>
-            <KpiCard card={card} />
-          </div>
-        ))}
-      </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {standardCards.map((card) => (
-          <KpiCard key={card.label} card={card} />
-        ))}
-      </div>
+    <div className="dashboard-bento">
+      <div className="dashboard-bento__main">{main}</div>
+      <div className="dashboard-bento__aside">{aside}</div>
     </div>
   )
 }

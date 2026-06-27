@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Sidebar from '@/components/dashboard/sidebar'
 import Topbar from '@/components/dashboard/topbar'
-import type { NavItem } from '@/lib/navigation'
+import type { NavItem, NavGroup } from '@/lib/navigation'
 import type { Profile } from '@/types'
 import type { OccupancyToday } from '@/lib/data/occupancy'
 import { HotelRealtimeProvider } from '@/components/realtime/hotel-realtime'
@@ -13,6 +13,7 @@ import { hasPhoneNumber } from '@/lib/phone'
 interface AppShellProps {
   children: React.ReactNode
   navigation?: NavItem[]
+  navGroups?: NavGroup[]
   profile?: Profile | null
   enableRealtime?: boolean
   occupancyToday?: OccupancyToday
@@ -21,6 +22,7 @@ interface AppShellProps {
 export function AppShell({
   children,
   navigation,
+  navGroups,
   profile,
   enableRealtime = false,
   occupancyToday,
@@ -55,6 +57,7 @@ export function AppShell({
         mobileOpen={mobileNavOpen}
         onMobileClose={() => setMobileNavOpen(false)}
         navigation={navigation}
+        navGroups={navGroups}
         occupancyToday={occupancyToday}
       />
       <main id="main-content" className="app-main h-dvh min-w-0 flex-1 overflow-y-auto">

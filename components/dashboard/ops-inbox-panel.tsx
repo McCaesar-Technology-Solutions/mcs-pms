@@ -33,7 +33,7 @@ export function OpsInboxPanel({ items }: OpsInboxPanelProps) {
       </div>
 
       {items.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 border-t border-border/60 px-4 py-10 text-center">
+        <div className="list-empty flex flex-col items-center gap-2">
           <CheckCircle2 className="h-8 w-8 text-emerald-500" />
           <p className="text-sm font-semibold text-foreground">Inbox clear</p>
           <p className="text-sm text-muted-foreground">
@@ -41,35 +41,34 @@ export function OpsInboxPanel({ items }: OpsInboxPanelProps) {
           </p>
         </div>
       ) : (
-        <ul className="divide-y divide-border/60 border-t border-border/60">
+        <div className="list-stack">
           {items.map((item) => {
             const Icon = kindIcon[item.kind]
             return (
-              <li key={`${item.kind}-${item.id}`}>
-                <Link
-                  href={item.href}
-                  className="flex items-start gap-3 px-4 py-3 transition hover:bg-muted/40"
-                >
-                  <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#3C216C]/8 text-[#3C216C]">
-                    <Icon className="h-4 w-4" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-foreground">{item.title}</p>
-                    <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{item.subtitle}</p>
-                  </div>
-                  <span className="shrink-0 text-[10px] text-muted-foreground">
-                    {new Date(item.createdAt).toLocaleString('en-GB', {
-                      month: 'short',
-                      day: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </span>
-                </Link>
-              </li>
+              <Link
+                key={`${item.kind}-${item.id}`}
+                href={item.href}
+                className="list-row"
+              >
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#3C216C]/8 text-[#3C216C]">
+                  <Icon className="h-4 w-4" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-foreground">{item.title}</p>
+                  <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{item.subtitle}</p>
+                </div>
+                <span className="shrink-0 text-[10px] text-muted-foreground">
+                  {new Date(item.createdAt).toLocaleString('en-GB', {
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </span>
+              </Link>
             )
           })}
-        </ul>
+        </div>
       )}
     </div>
   )

@@ -44,7 +44,8 @@ export function ManagerNotificationSummary({
           </div>
         </div>
       </div>
-      <div className="grid gap-4 border-t border-border/60 p-4 md:grid-cols-2">
+      <div className="surface-card-body">
+        <div className="grid gap-4 md:grid-cols-2">
         <div>
           <p className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-muted-foreground">
             <Bell className="h-3.5 w-3.5" /> SMS
@@ -79,8 +80,9 @@ export function ManagerNotificationSummary({
               ))}
           </ul>
         </div>
+        </div>
       </div>
-      <div className="border-t border-border/60 px-4 py-3 text-xs text-muted-foreground">
+      <div className="surface-card-footer">
         Contact the property owner to change alert preferences. View recent deliveries on the{' '}
         <Link
           href="/manager/dashboard#sms-log"

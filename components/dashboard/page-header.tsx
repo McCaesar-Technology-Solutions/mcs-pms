@@ -32,7 +32,7 @@ export function PageHeader({
   }
 
   return (
-    <header className="page-header flex flex-col gap-3 border-b border-border/80 pb-5 sm:flex-row sm:items-end sm:justify-between">
+    <header className="page-header mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0">
         {badge && <p className="label-eyebrow label-eyebrow-accent">{badge}</p>}
         <h1 className="mt-1 text-2xl font-semibold tracking-tight text-foreground sm:text-[1.75rem]">

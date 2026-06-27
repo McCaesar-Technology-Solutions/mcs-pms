@@ -2,12 +2,16 @@ import { DashboardAttention } from '@/components/dashboard/dashboard-attention'
 import { DashboardHero } from '@/components/dashboard/dashboard-hero'
 import { DashboardToolbar } from '@/components/dashboard/dashboard-toolbar'
 import { SectionHeading } from '@/components/dashboard/section-heading'
-import { BookingsList } from '@/components/dashboard/bookings-list'
+import { TodayGuestStrip } from '@/components/dashboard/today-guest-strip'
 import { AvailabilityStrip } from '@/components/dashboard/availability-strip'
 import { ComplaintsOverviewLive } from '@/components/complaints/complaints-overview-live'
 import { fetchHotelComplaints } from '@/lib/data/complaints'
 import { getDashboardData } from '@/lib/data/dashboard'
-import { computeTodayOperations } from '@/lib/data/overview'
+import {
+  computeTodayOperations,
+  getTodayArrivals,
+  getTodayDepartures,
+} from '@/lib/data/overview'
 import { getOccupancyToday } from '@/lib/data/occupancy'
 import { createClient } from '@/lib/supabase/server'
 
@@ -20,6 +24,8 @@ export default async function ReceptionistDashboardPage() {
   const supabase = await createClient()
   const occupancyToday = hotelId ? await getOccupancyToday(supabase, hotelId) : undefined
   const todayOps = computeTodayOperations(reservations)
+  const arrivals = getTodayArrivals(reservations)
+  const departures = getTodayDepartures(reservations)
 
   return (
     <div className="page-shell pb-10">
@@ -40,15 +46,17 @@ export default async function ReceptionistDashboardPage() {
 
       <div className="page-content-stack page-shell--after-hero">
         <section className="dashboard-section space-y-4">
+          <SectionHeading title="Today on the desk" description="Arrivals and departures" />
+          <TodayGuestStrip
+            arrivals={arrivals}
+            departures={departures}
+            reservationsHref="/receptionist/reservations"
+          />
+        </section>
+
+        <section className="dashboard-section space-y-4">
           <SectionHeading title="Room availability" description="Free rooms over the next 14 days" />
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            <div className="lg:col-span-2">
-              <AvailabilityStrip data={availability} />
-            </div>
-            <div>
-              <BookingsList reservations={reservations} viewAllHref="/receptionist/reservations" />
-            </div>
-          </div>
+          <AvailabilityStrip data={availability} />
         </section>
 
         <section className="dashboard-section space-y-4">

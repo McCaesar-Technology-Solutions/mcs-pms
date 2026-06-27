@@ -8,7 +8,7 @@ import { getPendingComplaintApprovalsCount } from '@/app/actions/complaints'
 import { SidebarLogo } from '@/components/brand/sidebar-logo'
 import { PropertySwitcher } from '@/components/dashboard/property-switcher'
 import { useRealtimeRefresh } from '@/components/realtime/realtime-refresh-context'
-import type { NavItem } from '@/lib/navigation'
+import type { NavItem, NavGroup } from '@/lib/navigation'
 import { getNavIcon } from '@/components/dashboard/nav-icons'
 import type { OccupancyToday } from '@/lib/data/occupancy'
 
@@ -16,6 +16,7 @@ interface SidebarProps {
   mobileOpen?: boolean
   onMobileClose?: () => void
   navigation?: NavItem[]
+  navGroups?: NavGroup[]
   occupancyToday?: OccupancyToday
 }
 
@@ -23,22 +24,33 @@ export default function Sidebar({
   mobileOpen = false,
   onMobileClose,
   navigation = [],
+  navGroups,
   occupancyToday,
 }: SidebarProps) {
   const pathname = usePathname()
   const [collapsed, setCollapsed] = useState(false)
   const [navItems, setNavItems] = useState(navigation)
+  const [groups, setGroups] = useState(navGroups)
 
   useEffect(() => {
     setNavItems(navigation)
   }, [navigation])
 
+  useEffect(() => {
+    setGroups(navGroups)
+  }, [navGroups])
+
   const refreshComplaintBadge = useCallback(async () => {
     const count = await getPendingComplaintApprovalsCount()
-    setNavItems((prev) =>
-      prev.map((item) =>
-        item.href.includes('complaints') ? { ...item, badge: count > 0 ? count : undefined } : item,
-      ),
+    const applyBadge = (item: NavItem) =>
+      item.href.includes('complaints') ? { ...item, badge: count > 0 ? count : undefined } : item
+
+    setNavItems((prev) => prev.map(applyBadge))
+    setGroups((prev) =>
+      prev?.map((group) => ({
+        ...group,
+        items: group.items.map(applyBadge),
+      })),
     )
   }, [])
 
@@ -46,6 +58,36 @@ export default function Sidebar({
   useRealtimeRefresh('layout', refreshComplaintBadge)
 
   const isDrawer = mobileOpen
+
+  function renderNavLink(item: NavItem) {
+    const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
+    const Icon = getNavIcon(item.icon)
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        title={collapsed && !isDrawer ? item.name : undefined}
+        onClick={onMobileClose}
+        className={`group flex items-center rounded-xl py-2.5 text-sm font-medium transition-all ${
+          collapsed && !isDrawer ? 'justify-center px-0' : 'gap-3 px-3'
+        } ${isActive ? 'sidebar-nav-link--active' : 'sidebar-nav-link'}`}
+      >
+        <Icon className="h-5 w-5 shrink-0" />
+        {(!collapsed || isDrawer) && (
+          <span className="flex flex-1 items-center justify-between truncate">
+            <span className="truncate">{item.name}</span>
+            {item.badge != null && item.badge > 0 && (
+              <span className="ml-2 rounded-md bg-[var(--brand-orange)]/90 px-2 py-0.5 text-[10px] font-bold text-white">
+                {item.badge}
+              </span>
+            )}
+          </span>
+        )}
+      </Link>
+    )
+  }
+
+  const groupedNav = groups && groups.length > 0
 
   return (
     <>
@@ -99,36 +141,23 @@ export default function Sidebar({
         <div className="sidebar-soft-divider mt-1" />
 
         <nav className="flex flex-1 flex-col gap-0.5 overflow-x-hidden overflow-y-auto p-3">
-          {(!collapsed || isDrawer) && (
-            <p className="label-eyebrow mb-2 px-3 text-[var(--sidebar-muted)]">Menu</p>
-          )}
-          {navItems.map((item) => {
-            const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
-            const Icon = getNavIcon(item.icon)
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                title={collapsed && !isDrawer ? item.name : undefined}
-                onClick={onMobileClose}
-                className={`group flex items-center rounded-xl py-2.5 text-sm font-medium transition-all ${
-                  collapsed && !isDrawer ? 'justify-center px-0' : 'gap-3 px-3'
-                } ${isActive ? 'sidebar-nav-link--active' : 'sidebar-nav-link'}`}
-              >
-                <Icon className="h-5 w-5 shrink-0" />
+          {groupedNav ? (
+            groups!.map((group, index) => (
+              <div key={group.label} className={index > 0 ? 'mt-4' : ''}>
                 {(!collapsed || isDrawer) && (
-                  <span className="flex flex-1 items-center justify-between truncate">
-                    <span className="truncate">{item.name}</span>
-                    {item.badge != null && item.badge > 0 && (
-                      <span className="ml-2 rounded-md bg-[var(--brand-orange)]/90 px-2 py-0.5 text-[10px] font-bold text-white">
-                        {item.badge}
-                      </span>
-                    )}
-                  </span>
+                  <p className="label-eyebrow mb-2 px-3 text-[var(--sidebar-muted)]">{group.label}</p>
                 )}
-              </Link>
-            )
-          })}
+                <div className="flex flex-col gap-0.5">{group.items.map(renderNavLink)}</div>
+              </div>
+            ))
+          ) : (
+            <>
+              {(!collapsed || isDrawer) && (
+                <p className="label-eyebrow mb-2 px-3 text-[var(--sidebar-muted)]">Menu</p>
+              )}
+              {navItems.map(renderNavLink)}
+            </>
+          )}
         </nav>
 
         {occupancyToday &&

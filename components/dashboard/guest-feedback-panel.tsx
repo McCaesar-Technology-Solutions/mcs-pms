@@ -58,13 +58,13 @@ export function GuestFeedbackPanel({ summary }: GuestFeedbackPanelProps) {
       </div>
 
       {summary.totalCount === 0 ? (
-        <p className="border-t border-border/60 px-4 py-10 text-center text-sm text-muted-foreground">
+        <p className="list-empty text-sm text-muted-foreground">
           No guest reviews yet. Reviews appear here after guests submit feedback on the You tab.
         </p>
       ) : (
-      <ul className="divide-y divide-border/60 border-t border-border/60">
+      <div className="list-stack">
         {summary.rows.map((row) => (
-          <li key={row.id} className="px-4 py-3">
+          <div key={row.id} className="list-row flex-col">
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
@@ -92,9 +92,9 @@ export function GuestFeedbackPanel({ summary }: GuestFeedbackPanelProps) {
                 })}
               </time>
             </div>
-          </li>
+          </div>
         ))}
-      </ul>
+      </div>
       )}
     </div>
   )
