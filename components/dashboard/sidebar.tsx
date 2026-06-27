@@ -115,7 +115,7 @@ export default function Sidebar({
                   collapsed && !isDrawer ? 'justify-center px-0' : 'gap-3 px-3'
                 } ${isActive ? 'sidebar-nav-link--active' : 'sidebar-nav-link'}`}
               >
-                <Icon className="h-[1.125rem] w-[1.125rem] shrink-0" />
+                <Icon className="h-5 w-5 shrink-0" />
                 {(!collapsed || isDrawer) && (
                   <span className="flex flex-1 items-center justify-between truncate">
                     <span className="truncate">{item.name}</span>
@@ -173,10 +173,10 @@ export default function Sidebar({
             className={`sidebar-collapse-footer ${collapsed ? 'justify-center px-0 py-2.5' : 'gap-2 px-3 py-2'}`}
           >
             {collapsed ? (
-              <PanelLeft className="h-[1.125rem] w-[1.125rem] shrink-0" />
+              <PanelLeft className="h-5 w-5 shrink-0" />
             ) : (
               <>
-                <PanelLeftClose className="h-[1.125rem] w-[1.125rem] shrink-0" />
+                <PanelLeftClose className="h-5 w-5 shrink-0" />
                 <span className="text-xs font-medium">Collapse sidebar</span>
               </>
             )}

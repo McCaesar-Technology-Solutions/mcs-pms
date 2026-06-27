@@ -1,4 +1,4 @@
-import type { DbInvoice, Reservation } from '@/types'
+import type { Availability, DbInvoice, Reservation } from '@/types'
 import { filterMetricsEligible, isOpenBookingStatus } from '@/lib/reservations/lifecycle'
 
 export interface ChannelPerf {
@@ -21,6 +21,68 @@ export interface TodayOperations {
   guestsInHouse: number
   arrivalsToday: number
   departuresToday: number
+}
+
+export interface RevenueTrend {
+  thisMonth: number
+  lastMonth: number
+  changePercent: number | null
+}
+
+function monthKeyFromIso(iso: string): string {
+  return iso.slice(0, 7)
+}
+
+export function computeRevenueTrend(invoices: DbInvoice[]): RevenueTrend {
+  const now = new Date()
+  const thisKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  const last = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+  const lastKey = `${last.getFullYear()}-${String(last.getMonth() + 1).padStart(2, '0')}`
+
+  let thisMonth = 0
+  let lastMonth = 0
+
+  for (const inv of invoices) {
+    if (inv.payment_status !== 'paid') continue
+    const date = inv.paid_at ?? inv.issued_at
+    if (!date) continue
+    const amount = inv.total_amount ?? 0
+    const key = monthKeyFromIso(date)
+    if (key === thisKey) thisMonth += amount
+    else if (key === lastKey) lastMonth += amount
+  }
+
+  const changePercent =
+    lastMonth > 0 ? Math.round(((thisMonth - lastMonth) / lastMonth) * 100) : null
+
+  return { thisMonth, lastMonth, changePercent }
+}
+
+export function computeOccupancySparkline(availability: Availability[]): number[] {
+  return availability.map((day) => {
+    const total = day.occupied + day.reserved + day.maintenance + day.available
+    if (total <= 0) return 0
+    return Math.round(((day.occupied + day.reserved) / total) * 100)
+  })
+}
+
+export function computeRevenueSparkline(invoices: DbInvoice[], days = 14): number[] {
+  const totals = Array.from({ length: days }, () => 0)
+  const today = new Date()
+  today.setHours(12, 0, 0, 0)
+
+  for (let i = 0; i < days; i++) {
+    const d = new Date(today)
+    d.setDate(d.getDate() - (days - 1 - i))
+    const key = d.toISOString().split('T')[0]
+    for (const inv of invoices) {
+      if (inv.payment_status !== 'paid') continue
+      const date = (inv.paid_at ?? inv.issued_at)?.split('T')[0]
+      if (date === key) totals[i] += inv.total_amount ?? 0
+    }
+  }
+
+  return totals
 }
 
 export function getUpcomingBookings(reservations: Reservation[], limit = 5): Reservation[] {

@@ -12,7 +12,7 @@ import { ChevronRight } from 'lucide-react'
 import { getDashboardData } from '@/lib/data/dashboard'
 import { loadHotelGuestFeedback } from '@/lib/data/guest-feedback'
 import { getHousekeepingTasks } from '@/lib/data/housekeeping'
-import { computeChannelPerformance, computeGraSummary, computeTodayOperations } from '@/lib/data/overview'
+import { computeChannelPerformance, computeGraSummary, computeTodayOperations, computeRevenueTrend, computeOccupancySparkline, computeRevenueSparkline } from '@/lib/data/overview'
 import { getOccupancyToday } from '@/lib/data/occupancy'
 import { getRecentNightAudits } from '@/app/actions/night-audit'
 import { NightAuditPanel } from '@/components/dashboard/night-audit-panel'
@@ -36,6 +36,9 @@ export default async function DashboardPage() {
   const channels = computeChannelPerformance(reservations)
   const graSummary = computeGraSummary(invoices)
   const todayOps = computeTodayOperations(reservations)
+  const revenueTrend = computeRevenueTrend(invoices)
+  const occupancySparkline = computeOccupancySparkline(availability)
+  const revenueSparkline = computeRevenueSparkline(invoices)
   const businessDate = todayISO()
   const todayClosed = nightAudits.some((a) => a.business_date === businessDate)
 
@@ -45,9 +48,14 @@ export default async function DashboardPage() {
         <DashboardToolbar occupancy={occupancyToday} today={todayOps} />
       </div>
 
-      <section className="dashboard-section space-y-4">
-        <SectionHeading title="Key metrics" description="Revenue and occupancy first — details below" />
-        <KPICards metrics={metrics} />
+      <section className="dashboard-section">
+        <h2 className="sr-only">Business overview</h2>
+        <KPICards
+          metrics={metrics}
+          revenueTrend={revenueTrend}
+          occupancySparkline={occupancySparkline}
+          revenueSparkline={revenueSparkline}
+        />
       </section>
 
       <section className="dashboard-section space-y-4">

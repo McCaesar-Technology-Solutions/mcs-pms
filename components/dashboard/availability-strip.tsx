@@ -42,6 +42,90 @@ function formatDayLabel(dateStr: string, isToday: boolean) {
   }
 }
 
+function OccupancyHeatmap({
+  availability,
+  totalRooms,
+  todayStr,
+  selectedDate,
+  onSelect,
+}: {
+  availability: Availability[]
+  totalRooms: number
+  todayStr: string
+  selectedDate: string
+  onSelect: (date: string) => void
+}) {
+  return (
+    <div className="border-b border-border/60 px-6 py-5">
+      <div className="mb-3 flex items-end justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-foreground">Occupancy calendar</p>
+          <p className="text-xs text-muted-foreground">Tap a day — bar height shows how full you are</p>
+        </div>
+        <p className="text-xs text-muted-foreground">{totalRooms} rooms · 14 days</p>
+      </div>
+      <div className="flex items-end gap-1.5 sm:gap-2">
+        {availability.map((day) => {
+          const { weekday, isToday } = formatDayLabel(day.date, day.date === todayStr)
+          const bookedPct = getOccupancyPercent(day)
+          const isSelected = day.date === selectedDate
+
+          return (
+            <button
+              key={day.date}
+              type="button"
+              title={`${day.date}: ${bookedPct}% booked, ${day.available} free`}
+              onClick={() => onSelect(day.date)}
+              className={`group flex min-w-0 flex-1 flex-col items-center gap-1.5 rounded-lg px-0.5 py-1 transition ${
+                isSelected ? 'bg-primary/8 ring-1 ring-primary/25' : 'hover:bg-muted/50'
+              }`}
+            >
+              <div className="flex h-14 w-full items-end justify-center">
+                <div className="flex h-full w-full max-w-[2rem] flex-col justify-end">
+                  <div
+                    className={`w-full overflow-hidden rounded-md border border-border/50 bg-[var(--brand-gold)]/25 transition-transform group-hover:scale-105 ${
+                      isToday ? 'ring-1 ring-primary/30' : ''
+                    }`}
+                    style={{ height: `${bookedPct}%`, minHeight: bookedPct > 0 ? 6 : 2 }}
+                  >
+                    <div className="flex h-full w-full flex-col justify-end">
+                      {day.occupied > 0 && (
+                        <div
+                          className="w-full bg-primary"
+                          style={{ flex: day.occupied }}
+                        />
+                      )}
+                      {day.reserved > 0 && (
+                        <div
+                          className="w-full bg-[var(--brand-purple-deep)]"
+                          style={{ flex: day.reserved }}
+                        />
+                      )}
+                      {day.maintenance > 0 && (
+                        <div
+                          className="w-full bg-amber-500"
+                          style={{ flex: day.maintenance }}
+                        />
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <span
+                className={`text-[9px] font-semibold leading-none ${
+                  isToday ? 'text-primary' : 'text-muted-foreground'
+                }`}
+              >
+                {isToday ? 'Today' : weekday.slice(0, 2)}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 export function AvailabilityStrip({ data }: { data?: Availability[] }) {
   const { activeProperty } = useProperty()
 
@@ -63,8 +147,6 @@ export function AvailabilityStrip({ data }: { data?: Availability[] }) {
 
   return (
     <div className="surface-card">
-      <div className="surface-card-accent" />
-
       <div className="surface-card-header">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
@@ -82,9 +164,17 @@ export function AvailabilityStrip({ data }: { data?: Availability[] }) {
         </div>
       </div>
 
+      <OccupancyHeatmap
+        availability={availability}
+        totalRooms={totalRooms}
+        todayStr={todayStr}
+        selectedDate={selectedDate}
+        onSelect={setSelectedDate}
+      />
+
       {/* Today at a glance */}
       {today && (
-        <div className="grid grid-cols-2 gap-3 border-b border-[#E9ECEF] px-6 py-4 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 border-b border-border/60 px-6 py-4 sm:grid-cols-4">
           {SEGMENTS.map(({ key, label, color, text }) => (
             <div key={key} className="surface-inset rounded-xl p-3">
               <div className="flex items-center gap-2">
@@ -144,7 +234,7 @@ export function AvailabilityStrip({ data }: { data?: Availability[] }) {
                     title={`${day.available} available, ${day.occupied} occupied, ${day.reserved} reserved, ${day.maintenance} maintenance`}
                   >
                     <div className="bg-primary" style={{ width: `${(day.occupied / totalRooms) * 100}%` }} />
-                    <div className="bg-sky-500" style={{ width: `${(day.reserved / totalRooms) * 100}%` }} />
+                    <div className="bg-[var(--brand-purple-deep)]" style={{ width: `${(day.reserved / totalRooms) * 100}%` }} />
                     <div className="bg-amber-500" style={{ width: `${(day.maintenance / totalRooms) * 100}%` }} />
                     <div className="min-w-0 flex-1 bg-amber-400" />
                   </div>
