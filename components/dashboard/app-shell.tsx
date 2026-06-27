@@ -43,14 +43,21 @@ export function AppShell({
   }, [])
 
   const content = (
-    <div className="flex h-dvh w-full overflow-hidden">
+    <>
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[10001] focus:rounded-lg focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-primary-foreground"
+      >
+        Skip to content
+      </a>
+      <div className="flex h-dvh w-full overflow-hidden">
       <Sidebar
         mobileOpen={mobileNavOpen}
         onMobileClose={() => setMobileNavOpen(false)}
         navigation={navigation}
         occupancyToday={occupancyToday}
       />
-      <main className="app-main h-dvh min-w-0 flex-1 overflow-y-auto">
+      <main id="main-content" className="app-main h-dvh min-w-0 flex-1 overflow-y-auto">
         <Topbar onMenuOpen={() => setMobileNavOpen(true)} profile={profile} />
         {profile && !hasPhoneNumber(profile.phone) && profile.role !== 'technician' && (
           <ProfilePhoneBanner
@@ -66,6 +73,7 @@ export function AppShell({
         {children}
       </main>
     </div>
+    </>
   )
 
   if (enableRealtime && profile?.hotel_id) {

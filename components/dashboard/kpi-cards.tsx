@@ -1,6 +1,6 @@
 'use client'
 
-import { TrendingUp, Users, Percent, Banknote, AlertCircle } from 'lucide-react'
+import { TrendingUp, Users, Percent, Banknote, AlertCircle, BarChart3 } from 'lucide-react'
 import { DataEmptyState } from '@/components/dashboard/data-empty-state'
 import type { KPIMetrics } from '@/types'
 
@@ -13,7 +13,11 @@ interface KPICardsProps {
 export function KPICards({ metrics, showRevenue = true }: KPICardsProps) {
   if (!metrics) {
     return (
-      <DataEmptyState message="Sign in and add reservations to see key metrics." />
+      <DataEmptyState
+        icon={BarChart3}
+        title="No metrics yet"
+        message="Add reservations and room data to see occupancy, revenue, and booking trends here."
+      />
     )
   }
 
@@ -26,9 +30,9 @@ export function KPICards({ metrics, showRevenue = true }: KPICardsProps) {
             label: 'Total revenue',
             value: `₵${kpiMetrics.totalRevenue.toLocaleString()}`,
             subtext: `RevPAR ₵${kpiMetrics.reviParMetric.toLocaleString()}`,
-            trend: 'up',
-            tint: 'bg-[#3C216C]/10',
-            iconBg: 'bg-[#3C216C]/15 text-[#3C216C] ring-[#3C216C]/20',
+            trend: 'up' as const,
+            tint: 'bg-primary/10',
+            iconBg: 'bg-primary/15 text-primary ring-primary/20',
           },
         ]
       : []),
@@ -37,27 +41,27 @@ export function KPICards({ metrics, showRevenue = true }: KPICardsProps) {
       label: 'Occupancy rate',
       value: `${(kpiMetrics.occupancyRate * 100).toFixed(0)}%`,
       subtext: 'Rooms occupied now',
-      trend: 'up',
-      tint: 'bg-blue-500/10',
-      iconBg: 'bg-blue-500/15 text-blue-700 ring-blue-500/20',
+      trend: 'up' as const,
+      tint: 'bg-[var(--brand-gold)]/12',
+      iconBg: 'bg-[var(--brand-gold)]/18 text-[var(--brand-gold-dark)] ring-[var(--brand-gold)]/25',
     },
     {
       icon: Banknote,
       label: showRevenue ? 'Avg. nightly rate' : 'Typical room rate',
       value: `₵${kpiMetrics.averageNightlyRate}`,
       subtext: showRevenue ? 'Per available room' : 'List price benchmark',
-      trend: 'neutral',
-      tint: 'bg-[#3C216C]/10',
-      iconBg: 'bg-[#3C216C]/15 text-[#3C216C] ring-[#3C216C]/20',
+      trend: 'neutral' as const,
+      tint: 'bg-primary/10',
+      iconBg: 'bg-primary/15 text-primary ring-primary/20',
     },
     {
       icon: Users,
       label: 'Total bookings',
       value: kpiMetrics.totalBookings.toString(),
       subtext: `${kpiMetrics.totalGuests} guests`,
-      trend: 'up',
-      tint: 'bg-[#D4A62E]/10',
-      iconBg: 'bg-[#D4A62E]/15 text-[#B88D24] ring-[#D4A62E]/25',
+      trend: 'up' as const,
+      tint: 'bg-[var(--brand-gold)]/10',
+      iconBg: 'bg-[var(--brand-gold)]/15 text-[var(--brand-gold-dark)] ring-[var(--brand-gold)]/25',
     },
     {
       icon: AlertCircle,
@@ -67,7 +71,7 @@ export function KPICards({ metrics, showRevenue = true }: KPICardsProps) {
         kpiMetrics.outstandingCount > 0
           ? `${kpiMetrics.outstandingCount} open balance${kpiMetrics.outstandingCount === 1 ? '' : 's'}`
           : 'All settled',
-      trend: kpiMetrics.outstandingBalance > 0 ? 'neutral' : 'up',
+      trend: (kpiMetrics.outstandingBalance > 0 ? 'neutral' : 'up') as 'neutral' | 'up',
       tint: kpiMetrics.outstandingBalance > 0 ? 'bg-amber-500/10' : 'bg-emerald-500/10',
       iconBg:
         kpiMetrics.outstandingBalance > 0
@@ -77,7 +81,7 @@ export function KPICards({ metrics, showRevenue = true }: KPICardsProps) {
   ]
 
   return (
-    <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
       {cards.map((card, idx) => {
         const Icon = card.icon
         return (
@@ -85,22 +89,20 @@ export function KPICards({ metrics, showRevenue = true }: KPICardsProps) {
             <div className={`absolute inset-0 ${card.tint}`} />
 
             <div className="relative z-10 p-6">
-              <div className="mb-5 flex items-start justify-between">
-                <div className="flex-1">
-                  <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                    {card.label}
-                  </p>
-                  <p className="mt-2 text-3xl font-bold tracking-tight text-foreground md:text-4xl">
+              <div className="mb-5 flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="label-eyebrow">{card.label}</p>
+                  <p className="mt-2 text-3xl font-bold tabular-nums tracking-tight text-foreground md:text-4xl">
                     {card.value}
                   </p>
                 </div>
-                <div className={`rounded-xl p-3 ring-1 ${card.iconBg}`}>
+                <div className={`shrink-0 rounded-xl p-3 ring-1 transition-transform duration-300 group-hover:scale-105 ${card.iconBg}`}>
                   <Icon className="h-5 w-5" strokeWidth={2.25} />
                 </div>
               </div>
               <div className="flex items-center gap-2">
                 {card.trend === 'up' && (
-                  <TrendingUp className="h-3.5 w-3.5 text-[#D4A62E]" />
+                  <TrendingUp className="h-3.5 w-3.5 text-[var(--brand-gold)]" />
                 )}
                 <p className="text-sm font-medium text-muted-foreground">{card.subtext}</p>
               </div>

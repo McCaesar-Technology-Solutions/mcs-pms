@@ -51,13 +51,10 @@ function LoginForm() {
   }
 
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-[#22124C] px-4 py-12">
-      <div className="w-full max-w-md rounded-2xl border border-white/10 bg-white/5 p-8 shadow-2xl backdrop-blur-md">
+    <div className="flex min-h-dvh items-center justify-center bg-[var(--brand-purple-ink)] px-4 py-12">
+      <div className="w-full max-w-md rounded-2xl border border-white/10 bg-white/[0.07] p-8 shadow-2xl backdrop-blur-md ring-1 ring-[var(--brand-gold)]/10">
         <div className="mb-8 text-center">
-          <p
-            className="font-[family-name:var(--font-cormorant)] text-3xl font-semibold tracking-wide text-[#D4A62E]"
-            style={{ fontFamily: 'var(--font-cormorant, "Cormorant Garamond", serif)' }}
-          >
+          <p className="font-display text-3xl font-semibold tracking-wide text-[var(--brand-gold)]">
             MOJO APARTMENTS
           </p>
           <p className="mt-2 text-sm text-white/70">Staff sign in</p>
@@ -97,7 +94,7 @@ function LoginForm() {
               </Label>
               <Link
                 href="/forgot-password"
-                className="text-xs font-semibold text-[#D4A62E] hover:underline"
+                className="text-xs font-semibold text-[var(--brand-gold)] hover:underline"
               >
                 Forgot password?
               </Link>
@@ -122,7 +119,7 @@ function LoginForm() {
           <Button
             type="submit"
             disabled={loading}
-            className="h-11 w-full bg-[#3C216C] text-white hover:bg-[#4c2a85] disabled:opacity-60"
+            className="guest-btn guest-btn-primary h-11 w-full disabled:opacity-60"
           >
             {loading ? 'Signing in…' : 'Sign in'}
           </Button>
@@ -130,17 +127,17 @@ function LoginForm() {
 
         <p className="mt-6 text-center text-sm text-white/70">
           New here?{' '}
-          <Link href="/signup" className="font-semibold text-[#D4A62E] hover:underline">
+          <Link href="/signup" className="font-semibold text-[var(--brand-gold)] hover:underline">
             Create an owner account
           </Link>
         </p>
 
         <p className="mt-4 text-center text-xs text-white/45">
-          <Link href="/privacy" className="hover:text-[#D4A62E] hover:underline">
+          <Link href="/privacy" className="hover:text-[var(--brand-gold)] hover:underline">
             Privacy
           </Link>
           {' · '}
-          <Link href="/terms" className="hover:text-[#D4A62E] hover:underline">
+          <Link href="/terms" className="hover:text-[var(--brand-gold)] hover:underline">
             Terms
           </Link>
         </p>
@@ -153,7 +150,16 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-dvh items-center justify-center bg-[#22124C] px-4 py-12" />
+    <div className="flex min-h-dvh items-center justify-center bg-[var(--brand-purple-ink)] px-4 py-12">
+      <div className="w-full max-w-md animate-pulse rounded-2xl border border-white/10 bg-white/5 p-8">
+        <div className="mx-auto mb-6 h-8 w-48 rounded-lg bg-white/10" />
+        <div className="space-y-4">
+          <div className="h-10 rounded-lg bg-white/10" />
+          <div className="h-10 rounded-lg bg-white/10" />
+          <div className="h-11 rounded-lg bg-white/10" />
+        </div>
+      </div>
+    </div>
       }
     >
       <LoginForm />

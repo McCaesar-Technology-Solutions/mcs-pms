@@ -35,7 +35,7 @@ export default async function DashboardPage() {
       <PageHeader
         badge="Overview"
         title="Dashboard"
-        description="Welcome back. Track your property performance, occupancy, revenue, and operational tasks in one place."
+        description="Occupancy, revenue, housekeeping, and guest feedback at a glance."
       />
 
       <section className="space-y-4">

@@ -1,6 +1,3 @@
--- 2FA is strictly opt-in. Clear legacy "required MFA" flags from migration 026
--- (profiles that inherited mfa_sms_enabled = true under the old owner/manager policy).
-
 UPDATE profiles
 SET
   mfa_enabled = false,

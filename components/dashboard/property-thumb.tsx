@@ -2,16 +2,18 @@ import { Building2 } from 'lucide-react'
 
 export function PropertyThumb({
   imageUrl,
+  alt = 'Property photo',
   className = 'h-9 w-9',
 }: {
   imageUrl: string | null | undefined
+  alt?: string
   className?: string
 }) {
   if (imageUrl) {
     return (
       <img
         src={imageUrl}
-        alt=""
+        alt={alt}
         className={`${className} shrink-0 rounded-lg object-cover shadow-elevation-2`}
       />
     )

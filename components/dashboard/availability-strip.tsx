@@ -8,9 +8,9 @@ import type { Availability } from '@/types'
 
 const SEGMENTS = [
   { key: 'occupied' as const, label: 'Occupied', color: 'bg-primary', text: 'text-primary' },
-  { key: 'reserved' as const, label: 'Reserved', color: 'bg-sky-500', text: 'text-sky-600' },
+  { key: 'reserved' as const, label: 'Reserved', color: 'bg-[var(--brand-purple-deep)]', text: 'text-[var(--brand-purple-deep)]' },
   { key: 'maintenance' as const, label: 'Maintenance', color: 'bg-amber-500', text: 'text-amber-600' },
-  { key: 'available' as const, label: 'Available', color: 'bg-[#D4A62E]/80', text: 'text-[#B88D24]' },
+  { key: 'available' as const, label: 'Available', color: 'bg-[var(--brand-gold)]/80', text: 'text-[var(--brand-gold-dark)]' },
 ]
 
 function getTotal(day: Availability) {

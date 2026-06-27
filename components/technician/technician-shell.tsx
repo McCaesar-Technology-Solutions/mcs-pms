@@ -23,7 +23,7 @@ export function TechnicianShell({ profile, managerContacts, children }: Technici
   const [phoneDialogOpen, setPhoneDialogOpen] = useState(false)
 
   return (
-    <div className="flex min-h-dvh flex-col bg-[#F7F4FB]">
+    <div className="flex min-h-dvh flex-col bg-background">
       {!hasPhoneNumber(profile.phone) && <ProfilePhoneBanner roleLabel="technician" />}
       <header className="sticky top-0 z-30 bg-white shadow-elevation-1">
         <div className="mx-auto max-w-lg px-4 py-3">

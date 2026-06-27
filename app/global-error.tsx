@@ -9,18 +9,24 @@ export default function GlobalError({
 }) {
   return (
     <html lang="en">
-      <body className="flex min-h-dvh flex-col items-center justify-center bg-[#22124C] px-6 text-center text-white">
-        <h1 className="text-xl font-semibold">Application error</h1>
-        <p className="mt-2 max-w-md text-sm text-white/70">
-          {error.message || 'A critical error occurred.'}
-        </p>
-        <button
-          type="button"
-          onClick={reset}
-          className="mt-6 rounded-xl bg-[#D4A62E] px-5 py-2.5 text-sm font-semibold text-[#22124C]"
-        >
-          Reload
-        </button>
+      <body className="flex min-h-dvh flex-col items-center justify-center bg-[#22124c] px-6 text-center text-white">
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          <div className="absolute -right-16 top-0 h-48 w-48 rounded-full bg-[#d4a62e]/12 blur-3xl" />
+        </div>
+        <div className="relative max-w-md">
+          <p className="font-serif text-4xl font-semibold text-[#d4a62e]">MOJO</p>
+          <h1 className="mt-4 text-xl font-semibold">Application error</h1>
+          <p className="mt-2 text-sm text-white/70">
+            {error.message || 'A critical error occurred.'}
+          </p>
+          <button
+            type="button"
+            onClick={reset}
+            className="mt-8 rounded-xl bg-[#d4a62e] px-6 py-3 text-sm font-semibold text-[#22124c] transition hover:brightness-105 active:scale-[0.98]"
+          >
+            Reload
+          </button>
+        </div>
       </body>
     </html>
   )

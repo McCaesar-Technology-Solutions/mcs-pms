@@ -37,15 +37,15 @@ export function PageLoadingSkeleton({ variant = 'dashboard' }: PageLoadingSkelet
 
   return (
     <div className="page-shell animate-pulse space-y-8">
-      <div className="h-24 rounded-2xl bg-muted/60" />
+      <div className="h-28 rounded-2xl bg-gradient-to-r from-muted/70 via-muted/50 to-muted/70" />
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="h-28 rounded-2xl bg-muted/50" />
+          <div key={i} className="h-32 rounded-2xl bg-muted/50 ring-1 ring-primary/5" />
         ))}
       </div>
       <div className="grid gap-6 lg:grid-cols-2">
-        <div className="h-56 rounded-2xl bg-muted/40" />
-        <div className="h-56 rounded-2xl bg-muted/40" />
+        <div className="h-56 rounded-2xl bg-muted/40 ring-1 ring-primary/5" />
+        <div className="h-56 rounded-2xl bg-muted/40 ring-1 ring-primary/5" />
       </div>
     </div>
   )

@@ -53,7 +53,7 @@ export default function Sidebar({
         <button
           type="button"
           aria-label="Close navigation menu"
-          className="sidebar-mobile-overlay fixed inset-0 z-40 bg-[#22124C]/55 backdrop-blur-[2px] md:hidden"
+          className="sidebar-mobile-overlay fixed inset-0 z-40 bg-[var(--brand-purple-ink)]/55 backdrop-blur-[2px] md:hidden"
           onClick={onMobileClose}
         />
       )}
@@ -100,9 +100,7 @@ export default function Sidebar({
 
         <nav className="flex flex-1 flex-col gap-0.5 overflow-x-hidden overflow-y-auto p-3">
           {(!collapsed || isDrawer) && (
-            <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-widest text-[var(--sidebar-muted)]">
-              Menu
-            </p>
+            <p className="label-eyebrow mb-2 px-3 text-[var(--sidebar-muted)]">Menu</p>
           )}
           {navItems.map((item) => {
             const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
@@ -122,7 +120,7 @@ export default function Sidebar({
                   <span className="flex flex-1 items-center justify-between truncate">
                     <span className="truncate">{item.name}</span>
                     {item.badge != null && item.badge > 0 && (
-                      <span className="ml-2 rounded-full bg-[#D85A30] px-2 py-0.5 text-[10px] font-bold text-white">
+                      <span className="ml-2 rounded-md bg-[var(--brand-orange)]/90 px-2 py-0.5 text-[10px] font-bold text-white">
                         {item.badge}
                       </span>
                     )}
@@ -142,7 +140,7 @@ export default function Sidebar({
                   <p className="text-xs font-semibold tracking-wide text-[var(--sidebar-muted)]">
                     Occupancy today
                   </p>
-                  <p className="mt-1 text-2xl font-bold text-white">{occupancyToday.percent}%</p>
+                  <p className="mt-1 text-2xl font-bold tabular-nums text-white">{occupancyToday.percent}%</p>
                   <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/15">
                     <div
                       className="gradient-accent h-full rounded-full transition-[width] duration-500"
