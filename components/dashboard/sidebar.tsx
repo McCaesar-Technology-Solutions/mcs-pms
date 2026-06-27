@@ -136,11 +136,11 @@ export default function Sidebar({
             <>
               <div className="sidebar-soft-divider" />
               <div className="p-4 pb-2">
-                <div className="sidebar-glass-panel p-3">
-                  <p className="text-xs font-semibold tracking-wide text-[var(--sidebar-muted)]">
+                <div className="sidebar-glass-panel p-2.5">
+                  <p className="text-[10px] font-medium text-[var(--sidebar-muted)]">
                     Occupancy today
                   </p>
-                  <p className="mt-1 text-2xl font-bold tabular-nums text-white">{occupancyToday.percent}%</p>
+                  <p className="mt-0.5 text-xl font-bold tabular-nums text-white">{occupancyToday.percent}%</p>
                   <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/15">
                     <div
                       className="gradient-accent h-full rounded-full transition-[width] duration-500"

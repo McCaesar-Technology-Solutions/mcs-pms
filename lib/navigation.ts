@@ -23,15 +23,15 @@ export interface NavItem {
 
 export const ownerNavigation: NavItem[] = [
   { name: 'Dashboard', href: '/owner/dashboard', icon: 'layout-dashboard' },
-  { name: 'Rooms', href: '/owner/rooms', icon: 'bed-double' },
   { name: 'Reservations', href: '/owner/reservations', icon: 'calendar' },
   { name: 'Guests', href: '/owner/guests', icon: 'users' },
-  { name: 'Complaints', href: '/owner/complaints', icon: 'wrench' },
+  { name: 'Rooms', href: '/owner/rooms', icon: 'bed-double' },
   { name: 'Housekeeping', href: '/owner/housekeeping', icon: 'briefcase' },
-  { name: 'Staff', href: '/owner/staff', icon: 'user-cog' },
+  { name: 'Complaints', href: '/owner/complaints', icon: 'wrench' },
   { name: 'Billing', href: '/owner/billing', icon: 'banknote' },
   { name: 'GRA Reports', href: '/owner/gra-reports', icon: 'file-text' },
   { name: 'Analytics', href: '/owner/analytics', icon: 'bar-chart-3' },
+  { name: 'Staff', href: '/owner/staff', icon: 'user-cog' },
   { name: 'Settings', href: '/owner/settings', icon: 'settings' },
 ]
 

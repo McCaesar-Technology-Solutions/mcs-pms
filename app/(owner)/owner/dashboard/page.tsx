@@ -5,16 +5,18 @@ import { TasksList } from '@/components/dashboard/tasks-list'
 import { ChannelPerformanceWidget } from '@/components/dashboard/channel-performance'
 import { GRATaxSummary } from '@/components/dashboard/gra-tax-summary'
 import { GuestFeedbackPanel } from '@/components/dashboard/guest-feedback-panel'
-import { PageHeader } from '@/components/dashboard/page-header'
+import { DashboardToolbar } from '@/components/dashboard/dashboard-toolbar'
 import { SectionHeading } from '@/components/dashboard/section-heading'
 import Link from 'next/link'
 import { ChevronRight } from 'lucide-react'
 import { getDashboardData } from '@/lib/data/dashboard'
 import { loadHotelGuestFeedback } from '@/lib/data/guest-feedback'
 import { getHousekeepingTasks } from '@/lib/data/housekeeping'
-import { computeChannelPerformance, computeGraSummary } from '@/lib/data/overview'
+import { computeChannelPerformance, computeGraSummary, computeTodayOperations } from '@/lib/data/overview'
+import { getOccupancyToday } from '@/lib/data/occupancy'
 import { getRecentNightAudits } from '@/app/actions/night-audit'
 import { NightAuditPanel } from '@/components/dashboard/night-audit-panel'
+import { createClient } from '@/lib/supabase/server'
 import { todayISO } from '@/lib/stays/helpers'
 
 export default async function DashboardPage() {
@@ -24,29 +26,32 @@ export default async function DashboardPage() {
       getHousekeepingTasks(),
       getRecentNightAudits(),
     ])
-  const guestFeedback = hotelId ? await loadHotelGuestFeedback(hotelId) : null
+
+  const supabase = await createClient()
+  const [guestFeedback, occupancyToday] = await Promise.all([
+    hotelId ? loadHotelGuestFeedback(hotelId) : null,
+    hotelId ? getOccupancyToday(supabase, hotelId) : undefined,
+  ])
+
   const channels = computeChannelPerformance(reservations)
   const graSummary = computeGraSummary(invoices)
+  const todayOps = computeTodayOperations(reservations)
   const businessDate = todayISO()
   const todayClosed = nightAudits.some((a) => a.business_date === businessDate)
 
   return (
-    <div className="page-shell space-y-10">
+    <div className="page-shell space-y-8">
       <div className="dashboard-section">
-        <PageHeader
-          badge="Overview"
-          title="Dashboard"
-          description="Occupancy, revenue, housekeeping, and guest feedback at a glance."
-        />
+        <DashboardToolbar occupancy={occupancyToday} today={todayOps} />
       </div>
 
       <section className="dashboard-section space-y-4">
-        <SectionHeading title="Key metrics" description="Real-time overview of your performance" />
+        <SectionHeading title="Key metrics" description="Revenue and occupancy first — details below" />
         <KPICards metrics={metrics} />
       </section>
 
       <section className="dashboard-section space-y-4">
-        <SectionHeading title="Room availability" description="See how many rooms are free to sell over the next 14 days" />
+        <SectionHeading title="Room availability" description="Rooms free to sell over the next 14 days" />
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2">
             <AvailabilityStrip data={availability} />

@@ -17,11 +17,32 @@ export interface GraSummary {
   status: 'pending' | 'submitted' | 'approved'
 }
 
+export interface TodayOperations {
+  guestsInHouse: number
+  arrivalsToday: number
+  departuresToday: number
+}
+
 export function getUpcomingBookings(reservations: Reservation[], limit = 5): Reservation[] {
   return reservations
     .filter((r) => isOpenBookingStatus(r.status))
     .sort((a, b) => new Date(a.checkInDate).getTime() - new Date(b.checkInDate).getTime())
     .slice(0, limit)
+}
+
+export function computeTodayOperations(
+  reservations: Reservation[],
+  today = new Date().toISOString().split('T')[0],
+): TodayOperations {
+  const active = (status: string) => status === 'confirmed' || status === 'checked_in'
+
+  return {
+    guestsInHouse: reservations.filter((r) => r.status === 'checked_in').length,
+    arrivalsToday: reservations.filter((r) => r.checkInDate === today && active(r.status)).length,
+    departuresToday: reservations.filter(
+      (r) => r.checkOutDate === today && (r.status === 'checked_in' || r.status === 'confirmed'),
+    ).length,
+  }
 }
 
 export function computeChannelPerformance(reservations: Reservation[]): ChannelPerf[] {

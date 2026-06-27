@@ -3,11 +3,67 @@
 import { TrendingUp, Users, Percent, Banknote, AlertCircle, BarChart3 } from 'lucide-react'
 import { DataEmptyState } from '@/components/dashboard/data-empty-state'
 import type { KPIMetrics } from '@/types'
+import type { LucideIcon } from 'lucide-react'
 
 interface KPICardsProps {
   metrics?: KPIMetrics
   /** Hide revenue-related metrics (e.g. for managers). */
   showRevenue?: boolean
+}
+
+type CardTier = 'hero' | 'accent' | 'standard'
+
+interface KpiCardDef {
+  icon: LucideIcon
+  label: string
+  value: string
+  subtext: string
+  trend?: 'up'
+  tier: CardTier
+}
+
+function KpiCard({ card }: { card: KpiCardDef }) {
+  const Icon = card.icon
+  const isHero = card.tier === 'hero'
+  const isAccent = card.tier === 'accent'
+
+  return (
+    <div
+      className={`kpi-card group ${
+        isHero ? 'kpi-card--hero' : isAccent ? 'kpi-card--accent' : 'kpi-card--standard'
+      }`}
+    >
+      <div className="relative z-10 flex h-full flex-col p-5 sm:p-6">
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <Icon
+            className={`shrink-0 opacity-80 ${isHero ? 'h-4 w-4' : 'h-3.5 w-3.5'}`}
+            strokeWidth={2}
+          />
+          <p className={`font-medium ${isHero ? 'text-xs' : 'text-[11px]'}`}>{card.label}</p>
+        </div>
+        <p
+          className={`mt-2 font-bold tabular-nums tracking-tight ${
+            isHero
+              ? 'text-4xl text-foreground sm:text-[2.75rem] sm:leading-none'
+              : isAccent
+                ? 'text-3xl text-foreground sm:text-4xl'
+                : 'text-2xl text-foreground'
+          }`}
+        >
+          {card.value}
+        </p>
+        <div className="mt-auto flex items-center gap-1.5 pt-3">
+          {card.trend === 'up' && (
+            <TrendingUp
+              className={`shrink-0 ${isAccent ? 'text-[var(--brand-gold-dark)]' : 'text-primary'}`}
+              style={{ width: isHero ? 14 : 12, height: isHero ? 14 : 12 }}
+            />
+          )}
+          <p className={`text-muted-foreground ${isHero ? 'text-sm' : 'text-xs'}`}>{card.subtext}</p>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 export function KPICards({ metrics, showRevenue = true }: KPICardsProps) {
@@ -21,95 +77,95 @@ export function KPICards({ metrics, showRevenue = true }: KPICardsProps) {
     )
   }
 
-  const kpiMetrics = metrics
-  const cards = [
+  const m = metrics
+  const occupancyPct = `${(m.occupancyRate * 100).toFixed(0)}%`
+
+  const heroCards: KpiCardDef[] = showRevenue
+    ? [
+        {
+          icon: Banknote,
+          label: 'Total revenue',
+          value: `₵${m.totalRevenue.toLocaleString()}`,
+          subtext: `RevPAR ₵${m.reviParMetric.toLocaleString()}`,
+          trend: 'up',
+          tier: 'hero',
+        },
+        {
+          icon: Percent,
+          label: 'Occupancy rate',
+          value: occupancyPct,
+          subtext: 'Rooms occupied right now',
+          trend: 'up',
+          tier: 'accent',
+        },
+      ]
+    : [
+        {
+          icon: Percent,
+          label: 'Occupancy rate',
+          value: occupancyPct,
+          subtext: 'Rooms occupied right now',
+          trend: 'up',
+          tier: 'hero',
+        },
+        {
+          icon: Users,
+          label: 'Active bookings',
+          value: m.totalBookings.toString(),
+          subtext: `${m.totalGuests} guests on record`,
+          trend: 'up',
+          tier: 'accent',
+        },
+      ]
+
+  const standardCards: KpiCardDef[] = [
+    {
+      icon: Banknote,
+      label: showRevenue ? 'Avg. nightly rate' : 'Typical room rate',
+      value: `₵${m.averageNightlyRate}`,
+      subtext: showRevenue ? 'Average daily rate' : 'List price benchmark',
+      tier: 'standard',
+    },
     ...(showRevenue
       ? [
           {
-            icon: Banknote,
-            label: 'Total revenue',
-            value: `₵${kpiMetrics.totalRevenue.toLocaleString()}`,
-            subtext: `RevPAR ₵${kpiMetrics.reviParMetric.toLocaleString()}`,
+            icon: Users,
+            label: 'Active bookings',
+            value: m.totalBookings.toString(),
+            subtext: `${m.totalGuests} guests on record`,
             trend: 'up' as const,
-            tint: 'bg-primary/10',
-            iconBg: 'bg-primary/15 text-primary ring-primary/25',
+            tier: 'standard' as const,
           },
         ]
       : []),
     {
-      icon: Percent,
-      label: 'Occupancy rate',
-      value: `${(kpiMetrics.occupancyRate * 100).toFixed(0)}%`,
-      subtext: 'Rooms occupied now',
-      trend: 'up' as const,
-      tint: 'bg-primary/8',
-      iconBg: 'bg-primary/12 text-primary ring-primary/20',
-    },
-    {
-      icon: Banknote,
-      label: showRevenue ? 'Avg. nightly rate' : 'Typical room rate',
-      value: `₵${kpiMetrics.averageNightlyRate}`,
-      subtext: showRevenue ? 'Per available room' : 'List price benchmark',
-      trend: 'neutral' as const,
-      tint: 'bg-primary/10',
-      iconBg: 'bg-primary/15 text-primary ring-primary/20',
-    },
-    {
-      icon: Users,
-      label: 'Total bookings',
-      value: kpiMetrics.totalBookings.toString(),
-      subtext: `${kpiMetrics.totalGuests} guests`,
-      trend: 'up' as const,
-      tint: 'bg-primary/6',
-      iconBg: 'bg-primary/10 text-primary ring-primary/18',
-    },
-    {
       icon: AlertCircle,
-      label: 'Outstanding',
-      value: `₵${kpiMetrics.outstandingBalance.toLocaleString()}`,
+      label: 'Unpaid balances',
+      value: `₵${m.outstandingBalance.toLocaleString()}`,
       subtext:
-        kpiMetrics.outstandingCount > 0
-          ? `${kpiMetrics.outstandingCount} open balance${kpiMetrics.outstandingCount === 1 ? '' : 's'}`
-          : 'All settled',
-      trend: (kpiMetrics.outstandingBalance > 0 ? 'neutral' : 'up') as 'neutral' | 'up',
-      tint: kpiMetrics.outstandingBalance > 0 ? 'bg-amber-500/10' : 'bg-emerald-500/10',
-      iconBg:
-        kpiMetrics.outstandingBalance > 0
-          ? 'bg-amber-500/15 text-amber-800 ring-amber-500/20'
-          : 'bg-emerald-500/15 text-emerald-700 ring-emerald-500/20',
+        m.outstandingCount > 0
+          ? `${m.outstandingCount} invoice${m.outstandingCount === 1 ? '' : 's'} awaiting payment`
+          : 'All guest balances settled',
+      tier: 'standard',
     },
   ]
 
   return (
-    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
-      {cards.map((card, idx) => {
-        const Icon = card.icon
-        return (
-          <div key={idx} className="kpi-card group">
-            <div className={`absolute inset-0 ${card.tint}`} />
-
-            <div className="relative z-10 p-6">
-              <div className="mb-5 flex items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <p className="label-eyebrow">{card.label}</p>
-                  <p className="mt-2 text-3xl font-bold tabular-nums tracking-tight text-foreground md:text-4xl">
-                    {card.value}
-                  </p>
-                </div>
-                <div className={`shrink-0 rounded-xl p-3 ring-1 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3 ${card.iconBg}`}>
-                  <Icon className="h-5 w-5" strokeWidth={2.25} />
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                {card.trend === 'up' && (
-                  <TrendingUp className="h-3.5 w-3.5 text-primary" />
-                )}
-                <p className="text-sm font-medium text-muted-foreground">{card.subtext}</p>
-              </div>
-            </div>
-          </div>
-        )
-      })}
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {heroCards.map((card) => (
+          <KpiCard key={card.label} card={card} />
+        ))}
+      </div>
+      <div
+        className={`grid grid-cols-1 gap-3 sm:grid-cols-2 ${
+          showRevenue ? 'lg:grid-cols-3' : 'lg:grid-cols-2'
+        }`}
+      >
+        {standardCards.map((card) => (
+          <KpiCard key={card.label} card={card} />
+        ))}
+      </div>
     </div>
   )
 }
