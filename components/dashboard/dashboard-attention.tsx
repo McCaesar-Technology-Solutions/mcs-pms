@@ -5,6 +5,7 @@ import {
   LogOut,
   CheckCircle2,
   Briefcase,
+  ChevronRight,
 } from 'lucide-react'
 import type { TodayOperations } from '@/lib/data/overview'
 import type { KPIMetrics } from '@/types'
@@ -76,24 +77,38 @@ export function DashboardAttention({
 
   if (items.length === 0) {
     return (
-      <div className="attention-panel attention-panel--clear">
+      <div className="attention-panel attention-panel--clear" role="status">
         <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" strokeWidth={2} />
         <p className="text-sm text-muted-foreground">All clear for today — nothing needs immediate action.</p>
       </div>
     )
   }
 
+  const hasUrgent = items.some((item) => item.tone === 'urgent')
+
   return (
-    <div className="attention-panel">
+    <div
+      className={`attention-panel attention-panel--active${hasUrgent ? ' attention-panel--urgent' : ''}`}
+      role="region"
+      aria-label={`Needs attention, ${items.length} item${items.length === 1 ? '' : 's'}`}
+    >
       <div className="attention-panel__header">
-        <p className="attention-panel__title">Needs attention</p>
-        <p className="attention-panel__count">{items.length} item{items.length === 1 ? '' : 's'}</p>
+        <div className="attention-panel__heading">
+          <AlertCircle className="attention-panel__header-icon" strokeWidth={2.25} aria-hidden />
+          <p className="attention-panel__title">Needs attention</p>
+        </div>
+        <span className="attention-panel__badge" aria-hidden>
+          {items.length}
+        </span>
       </div>
       <div className="attention-panel__items">
         {items.map(({ key, icon: Icon, tone, message, href }) => (
           <Link key={key} href={href} className={`attention-panel__item attention-panel__item--${tone}`}>
-            <Icon className="h-4 w-4 shrink-0" strokeWidth={2.25} />
-            <span className="flex-1">{message}</span>
+            <span className="attention-panel__item-icon" aria-hidden>
+              <Icon className="h-4 w-4" strokeWidth={2.25} />
+            </span>
+            <span className="attention-panel__item-text">{message}</span>
+            <ChevronRight className="attention-panel__item-chevron h-4 w-4 shrink-0" strokeWidth={2.25} aria-hidden />
           </Link>
         ))}
       </div>

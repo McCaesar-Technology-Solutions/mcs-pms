@@ -5,7 +5,7 @@ interface MiniSparklineProps {
 }
 
 const toneStroke: Record<NonNullable<MiniSparklineProps['tone']>, string> = {
-  primary: 'stroke-primary/45',
+  primary: 'stroke-primary/50',
   gold: 'stroke-[var(--brand-gold-dark)]/55',
   emerald: 'stroke-emerald-600/50',
   amber: 'stroke-amber-600/50',

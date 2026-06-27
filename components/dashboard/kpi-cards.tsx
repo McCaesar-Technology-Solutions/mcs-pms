@@ -40,43 +40,41 @@ function RevenueBanner({
   return (
     <div className="kpi-card kpi-card--revenue">
       <div className="kpi-card--revenue__body">
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0 flex-1">
-            <p className="kpi-card__label kpi-card__label--on-dark">Total revenue</p>
-            <div className="mt-3 flex items-end justify-between gap-4">
-              <p className="kpi-card__value kpi-card__value--revenue">
-                <AnimatedMetric
-                  value={metrics.totalRevenue}
-                  format={(n) => `₵${Math.round(n).toLocaleString()}`}
-                />
-              </p>
-              {hasSparklineVariance(revenueSparkline) && (
-                <MiniSparkline values={revenueSparkline!} tone="light" className="h-11 w-32" />
-              )}
-            </div>
-            <div className="mt-4 flex flex-wrap items-center gap-2.5">
-              <p className="kpi-card__subtext kpi-card__subtext--on-dark">
-                RevPAR ₵{metrics.reviParMetric.toLocaleString()}
-              </p>
-              {revenueTrend?.changePercent != null && (
-                <TrendBadge value={revenueTrend.changePercent} onDark label="" />
-              )}
-            </div>
-          </div>
+        <p className="kpi-card__label kpi-card__label--on-dark">Total revenue</p>
 
-          {revenueTrend && (revenueTrend.lastMonth > 0 || revenueTrend.thisMonth > 0) && (
-            <div className="grid w-full grid-cols-2 gap-2.5 sm:max-w-[13rem] sm:grid-cols-1">
-              <div className="kpi-metric-pill kpi-metric-pill--on-dark">
-                <p className="kpi-metric-pill__label">This month</p>
-                <p className="kpi-metric-pill__value">₵{revenueTrend.thisMonth.toLocaleString()}</p>
-              </div>
-              <div className="kpi-metric-pill kpi-metric-pill--on-dark">
-                <p className="kpi-metric-pill__label">Last month</p>
-                <p className="kpi-metric-pill__value">₵{revenueTrend.lastMonth.toLocaleString()}</p>
-              </div>
-            </div>
+        <div className="kpi-card--revenue__hero">
+          <p className="kpi-card__value kpi-card__value--revenue">
+            <AnimatedMetric
+              value={metrics.totalRevenue}
+              format={(n) => `₵${Math.round(n).toLocaleString()}`}
+            />
+          </p>
+          {hasSparklineVariance(revenueSparkline) && (
+            <MiniSparkline values={revenueSparkline!} tone="light" className="kpi-card--revenue__sparkline" />
           )}
         </div>
+
+        <div className="kpi-card--revenue__meta">
+          <p className="kpi-card__subtext kpi-card__subtext--on-dark">
+            RevPAR ₵{metrics.reviParMetric.toLocaleString()}
+          </p>
+          {revenueTrend?.changePercent != null && (
+            <TrendBadge value={revenueTrend.changePercent} onDark label="" />
+          )}
+        </div>
+
+        {revenueTrend && (revenueTrend.lastMonth > 0 || revenueTrend.thisMonth > 0) && (
+          <div className="kpi-card--revenue__compare">
+            <div className="kpi-metric-pill kpi-metric-pill--on-dark">
+              <p className="kpi-metric-pill__label">This month</p>
+              <p className="kpi-metric-pill__value">₵{revenueTrend.thisMonth.toLocaleString()}</p>
+            </div>
+            <div className="kpi-metric-pill kpi-metric-pill--on-dark">
+              <p className="kpi-metric-pill__label">Last month</p>
+              <p className="kpi-metric-pill__value">₵{revenueTrend.lastMonth.toLocaleString()}</p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -111,7 +109,8 @@ function MetricTile({
         ? 'kpi-card--tile-tone-balance-ok'
         : 'kpi-card--tile-tone-rate'
 
-  const sparklineTone = tone === 'bookings' ? 'primary' : tone === 'balance' && !warning ? 'emerald' : 'slate'
+  const sparklineTone =
+    tone === 'bookings' ? 'primary' : tone === 'balance' && !warning ? 'gold' : warning ? 'amber' : 'primary'
 
   return (
     <div className={`kpi-card kpi-card--tile kpi-card--tile-elevated kpi-card--tile-compact ${toneClass}`}>

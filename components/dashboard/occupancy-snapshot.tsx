@@ -50,7 +50,7 @@ export function OccupancySnapshot({
         {hasTrend && (
           <div className="mt-4 flex items-end justify-between gap-3">
             <p className="text-[11px] font-medium text-muted-foreground">14-day trend</p>
-            <MiniSparkline values={trend} tone="primary" className="h-9 w-[6.5rem]" />
+            <MiniSparkline values={trend} tone="gold" className="h-9 w-[6.5rem]" />
           </div>
         )}
 
