@@ -60,7 +60,7 @@ export function NightAuditPanel({ audits, todayClosed }: NightAuditPanelProps) {
           </p>
         </div>
         {todayClosed && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">
+          <span className="inline-flex items-center gap-1 rounded-full bg-[rgba(var(--glow-gold),0.14)] px-3 py-1 text-xs font-semibold text-[var(--brand-gold-dark)]">
             <CheckCircle2 className="h-3.5 w-3.5" />
             Today closed
           </span>

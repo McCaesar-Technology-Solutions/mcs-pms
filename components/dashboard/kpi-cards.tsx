@@ -110,7 +110,7 @@ function MetricTile({
         : 'kpi-card--tile-tone-rate'
 
   const sparklineTone =
-    tone === 'bookings' ? 'primary' : tone === 'balance' && !warning ? 'gold' : warning ? 'amber' : 'primary'
+    tone === 'bookings' ? 'primary' : tone === 'balance' && !warning ? 'gold' : warning ? 'gold' : 'primary'
 
   return (
     <div className={`kpi-card kpi-card--tile kpi-card--tile-elevated kpi-card--tile-compact ${toneClass}`}>

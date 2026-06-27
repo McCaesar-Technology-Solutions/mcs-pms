@@ -17,11 +17,11 @@ export function TrendBadge({ value, label = 'vs last month', className = '', onD
       className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-semibold tabular-nums ${
         onDark
           ? up
-            ? 'bg-emerald-400/15 text-emerald-300'
-            : 'bg-orange-400/15 text-orange-300'
+            ? 'bg-[rgba(var(--glow-gold),0.18)] text-[var(--brand-gold-light)]'
+            : 'bg-white/10 text-white/70'
           : up
-            ? 'bg-emerald-500/10 text-emerald-700'
-            : 'bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]'
+            ? 'bg-[rgba(var(--glow-gold),0.12)] text-[var(--brand-gold-dark)]'
+            : 'bg-[rgba(var(--glow-purple),0.08)] text-[var(--primary)]'
       } ${className}`}
     >
       {up ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}

@@ -800,18 +800,18 @@
   }
 
   .kpi-card--tile-tone-rate:hover {
-    border-color: rgba(90, 109, 140, 0.22);
-    box-shadow: 0 8px 24px rgba(90, 109, 140, 0.1);
+    border-color: rgba(60, 33, 108, 0.2);
+    box-shadow: 0 8px 24px rgba(var(--glow-purple), 0.08);
   }
 
   .kpi-card--tile-tone-bookings:hover {
-    border-color: rgba(45, 143, 133, 0.22);
-    box-shadow: 0 8px 24px rgba(45, 143, 133, 0.09);
+    border-color: rgba(60, 33, 108, 0.22);
+    box-shadow: 0 8px 24px rgba(var(--glow-purple), 0.09);
   }
 
   .kpi-card--tile-tone-balance-ok:hover {
-    border-color: rgba(107, 145, 104, 0.22);
-    box-shadow: 0 8px 24px rgba(107, 145, 104, 0.09);
+    border-color: rgba(184, 141, 36, 0.24);
+    box-shadow: 0 8px 24px rgba(var(--glow-gold), 0.1);
   }
 
   .kpi-card--tile-tone-balance-warn:hover {
@@ -1126,18 +1126,18 @@
   }
 
   .status-pill--info {
-    background: var(--comp-sky-soft);
-    color: var(--comp-sky-ink);
+    background: var(--brand-purple-soft);
+    color: var(--primary);
   }
 
   .status-pill--neutral {
-    background: var(--comp-slate-soft);
-    color: var(--comp-slate-ink);
+    background: rgba(var(--glow-purple), 0.06);
+    color: var(--muted-foreground);
   }
 
   .status-pill--warm {
-    background: var(--comp-sand-soft);
-    color: var(--comp-sand-ink);
+    background: rgba(var(--glow-gold), 0.14);
+    color: var(--brand-gold-dark);
   }
 
   .status-pill--teal {
@@ -1187,15 +1187,15 @@
   }
 
   .stat-chip__progress--teal {
-    background: var(--comp-teal);
+    background: rgba(var(--glow-purple), 0.55);
   }
 
   .stat-chip__progress--sky {
-    background: var(--comp-sky);
+    background: rgba(var(--glow-purple), 0.4);
   }
 
   .stat-chip__progress--coral {
-    background: var(--comp-coral);
+    background: var(--brand-gold);
   }
 
   .stat-chip__icon--gold {
@@ -1203,15 +1203,15 @@
   }
 
   .stat-chip__icon--teal {
-    color: #7ec9c0;
+    color: var(--brand-purple-bright);
   }
 
   .stat-chip__icon--sky {
-    color: #8eb8dc;
+    color: var(--primary);
   }
 
   .stat-chip__icon--coral {
-    color: #e09a88;
+    color: var(--brand-gold-dark);
   }
 
   .command-palette__item-kind--nav {
@@ -1509,18 +1509,18 @@
   }
 
   .stat-chip--tone-teal {
-    background: linear-gradient(168deg, #e8f5f3 0%, #cce8e3 100%);
-    border-color: rgba(45, 143, 133, 0.16);
+    background: linear-gradient(168deg, #f7f5fa 0%, #ebe6f2 100%);
+    border-color: rgba(60, 33, 108, 0.12);
   }
 
   .stat-chip--tone-sky {
-    background: linear-gradient(168deg, #eaf2f9 0%, #cddfea 100%);
-    border-color: rgba(74, 125, 173, 0.16);
+    background: linear-gradient(168deg, #f9f7fc 0%, #f0ecf7 100%);
+    border-color: rgba(60, 33, 108, 0.1);
   }
 
   .stat-chip--tone-coral {
-    background: linear-gradient(168deg, #faf0ec 0%, #edd5cc 100%);
-    border-color: rgba(196, 97, 74, 0.16);
+    background: linear-gradient(168deg, #faf8f5 0%, #f3efe8 100%);
+    border-color: rgba(184, 141, 36, 0.14);
   }
 
   .stat-chip--tone-gold:hover {
@@ -1529,18 +1529,18 @@
   }
 
   .stat-chip--tone-teal:hover {
-    border-color: rgba(45, 143, 133, 0.22);
-    box-shadow: 0 4px 14px rgba(45, 143, 133, 0.08);
+    border-color: rgba(60, 33, 108, 0.18);
+    box-shadow: 0 4px 14px rgba(var(--glow-purple), 0.07);
   }
 
   .stat-chip--tone-sky:hover {
-    border-color: rgba(74, 125, 173, 0.22);
-    box-shadow: 0 4px 14px rgba(74, 125, 173, 0.08);
+    border-color: rgba(60, 33, 108, 0.16);
+    box-shadow: 0 4px 14px rgba(var(--glow-purple), 0.06);
   }
 
   .stat-chip--tone-coral:hover {
-    border-color: rgba(196, 97, 74, 0.22);
-    box-shadow: 0 4px 14px rgba(196, 97, 74, 0.08);
+    border-color: rgba(184, 141, 36, 0.2);
+    box-shadow: 0 4px 14px rgba(var(--glow-gold), 0.08);
   }
 
   .stat-chip--light .stat-chip__label {
@@ -1587,15 +1587,15 @@
   }
 
   .stat-chip--tone-teal .stat-chip__progress-track {
-    background: rgba(45, 143, 133, 0.15);
+    background: rgba(60, 33, 108, 0.1);
   }
 
   .stat-chip--tone-sky .stat-chip__progress-track {
-    background: rgba(74, 125, 173, 0.15);
+    background: rgba(60, 33, 108, 0.08);
   }
 
   .stat-chip--tone-coral .stat-chip__progress-track {
-    background: rgba(196, 97, 74, 0.15);
+    background: rgba(184, 141, 36, 0.14);
   }
 
   .stat-chip--light .stat-chip__icon--gold {
@@ -1604,17 +1604,17 @@
   }
 
   .stat-chip--light .stat-chip__icon--teal {
-    color: var(--comp-teal-ink);
+    color: var(--primary);
     opacity: 1;
   }
 
   .stat-chip--light .stat-chip__icon--sky {
-    color: var(--comp-sky-ink);
-    opacity: 1;
+    color: var(--brand-purple-bright);
+    opacity: 0.85;
   }
 
   .stat-chip--light .stat-chip__icon--coral {
-    color: var(--comp-coral-ink);
+    color: var(--brand-gold-dark);
     opacity: 1;
   }
 
@@ -1690,14 +1690,15 @@
 
   .attention-panel--active {
     overflow: hidden;
-    border-color: rgba(212, 166, 46, 0.32);
+    border-color: rgba(212, 166, 46, 0.28);
     background:
-      radial-gradient(ellipse 120% 80% at 100% 0%, rgba(212, 166, 46, 0.12), transparent 55%),
-      linear-gradient(135deg, #fff8e8 0%, #fff3d6 42%, #faf0ea 100%);
+      radial-gradient(ellipse 120% 80% at 100% 0%, rgba(212, 166, 46, 0.1), transparent 55%),
+      radial-gradient(ellipse 80% 60% at 0% 100%, rgba(60, 33, 108, 0.04), transparent 50%),
+      linear-gradient(135deg, #fff8e8 0%, #faf4e4 42%, #f8f5fc 100%);
     padding: 1rem 1.125rem 1.0625rem 1.375rem;
     box-shadow:
       0 1px 0 rgba(255, 255, 255, 0.85) inset,
-      0 6px 28px -8px rgba(184, 141, 36, 0.22),
+      0 6px 28px -8px rgba(184, 141, 36, 0.18),
       0 0 0 1px rgba(212, 166, 46, 0.06);
   }
 
@@ -1713,24 +1714,24 @@
   }
 
   .attention-panel--urgent {
-    border-color: rgba(196, 97, 74, 0.28);
+    border-color: rgba(184, 141, 36, 0.32);
     box-shadow:
       0 1px 0 rgba(255, 255, 255, 0.85) inset,
-      0 8px 32px -10px rgba(196, 97, 74, 0.18),
-      0 6px 28px -8px rgba(184, 141, 36, 0.16),
-      0 0 0 1px rgba(196, 97, 74, 0.08);
+      0 8px 32px -10px rgba(184, 141, 36, 0.16),
+      0 6px 28px -8px rgba(60, 33, 108, 0.06),
+      0 0 0 1px rgba(184, 141, 36, 0.1);
   }
 
   .attention-panel--urgent::before {
-    background: linear-gradient(180deg, #e07a5a 0%, var(--brand-gold) 100%);
+    background: linear-gradient(180deg, var(--brand-gold) 0%, var(--brand-gold-dark) 100%);
   }
 
   .attention-panel--clear {
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    border-color: rgba(107, 145, 104, 0.18);
-    background: linear-gradient(135deg, #f6faf5 0%, #eef4ec 100%);
+    border-color: rgba(60, 33, 108, 0.1);
+    background: linear-gradient(135deg, #f8f5fc 0%, #f4f0fa 100%);
     box-shadow: none;
   }
 
@@ -1757,7 +1758,7 @@
   }
 
   .attention-panel--urgent .attention-panel__header-icon {
-    color: var(--comp-coral-ink);
+    color: var(--brand-gold-dark);
   }
 
   .attention-panel__title {
@@ -1787,10 +1788,10 @@
   }
 
   .attention-panel--urgent .attention-panel__badge {
-    background: linear-gradient(180deg, #e07a5a 0%, #c4614a 100%);
+    background: linear-gradient(180deg, #e8c45a 0%, var(--brand-gold-dark) 100%);
     box-shadow:
-      0 1px 2px rgba(196, 97, 74, 0.35),
-      0 0 0 1px rgba(255, 255, 255, 0.2) inset;
+      0 1px 2px rgba(184, 141, 36, 0.35),
+      0 0 0 1px rgba(255, 255, 255, 0.25) inset;
   }
 
   .attention-panel__items {
@@ -1866,14 +1867,14 @@
   }
 
   .attention-panel__item--urgent {
-    border-color: rgba(196, 97, 74, 0.24);
-    background: linear-gradient(135deg, #fff7f4 0%, #ffede8 100%);
-    color: var(--comp-coral-ink);
+    border-color: rgba(184, 141, 36, 0.28);
+    background: linear-gradient(135deg, #faf8fd 0%, #f5f0fa 100%);
+    color: var(--foreground);
   }
 
   .attention-panel__item--urgent .attention-panel__item-icon {
-    background: rgba(196, 97, 74, 0.1);
-    color: var(--comp-coral-ink);
+    background: rgba(184, 141, 36, 0.12);
+    color: var(--brand-gold-dark);
   }
 
   .attention-panel__item--warning {
@@ -2071,8 +2072,8 @@
   }
 
   .ops-summary__stat--warn {
-    background: #faf3ef;
-    color: var(--comp-coral-ink);
+    background: rgba(var(--glow-gold), 0.1);
+    color: var(--brand-gold-dark);
   }
 
   .ops-summary__stat--info {

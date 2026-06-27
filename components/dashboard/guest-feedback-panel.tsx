@@ -38,7 +38,7 @@ export function GuestFeedbackPanel({ summary }: GuestFeedbackPanelProps) {
             <div className="flex gap-4 text-sm">
               {summary.averageRating != null && (
                 <div className="text-right">
-                  <p className="text-2xl font-bold text-[var(--comp-teal)]">{summary.averageRating}</p>
+                  <p className="text-2xl font-bold text-[var(--brand-gold-dark)]">{summary.averageRating}</p>
                   <p className="text-xs text-muted-foreground">Avg (recent)</p>
                 </div>
               )}

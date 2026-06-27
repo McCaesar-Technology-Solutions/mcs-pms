@@ -78,7 +78,7 @@ export function DashboardAttention({
   if (items.length === 0) {
     return (
       <div className="attention-panel attention-panel--clear" role="status">
-        <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" strokeWidth={2} />
+        <CheckCircle2 className="h-4 w-4 shrink-0 text-[var(--brand-gold-dark)]" strokeWidth={2} />
         <p className="text-sm text-muted-foreground">All clear for today — nothing needs immediate action.</p>
       </div>
     )
