@@ -19,7 +19,11 @@ import { fetchComplaintEstimate } from '@/app/actions/complaint-estimates'
 import { ComplaintEstimateCard } from '@/components/complaints/complaint-estimate-card'
 import { StaffComplaintModal } from '@/components/complaints/staff-complaint-modal'
 import { StaffComplaintMessageThread } from '@/components/complaints/staff-complaint-message-thread'
+import { ComplaintsBulkBar } from '@/components/complaints/complaints-bulk-bar'
+import { ComplaintsSelectableList } from '@/components/complaints/complaints-selectable-list'
+import { BulkSelectCheckbox } from '@/components/dashboard/bulk-select-checkbox'
 import { DataEmptyState } from '@/components/dashboard/data-empty-state'
+import { useRowSelection } from '@/lib/hooks/use-row-selection'
 import { PhoneContact } from '@/components/ui/phone-contact'
 import { useRealtimeRefresh } from '@/components/realtime/realtime-refresh-context'
 import { managerPendingLabel } from '@/lib/complaints/workflow'
@@ -165,6 +169,8 @@ export function ComplaintsOwnerView({ canLog = false, canMessage = false }: Comp
     return complaints.filter((c) => c.status === statusFilter)
   }, [complaints, statusFilter])
 
+  const selection = useRowSelection(complaints, filtered)
+
   async function openDetail(complaint: Complaint) {
     setSelected(complaint)
     setEstimate(null)
@@ -187,6 +193,12 @@ export function ComplaintsOwnerView({ canLog = false, canMessage = false }: Comp
 
   return (
     <div className="space-y-6">
+      <ComplaintsBulkBar
+        selected={selection.selected}
+        onClear={selection.clear}
+        roomNumberOf={roomNumberOf}
+        guestNameOf={guestNameOf}
+      />
       {canLog && (
         <>
           <div className="flex justify-end">
@@ -207,7 +219,7 @@ export function ComplaintsOwnerView({ canLog = false, canMessage = false }: Comp
         </>
       )}
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {(['all', 'open', 'assigned', 'in_progress', 'pending_approval', 'resolved'] as const).map(
           (s) => (
             <button
@@ -225,51 +237,32 @@ export function ComplaintsOwnerView({ canLog = false, canMessage = false }: Comp
             </button>
           ),
         )}
-      </div>
-
-      <div className="space-y-2">
-        {filtered.map((c) => {
-          const Icon = categoryIcons[c.category]
-          return (
-            <button
-              key={c.id}
-              type="button"
-              onClick={() => openDetail(c)}
-              className={`flex w-full items-center gap-4 rounded-2xl bg-white px-4 py-3.5 text-left shadow-elevation-1 transition-all hover:-translate-y-px hover:shadow-elevation-2 ${priorityAccent[c.priority ?? 'medium']}`}
-            >
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#3C216C]/6">
-                <Icon className="h-5 w-5 text-[#3C216C]" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-x-2">
-                  <p className="font-semibold capitalize text-foreground">{c.category}</p>
-                  {roomNumberOf(c) && (
-                    <span className="rounded-md bg-[#3C216C]/8 px-2 py-0.5 text-[11px] font-semibold text-[#3C216C]">
-                      Room {roomNumberOf(c)}
-                    </span>
-                  )}
-                  {guestNameOf(c) && (
-                    <span className="text-xs text-muted-foreground">{guestNameOf(c)}</span>
-                  )}
-                </div>
-                <p className="truncate text-sm text-muted-foreground">{c.description}</p>
-              </div>
-              <span
-                className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${statusBadge(c.status)}`}
-              >
-                {c.status?.replace('_', ' ')}
-              </span>
-            </button>
-          )
-        })}
-        {filtered.length === 0 && (
-          <DataEmptyState
-            borderless
-            title="No matches"
-            message="No complaints match this filter."
-          />
+        {filtered.length > 0 && (
+          <label className="ml-auto inline-flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+            <BulkSelectCheckbox
+              checked={selection.allFilteredSelected}
+              onChange={selection.toggleAllFiltered}
+              aria-label="Select all visible complaints"
+            />
+            Select all
+          </label>
         )}
       </div>
+
+      {filtered.length === 0 ? (
+        <DataEmptyState borderless title="No matches" message="No complaints match this filter." />
+      ) : (
+        <ComplaintsSelectableList
+          complaints={filtered}
+          categoryIcons={categoryIcons}
+          isSelected={selection.isSelected}
+          onToggle={selection.toggle}
+          onOpen={openDetail}
+          roomNumberOf={roomNumberOf}
+          guestNameOf={guestNameOf}
+          statusBadge={statusBadge}
+        />
+      )}
 
       <Sheet open={!!selected} onOpenChange={(open) => !open && closeDetail()} aria-label="Complaint details">
         {selected && (

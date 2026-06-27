@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useTransition } from 'react'
+import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import QRCode from 'qrcode'
 import {
@@ -21,6 +21,7 @@ import {
 import { CenteredModal, ModalBody, ModalHeader } from '@/components/ui/centered-modal'
 import { regenerateGuestAccess, revokeGuestAccess, checkOutGuest, updateGuest } from '@/app/actions/guest'
 import { GuestFolioPanel } from '@/components/dashboard/guest-folio-panel'
+import { GuestsBulkBar } from '@/components/dashboard/guests-bulk-bar'
 import { hasPhoneNumber } from '@/lib/phone'
 import { toast } from 'sonner'
 import { PAYMENT_METHOD_LABELS } from '@/lib/tax'
@@ -92,6 +93,7 @@ export function GuestsTable({ guests, initialSearch = '', readOnly = false }: Gu
   const [selectedStatus, setSelectedStatus] = useState<GuestStatus | null>(null)
   const [selectedGuest, setSelectedGuest] = useState<GuestRow | null>(null)
   const [editingGuest, setEditingGuest] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
 
   const filteredGuests = guests.filter((guest) => {
     const matchesSearch =
@@ -102,8 +104,38 @@ export function GuestsTable({ guests, initialSearch = '', readOnly = false }: Gu
     return matchesSearch && matchesStatus
   })
 
+  const bulkSelected = useMemo(
+    () => guests.filter((g) => selectedIds.has(g.id)),
+    [guests, selectedIds],
+  )
+
+  const allFilteredSelected =
+    filteredGuests.length > 0 && filteredGuests.every((g) => selectedIds.has(g.id))
+
+  function toggleSelected(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  function toggleSelectAllFiltered() {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (allFilteredSelected) {
+        filteredGuests.forEach((g) => next.delete(g.id))
+      } else {
+        filteredGuests.forEach((g) => next.add(g.id))
+      }
+      return next
+    })
+  }
+
   return (
     <>
+      <GuestsBulkBar selected={bulkSelected} onClear={() => setSelectedIds(new Set())} />
       <div className="surface-card">
         <div className="surface-card-header flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
@@ -164,12 +196,24 @@ export function GuestsTable({ guests, initialSearch = '', readOnly = false }: Gu
 
         <div className="space-y-3 p-4 md:hidden">
           {filteredGuests.map((guest) => (
-            <button
+            <div
               key={guest.id}
-              type="button"
-              onClick={() => setSelectedGuest(guest)}
-              className="elevated-list-item w-full p-4 text-left"
+              className={`elevated-list-item flex gap-3 p-4 ${
+                selectedIds.has(guest.id) ? 'ring-2 ring-primary/25' : ''
+              }`}
             >
+              <input
+                type="checkbox"
+                checked={selectedIds.has(guest.id)}
+                onChange={() => toggleSelected(guest.id)}
+                aria-label={`Select ${guest.name}`}
+                className="mt-1 h-4 w-4 shrink-0 rounded border-border text-primary"
+              />
+              <button
+                type="button"
+                onClick={() => setSelectedGuest(guest)}
+                className="min-w-0 flex-1 text-left"
+              >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="font-semibold text-foreground">{guest.name}</p>
@@ -195,7 +239,8 @@ export function GuestsTable({ guests, initialSearch = '', readOnly = false }: Gu
                 )}
                 <span className="font-bold text-foreground">₵{guest.totalSpent.toLocaleString()}</span>
               </div>
-            </button>
+              </button>
+            </div>
           ))}
         </div>
 
@@ -203,6 +248,15 @@ export function GuestsTable({ guests, initialSearch = '', readOnly = false }: Gu
           <table className="data-table w-full text-sm">
             <thead>
               <tr>
+                <th className="w-10 px-6 py-4">
+                  <input
+                    type="checkbox"
+                    checked={allFilteredSelected}
+                    onChange={toggleSelectAllFiltered}
+                    aria-label="Select all visible guests"
+                    className="h-4 w-4 rounded border-border text-primary"
+                  />
+                </th>
                 <th className="text-left py-4 px-6 font-semibold text-foreground">Guest Name</th>
                 <th className="text-left py-4 px-6 font-semibold text-foreground">Contact</th>
                 <th className="text-left py-4 px-6 font-semibold text-foreground">Source</th>
@@ -215,12 +269,23 @@ export function GuestsTable({ guests, initialSearch = '', readOnly = false }: Gu
               {filteredGuests.map((guest) => (
                 <tr
                   key={guest.id}
-                  className="cursor-pointer"
+                  className={`cursor-pointer transition-colors ${
+                    selectedIds.has(guest.id) ? 'bg-primary/[0.03]' : ''
+                  }`}
                   onClick={() => {
                     setSelectedGuest(guest)
                     setEditingGuest(!readOnly && !hasPhoneNumber(guest.phone))
                   }}
                 >
+                  <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(guest.id)}
+                      onChange={() => toggleSelected(guest.id)}
+                      aria-label={`Select ${guest.name}`}
+                      className="h-4 w-4 rounded border-border text-primary"
+                    />
+                  </td>
                   <td className="py-4 px-6">
                     <p className="font-semibold text-foreground">{guest.name}</p>
                     <p className="text-xs text-muted-foreground mt-1">

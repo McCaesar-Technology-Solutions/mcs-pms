@@ -2,9 +2,15 @@
 
 import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Trash2 } from 'lucide-react'
+import { Copy, Download, Plus, Trash2 } from 'lucide-react'
+import { toast } from 'sonner'
 import { createRoom, deleteRoom, updateRoom, updateRoomStatus } from '@/app/actions/rooms'
 import { RoomCategoriesPanel } from '@/components/dashboard/room-categories-panel'
+import { BulkActionBar } from '@/components/dashboard/bulk-action-bar'
+import { BulkSelectCheckbox } from '@/components/dashboard/bulk-select-checkbox'
+import { downloadCsv } from '@/lib/export/download-csv'
+import { copyToClipboard } from '@/lib/export/entity-refs'
+import { useRowSelection } from '@/lib/hooks/use-row-selection'
 import {
   CenteredModal,
   ModalBody,
@@ -92,10 +98,47 @@ export function RoomsManager({
     return map
   }, [filteredRooms])
 
+  const selection = useRowSelection(filteredRooms, filteredRooms)
+
+  function roomRef(room: DbRoom) {
+    return `RM-${room.number}`
+  }
+
+  function copyRoomRefs() {
+    void copyToClipboard(
+      selection.selected.map(roomRef).join(', '),
+      `Copied ${selection.selected.length} room ref${selection.selected.length === 1 ? '' : 's'}`,
+    )
+  }
+
+  function exportRoomsCsv() {
+    const header = ['Reference', 'Number', 'Category', 'Floor', 'Status', 'Nightly rate', 'Monthly rate']
+    const csvRows = selection.selected.map((room) => [
+      roomRef(room),
+      room.number,
+      categoryLabel(room),
+      String(room.floor ?? ''),
+      room.status ?? 'available',
+      String(room.nightly_rate ?? ''),
+      String(room.monthly_rate ?? ''),
+    ])
+    downloadCsv(`rooms-${new Date().toISOString().slice(0, 10)}.csv`, [header, ...csvRows])
+    toast.success(`Exported ${selection.selected.length} room${selection.selected.length === 1 ? '' : 's'}`)
+  }
+
   const canAddRoom = categories.length > 0
 
   return (
     <div className="space-y-6">
+      <BulkActionBar
+        count={selection.selected.length}
+        onClear={selection.clear}
+        ariaLabel="Bulk room actions"
+        actions={[
+          { key: 'refs', label: 'Copy refs', icon: Copy, onClick: copyRoomRefs },
+          { key: 'csv', label: 'Export CSV', icon: Download, onClick: exportRoomsCsv },
+        ]}
+      />
       {!statusOnly && <RoomCategoriesPanel categories={categories} />}
 
       <div className="surface-card p-6">
@@ -146,19 +189,30 @@ export function RoomsManager({
           <div className="relative grid grid-cols-4 gap-2 sm:grid-cols-6 md:grid-cols-8">
             {filteredRooms.map((room) => {
               const status = (room.status ?? 'available') as DbRoomStatus
+              const selected = selection.isSelected(room.id)
               return (
-                <button
-                  key={room.id}
-                  type="button"
-                  onClick={() => setEditing(room)}
-                  className={`flex aspect-square flex-col items-center justify-center rounded-xl text-sm font-bold ring-1 transition-transform hover:scale-105 ${tileColor[status]}`}
-                  title={`Room ${room.number} — ${STATUS_CONFIG[status].label}`}
-                >
-                  {room.number}
-                  <span className="mt-0.5 max-w-full truncate px-1 text-[9px] font-medium opacity-80">
-                    {categoryLabel(room)}
-                  </span>
-                </button>
+                <div key={room.id} className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setEditing(room)}
+                    className={`flex aspect-square w-full flex-col items-center justify-center rounded-xl text-sm font-bold ring-1 transition-transform hover:scale-105 ${tileColor[status]} ${
+                      selected ? 'ring-2 ring-primary/40 ring-offset-1' : ''
+                    }`}
+                    title={`Room ${room.number} — ${STATUS_CONFIG[status].label}`}
+                  >
+                    {room.number}
+                    <span className="mt-0.5 max-w-full truncate px-1 text-[9px] font-medium opacity-80">
+                      {categoryLabel(room)}
+                    </span>
+                  </button>
+                  <BulkSelectCheckbox
+                    checked={selected}
+                    onChange={() => selection.toggle(room.id)}
+                    aria-label={`Select room ${room.number}`}
+                    className="absolute left-1.5 top-1.5 h-3.5 w-3.5 rounded bg-white/90 shadow-sm"
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                </div>
               )
             })}
           </div>

@@ -2,11 +2,16 @@
 
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Download, Plus, TrendingUp } from 'lucide-react'
+import { Copy, Download, Plus, TrendingUp } from 'lucide-react'
 import { toast } from 'sonner'
 import { createManualInvoice, recordInvoicePayment, recordPartialInvoicePayment, refundInvoicePayment } from '@/app/actions/invoices'
 import { invoiceBalanceDue } from '@/lib/billing/invoice-payments'
+import { BulkActionBar } from '@/components/dashboard/bulk-action-bar'
+import { BulkSelectCheckbox } from '@/components/dashboard/bulk-select-checkbox'
 import { CenteredModal, ModalBody, ModalFooter, ModalHeader } from '@/components/ui/centered-modal'
+import { downloadCsv } from '@/lib/export/download-csv'
+import { copyToClipboard } from '@/lib/export/entity-refs'
+import { useRowSelection } from '@/lib/hooks/use-row-selection'
 import { PAYMENT_METHOD_LABELS, computeInvoiceTaxes, type VatMode } from '@/lib/tax'
 import { formatInvoiceNumber } from '@/lib/invoices/numbering'
 import { downloadInvoicePdf } from '@/lib/export/invoice-pdf'
@@ -26,6 +31,7 @@ const PAYMENT_METHODS: PaymentMethod[] = [
 
 interface BillingRow {
   id: string
+  rowKey: string
   guestName: string
   roomNumber: string | number
   amount: number
@@ -54,6 +60,7 @@ function mapInvoices(invoices: InvoiceWithRoom[]): BillingRow[] {
     )
     return {
       id: formatInvoiceNumber(inv),
+      rowKey: inv.id,
       guestName: inv.guest_name,
       roomNumber: inv.roomNumber ?? '—',
       amount: balanceDue > 0 && status !== 'paid' ? balanceDue : inv.total_amount ?? 0,
@@ -140,6 +147,35 @@ export function BillingOverview({
       return matchesStatus && matchesText
     })
   }, [rows, statusFilter, textFilter])
+
+  const selection = useRowSelection(
+    rows.map((r) => ({ ...r, id: r.rowKey })),
+    filteredInvoices.map((r) => ({ ...r, id: r.rowKey })),
+  )
+
+  function copyInvoiceRefs() {
+    const refs = selection.selected.map((r) => r.id).join(', ')
+    void copyToClipboard(
+      refs,
+      `Copied ${selection.selected.length} invoice ref${selection.selected.length === 1 ? '' : 's'}`,
+    )
+  }
+
+  function exportSelectedCsv() {
+    const header = ['Invoice', 'Guest', 'Room', 'Date', 'Due', 'Status', 'Method', 'Amount']
+    const csvRows = selection.selected.map((r) => [
+      r.id,
+      r.guestName,
+      String(r.roomNumber),
+      r.date,
+      r.dueDate,
+      r.status,
+      r.paymentMethod,
+      String(r.amount),
+    ])
+    downloadCsv(`invoices-${new Date().toISOString().slice(0, 10)}.csv`, [header, ...csvRows])
+    toast.success(`Exported ${selection.selected.length} invoice${selection.selected.length === 1 ? '' : 's'}`)
+  }
 
   const downloadPdf = (inv: InvoiceWithRoom, e?: React.MouseEvent) => {
     e?.stopPropagation()
@@ -244,6 +280,15 @@ export function BillingOverview({
 
   return (
     <>
+      <BulkActionBar
+        count={selection.selected.length}
+        onClear={selection.clear}
+        ariaLabel="Bulk invoice actions"
+        actions={[
+          { key: 'refs', label: 'Copy refs', icon: Copy, onClick: copyInvoiceRefs },
+          { key: 'csv', label: 'Export CSV', icon: Download, onClick: exportSelectedCsv },
+        ]}
+      />
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <div className="surface-card stat-tile stat-tile-emerald p-6">
           <p className="text-sm text-muted-foreground font-semibold uppercase tracking-wider">Total Revenue</p>
@@ -333,12 +378,23 @@ export function BillingOverview({
 
         <div className="space-y-3 p-4 md:hidden">
           {filteredInvoices.map((invoice) => (
-            <button
-              key={invoice.invoice?.id ?? invoice.id}
-              type="button"
-              onClick={() => invoice.invoice && setDetail(invoice.invoice)}
-              className="elevated-list-item w-full p-4 text-left"
+            <div
+              key={invoice.rowKey}
+              className={`elevated-list-item flex gap-3 p-4 ${
+                selection.isSelected(invoice.rowKey) ? 'ring-2 ring-primary/25' : ''
+              }`}
             >
+              <BulkSelectCheckbox
+                checked={selection.isSelected(invoice.rowKey)}
+                onChange={() => selection.toggle(invoice.rowKey)}
+                aria-label={`Select invoice ${invoice.id}`}
+                className="mt-1"
+              />
+              <button
+                type="button"
+                onClick={() => invoice.invoice && setDetail(invoice.invoice)}
+                className="min-w-0 flex-1 text-left"
+              >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="font-semibold text-foreground">{invoice.id}</p>
@@ -356,7 +412,8 @@ export function BillingOverview({
                 </div>
                 <p className="text-lg font-bold text-foreground">{money(invoice.amount)}</p>
               </div>
-            </button>
+              </button>
+            </div>
           ))}
         </div>
 
@@ -364,6 +421,13 @@ export function BillingOverview({
           <table className="data-table w-full text-sm">
             <thead>
               <tr>
+                <th className="w-10 px-6 py-4">
+                  <BulkSelectCheckbox
+                    checked={selection.allFilteredSelected}
+                    onChange={selection.toggleAllFiltered}
+                    aria-label="Select all visible invoices"
+                  />
+                </th>
                 <th className="text-left py-4 px-6 font-semibold text-foreground">Invoice</th>
                 <th className="text-left py-4 px-6 font-semibold text-foreground">Guest & Room</th>
                 <th className="text-left py-4 px-6 font-semibold text-foreground">Date</th>
@@ -376,10 +440,19 @@ export function BillingOverview({
             <tbody>
               {filteredInvoices.map((invoice) => (
                 <tr
-                  key={invoice.invoice?.id ?? invoice.id}
-                  className={invoice.invoice ? 'cursor-pointer' : ''}
+                  key={invoice.rowKey}
+                  className={`${invoice.invoice ? 'cursor-pointer' : ''} ${
+                    selection.isSelected(invoice.rowKey) ? 'bg-primary/[0.03]' : ''
+                  }`}
                   onClick={() => invoice.invoice && setDetail(invoice.invoice)}
                 >
+                  <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                    <BulkSelectCheckbox
+                      checked={selection.isSelected(invoice.rowKey)}
+                      onChange={() => selection.toggle(invoice.rowKey)}
+                      aria-label={`Select invoice ${invoice.id}`}
+                    />
+                  </td>
                   <td className="py-4 px-6">
                     <p className="font-semibold text-foreground">{invoice.id}</p>
                   </td>

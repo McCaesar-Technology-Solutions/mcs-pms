@@ -5,7 +5,14 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { useRealtimeRefresh } from '@/components/realtime/realtime-refresh-context'
 import { DataEmptyState } from '@/components/dashboard/data-empty-state'
+import { BulkActionBar } from '@/components/dashboard/bulk-action-bar'
+import { BulkSelectCheckbox } from '@/components/dashboard/bulk-select-checkbox'
+import { downloadCsv } from '@/lib/export/download-csv'
+import { copyToClipboard, taskRef } from '@/lib/export/entity-refs'
+import { useRowSelection } from '@/lib/hooks/use-row-selection'
 import {
+  Copy,
+  Download,
   CheckCircle,
   Clock,
   AlertCircle,
@@ -198,6 +205,30 @@ function DbKanban({
   useRealtimeRefresh('housekeeping', refreshFromRealtime)
 
   const staffById = useMemo(() => new Map(staff.map((s) => [s.id, s.name])), [staff])
+  const selection = useRowSelection(tasks, tasks)
+
+  function copyTaskRefs() {
+    void copyToClipboard(
+      selection.selected.map((t) => taskRef(t.id)).join(', '),
+      `Copied ${selection.selected.length} task ref${selection.selected.length === 1 ? '' : 's'}`,
+    )
+  }
+
+  function exportTasksCsv() {
+    const header = ['Reference', 'Room', 'Type', 'Status', 'Priority', 'Assignee', 'Due date', 'Notes']
+    const rows = selection.selected.map((t) => [
+      taskRef(t.id),
+      t.roomNumber ?? '',
+      TASK_TYPE_CONFIG[t.taskType].label,
+      STATUS_LABEL[t.status],
+      t.priority,
+      t.assignedTo ? staffById.get(t.assignedTo) ?? '' : '',
+      t.dueDate ?? '',
+      t.notes ?? '',
+    ])
+    downloadCsv(`housekeeping-${new Date().toISOString().slice(0, 10)}.csv`, [header, ...rows])
+    toast.success(`Exported ${selection.selected.length} task${selection.selected.length === 1 ? '' : 's'}`)
+  }
 
   const unassignedCount = tasks.filter((t) => !t.assignedTo && t.status !== 'done').length
   const overdueCount = tasks.filter((t) => t.isOverdue).length
@@ -223,6 +254,15 @@ function DbKanban({
 
   return (
     <div className="space-y-4">
+      <BulkActionBar
+        count={selection.selected.length}
+        onClear={selection.clear}
+        ariaLabel="Bulk housekeeping actions"
+        actions={[
+          { key: 'refs', label: 'Copy refs', icon: Copy, onClick: copyTaskRefs },
+          { key: 'csv', label: 'Export CSV', icon: Download, onClick: exportTasksCsv },
+        ]}
+      />
       {(unassignedCount > 0 || overdueCount > 0 || inspectCount > 0) && canManage && (
         <div className="flex flex-wrap gap-2">
           {unassignedCount > 0 && (
@@ -243,7 +283,24 @@ function DbKanban({
         </div>
       )}
 
-      {canManage && (
+      {canManage && tasks.length > 0 && (
+        <div className="flex items-center justify-end gap-3">
+          <label className="inline-flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+            <BulkSelectCheckbox
+              checked={selection.allFilteredSelected}
+              onChange={selection.toggleAllFiltered}
+              aria-label="Select all tasks"
+            />
+            Select all
+          </label>
+          <Button onClick={() => setAdding(true)} className="bg-[#3C216C] text-white hover:bg-[#4c2a85]">
+            <Plus className="mr-1.5 h-4 w-4" />
+            Add task
+          </Button>
+        </div>
+      )}
+
+      {canManage && tasks.length === 0 && (
         <div className="flex justify-end">
           <Button onClick={() => setAdding(true)} className="bg-[#3C216C] text-white hover:bg-[#4c2a85]">
             <Plus className="mr-1.5 h-4 w-4" />
@@ -279,8 +336,18 @@ function DbKanban({
                     return (
                       <div
                         key={task.id}
-                        className={`elevated-list-item p-4 ${!task.assignedTo && task.status !== 'done' ? 'ring-2 ring-amber-200/80' : ''} ${task.isOverdue ? 'ring-2 ring-red-200' : ''}`}
+                        className={`elevated-list-item p-4 ${!task.assignedTo && task.status !== 'done' ? 'ring-2 ring-amber-200/80' : ''} ${task.isOverdue ? 'ring-2 ring-red-200' : ''} ${
+                          selection.isSelected(task.id) ? 'ring-2 ring-primary/30' : ''
+                        }`}
                       >
+                        <div className="flex items-start gap-2">
+                          <BulkSelectCheckbox
+                            checked={selection.isSelected(task.id)}
+                            onChange={() => selection.toggle(task.id)}
+                            aria-label={`Select task for room ${task.roomNumber ?? 'unassigned'}`}
+                            className="mt-0.5"
+                          />
+                          <div className="min-w-0 flex-1">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <p className="text-base font-bold text-[#111827]">
@@ -372,6 +439,8 @@ function DbKanban({
                             </div>
                           </>
                         )}
+                          </div>
+                        </div>
                       </div>
                     )
                   })}

@@ -2,11 +2,17 @@
 
 import { Suspense, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Check, Copy, Mail, Phone, Plus, ShieldCheck, UserX, X } from 'lucide-react'
+import { Check, Copy, Download, Mail, Phone, Plus, ShieldCheck, UserX, X } from 'lucide-react'
 import { inviteStaff, revokeInvite, setStaffActive, updateStaffPhone } from '@/app/actions/staff'
 import { ProfilePhoneEditor } from '@/components/dashboard/profile-phone-editor'
 import { MfaSettingsCard } from '@/components/dashboard/mfa-settings-card'
+import { BulkActionBar } from '@/components/dashboard/bulk-action-bar'
+import { BulkSelectCheckbox } from '@/components/dashboard/bulk-select-checkbox'
+import { downloadCsv } from '@/lib/export/download-csv'
+import { copyToClipboard, staffRef } from '@/lib/export/entity-refs'
+import { useRowSelection } from '@/lib/hooks/use-row-selection'
 import { hasPhoneNumber } from '@/lib/phone'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -88,6 +94,43 @@ export function StaffManager({ currentProfile, staff, invites }: StaffManagerPro
 
   const activeStaff = useMemo(() => staff.filter((s) => s.is_active !== false), [staff])
   const inactiveStaff = useMemo(() => staff.filter((s) => s.is_active === false), [staff])
+  const allStaff = useMemo(() => [...activeStaff, ...inactiveStaff], [activeStaff, inactiveStaff])
+  const selection = useRowSelection(allStaff, allStaff)
+
+  function copyStaffRefs() {
+    void copyToClipboard(
+      selection.selected.map((m) => staffRef(m.id)).join(', '),
+      `Copied ${selection.selected.length} staff ref${selection.selected.length === 1 ? '' : 's'}`,
+    )
+  }
+
+  function copyStaffEmails() {
+    const emails = selection.selected.map((m) => m.email?.trim()).filter(Boolean) as string[]
+    if (emails.length === 0) {
+      toast.error('None of the selected staff have an email on file.')
+      return
+    }
+    void copyToClipboard(
+      emails.join(', '),
+      `Copied ${emails.length} email${emails.length === 1 ? '' : 's'}`,
+    )
+  }
+
+  function exportStaffCsv() {
+    const header = ['Reference', 'Name', 'Role', 'Email', 'Phone', 'Status']
+    const rows = selection.selected.map((m) => [
+      staffRef(m.id),
+      m.name,
+      ROLE_BADGE[m.role].label,
+      m.email ?? '',
+      m.phone ?? '',
+      m.is_active === false ? 'Disabled' : 'Active',
+    ])
+    downloadCsv(`staff-${new Date().toISOString().slice(0, 10)}.csv`, [header, ...rows])
+    toast.success(`Exported ${selection.selected.length} staff member${selection.selected.length === 1 ? '' : 's'}`)
+  }
+
+  const withEmail = selection.selected.filter((m) => m.email?.trim()).length
 
   function resetModal() {
     setContact('')
@@ -181,9 +224,14 @@ export function StaffManager({ currentProfile, staff, invites }: StaffManagerPro
         key={member.id}
         className={`elevated-list-item flex flex-col gap-3 p-3.5 sm:flex-row sm:items-center sm:justify-between ${
           inactive ? 'opacity-60' : ''
-        }`}
+        } ${selection.isSelected(member.id) ? 'ring-2 ring-primary/20' : ''}`}
       >
         <div className="flex min-w-0 flex-1 items-center gap-3">
+          <BulkSelectCheckbox
+            checked={selection.isSelected(member.id)}
+            onChange={() => selection.toggle(member.id)}
+            aria-label={`Select ${member.name}`}
+          />
           <div className="gradient-primary flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white">
             {getInitials(member.name)}
           </div>
@@ -275,6 +323,22 @@ export function StaffManager({ currentProfile, staff, invites }: StaffManagerPro
 
   return (
     <>
+      <BulkActionBar
+        count={selection.selected.length}
+        onClear={selection.clear}
+        ariaLabel="Bulk staff actions"
+        actions={[
+          { key: 'refs', label: 'Copy refs', icon: Copy, onClick: copyStaffRefs },
+          {
+            key: 'emails',
+            label: withEmail > 0 ? `Copy emails (${withEmail})` : 'Copy emails',
+            icon: Copy,
+            onClick: copyStaffEmails,
+            hidden: withEmail === 0,
+          },
+          { key: 'csv', label: 'Export CSV', icon: Download, onClick: exportStaffCsv },
+        ]}
+      />
       {currentProfile.role !== 'technician' && (
         <div id="security" className="scroll-mt-24 space-y-6">
           <ProfilePhoneEditor
@@ -306,12 +370,22 @@ export function StaffManager({ currentProfile, staff, invites }: StaffManagerPro
               {inactiveStaff.length > 0 ? ` · ${inactiveStaff.length} disabled` : ''}
             </p>
           </div>
-          {canInvite && (
+          <div className="flex flex-wrap items-center gap-2">
+            {allStaff.length > 0 && (
+              <BulkSelectCheckbox
+                checked={selection.allFilteredSelected}
+                onChange={selection.toggleAllFiltered}
+                aria-label="Select all staff"
+                className="mr-1"
+              />
+            )}
+            {canInvite && (
             <Button onClick={openModal} className="bg-[#3C216C] text-white hover:bg-[#4c2a85]">
               <Plus className="mr-1.5 h-4 w-4" />
               Invite staff
             </Button>
-          )}
+            )}
+          </div>
         </div>
 
         <div className="p-4">

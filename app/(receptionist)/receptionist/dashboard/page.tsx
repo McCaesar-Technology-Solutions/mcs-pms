@@ -3,7 +3,6 @@ import { DashboardHero } from '@/components/dashboard/dashboard-hero'
 import { DashboardToolbar } from '@/components/dashboard/dashboard-toolbar'
 import { SectionHeading } from '@/components/dashboard/section-heading'
 import { TodayGuestStrip } from '@/components/dashboard/today-guest-strip'
-import { AvailabilityStrip } from '@/components/dashboard/availability-strip'
 import { ComplaintsOverviewLive } from '@/components/complaints/complaints-overview-live'
 import { fetchHotelComplaints } from '@/lib/data/complaints'
 import { getDashboardData } from '@/lib/data/dashboard'
@@ -16,7 +15,7 @@ import { getOccupancyToday } from '@/lib/data/occupancy'
 import { createClient } from '@/lib/supabase/server'
 
 export default async function ReceptionistDashboardPage() {
-  const [complaints, { metrics, availability, reservations, hotelId }] = await Promise.all([
+  const [complaints, { metrics, reservations, hotelId }] = await Promise.all([
     fetchHotelComplaints(),
     getDashboardData(),
   ])
@@ -52,11 +51,6 @@ export default async function ReceptionistDashboardPage() {
             departures={departures}
             reservationsHref="/receptionist/reservations"
           />
-        </section>
-
-        <section className="dashboard-section space-y-4">
-          <SectionHeading title="Room availability" description="Free rooms over the next 14 days" />
-          <AvailabilityStrip data={availability} />
         </section>
 
         <section className="dashboard-section space-y-4">

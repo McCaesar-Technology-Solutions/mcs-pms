@@ -1,9 +1,15 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Download, Eye, CheckCircle, AlertCircle, Clock, ChevronDown } from 'lucide-react'
+import { Copy, Download, Eye, CheckCircle, AlertCircle, Clock, ChevronDown } from 'lucide-react'
+import { toast } from 'sonner'
 import { DataEmptyState } from '@/components/dashboard/data-empty-state'
-import { downloadGraCsv, downloadGraPdf, downloadGraAllZip } from '@/lib/export/gra-export'
+import { BulkActionBar } from '@/components/dashboard/bulk-action-bar'
+import { BulkSelectCheckbox } from '@/components/dashboard/bulk-select-checkbox'
+import { downloadGraCsv, downloadGraAllZip, downloadGraPdf } from '@/lib/export/gra-export'
+import { downloadCsv } from '@/lib/export/download-csv'
+import { copyToClipboard } from '@/lib/export/entity-refs'
+import { useRowSelection } from '@/lib/hooks/use-row-selection'
 import type { ExportHotelInfo } from '@/lib/export/types'
 import type { GraReportRow, GraReportsSummary } from '@/lib/data/gra-reports'
 import type { DbInvoice } from '@/types'
@@ -18,6 +24,7 @@ interface GRAReportsViewProps {
 export function GRAReportsView({ reports, summary, invoices, hotel }: GRAReportsViewProps) {
   const [exportMenu, setExportMenu] = useState<string | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
+  const selection = useRowSelection(reports, reports)
 
   useEffect(() => {
     if (!exportMenu) return
@@ -29,6 +36,35 @@ export function GRAReportsView({ reports, summary, invoices, hotel }: GRAReports
     document.addEventListener('mousedown', onPointerDown)
     return () => document.removeEventListener('mousedown', onPointerDown)
   }, [exportMenu])
+
+  function copyPeriodRefs() {
+    void copyToClipboard(
+      selection.selected.map((r) => r.id).join(', '),
+      `Copied ${selection.selected.length} period ref${selection.selected.length === 1 ? '' : 's'}`,
+    )
+  }
+
+  function exportSelectedSummaryCsv() {
+    const header = ['Period', 'Reference', 'Revenue', 'Tax paid', 'Invoices paid', 'Invoices issued', 'Status']
+    const rows = selection.selected.map((r) => [
+      r.month,
+      r.id,
+      String(r.totalRevenue),
+      String(r.taxAmount),
+      String(r.invoicesPaid),
+      String(r.invoicesIssued),
+      r.status,
+    ])
+    downloadCsv(`gra-periods-${new Date().toISOString().slice(0, 10)}.csv`, [header, ...rows])
+    toast.success(`Exported ${selection.selected.length} period${selection.selected.length === 1 ? '' : 's'}`)
+  }
+
+  function exportSelectedDetailCsv() {
+    for (const report of selection.selected) {
+      downloadGraCsv(report, invoices)
+    }
+    toast.success(`Downloaded ${selection.selected.length} GRA CSV file${selection.selected.length === 1 ? '' : 's'}`)
+  }
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -64,6 +100,17 @@ export function GRAReportsView({ reports, summary, invoices, hotel }: GRAReports
 
   return (
     <>
+      <BulkActionBar
+        count={selection.selected.length}
+        onClear={selection.clear}
+        ariaLabel="Bulk GRA report actions"
+        actions={[
+          { key: 'refs', label: 'Copy refs', icon: Copy, onClick: copyPeriodRefs },
+          { key: 'summary', label: 'Export summary CSV', icon: Download, onClick: exportSelectedSummaryCsv },
+          { key: 'detail', label: 'Export GRA CSVs', icon: Download, onClick: exportSelectedDetailCsv },
+        ]}
+      />
+
       <div className="surface-card mb-8">
         <div className="surface-card-header flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -108,11 +155,23 @@ export function GRAReportsView({ reports, summary, invoices, hotel }: GRAReports
       </div>
 
       <div className="surface-card overflow-hidden">
-        <div className="surface-card-header">
-          <h2 className="text-2xl font-semibold text-foreground">Filing History</h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            {reports.length} period{reports.length === 1 ? '' : 's'} with invoice activity
-          </p>
+        <div className="surface-card-header flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-2xl font-semibold text-foreground">Filing History</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              {reports.length} period{reports.length === 1 ? '' : 's'} with invoice activity
+            </p>
+          </div>
+          {reports.length > 0 && (
+            <label className="inline-flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+              <BulkSelectCheckbox
+                checked={selection.allFilteredSelected}
+                onChange={selection.toggleAllFiltered}
+                aria-label="Select all periods"
+              />
+              Select all
+            </label>
+          )}
         </div>
 
         {reports.length === 0 ? (
@@ -127,6 +186,13 @@ export function GRAReportsView({ reports, summary, invoices, hotel }: GRAReports
             <table className="data-table w-full text-sm">
               <thead>
                 <tr>
+                  <th className="w-10 px-6 py-4">
+                    <BulkSelectCheckbox
+                      checked={selection.allFilteredSelected}
+                      onChange={selection.toggleAllFiltered}
+                      aria-label="Select all visible periods"
+                    />
+                  </th>
                   <th className="text-left py-4 px-6 font-semibold text-foreground">Period</th>
                   <th className="text-left py-4 px-6 font-semibold text-foreground">Total Revenue</th>
                   <th className="text-left py-4 px-6 font-semibold text-foreground">Tax Paid</th>
@@ -137,7 +203,17 @@ export function GRAReportsView({ reports, summary, invoices, hotel }: GRAReports
               </thead>
               <tbody>
                 {reports.map((report) => (
-                  <tr key={report.id}>
+                  <tr
+                    key={report.id}
+                    className={selection.isSelected(report.id) ? 'bg-primary/[0.03]' : ''}
+                  >
+                    <td className="px-6 py-4">
+                      <BulkSelectCheckbox
+                        checked={selection.isSelected(report.id)}
+                        onChange={() => selection.toggle(report.id)}
+                        aria-label={`Select period ${report.month}`}
+                      />
+                    </td>
                     <td className="py-4 px-6">
                       <p className="font-semibold text-foreground">{report.month}</p>
                       <p className="text-xs text-muted-foreground">{report.id}</p>

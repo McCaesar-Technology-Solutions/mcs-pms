@@ -8,6 +8,7 @@ import {
   settingsHref,
   settingsMenuLabel,
 } from '@/components/dashboard/notifications-menu'
+import { HeaderDropdownPanel } from '@/components/dashboard/header-dropdown-panel'
 import { AccountPhoneDialog } from '@/components/dashboard/account-phone-dialog'
 import { TopbarSearch } from '@/components/dashboard/topbar-search'
 import { signOut } from '@/app/actions/auth'
@@ -33,7 +34,7 @@ export default function Topbar({ onMenuOpen, profile }: TopbarProps) {
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [phoneDialogOpen, setPhoneDialogOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
-  const userMenuRef = useRef<HTMLDivElement>(null)
+  const userTriggerRef = useRef<HTMLButtonElement>(null)
   const canManagePhone = profile?.role === 'owner' || profile?.role === 'manager'
   const primaryAction = getDashboardPrimaryAction(profile?.role)
 
@@ -49,27 +50,6 @@ export default function Topbar({ onMenuOpen, profile }: TopbarProps) {
     main.addEventListener('scroll', onScroll, { passive: true })
     return () => main.removeEventListener('scroll', onScroll)
   }, [])
-
-  useEffect(() => {
-    if (!showUserMenu) return
-
-    const onPointerDown = (e: MouseEvent) => {
-      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
-        setShowUserMenu(false)
-      }
-    }
-
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setShowUserMenu(false)
-    }
-
-    document.addEventListener('mousedown', onPointerDown)
-    document.addEventListener('keydown', onKeyDown)
-    return () => {
-      document.removeEventListener('mousedown', onPointerDown)
-      document.removeEventListener('keydown', onKeyDown)
-    }
-  }, [showUserMenu])
 
   return (
     <>
@@ -106,8 +86,9 @@ export default function Topbar({ onMenuOpen, profile }: TopbarProps) {
 
             <NotificationsMenu profile={profile} />
 
-            <div className="relative" ref={userMenuRef}>
+            <div className="relative">
               <button
+                ref={userTriggerRef}
                 type="button"
                 onClick={() => setShowUserMenu(!showUserMenu)}
                 aria-expanded={showUserMenu}
@@ -123,50 +104,54 @@ export default function Topbar({ onMenuOpen, profile }: TopbarProps) {
                 <ChevronDown className="main-header-icon hidden h-4 w-4 sm:block" />
               </button>
 
-              {showUserMenu && (
-                <div className="modal-panel surface-card absolute right-0 mt-2 w-56 overflow-hidden bg-white py-1 shadow-elevation-3">
-                  <div className="surface-card-header px-4 py-3">
-                    <p className="text-sm font-semibold">{user.name}</p>
-                    <p className="modal-panel-subtle text-xs">{user.email}</p>
-                    {canManagePhone && (
-                      <p className="mt-2 text-xs text-muted-foreground">
-                        Phone:{' '}
-                        <span className="font-medium text-foreground">
-                          {hasPhoneNumber(profile?.phone) ? profile?.phone : 'Not set'}
-                        </span>
-                      </p>
-                    )}
-                  </div>
+              <HeaderDropdownPanel
+                open={showUserMenu}
+                anchorRef={userTriggerRef}
+                onClose={() => setShowUserMenu(false)}
+                width={224}
+                className="modal-panel surface-card overflow-hidden rounded-xl border border-[rgba(var(--glow-purple),0.1)] bg-white py-1 shadow-elevation-3"
+              >
+                <div className="surface-card-header px-4 py-3">
+                  <p className="text-sm font-semibold">{user.name}</p>
+                  <p className="modal-panel-subtle text-xs">{user.email}</p>
                   {canManagePhone && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowUserMenu(false)
-                        setPhoneDialogOpen(true)
-                      }}
-                      className="flex w-full items-center gap-2 px-4 py-2.5 text-sm transition-colors hover:bg-secondary/60"
-                    >
-                      <Phone className="h-4 w-4" />
-                      {hasPhoneNumber(profile?.phone) ? 'Edit phone number' : 'Add phone number'}
-                    </button>
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Phone:{' '}
+                      <span className="font-medium text-foreground">
+                        {hasPhoneNumber(profile?.phone) ? profile?.phone : 'Not set'}
+                      </span>
+                    </p>
                   )}
-                  <Link
-                    href={settingsHref(profile?.role)}
-                    onClick={() => setShowUserMenu(false)}
-                    className="flex w-full items-center gap-2 px-4 py-2.5 text-sm transition-colors hover:bg-secondary/60"
-                  >
-                    {settingsMenuLabel(profile?.role)}
-                  </Link>
+                </div>
+                {canManagePhone && (
                   <button
                     type="button"
-                    onClick={() => signOut()}
-                    className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-destructive transition-colors hover:bg-secondary/60"
+                    onClick={() => {
+                      setShowUserMenu(false)
+                      setPhoneDialogOpen(true)
+                    }}
+                    className="flex w-full items-center gap-2 px-4 py-2.5 text-sm transition-colors hover:bg-secondary/60"
                   >
-                    <LogOut className="h-4 w-4" />
-                    Logout
+                    <Phone className="h-4 w-4" />
+                    {hasPhoneNumber(profile?.phone) ? 'Edit phone number' : 'Add phone number'}
                   </button>
-                </div>
-              )}
+                )}
+                <Link
+                  href={settingsHref(profile?.role)}
+                  onClick={() => setShowUserMenu(false)}
+                  className="flex w-full items-center gap-2 px-4 py-2.5 text-sm transition-colors hover:bg-secondary/60"
+                >
+                  {settingsMenuLabel(profile?.role)}
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => signOut()}
+                  className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-destructive transition-colors hover:bg-secondary/60"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Logout
+                </button>
+              </HeaderDropdownPanel>
             </div>
           </div>
         </div>
