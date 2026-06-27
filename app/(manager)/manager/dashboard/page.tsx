@@ -22,7 +22,7 @@ import { getDashboardData } from '@/lib/data/dashboard'
 import { getHousekeepingTasks } from '@/lib/data/housekeeping'
 import { getNotificationLog } from '@/lib/data/notification-log'
 import { getAuditLog } from '@/lib/data/audit-log'
-import { computeTodayOperations } from '@/lib/data/overview'
+import { computeBookingsSparkline, computeTodayOperations } from '@/lib/data/overview'
 import { getOccupancyToday } from '@/lib/data/occupancy'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
@@ -52,6 +52,7 @@ export default async function ManagerDashboardPage() {
   const supabase = await createClient()
   const occupancyToday = hotelId ? await getOccupancyToday(supabase, hotelId) : undefined
   const todayOps = computeTodayOperations(reservations)
+  const bookingsSparkline = computeBookingsSparkline(reservations)
 
   let propertyName = 'Property'
   let guestRequests: Awaited<ReturnType<typeof loadHotelGuestRequests>> = []
@@ -117,7 +118,7 @@ export default async function ManagerDashboardPage() {
               <>
                 <section className="dashboard-section space-y-3">
                   <SectionHeading title="Property snapshot" description="Rates, bookings, and balances" />
-                  <KPICards metrics={metrics} showRevenue={false} />
+                  <KPICards metrics={metrics} showRevenue={false} bookingsSparkline={bookingsSparkline} />
                 </section>
 
                 <OpsInboxPanel items={opsInbox} />

@@ -23,7 +23,7 @@ function StatChip({
   progress?: number
 }) {
   return (
-    <div className="stat-chip min-w-0 flex-1 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-3 sm:px-4 sm:py-3.5">
+    <div className="stat-chip min-w-0 flex-1 rounded-2xl bg-white/[0.06] px-3 py-3 sm:px-4 sm:py-3.5">
       <div className="flex items-center gap-2">
         <Icon className="h-3.5 w-3.5 shrink-0 text-white/40" strokeWidth={2} aria-hidden />
         <span className="text-[11px] font-medium text-white/50">{label}</span>

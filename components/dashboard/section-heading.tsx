@@ -6,9 +6,9 @@ interface SectionHeadingProps {
 
 export function SectionHeading({ title, description, onDark = false }: SectionHeadingProps) {
   return (
-    <div className="mb-4">
+    <div>
       <h2
-        className={`text-lg font-semibold tracking-tight ${
+        className={`text-[0.9375rem] font-semibold tracking-tight ${
           onDark ? 'text-white' : 'text-foreground'
         }`}
       >
@@ -16,8 +16,8 @@ export function SectionHeading({ title, description, onDark = false }: SectionHe
       </h2>
       {description && (
         <p
-          className={`mt-1 max-w-2xl text-sm leading-relaxed ${
-            onDark ? 'text-white/55' : 'text-muted-foreground'
+          className={`mt-0.5 text-sm ${
+            onDark ? 'text-white/50' : 'text-muted-foreground'
           }`}
         >
           {description}

@@ -8,6 +8,7 @@ import type { Profile } from '@/types'
 import type { OccupancyToday } from '@/lib/data/occupancy'
 import { HotelRealtimeProvider } from '@/components/realtime/hotel-realtime'
 import { ProfilePhoneBanner } from '@/components/dashboard/profile-phone-banner'
+import { CommandPaletteProvider } from '@/components/dashboard/command-palette'
 import { hasPhoneNumber } from '@/lib/phone'
 
 interface AppShellProps {
@@ -45,6 +46,7 @@ export function AppShell({
   }, [])
 
   const content = (
+    <CommandPaletteProvider profile={profile}>
     <>
       <a
         href="#main-content"
@@ -77,6 +79,7 @@ export function AppShell({
       </main>
     </div>
     </>
+    </CommandPaletteProvider>
   )
 
   if (enableRealtime && profile?.hotel_id) {

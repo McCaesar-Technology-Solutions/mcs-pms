@@ -21,6 +21,7 @@ import {
   searchGuests,
 } from '@/app/actions/stays'
 import { PortalLinkPanel } from '@/components/dashboard/portal-link-panel'
+import { ReservationsBulkBar } from '@/components/dashboard/reservations-bulk-bar'
 import {
   CenteredModal,
   ModalBody,
@@ -134,6 +135,7 @@ export function ReservationsManager({
   const [statusFilter, setStatusFilter] = useState<(typeof STATUS_FILTERS)[number]>('all')
   const [paymentFilter, setPaymentFilter] = useState<(typeof PAYMENT_FILTERS)[number]>('all')
   const [creating, setCreating] = useState(Boolean(initialNewFlow))
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase()
@@ -150,9 +152,42 @@ export function ReservationsManager({
   }, [reservations, search, statusFilter, paymentFilter])
 
   const selected = selectedId ? reservations.find((r) => r.id === selectedId) ?? null : null
+  const bulkSelected = useMemo(
+    () => reservations.filter((r) => selectedIds.has(r.id)),
+    [reservations, selectedIds],
+  )
+
+  const allFilteredSelected =
+    filtered.length > 0 && filtered.every((r) => selectedIds.has(r.id))
+
+  function toggleSelected(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  function toggleSelectAllFiltered() {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (allFilteredSelected) {
+        filtered.forEach((r) => next.delete(r.id))
+      } else {
+        filtered.forEach((r) => next.add(r.id))
+      }
+      return next
+    })
+  }
 
   return (
     <>
+      <ReservationsBulkBar
+        selected={bulkSelected}
+        onClear={() => setSelectedIds(new Set())}
+        onMutated={() => router.refresh()}
+      />
       <div className="surface-card overflow-hidden">
         <div className="surface-card-accent" />
 
@@ -231,12 +266,24 @@ export function ReservationsManager({
             </p>
           ) : (
             filtered.map((res) => (
-              <button
+              <div
                 key={res.id}
-                type="button"
-                onClick={() => setSelectedId(res.id)}
-                className="elevated-list-item w-full p-4 text-left"
+                className={`elevated-list-item flex gap-3 p-4 ${
+                  selectedIds.has(res.id) ? 'ring-2 ring-primary/25' : ''
+                }`}
               >
+                <input
+                  type="checkbox"
+                  checked={selectedIds.has(res.id)}
+                  onChange={() => toggleSelected(res.id)}
+                  aria-label={`Select ${res.guestName}`}
+                  className="mt-1 h-4 w-4 shrink-0 rounded border-border text-primary"
+                />
+                <button
+                  type="button"
+                  onClick={() => setSelectedId(res.id)}
+                  className="min-w-0 flex-1 text-left"
+                >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="font-semibold text-foreground">{res.guestName}</p>
@@ -265,7 +312,8 @@ export function ReservationsManager({
                   </div>
                   <span className="font-semibold text-foreground">₵{res.totalPrice}</span>
                 </div>
-              </button>
+                </button>
+              </div>
             ))
           )}
         </div>
@@ -275,6 +323,15 @@ export function ReservationsManager({
           <table className="data-table w-full text-sm">
             <thead>
               <tr>
+                <th className="w-10 px-4 py-4">
+                  <input
+                    type="checkbox"
+                    checked={allFilteredSelected}
+                    onChange={toggleSelectAllFiltered}
+                    aria-label="Select all visible reservations"
+                    className="h-4 w-4 rounded border-border text-primary"
+                  />
+                </th>
                 <th className="px-4 py-4 text-left font-semibold text-foreground">Guest</th>
                 <th className="px-4 py-4 text-left font-semibold text-foreground">Reference</th>
                 <th className="px-4 py-4 text-left font-semibold text-foreground">Room</th>
@@ -289,7 +346,7 @@ export function ReservationsManager({
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-12 text-center text-muted-foreground">
+                  <td colSpan={10} className="px-4 py-12 text-center text-muted-foreground">
                     No reservations match your filters.
                   </td>
                 </tr>
@@ -299,9 +356,18 @@ export function ReservationsManager({
                     key={res.id}
                     className={`cursor-pointer transition-colors ${
                       selectedId === res.id ? 'bg-[#3C216C]/6' : 'hover:bg-[#FAFDFF]'
-                    }`}
+                    } ${selectedIds.has(res.id) ? 'bg-primary/[0.03]' : ''}`}
                     onClick={() => setSelectedId(res.id)}
                   >
+                    <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(res.id)}
+                        onChange={() => toggleSelected(res.id)}
+                        aria-label={`Select ${res.guestName}`}
+                        className="h-4 w-4 rounded border-border text-primary"
+                      />
+                    </td>
                     <td className="px-4 py-4">
                       <p className="font-semibold text-foreground">{res.guestName}</p>
                       {res.guestEmail && (
