@@ -26,7 +26,7 @@ export function BookingsList({ reservations, viewAllHref = '/owner/reservations'
   }
 
   return (
-    <div className="surface-card overflow-hidden">
+    <div className="surface-card surface-card--interactive overflow-hidden">
       <div className="surface-card-header">
         <div className="flex items-center justify-between">
           <div>

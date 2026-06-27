@@ -40,7 +40,7 @@ export function MiniSparkline({ values, className = '', tone = 'primary' }: Mini
   return (
     <svg
       viewBox={`0 0 ${width} ${height}`}
-      className={`h-8 w-[5.5rem] shrink-0 ${className}`}
+      className={`sparkline ${className}`}
       aria-hidden
     >
       <polygon points={area} className={toneFill[tone]} />

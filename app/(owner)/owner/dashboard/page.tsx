@@ -5,6 +5,7 @@ import { TasksList } from '@/components/dashboard/tasks-list'
 import { ChannelPerformanceWidget } from '@/components/dashboard/channel-performance'
 import { GRATaxSummary } from '@/components/dashboard/gra-tax-summary'
 import { GuestFeedbackPanel } from '@/components/dashboard/guest-feedback-panel'
+import { DashboardAttention } from '@/components/dashboard/dashboard-attention'
 import { DashboardToolbar } from '@/components/dashboard/dashboard-toolbar'
 import { SectionHeading } from '@/components/dashboard/section-heading'
 import Link from 'next/link'
@@ -44,8 +45,9 @@ export default async function DashboardPage() {
 
   return (
     <div className="page-shell space-y-8">
-      <div className="dashboard-section">
+      <div className="dashboard-section space-y-4">
         <DashboardToolbar occupancy={occupancyToday} today={todayOps} />
+        <DashboardAttention today={todayOps} metrics={metrics} />
       </div>
 
       <section className="dashboard-section">

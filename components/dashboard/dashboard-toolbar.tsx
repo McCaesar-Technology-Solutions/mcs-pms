@@ -9,11 +9,11 @@ interface DashboardToolbarProps {
 
 type StatAccent = 'occupancy' | 'in-house' | 'arrivals' | 'departures'
 
-const accentBar: Record<StatAccent, string> = {
-  occupancy: 'bg-emerald-500',
-  'in-house': 'bg-primary',
-  arrivals: 'bg-sky-500',
-  departures: 'bg-[var(--brand-orange)]',
+const accentClass: Record<StatAccent, string> = {
+  occupancy: 'stat-chip--occupancy',
+  'in-house': 'stat-chip--in-house',
+  arrivals: 'stat-chip--arrivals',
+  departures: 'stat-chip--departures',
 }
 
 const accentIcon: Record<StatAccent, string> = {
@@ -37,18 +37,18 @@ function StatChip({
   accent: StatAccent
 }) {
   return (
-    <div className="stat-chip surface-card relative min-w-0 flex-1 overflow-hidden px-3.5 py-3 sm:px-4 sm:py-3.5">
-      <div className={`absolute left-0 top-3 bottom-3 w-1 rounded-full ${accentBar[accent]}`} />
-      <div className="pl-2">
-        <p className="text-3xl font-bold tabular-nums leading-none tracking-tight text-foreground sm:text-4xl">
+    <div className={`stat-chip surface-card relative min-w-0 flex-1 overflow-hidden ${accentClass[accent]}`}>
+      <div className="stat-chip__accent" aria-hidden />
+      <div className="relative px-3.5 py-3.5 sm:px-4 sm:py-4">
+        <p className="text-[2.35rem] font-bold tabular-nums leading-none tracking-tight text-foreground sm:text-[2.65rem]">
           {value}
         </p>
-        <div className="mt-2 flex items-center gap-1.5">
-          <Icon className={`h-3.5 w-3.5 shrink-0 ${accentIcon[accent]}`} strokeWidth={2.25} />
+        <div className="mt-2.5 flex items-center gap-1.5">
+          <Icon className={`h-4 w-4 shrink-0 ${accentIcon[accent]}`} strokeWidth={2.25} />
           <span className="text-[11px] font-medium text-muted-foreground">{label}</span>
         </div>
         {detail && (
-          <p className="mt-0.5 truncate pl-5 text-[10px] text-muted-foreground/90">{detail}</p>
+          <p className="mt-1 truncate pl-5 text-[10px] text-muted-foreground/85">{detail}</p>
         )}
       </div>
     </div>
@@ -63,15 +63,16 @@ export function DashboardToolbar({ occupancy, today }: DashboardToolbarProps) {
   })
 
   return (
-    <header className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+    <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
       <div className="min-w-0">
-        <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground sm:text-[1.65rem]">
+        <p className="label-eyebrow label-eyebrow-accent">Operations centre</p>
+        <h1 className="font-display mt-1 text-[1.75rem] font-semibold tracking-tight text-foreground sm:text-[2rem]">
           Dashboard
         </h1>
-        <p className="mt-0.5 text-sm text-muted-foreground">{dateLabel}</p>
+        <p className="mt-1 text-sm text-muted-foreground">{dateLabel}</p>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:max-w-2xl lg:flex-1">
+      <div className="grid w-full grid-cols-2 gap-2.5 sm:grid-cols-4 lg:max-w-[42rem] lg:flex-1">
         <StatChip
           accent="occupancy"
           icon={Percent}

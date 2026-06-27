@@ -1,7 +1,12 @@
+'use client'
+
 import type { ReactNode } from 'react'
 import { TrendingDown, TrendingUp, Users, Percent, Banknote, AlertCircle, BarChart3 } from 'lucide-react'
+import { AnimatedMetric } from '@/components/dashboard/animated-metric'
 import { DataEmptyState } from '@/components/dashboard/data-empty-state'
 import { MiniSparkline } from '@/components/dashboard/mini-sparkline'
+import { OccupancyRing } from '@/components/dashboard/occupancy-ring'
+import { TrendBadge } from '@/components/dashboard/trend-badge'
 import type { RevenueTrend } from '@/lib/data/overview'
 import type { KPIMetrics } from '@/types'
 import type { LucideIcon } from 'lucide-react'
@@ -11,29 +16,40 @@ interface KPICardsProps {
   revenueTrend?: RevenueTrend
   occupancySparkline?: number[]
   revenueSparkline?: number[]
-  /** Hide revenue-related metrics (e.g. for managers). */
   showRevenue?: boolean
 }
 
 type CardTier = 'hero' | 'accent' | 'standard'
 type CardStatus = 'success' | 'warning' | 'neutral'
+type CardVariant = 'revenue' | 'occupancy' | 'default'
 
 interface KpiCardDef {
   icon: LucideIcon
   label: string
   value: string
+  rawValue?: number
+  formatValue?: (n: number) => string
   subtext: string
   trend?: 'up' | 'down'
+  trendPercent?: number | null
   tier: CardTier
+  variant?: CardVariant
   status?: CardStatus
   sparkline?: number[]
   sparkTone?: 'primary' | 'gold' | 'emerald' | 'amber'
+  occupancyPercent?: number
   extra?: ReactNode
 }
 
 function statusClass(status?: CardStatus) {
   if (status === 'success') return 'kpi-card--status-success'
   if (status === 'warning') return 'kpi-card--status-warning'
+  return ''
+}
+
+function variantClass(variant?: CardVariant) {
+  if (variant === 'revenue') return 'kpi-card--revenue'
+  if (variant === 'occupancy') return 'kpi-card--occupancy'
   return ''
 }
 
@@ -47,39 +63,67 @@ function KpiCard({ card }: { card: KpiCardDef }) {
   const Icon = card.icon
   const isHero = card.tier === 'hero'
   const isAccent = card.tier === 'accent'
+  const isRevenue = card.variant === 'revenue'
+  const isOccupancy = card.variant === 'occupancy'
 
   return (
     <div
-      className={`kpi-card group ${statusClass(card.status)} ${
+      className={`kpi-card group ${statusClass(card.status)} ${variantClass(card.variant)} ${
         isHero ? 'kpi-card--hero' : isAccent ? 'kpi-card--accent' : 'kpi-card--standard'
       }`}
     >
+      <div className="kpi-card__glow" aria-hidden />
       <div className="relative z-10 flex h-full flex-col p-5 sm:p-6">
         <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="kpi-card__icon">
+              <Icon strokeWidth={2} />
+            </span>
+            <p className="kpi-card__label">{card.label}</p>
+          </div>
+          {card.trendPercent != null && <TrendBadge value={card.trendPercent} />}
+        </div>
+
+        <div className="mt-4 flex items-end justify-between gap-4">
           <p
             className={`min-w-0 font-bold tabular-nums tracking-tight text-foreground ${
-              isHero
-                ? 'text-4xl sm:text-[2.85rem] sm:leading-none'
-                : isAccent
-                  ? 'text-3xl sm:text-4xl sm:leading-none'
-                  : 'text-2xl'
+              isRevenue
+                ? 'text-[2.5rem] leading-none sm:text-[3.25rem]'
+                : isOccupancy || isHero
+                  ? 'text-4xl leading-none sm:text-5xl'
+                  : isAccent
+                    ? 'text-3xl leading-none sm:text-4xl'
+                    : 'text-2xl'
             }`}
           >
-            {card.value}
+            {card.rawValue != null && card.formatValue ? (
+              <AnimatedMetric value={card.rawValue} format={card.formatValue} />
+            ) : (
+              card.value
+            )}
           </p>
-          {card.sparkline && card.sparkline.length >= 2 && (
-            <MiniSparkline values={card.sparkline} tone={card.sparkTone} />
+
+          {isOccupancy && card.occupancyPercent != null ? (
+            <OccupancyRing
+              percent={card.occupancyPercent}
+              size={isHero || isAccent ? 64 : 52}
+              showLabel={false}
+            />
+          ) : (
+            card.sparkline &&
+            card.sparkline.length >= 2 && (
+              <MiniSparkline
+                values={card.sparkline}
+                tone={card.sparkTone}
+                className={isHero ? 'h-10 w-24' : ''}
+              />
+            )
           )}
         </div>
-        <div className="mt-2 flex items-center gap-1.5 text-muted-foreground">
-          <Icon
-            className={`shrink-0 opacity-75 ${isHero ? 'h-4 w-4' : 'h-3.5 w-3.5'}`}
-            strokeWidth={2}
-          />
-          <p className={`font-medium ${isHero ? 'text-xs' : 'text-[11px]'}`}>{card.label}</p>
-        </div>
+
         {card.extra}
-        <div className="mt-auto flex items-center gap-1.5 pt-3">
+
+        <div className="mt-auto flex items-center gap-1.5 border-t border-border/50 pt-3.5">
           {card.trend === 'up' && (
             <TrendingUp
               className={`shrink-0 ${isAccent ? 'text-[var(--brand-gold-dark)]' : 'text-emerald-600'}`}
@@ -100,27 +144,29 @@ function RevenueTrendBlock({ trend }: { trend: RevenueTrend }) {
   const hasComparison = trend.lastMonth > 0 || trend.thisMonth > 0
   if (!hasComparison) return null
 
-  const up = trend.changePercent != null && trend.changePercent >= 0
-
   return (
-    <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-border/60 pt-3 text-xs text-muted-foreground">
+    <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <div className="kpi-metric-pill">
+        <p className="kpi-metric-pill__label">This month</p>
+        <p className="kpi-metric-pill__value">₵{trend.thisMonth.toLocaleString()}</p>
+      </div>
+      <div className="kpi-metric-pill">
+        <p className="kpi-metric-pill__label">Last month</p>
+        <p className="kpi-metric-pill__value">₵{trend.lastMonth.toLocaleString()}</p>
+      </div>
       {trend.changePercent != null && (
-        <span
-          className={`inline-flex items-center gap-1 font-semibold ${up ? 'text-emerald-700' : 'text-[var(--brand-orange)]'}`}
-        >
-          {up ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
-          {up ? '+' : ''}
-          {trend.changePercent}% vs last month
-        </span>
+        <div className="kpi-metric-pill col-span-2 sm:col-span-1">
+          <p className="kpi-metric-pill__label">Month change</p>
+          <p
+            className={`kpi-metric-pill__value ${
+              trend.changePercent >= 0 ? 'text-emerald-700' : 'text-[var(--brand-orange)]'
+            }`}
+          >
+            {trend.changePercent >= 0 ? '+' : ''}
+            {trend.changePercent}%
+          </p>
+        </div>
       )}
-      <span>
-        This month{' '}
-        <span className="font-semibold text-foreground">₵{trend.thisMonth.toLocaleString()}</span>
-      </span>
-      <span>
-        Last month{' '}
-        <span className="font-semibold text-foreground">₵{trend.lastMonth.toLocaleString()}</span>
-      </span>
     </div>
   )
 }
@@ -143,7 +189,7 @@ export function KPICards({
   }
 
   const m = metrics
-  const occupancyPct = `${(m.occupancyRate * 100).toFixed(0)}%`
+  const occupancyRate = m.occupancyRate * 100
   const occStatus = occupancyStatus(m.occupancyRate)
 
   const revenueTrendDir =
@@ -159,9 +205,13 @@ export function KPICards({
           icon: Banknote,
           label: 'Total revenue',
           value: `₵${m.totalRevenue.toLocaleString()}`,
-          subtext: `RevPAR ₵${m.reviParMetric.toLocaleString()} per room`,
+          rawValue: m.totalRevenue,
+          formatValue: (n) => `₵${Math.round(n).toLocaleString()}`,
+          subtext: `RevPAR ₵${m.reviParMetric.toLocaleString()} per available room`,
           trend: revenueTrendDir ?? 'up',
+          trendPercent: revenueTrend?.changePercent ?? null,
           tier: 'hero',
+          variant: 'revenue',
           sparkline: revenueSparkline,
           sparkTone: 'primary',
           extra: revenueTrend ? <RevenueTrendBlock trend={revenueTrend} /> : undefined,
@@ -169,11 +219,15 @@ export function KPICards({
         {
           icon: Percent,
           label: 'Occupancy rate',
-          value: occupancyPct,
+          value: `${occupancyRate.toFixed(0)}%`,
+          rawValue: occupancyRate,
+          formatValue: (n) => `${Math.round(n)}%`,
           subtext: 'Rooms occupied right now',
           trend: occStatus === 'success' ? 'up' : undefined,
           tier: 'accent',
+          variant: 'occupancy',
           status: occStatus,
+          occupancyPercent: occupancyRate,
           sparkline: occupancySparkline,
           sparkTone: occStatus === 'warning' ? 'amber' : 'gold',
         },
@@ -182,11 +236,15 @@ export function KPICards({
         {
           icon: Percent,
           label: 'Occupancy rate',
-          value: occupancyPct,
+          value: `${occupancyRate.toFixed(0)}%`,
+          rawValue: occupancyRate,
+          formatValue: (n) => `${Math.round(n)}%`,
           subtext: 'Rooms occupied right now',
           trend: occStatus === 'success' ? 'up' : undefined,
           tier: 'hero',
+          variant: 'occupancy',
           status: occStatus,
+          occupancyPercent: occupancyRate,
           sparkline: occupancySparkline,
           sparkTone: occStatus === 'warning' ? 'amber' : 'emerald',
         },
@@ -194,6 +252,8 @@ export function KPICards({
           icon: Users,
           label: 'Active bookings',
           value: m.totalBookings.toString(),
+          rawValue: m.totalBookings,
+          formatValue: (n) => Math.round(n).toString(),
           subtext: `${m.totalGuests} guests on record`,
           trend: 'up',
           tier: 'accent',
@@ -201,8 +261,7 @@ export function KPICards({
         },
       ]
 
-  const balanceStatus: CardStatus =
-    m.outstandingBalance > 0 ? 'warning' : 'success'
+  const balanceStatus: CardStatus = m.outstandingBalance > 0 ? 'warning' : 'success'
 
   const standardCards: KpiCardDef[] = [
     {
@@ -218,6 +277,8 @@ export function KPICards({
             icon: Users,
             label: 'Active bookings',
             value: m.totalBookings.toString(),
+            rawValue: m.totalBookings,
+            formatValue: (n: number) => Math.round(n).toString(),
             subtext: `${m.totalGuests} guests on record`,
             trend: 'up' as const,
             tier: 'standard' as const,
@@ -228,6 +289,8 @@ export function KPICards({
       icon: AlertCircle,
       label: 'Unpaid balances',
       value: `₵${m.outstandingBalance.toLocaleString()}`,
+      rawValue: m.outstandingBalance,
+      formatValue: (n) => `₵${Math.round(n).toLocaleString()}`,
       subtext:
         m.outstandingCount > 0
           ? `${m.outstandingCount} invoice${m.outstandingCount === 1 ? '' : 's'} awaiting payment`
@@ -239,9 +302,24 @@ export function KPICards({
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {heroCards.map((card) => (
-          <KpiCard key={card.label} card={card} />
+      <div
+        className={`grid grid-cols-1 gap-4 ${
+          showRevenue ? 'lg:grid-cols-5' : 'lg:grid-cols-2'
+        }`}
+      >
+        {heroCards.map((card, i) => (
+          <div
+            key={card.label}
+            className={
+              showRevenue
+                ? i === 0
+                  ? 'lg:col-span-3'
+                  : 'lg:col-span-2'
+                : undefined
+            }
+          >
+            <KpiCard card={card} />
+          </div>
         ))}
       </div>
       <div
