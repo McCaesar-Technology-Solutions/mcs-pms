@@ -160,9 +160,18 @@ function computeMetrics(
   dbRooms: DbRoom[],
   reservations: Reservation[],
   invoices: DbInvoice[],
+  occupancySpans: OccupancySpan[] = [],
 ): KPIMetrics {
   const totalRooms = dbRooms.length
-  const occupied = dbRooms.filter((r) => r.status === 'occupied').length
+  const today = new Date().toISOString().split('T')[0]
+  const occupiedRoomIds = new Set<string>()
+  for (const span of occupancySpans) {
+    if (span.checkIn <= today && span.checkOut > today) occupiedRoomIds.add(span.roomId)
+  }
+  const occupied =
+    occupancySpans.length > 0
+      ? Math.min(occupiedRoomIds.size, totalRooms)
+      : dbRooms.filter((r) => r.status === 'occupied').length
   const occupancyRate = totalRooms > 0 ? occupied / totalRooms : 0
 
   const activeReservations = filterOpenBookings(reservations)
@@ -300,7 +309,7 @@ export async function getDashboardData(): Promise<DashboardData> {
     dbRooms,
     reservations,
     invoices,
-    metrics: computeMetrics(dbRooms, reservations, invoices),
+    metrics: computeMetrics(dbRooms, reservations, invoices, occupancySpans),
     availability: computeAvailability(dbRooms, reservations),
     roomOptions: dbRooms.map((r) => ({
       id: r.id,

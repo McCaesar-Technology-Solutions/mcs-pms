@@ -87,24 +87,23 @@ export default async function ManagerDashboardPage() {
   const todayClosed = nightAudits.some((a) => a.business_date === businessDate)
 
   return (
-    <div className="page-shell page-content-stack pb-10">
+    <div className="page-shell pb-10">
       <DashboardHero>
-        <div className="space-y-5 p-5 sm:p-6">
-          <DashboardToolbar
-            title="Manager dashboard"
-            eyebrow="Operations"
-            occupancy={occupancyToday}
-            today={todayOps}
-          />
-          <DashboardAttention
-            today={todayOps}
-            metrics={metrics}
-            reservationsHref="/manager/reservations"
-            billingHref="/manager/reservations"
-          />
-        </div>
+        <DashboardToolbar
+          title="Manager dashboard"
+          eyebrow="Operations"
+          occupancy={occupancyToday}
+          today={todayOps}
+        />
+        <DashboardAttention
+          today={todayOps}
+          metrics={metrics}
+          reservationsHref="/manager/reservations"
+          billingHref="/manager/reservations"
+        />
       </DashboardHero>
 
+      <div className="page-content-stack page-shell--after-hero">
       <PageTabShell
           hashToTab={MANAGER_HASH_TO_TAB}
           defaultTab="overview"
@@ -167,6 +166,7 @@ export default async function ManagerDashboardPage() {
             ),
         }}
       />
+      </div>
     </div>
   )
 }

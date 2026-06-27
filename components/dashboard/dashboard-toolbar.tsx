@@ -11,11 +11,11 @@ interface DashboardToolbarProps {
 
 type StatAccent = 'occupancy' | 'in-house' | 'arrivals' | 'departures'
 
-const accentDot: Record<StatAccent, string> = {
-  occupancy: 'bg-emerald-500',
-  'in-house': 'bg-primary',
-  arrivals: 'bg-sky-500',
-  departures: 'bg-[var(--brand-orange)]',
+const accentIcon: Record<StatAccent, string> = {
+  occupancy: 'text-emerald-400',
+  'in-house': 'text-[var(--brand-gold-light)]',
+  arrivals: 'text-sky-300',
+  departures: 'text-orange-300',
 }
 
 function StatChip({
@@ -32,9 +32,11 @@ function StatChip({
   accent: StatAccent
 }) {
   return (
-    <div className="stat-chip min-w-0 flex-1 rounded-xl border border-border/80 bg-background px-3 py-3 sm:px-4 sm:py-3.5">
+    <div
+      className={`stat-chip stat-chip--${accent} min-w-0 flex-1 rounded-xl border px-3 py-3 sm:px-4 sm:py-3.5`}
+    >
       <div className="flex items-center gap-2">
-        <span className={`h-2 w-2 shrink-0 rounded-full ${accentDot[accent]}`} aria-hidden />
+        <Icon className={`h-3.5 w-3.5 shrink-0 ${accentIcon[accent]}`} strokeWidth={2.25} aria-hidden />
         <span className="text-[11px] font-medium text-muted-foreground">{label}</span>
       </div>
       <p className="mt-2 text-2xl font-bold tabular-nums leading-none tracking-tight text-foreground sm:text-[2.15rem]">
@@ -43,7 +45,6 @@ function StatChip({
       {detail && (
         <p className="mt-1.5 truncate text-[11px] text-muted-foreground">{detail}</p>
       )}
-      <Icon className="sr-only" strokeWidth={2.25} />
     </div>
   )
 }
@@ -65,7 +66,7 @@ export function DashboardToolbar({
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="min-w-0">
           <p className="label-eyebrow label-eyebrow-accent">{eyebrow}</p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-foreground sm:text-[1.75rem]">
+          <h1 className="font-display mt-1 text-[1.85rem] font-semibold tracking-tight text-white sm:text-[2.25rem]">
             {title}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">{dateLabel}</p>

@@ -45,14 +45,13 @@ export default async function DashboardPage() {
   const todayClosed = nightAudits.some((a) => a.business_date === businessDate)
 
   return (
-    <div className="page-shell page-content-stack pb-10">
+    <div className="page-shell pb-10">
       <DashboardHero>
-        <div className="space-y-5 p-5 sm:p-6">
-          <DashboardToolbar occupancy={occupancyToday} today={todayOps} />
-          <DashboardAttention today={todayOps} metrics={metrics} />
-        </div>
+        <DashboardToolbar occupancy={occupancyToday} today={todayOps} />
+        <DashboardAttention today={todayOps} metrics={metrics} />
       </DashboardHero>
 
+      <div className="page-content-stack page-shell--after-hero">
       <section className="dashboard-section">
         <h2 className="sr-only">Business overview</h2>
         <KPICards
@@ -108,6 +107,7 @@ export default async function DashboardPage() {
         <SectionHeading title="End of day" description="Night audit and business date close" />
         <NightAuditPanel audits={nightAudits} todayClosed={todayClosed} />
       </section>
+      </div>
     </div>
   )
 }

@@ -46,18 +46,17 @@ export function DashboardAttention({
 
   if (items.length === 0) {
     return (
-      <div className="attention-strip attention-strip--clear flex items-center gap-2.5 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3">
-        <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" strokeWidth={2} />
+      <div className="attention-strip attention-strip--clear flex items-center gap-2.5 rounded-xl px-4 py-3">
+        <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" strokeWidth={2} />
         <p className="text-sm text-muted-foreground">No urgent items for today.</p>
       </div>
     )
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <span className="mr-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        Needs attention
-      </span>
+    <div className="attention-strip">
+      <p className="attention-strip__label">Needs attention</p>
+      <div className="flex flex-wrap gap-2">
       {items.map(({ key, icon: Icon, tone, message, href }) => (
         <Link
           key={key}
@@ -68,6 +67,7 @@ export function DashboardAttention({
           <span>{message}</span>
         </Link>
       ))}
+      </div>
     </div>
   )
 }
