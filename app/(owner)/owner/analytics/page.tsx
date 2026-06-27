@@ -21,7 +21,7 @@ export default async function AnalyticsPage() {
   })
 
   return (
-    <div className="page-shell space-y-6">
+    <div className="page-shell page-content-stack">
       <PageHeader
         badge="Insights"
         title="Analytics"

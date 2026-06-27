@@ -53,7 +53,7 @@ export default async function DashboardPage() {
         </div>
       </DarkSection>
 
-      <div className="page-shell space-y-8 pb-8">
+      <div className="page-shell page-shell--after-hero page-content-stack pb-8">
         <section className="dashboard-section">
           <h2 className="sr-only">Business overview</h2>
           <KPICards

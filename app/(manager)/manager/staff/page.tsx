@@ -6,7 +6,7 @@ export default async function ManagerStaffPage() {
   const { profile, staff, invites } = await getStaffData()
 
   return (
-    <div className="page-shell space-y-6">
+    <div className="page-shell page-content-stack">
       <PageHeader
         badge="Team"
         title="Team"

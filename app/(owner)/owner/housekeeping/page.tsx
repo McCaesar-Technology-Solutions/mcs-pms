@@ -22,7 +22,7 @@ export default async function OwnerHousekeepingPage() {
   const openTasksByRoom = groupOpenTasksByRoom(tasks)
 
   return (
-    <div className="page-shell space-y-6">
+    <div className="page-shell page-content-stack">
       <PageHeader
         badge="Operations"
         title="Housekeeping board"

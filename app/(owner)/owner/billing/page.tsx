@@ -21,7 +21,7 @@ export default async function BillingPage({
   ])
 
   return (
-    <div className="page-shell space-y-6">
+    <div className="page-shell page-content-stack">
       <PageHeader
         badge="Finance"
         title="Billing & Invoices"

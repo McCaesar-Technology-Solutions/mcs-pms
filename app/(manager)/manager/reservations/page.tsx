@@ -14,7 +14,7 @@ export default async function ReservationsPage({
     await Promise.all([getProfile(), getDashboardData()])
 
   return (
-    <div className="page-shell space-y-6">
+    <div className="page-shell page-content-stack">
       <PageHeader
         badge="Bookings"
         title="Reservations"

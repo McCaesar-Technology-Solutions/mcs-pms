@@ -42,7 +42,7 @@ export default async function ReceptionistDashboardPage() {
         </div>
       </DarkSection>
 
-      <div className="page-shell space-y-8 pb-8 pt-6">
+      <div className="page-shell page-shell--after-hero page-content-stack pb-8">
         <section className="dashboard-section">
           <h2 className="sr-only">Today&apos;s snapshot</h2>
           <KPICards metrics={metrics} showRevenue={false} occupancySparkline={occupancySparkline} />
@@ -59,18 +59,16 @@ export default async function ReceptionistDashboardPage() {
             </div>
           </div>
         </section>
-      </div>
 
-      <DarkSection variant="depth" className="dashboard-section">
-        <section className="space-y-4 py-2">
-          <SectionHeading onDark title="Guest issues" description="Recent complaints needing follow-up" />
+        <section className="dashboard-section space-y-4">
+          <SectionHeading title="Guest issues" description="Recent complaints needing follow-up" />
           <ComplaintsOverviewLive
             initialComplaints={complaints}
             limit={5}
             complaintsHref="/receptionist/complaints"
           />
         </section>
-      </DarkSection>
+      </div>
     </>
   )
 }

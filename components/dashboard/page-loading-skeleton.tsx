@@ -18,7 +18,7 @@ function Shimmer({ className, dark = false }: { className?: string; dark?: boole
 export function PageLoadingSkeleton({ variant = 'dashboard' }: PageLoadingSkeletonProps) {
   if (variant === 'complaints') {
     return (
-      <div className="page-shell space-y-6">
+      <div className="page-shell page-content-stack">
         <Shimmer className="h-24 rounded-2xl" />
         <div className="flex gap-2">
           {[1, 2, 3, 4].map((i) => (
@@ -36,7 +36,7 @@ export function PageLoadingSkeleton({ variant = 'dashboard' }: PageLoadingSkelet
 
   if (variant === 'table') {
     return (
-      <div className="page-shell space-y-6">
+      <div className="page-shell page-content-stack">
         <Shimmer className="h-24 rounded-2xl" />
         <Shimmer className="h-64 rounded-2xl" />
         <div className="space-y-3">
@@ -50,7 +50,7 @@ export function PageLoadingSkeleton({ variant = 'dashboard' }: PageLoadingSkelet
 
   return (
     <>
-      <div className="dark-surface-band dark-surface-band--ops px-4 py-6 sm:px-6">
+      <div className="dark-surface-band dark-surface-band--ops">
         <div className="page-shell space-y-4">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="space-y-2">
@@ -68,9 +68,9 @@ export function PageLoadingSkeleton({ variant = 'dashboard' }: PageLoadingSkelet
         </div>
       </div>
 
-      <div className="page-shell space-y-5 py-8">
+      <div className="page-shell page-shell--after-hero page-content-stack pb-8">
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
-          <Shimmer className="h-44 rounded-2xl bg-[#1a0f3d]/20 lg:col-span-3" />
+          <Shimmer className="h-44 rounded-2xl lg:col-span-3" />
           <Shimmer className="h-44 rounded-2xl lg:col-span-2" />
         </div>
 
@@ -88,9 +88,8 @@ export function PageLoadingSkeleton({ variant = 'dashboard' }: PageLoadingSkelet
         </div>
       </div>
 
-      <div className="dark-surface-band dark-surface-band--depth px-4 py-8 sm:px-6">
-        <div className="page-shell space-y-6">
-          <Shimmer dark className="h-56 rounded-2xl" />
+      <div className="dark-surface-band dark-surface-band--depth">
+        <div className="page-shell py-8">
           <Shimmer dark className="h-48 rounded-2xl" />
         </div>
       </div>

@@ -35,7 +35,7 @@ export function PaymentReconciliationPanel({ summary, records }: PaymentReconcil
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-[#E9ECEF] text-left text-xs uppercase tracking-wide text-muted-foreground">
+                <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
                   <th className="px-6 py-3">Date</th>
                   <th className="px-6 py-3">Invoice</th>
                   <th className="px-6 py-3">Guest</th>
@@ -47,7 +47,7 @@ export function PaymentReconciliationPanel({ summary, records }: PaymentReconcil
               </thead>
               <tbody>
                 {records.map((row) => (
-                  <tr key={row.id} className="border-b border-[#E9ECEF]/60">
+                  <tr key={row.id} className="border-b border-border/60">
                     <td className="px-6 py-3 whitespace-nowrap">
                       {row.completedAt
                         ? new Date(row.completedAt).toLocaleDateString('en-GB', {

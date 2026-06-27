@@ -3,7 +3,7 @@ import { PageHeader } from '@/components/dashboard/page-header'
 
 export default function ReceptionistComplaintsPage() {
   return (
-    <div className="page-shell space-y-6">
+    <div className="page-shell page-content-stack">
       <PageHeader
         badge="Operations"
         title="Complaints"

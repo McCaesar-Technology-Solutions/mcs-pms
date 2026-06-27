@@ -12,7 +12,7 @@ export default async function OwnerRoomsPage({
   const [{ dbRooms }, categories] = await Promise.all([getDashboardData(), getRoomCategories()])
 
   return (
-    <div className="page-shell space-y-6">
+    <div className="page-shell page-content-stack">
       <PageHeader
         badge="Inventory"
         title="Rooms"

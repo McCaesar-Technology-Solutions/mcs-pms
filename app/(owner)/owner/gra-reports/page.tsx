@@ -11,7 +11,7 @@ export default async function GRAReportsPage() {
   const summary = computeGraReportsSummary(reports)
 
   return (
-    <div className="page-shell space-y-6">
+    <div className="page-shell page-content-stack">
       <PageHeader
         badge="Compliance"
         title="GRA Tax Reports"

@@ -106,7 +106,7 @@ export default async function ManagerDashboardPage() {
         </div>
       </DarkSection>
 
-      <div className="page-shell space-y-6 pb-8 pt-6">
+      <div className="page-shell page-shell--after-hero page-content-stack pb-8">
         <PageTabShell
           hashToTab={MANAGER_HASH_TO_TAB}
           defaultTab="overview"

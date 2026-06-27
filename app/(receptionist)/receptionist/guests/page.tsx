@@ -12,7 +12,7 @@ export default async function ReceptionistGuestsPage({
   const guests = await getGuestsData()
 
   return (
-    <div className="page-shell space-y-6">
+    <div className="page-shell page-content-stack">
       <PageHeader
         badge="CRM"
         title="Guests"

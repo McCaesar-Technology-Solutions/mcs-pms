@@ -12,7 +12,7 @@ export default async function ManagerRoomsPage({
   const [{ dbRooms }, categories] = await Promise.all([getDashboardData(), getRoomCategories()])
 
   return (
-    <div className="page-shell space-y-6">
+    <div className="page-shell page-content-stack">
       <PageHeader badge="Rooms" title="Room Status" description="Update and monitor room availability." />
       <RoomsManager rooms={dbRooms} categories={categories} initialSearch={q} />
     </div>

@@ -108,6 +108,7 @@
     position: relative;
     z-index: 0;
     isolation: isolate;
+    overflow-x: clip;
     background:
       radial-gradient(ellipse 100% 60% at 20% -10%, rgba(var(--glow-purple), 0.14), transparent 50%),
       radial-gradient(ellipse 70% 50% at 95% 20%, rgba(var(--glow-purple), 0.08), transparent 45%),
@@ -137,49 +138,69 @@
     width: 100%;
     max-width: 87.5rem;
     margin-inline: auto;
-    padding: 1rem;
+    --page-pad-inline: 1rem;
+    --page-pad-block: 1rem;
+  }
+
+  .page-shell--after-hero {
+    padding-top: 1.5rem;
+  }
+
+  .page-content-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
   }
 
   @media (min-width: 640px) {
     .page-shell {
-      padding: 1.5rem;
+      --page-pad-inline: 1.5rem;
+      --page-pad-block: 1.5rem;
+    }
+
+    .page-shell--after-hero {
+      padding-top: 1.75rem;
+    }
+
+    .page-content-stack {
+      gap: 1.75rem;
     }
   }
 
   @media (min-width: 768px) {
     .page-shell {
-      padding: 2rem 2.25rem;
+      --page-pad-inline: 2.25rem;
+      --page-pad-block: 2rem;
+    }
+
+    .page-shell--after-hero {
+      padding-top: 2rem;
+    }
+
+    .page-content-stack {
+      gap: 2rem;
     }
   }
 
-  /* Full-bleed dark headers inside constrained page shells */
+  .page-shell {
+    padding: var(--page-pad-block) var(--page-pad-inline);
+  }
+
+  /* Bleed only within the main column — never use 100vw (tucks under sidebar) */
   .page-header-bleed {
-    width: 100vw;
-    max-width: 100vw;
-    margin-left: calc(50% - 50vw);
-    margin-right: calc(50% - 50vw);
-  }
-
-  .page-shell > .page-header-bleed:first-child {
-    margin-top: -1rem;
-  }
-
-  @media (min-width: 640px) {
-    .page-shell > .page-header-bleed:first-child {
-      margin-top: -1.5rem;
-    }
-  }
-
-  @media (min-width: 768px) {
-    .page-shell > .page-header-bleed:first-child {
-      margin-top: -2rem;
-    }
+    width: calc(100% + 2 * var(--page-pad-inline));
+    max-width: none;
+    margin-left: calc(-1 * var(--page-pad-inline));
+    margin-right: calc(-1 * var(--page-pad-inline));
+    margin-top: calc(-1 * var(--page-pad-block));
   }
 
   /* ── Strategic dark surfaces (section bands, not global dark mode) ── */
   .dark-surface-band {
     position: relative;
     isolation: isolate;
+    width: 100%;
+    max-width: 100%;
     color: #f5f2fc;
   }
 
@@ -285,12 +306,33 @@
     color: rgba(255, 255, 255, 0.5);
   }
 
+  .dark-surface-band--ops .attention-chip--info {
+    color: #bae6fd;
+    background: rgba(14, 165, 233, 0.16);
+    border-color: rgba(125, 211, 252, 0.32);
+  }
+
+  .dark-surface-band--ops .attention-chip--warning {
+    color: #fed7aa;
+    background: rgba(251, 146, 60, 0.16);
+    border-color: rgba(253, 186, 116, 0.32);
+  }
+
   .dark-surface-band--depth .surface-card {
-    background: rgba(255, 255, 255, 0.05);
-    border-color: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.07);
+    border-color: rgba(255, 255, 255, 0.12);
     box-shadow:
       0 4px 16px rgba(0, 0, 0, 0.2),
       inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    color: #f0edf8;
+  }
+
+  .dark-surface-band--depth .surface-card .text-foreground {
+    color: #f8f6fc;
+  }
+
+  .dark-surface-band--depth .surface-card .text-muted-foreground {
+    color: rgba(248, 246, 252, 0.62);
   }
 
   .dark-surface-band--depth .surface-card-header {
@@ -298,17 +340,19 @@
     border-color: rgba(255, 255, 255, 0.08);
   }
 
-  .dark-surface-band--depth .text-foreground {
-    color: #f5f2fc;
-  }
-
-  .dark-surface-band--depth .text-muted-foreground {
-    color: rgba(255, 255, 255, 0.58);
-  }
-
   .dark-surface-band--depth .surface-inset {
     background: rgba(0, 0, 0, 0.22);
     border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #f0edf8;
+  }
+
+  .dark-surface-band--depth .surface-inset .text-foreground,
+  .dark-surface-band--depth .surface-inset .font-bold {
+    color: #f8f6fc;
+  }
+
+  .dark-surface-band--depth .surface-inset .text-muted-foreground {
+    color: rgba(248, 246, 252, 0.62);
   }
 
   .dark-surface-band--depth .info-block {
@@ -399,13 +443,12 @@
 
   .dark-surface-band--inset {
     border-radius: calc(var(--radius) + 4px);
-    background:
-      radial-gradient(ellipse 80% 60% at 100% 0%, rgba(var(--glow-purple), 0.18), transparent 55%),
-      linear-gradient(155deg, #120a2e 0%, #0c0618 100%);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: linear-gradient(180deg, #fbfcff 0%, #ffffff 100%);
+    border: 1px solid rgba(var(--glow-purple), 0.1);
     box-shadow:
-      0 12px 40px rgba(0, 0, 0, 0.18),
-      inset 0 1px 0 rgba(255, 255, 255, 0.04);
+      inset 0 1px 0 rgba(255, 255, 255, 0.95),
+      0 8px 28px rgba(var(--glow-purple), 0.07);
+    color: var(--foreground);
     padding: 0;
   }
 
@@ -417,20 +460,6 @@
     .dark-surface-band__inset {
       padding: 1.5rem;
     }
-  }
-
-  .dark-surface-band--inset .surface-card {
-    background: rgba(255, 255, 255, 0.05);
-    border-color: rgba(255, 255, 255, 0.1);
-    box-shadow: none;
-  }
-
-  .dark-surface-band--inset .text-foreground {
-    color: #f5f2fc;
-  }
-
-  .dark-surface-band--inset .text-muted-foreground {
-    color: rgba(255, 255, 255, 0.58);
   }
 
   .surface-card {
