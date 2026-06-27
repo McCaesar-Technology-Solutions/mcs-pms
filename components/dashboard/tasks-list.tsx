@@ -10,17 +10,17 @@ import type { TaskStatus } from '@/types'
 type ColumnId = TaskStatus
 
 const columnMeta: Record<ColumnId, { label: string; tint: string }> = {
-  todo: { label: 'To Do', tint: 'bg-red-500/8' },
-  in_progress: { label: 'In Progress', tint: 'bg-amber-500/8' },
-  done: { label: 'Done', tint: 'bg-[#3C216C]/8' },
+  todo: { label: 'To Do', tint: 'bg-[var(--comp-coral-soft)]' },
+  in_progress: { label: 'In Progress', tint: 'bg-[var(--comp-sand-soft)]' },
+  done: { label: 'Done', tint: 'bg-[var(--comp-teal-soft)]' },
 }
 
 function getTaskIcon(status: ColumnId) {
   switch (status) {
     case 'done':
-      return <CheckCircle className="h-4 w-4 text-amber-600" />
+      return <CheckCircle className="h-4 w-4 text-[var(--comp-teal)]" />
     case 'in_progress':
-      return <Clock className="h-4 w-4 text-amber-600" />
+      return <Clock className="h-4 w-4 text-[var(--comp-sand)]" />
     case 'todo':
       return <AlertCircle className="h-4 w-4 text-red-600" />
     default:
@@ -86,7 +86,7 @@ export function TasksList({
               </span>
             )}
             {inspectCount > 0 && (
-              <span className="rounded-full bg-[#3C216C]/10 px-3 py-1 text-xs font-semibold text-[#3C216C]">
+              <span className="rounded-full bg-[var(--comp-sky-soft)] px-3 py-1 text-xs font-semibold text-[var(--comp-sky-ink)]">
                 {inspectCount} need inspection
               </span>
             )}

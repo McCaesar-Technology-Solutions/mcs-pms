@@ -1,8 +1,7 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import type { LucideIcon } from 'lucide-react'
-import { AlertCircle, BarChart3, BedDouble, CalendarCheck, Coins } from 'lucide-react'
+import { BarChart3, TrendingUp } from 'lucide-react'
 import { AnimatedMetric } from '@/components/dashboard/animated-metric'
 import { DataEmptyState } from '@/components/dashboard/data-empty-state'
 import { MiniSparkline } from '@/components/dashboard/mini-sparkline'
@@ -23,52 +22,116 @@ function hasSparklineVariance(values?: number[]) {
   return values && values.length >= 2 && new Set(values).size > 1
 }
 
-function SimpleKpiCard({
-  icon: Icon,
+function RevenueBanner({
+  metrics,
+  revenueTrend,
+  revenueSparkline,
+}: {
+  metrics: KPIMetrics
+  revenueTrend?: RevenueTrend
+  revenueSparkline?: number[]
+}) {
+  return (
+    <div className="kpi-card kpi-card--revenue">
+      <div className="flex flex-col gap-5 p-5 sm:p-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0 flex-1">
+            <p className="kpi-card__label">Total revenue</p>
+            <div className="mt-2 flex items-end justify-between gap-4">
+              <p className="text-[2.35rem] font-bold tabular-nums leading-none tracking-tight text-[var(--brand-gold-light)] sm:text-[2.85rem]">
+                <AnimatedMetric
+                  value={metrics.totalRevenue}
+                  format={(n) => `₵${Math.round(n).toLocaleString()}`}
+                />
+              </p>
+              {hasSparklineVariance(revenueSparkline) && (
+                <MiniSparkline values={revenueSparkline!} tone="light" className="h-10 w-28" />
+              )}
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <p className="text-sm text-white/55">
+                RevPAR ₵{metrics.reviParMetric.toLocaleString()} per room
+              </p>
+              {revenueTrend?.changePercent != null && (
+                <TrendBadge value={revenueTrend.changePercent} onDark label="" />
+              )}
+            </div>
+          </div>
+
+          {revenueTrend && (revenueTrend.lastMonth > 0 || revenueTrend.thisMonth > 0) && (
+            <div className="grid w-full grid-cols-2 gap-2 sm:max-w-xs sm:grid-cols-1">
+              <div className="kpi-metric-pill kpi-metric-pill--on-dark">
+                <p className="kpi-metric-pill__label">This month</p>
+                <p className="kpi-metric-pill__value">₵{revenueTrend.thisMonth.toLocaleString()}</p>
+              </div>
+              <div className="kpi-metric-pill kpi-metric-pill--on-dark">
+                <p className="kpi-metric-pill__label">Last month</p>
+                <p className="kpi-metric-pill__value">₵{revenueTrend.lastMonth.toLocaleString()}</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function MetricTile({
   label,
   value,
   rawValue,
   formatValue,
-  trend,
-  sparkline,
+  subtext,
   warning,
-  hint,
+  sparkline,
+  trendUp,
+  accent,
 }: {
-  icon: LucideIcon
   label: string
   value: string
   rawValue?: number
   formatValue?: (n: number) => string
-  trend?: number | null
-  sparkline?: number[]
+  subtext: string
   warning?: boolean
-  hint?: string
+  sparkline?: number[]
+  trendUp?: boolean
+  accent?: 'slate' | 'teal'
 }) {
+  const accentClass = warning
+    ? 'kpi-card--tile-warning'
+    : accent === 'teal'
+      ? 'kpi-card--tile-accent-teal'
+      : accent === 'slate'
+        ? 'kpi-card--tile-accent-slate'
+        : ''
+
   return (
-    <div className={`kpi-card kpi-card--simple ${warning ? 'kpi-card--simple-warning' : ''}`}>
+    <div className={`kpi-card kpi-card--tile ${accentClass}`}>
       <div className="flex items-start justify-between gap-3">
-        <span className="kpi-card__icon-wrap" aria-hidden>
-          <Icon className="h-[1.125rem] w-[1.125rem]" strokeWidth={2} />
-        </span>
+        <p className="kpi-card__label">{label}</p>
+        {trendUp && (
+          <span className="inline-flex items-center gap-0.5 text-[11px] font-semibold text-emerald-600">
+            <TrendingUp className="h-3 w-3" />
+          </span>
+        )}
+      </div>
+      <div className="mt-3 flex items-end justify-between gap-3">
+        <p className="kpi-card__value">
+          {rawValue != null && formatValue ? (
+            <AnimatedMetric value={rawValue} format={formatValue} />
+          ) : (
+            value
+          )}
+        </p>
         {hasSparklineVariance(sparkline) && (
-          <MiniSparkline values={sparkline!} tone="gold" className="h-7 w-[4.5rem] opacity-80" />
+          <MiniSparkline
+            values={sparkline!}
+            tone={accent === 'teal' ? 'teal' : 'slate'}
+            className="h-8 w-20"
+          />
         )}
       </div>
-
-      <p className="kpi-card__label mt-5">{label}</p>
-
-      <p className="kpi-card__value mt-2">
-        {rawValue != null && formatValue ? (
-          <AnimatedMetric value={rawValue} format={formatValue} />
-        ) : (
-          value
-        )}
-      </p>
-
-      <div className="mt-3 flex min-h-[1.375rem] flex-wrap items-center gap-2">
-        {trend != null && <TrendBadge value={trend} label="" />}
-        {hint && !trend && <span className="kpi-card__hint">{hint}</span>}
-      </div>
+      <p className="kpi-card__subtext mt-auto pt-3">{subtext}</p>
     </div>
   )
 }
@@ -94,60 +157,89 @@ export function KPICards({
   const m = metrics
   const balanceWarning = m.outstandingBalance > 0
 
-  const cards = (
-    <div
-      className={`grid grid-cols-1 gap-4 ${
-        showRevenue ? 'sm:grid-cols-2 xl:grid-cols-4' : 'sm:grid-cols-3'
-      }`}
-    >
-      {showRevenue && (
-        <SimpleKpiCard
-          icon={Coins}
-          label="Total revenue"
-          value={`₵${m.totalRevenue.toLocaleString()}`}
-          rawValue={m.totalRevenue}
-          formatValue={(n) => `₵${Math.round(n).toLocaleString()}`}
-          trend={revenueTrend?.changePercent ?? null}
-          sparkline={revenueSparkline}
-          hint={`RevPAR ₵${m.reviParMetric.toLocaleString()}`}
-        />
-      )}
-      <SimpleKpiCard
-        icon={BedDouble}
-        label={showRevenue ? 'Avg. nightly rate' : 'Typical room rate'}
+  const tiles = (
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <MetricTile
+        label="Avg. nightly rate"
         value={`₵${m.averageNightlyRate}`}
-        hint="Per room night"
+        subtext="Average daily rate"
+        accent="slate"
       />
-      <SimpleKpiCard
-        icon={CalendarCheck}
+      <MetricTile
         label="Active bookings"
         value={m.totalBookings.toString()}
         rawValue={m.totalBookings}
         formatValue={(n) => Math.round(n).toString()}
+        subtext={`${m.totalGuests} guest${m.totalGuests === 1 ? '' : 's'} on record`}
         sparkline={bookingsSparkline}
-        hint={`${m.totalGuests} guest${m.totalGuests === 1 ? '' : 's'}`}
+        trendUp={m.totalBookings > 0}
+        accent="teal"
       />
-      <SimpleKpiCard
-        icon={AlertCircle}
+      <MetricTile
         label="Unpaid balances"
         value={`₵${m.outstandingBalance.toLocaleString()}`}
         rawValue={m.outstandingBalance}
         formatValue={(n) => `₵${Math.round(n).toLocaleString()}`}
-        warning={balanceWarning}
-        hint={
+        subtext={
           m.outstandingCount > 0
-            ? `${m.outstandingCount} invoice${m.outstandingCount === 1 ? '' : 's'} open`
-            : 'All settled'
+            ? `${m.outstandingCount} invoice${m.outstandingCount === 1 ? '' : 's'} awaiting payment`
+            : 'All guest balances settled'
         }
+        warning={balanceWarning}
       />
     </div>
   )
 
-  if (!aside) return cards
+  if (!showRevenue) {
+    return (
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <MetricTile
+          label="Typical room rate"
+          value={`₵${m.averageNightlyRate}`}
+          subtext="List price benchmark"
+          accent="slate"
+        />
+        <MetricTile
+          label="Active bookings"
+          value={m.totalBookings.toString()}
+          rawValue={m.totalBookings}
+          formatValue={(n) => Math.round(n).toString()}
+          subtext={`${m.totalGuests} guest${m.totalGuests === 1 ? '' : 's'} on record`}
+          sparkline={bookingsSparkline}
+          accent="teal"
+        />
+        <MetricTile
+          label="Unpaid balances"
+          value={`₵${m.outstandingBalance.toLocaleString()}`}
+          rawValue={m.outstandingBalance}
+          formatValue={(n) => `₵${Math.round(n).toLocaleString()}`}
+          subtext={
+            m.outstandingCount > 0
+              ? `${m.outstandingCount} invoice${m.outstandingCount === 1 ? '' : 's'} awaiting payment`
+              : 'All guest balances settled'
+          }
+          warning={balanceWarning}
+        />
+      </div>
+    )
+  }
+
+  const main = (
+    <div className="space-y-3">
+      <RevenueBanner
+        metrics={m}
+        revenueTrend={revenueTrend}
+        revenueSparkline={revenueSparkline}
+      />
+      {tiles}
+    </div>
+  )
+
+  if (!aside) return main
 
   return (
     <div className="dashboard-bento">
-      <div className="dashboard-bento__main">{cards}</div>
+      <div className="dashboard-bento__main">{main}</div>
       <div className="dashboard-bento__aside">{aside}</div>
     </div>
   )

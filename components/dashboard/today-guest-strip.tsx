@@ -30,7 +30,13 @@ function GuestCard({
       className="today-guest-card shrink-0"
     >
       <div className="flex items-center gap-3">
-        <div className="today-guest-card__avatar">{initial}</div>
+        <div
+          className={`today-guest-card__avatar today-guest-card__avatar--${
+            kind === 'arrival' ? 'arrival' : 'departure'
+          }`}
+        >
+          {initial}
+        </div>
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-foreground">{reservation.guestName}</p>
           <p className="text-xs text-muted-foreground">
@@ -38,7 +44,7 @@ function GuestCard({
           </p>
         </div>
       </div>
-      <span className={`status-pill status-pill--${kind === 'arrival' ? 'info' : 'neutral'}`}>
+      <span className={`status-pill status-pill--${kind === 'arrival' ? 'info' : 'warm'}`}>
         {kind === 'arrival' ? 'Arrival' : 'Departure'}
       </span>
     </Link>

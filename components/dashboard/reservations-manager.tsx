@@ -61,17 +61,17 @@ function formatStatus(status: string) {
 function statusBadge(status: string) {
   switch (status) {
     case 'checked_in':
-      return 'bg-[#D4A62E] text-[#22124C]'
+      return 'bg-[var(--comp-sand-soft)] text-[var(--comp-sand-ink)]'
     case 'confirmed':
-      return 'bg-[#3C216C] text-white'
+      return 'bg-[var(--comp-sky-soft)] text-[var(--comp-sky-ink)]'
     case 'checked_out':
-      return 'bg-[#E9ECEF] text-[#5E5872]'
+      return 'bg-[var(--comp-slate-soft)] text-[var(--comp-slate-ink)]'
     case 'cancelled':
       return 'bg-red-100 text-red-700'
     case 'no_show':
-      return 'bg-amber-100 text-amber-800'
+      return 'bg-[var(--comp-coral-soft)] text-[var(--comp-coral-ink)]'
     default:
-      return 'bg-gray-600 text-gray-50'
+      return 'bg-gray-100 text-gray-700'
   }
 }
 
@@ -101,10 +101,10 @@ function formatPaymentStatus(status: ReservationPaymentStatus) {
 
 function sourceBadge(source: string) {
   const colors: Record<string, string> = {
-    website: 'bg-[#3C216C]/10 text-[#3C216C]',
-    airbnb: 'bg-sky-50 text-sky-700',
-    booking: 'bg-[#FAFDFF] text-[#3C216C] ring-1 ring-[#E9ECEF]',
-    walk_in: 'bg-[#D4A62E]/15 text-[#B88D24]',
+    website: 'bg-[var(--comp-sky-soft)] text-[var(--comp-sky-ink)]',
+    airbnb: 'bg-[var(--comp-coral-soft)] text-[var(--comp-coral-ink)]',
+    booking: 'bg-[var(--comp-slate-soft)] text-[var(--comp-slate-ink)]',
+    walk_in: 'bg-[var(--comp-sand-soft)] text-[var(--comp-sand-ink)]',
     other: 'bg-gray-50 text-gray-700',
   }
   return colors[source] || colors.other

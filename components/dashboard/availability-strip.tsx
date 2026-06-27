@@ -8,9 +8,9 @@ import type { Availability } from '@/types'
 
 const SEGMENTS = [
   { key: 'occupied' as const, label: 'Occupied', color: 'bg-primary', text: 'text-primary' },
-  { key: 'reserved' as const, label: 'Reserved', color: 'bg-[var(--brand-purple-deep)]', text: 'text-[var(--brand-purple-deep)]' },
-  { key: 'maintenance' as const, label: 'Maintenance', color: 'bg-amber-500', text: 'text-amber-600' },
-  { key: 'available' as const, label: 'Available', color: 'bg-[var(--brand-gold)]/80', text: 'text-[var(--brand-gold-dark)]' },
+  { key: 'reserved' as const, label: 'Reserved', color: 'bg-[var(--comp-sky)]', text: 'text-[var(--comp-sky-ink)]' },
+  { key: 'maintenance' as const, label: 'Maintenance', color: 'bg-[var(--comp-coral)]', text: 'text-[var(--comp-coral-ink)]' },
+  { key: 'available' as const, label: 'Available', color: 'bg-[var(--comp-sage)]', text: 'text-[var(--comp-sage-ink)]' },
 ]
 
 function getTotal(day: Availability) {
@@ -28,9 +28,9 @@ function getOccupancyPercent(day: Availability) {
 
 function getAvailabilityTone(available: number, totalRooms: number) {
   const ratio = totalRooms > 0 ? available / totalRooms : 0
-  if (ratio >= 0.33) return { label: 'Good availability', className: 'text-amber-700 bg-amber-500/10' }
-  if (ratio >= 0.18) return { label: 'Limited availability', className: 'text-amber-700 bg-amber-500/10' }
-  return { label: 'Nearly full', className: 'text-red-700 bg-red-500/10' }
+  if (ratio >= 0.33) return { label: 'Good availability', className: 'text-[var(--comp-sage-ink)] bg-[var(--comp-sage-soft)]' }
+  if (ratio >= 0.18) return { label: 'Limited availability', className: 'text-[var(--comp-sand-ink)] bg-[var(--comp-sand-soft)]' }
+  return { label: 'Nearly full', className: 'text-[var(--comp-coral-ink)] bg-[var(--comp-coral-soft)]' }
 }
 
 function formatDayLabel(dateStr: string, isToday: boolean) {
@@ -83,7 +83,7 @@ function OccupancyHeatmap({
               <div className="flex h-14 w-full items-end justify-center">
                 <div className="flex h-full w-full max-w-[2rem] flex-col justify-end">
                   <div
-                    className={`w-full overflow-hidden rounded-md border border-border/50 bg-[var(--brand-gold)]/25 transition-transform group-hover:scale-105 ${
+                    className={`w-full overflow-hidden rounded-md border border-border/50 bg-[var(--comp-sage-soft)] transition-transform group-hover:scale-105 ${
                       isToday ? 'ring-1 ring-primary/30' : ''
                     }`}
                     style={{ height: `${bookedPct}%`, minHeight: bookedPct > 0 ? 6 : 2 }}
@@ -97,13 +97,13 @@ function OccupancyHeatmap({
                       )}
                       {day.reserved > 0 && (
                         <div
-                          className="w-full bg-[var(--brand-purple-deep)]"
+                          className="w-full bg-[var(--comp-sky)]"
                           style={{ flex: day.reserved }}
                         />
                       )}
                       {day.maintenance > 0 && (
                         <div
-                          className="w-full bg-amber-500"
+                          className="w-full bg-[var(--comp-coral)]"
                           style={{ flex: day.maintenance }}
                         />
                       )}
@@ -195,9 +195,9 @@ export function AvailabilityStrip({ data }: { data?: Availability[] }) {
           <p className="text-xs leading-relaxed text-muted-foreground">
             Each bar shows all {totalRooms} rooms.{' '}
             <span className="font-semibold text-foreground">Tap a day</span> to see the breakdown.{' '}
-            <span className="inline-flex items-center gap-1 font-medium text-[#B88D24]">
-              <span className="inline-block h-2 w-2 rounded-full bg-[#D4A62E]" />
-              Gold = rooms you can still sell
+            <span className="inline-flex items-center gap-1 font-medium text-[var(--comp-sage-ink)]">
+              <span className="inline-block h-2 w-2 rounded-full bg-[var(--comp-sage)]" />
+              Green = rooms you can still sell
             </span>
           </p>
         </div>
@@ -231,13 +231,13 @@ export function AvailabilityStrip({ data }: { data?: Availability[] }) {
                   <p className="text-sm font-semibold text-foreground">{date}</p>
 
                   <div
-                    className="mt-4 flex h-4 w-full overflow-hidden rounded-md border border-[#E9ECEF] bg-amber-50/50"
+                    className="mt-4 flex h-4 w-full overflow-hidden rounded-md border border-border bg-[var(--comp-sage-soft)]"
                     title={`${day.available} available, ${day.occupied} occupied, ${day.reserved} reserved, ${day.maintenance} maintenance`}
                   >
                     <div className="bg-primary" style={{ width: `${(day.occupied / totalRooms) * 100}%` }} />
-                    <div className="bg-[var(--brand-purple-deep)]" style={{ width: `${(day.reserved / totalRooms) * 100}%` }} />
-                    <div className="bg-amber-500" style={{ width: `${(day.maintenance / totalRooms) * 100}%` }} />
-                    <div className="min-w-0 flex-1 bg-amber-400" />
+                    <div className="bg-[var(--comp-sky)]" style={{ width: `${(day.reserved / totalRooms) * 100}%` }} />
+                    <div className="bg-[var(--comp-coral)]" style={{ width: `${(day.maintenance / totalRooms) * 100}%` }} />
+                    <div className="min-w-0 flex-1 bg-[var(--comp-sage)]" />
                   </div>
 
                   <div className="mt-4">

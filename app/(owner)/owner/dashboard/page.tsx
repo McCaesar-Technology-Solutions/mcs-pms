@@ -59,8 +59,8 @@ export default async function DashboardPage() {
       </DashboardHero>
 
       <div className="page-content-stack page-shell--after-hero">
-        <section className="dashboard-section space-y-5">
-          <SectionHeading title="Business overview" description="Last 30 days" />
+        <section className="dashboard-section space-y-4">
+          <SectionHeading title="Business overview" description="Revenue, bookings, and balances" />
           <KPICards
             metrics={metrics}
             revenueTrend={revenueTrend}
@@ -76,8 +76,8 @@ export default async function DashboardPage() {
           />
         </section>
 
-        <section className="dashboard-section space-y-5">
-          <SectionHeading title="Room availability" description="Next 14 days" />
+        <section className="dashboard-section space-y-4">
+          <SectionHeading title="Room availability" description="Rooms free to sell over the next 14 days" />
           <AvailabilityStrip data={availability} />
         </section>
 

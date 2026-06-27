@@ -12,6 +12,14 @@ const kindIcon = {
   housekeeping: Sparkles,
 } as const
 
+const kindIconWell: Record<OpsInboxItem['kind'], string> = {
+  complaint: 'icon-well icon-well--coral',
+  guest_request: 'icon-well icon-well--sand',
+  guest_message: 'icon-well icon-well--sky',
+  guest_stay_chat: 'icon-well icon-well--sky',
+  housekeeping: 'icon-well icon-well--sage',
+}
+
 interface OpsInboxPanelProps {
   items: OpsInboxItem[]
 }
@@ -22,7 +30,7 @@ export function OpsInboxPanel({ items }: OpsInboxPanelProps) {
       <div className="surface-card-accent" />
       <div className="surface-card-header">
         <div className="flex items-center gap-2">
-          <Inbox className="h-5 w-5 text-[#3C216C]" />
+          <Inbox className="h-5 w-5 text-[var(--comp-slate)]" />
           <div>
             <h3 className="text-lg font-semibold text-foreground">Operations inbox</h3>
             <p className="mt-0.5 text-sm text-muted-foreground">
@@ -50,7 +58,7 @@ export function OpsInboxPanel({ items }: OpsInboxPanelProps) {
                 href={item.href}
                 className="list-row"
               >
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#3C216C]/8 text-[#3C216C]">
+                <span className={`flex h-9 w-9 shrink-0 items-center justify-center ${kindIconWell[item.kind]}`}>
                   <Icon className="h-4 w-4" />
                 </span>
                 <div className="min-w-0 flex-1">

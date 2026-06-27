@@ -193,7 +193,9 @@ function CommandPaletteDialog({
                     </span>
                   )}
                 </span>
-                <span className="command-palette__item-kind">{item.kind}</span>
+                <span className={`command-palette__item-kind command-palette__item-kind--${item.kind}`}>
+                  {item.kind}
+                </span>
               </button>
             )
           })

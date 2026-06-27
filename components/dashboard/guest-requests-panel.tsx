@@ -56,7 +56,7 @@ export function GuestRequestsPanel({ initialRequests = [] }: GuestRequestsPanelP
       <div className="surface-card-accent" />
       <div className="surface-card-header">
         <div className="flex items-center gap-2">
-          <Bell className="h-5 w-5 text-[#3C216C]" />
+          <Bell className="h-5 w-5 text-[var(--comp-sand)]" />
           <div>
             <h3 className="text-lg font-semibold text-foreground">Guest requests</h3>
             <p className="mt-0.5 text-sm text-muted-foreground">
@@ -108,7 +108,7 @@ export function GuestRequestsPanel({ initialRequests = [] }: GuestRequestsPanelP
                       type="button"
                       disabled={pending}
                       onClick={() => updateStatus(req.id, status)}
-                      className="rounded-lg bg-[#3C216C]/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-[#3C216C] hover:bg-[#3C216C]/15 disabled:opacity-50"
+                      className="rounded-lg bg-[var(--comp-teal-soft)] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-[var(--comp-teal-ink)] hover:bg-[var(--comp-teal)]/15 disabled:opacity-50"
                     >
                       {status}
                     </button>

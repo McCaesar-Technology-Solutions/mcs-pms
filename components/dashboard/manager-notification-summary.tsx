@@ -34,7 +34,7 @@ export function ManagerNotificationSummary({
       <div className="surface-card-accent" />
       <div className="surface-card-header">
         <div className="flex items-center gap-2">
-          <Bell className="h-5 w-5 text-[#3C216C]" />
+          <Bell className="h-5 w-5 text-[var(--comp-slate)]" />
           <div>
             <h3 className="text-lg font-semibold text-foreground">Notification settings</h3>
             <p className="mt-0.5 text-sm text-muted-foreground">
@@ -86,7 +86,7 @@ export function ManagerNotificationSummary({
         Contact the property owner to change alert preferences. View recent deliveries on the{' '}
         <Link
           href="/manager/dashboard#sms-log"
-          className="font-semibold text-[#3C216C] hover:underline"
+          className="font-semibold text-[var(--comp-teal)] hover:underline"
         >
           Activity tab
         </Link>

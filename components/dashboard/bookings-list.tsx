@@ -13,7 +13,7 @@ interface BookingsListProps {
 }
 
 function statusPillClass(status: string) {
-  if (status === 'checked_in') return 'status-pill status-pill--success'
+  if (status === 'checked_in') return 'status-pill status-pill--warm'
   return 'status-pill status-pill--info'
 }
 
@@ -38,8 +38,8 @@ export function BookingsList({
       <div className="surface-card-header">
         <div className="flex items-center justify-between gap-2">
           <div>
-            <h3 className="text-base font-semibold text-foreground">Upcoming bookings</h3>
-            <p className="mt-0.5 text-sm text-muted-foreground">Next reservations</p>
+            <h3 className="text-lg font-semibold text-foreground">Upcoming bookings</h3>
+            <p className="mt-1 text-sm text-muted-foreground">Next reservations</p>
           </div>
           <Link
             href={viewAllHref}
