@@ -3125,6 +3125,15 @@
     box-shadow: none;
   }
 
+  .sidebar-nav-link:has([aria-busy='true']) {
+    opacity: 0.82;
+    pointer-events: none;
+  }
+
+  .sidebar-nav-link--active:has([aria-busy='true']) {
+    border-color: rgba(var(--glow-gold), 0.55);
+  }
+
   .sidebar-soft-divider {
     height: 1px;
     margin: 0 1rem;

@@ -14,12 +14,47 @@ import {
   type MfaMethod,
 } from '@/lib/auth/mfa'
 import { buildMfaStatus } from '@/lib/auth/mfa-status'
-import { mfaRedirectIfNeeded } from '@/lib/auth/mfa-server'
+import { MFA_GATE_COOKIE, mfaRedirectIfNeeded } from '@/lib/auth/mfa-server'
 import type { Database } from '@/lib/supabase/types'
 import type { UserRole } from '@/types'
 
 const PUBLIC_PATHS = ['/login', '/accept-invite', '/signup', '/forgot-password', '/privacy', '/terms']
 const GUEST_PREFIX = '/guest'
+
+function isRouterPrefetch(request: NextRequest) {
+  return (
+    request.headers.get('Next-Router-Prefetch') === '1' ||
+    request.headers.get('Purpose') === 'prefetch'
+  )
+}
+
+function hasMfaGateOk(request: NextRequest, userId: string) {
+  return request.cookies.get(MFA_GATE_COOKIE)?.value === userId
+}
+
+function stampMfaGateOk(response: NextResponse, userId: string) {
+  response.cookies.set(MFA_GATE_COOKIE, userId, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 60 * 60 * 8,
+    path: '/',
+  })
+}
+
+async function staffMfaRedirect(
+  request: NextRequest,
+  supabase: ReturnType<typeof createServerClient<Database>>,
+  userId: string,
+  profile: NonNullable<Awaited<ReturnType<typeof loadStaffProfile>>>,
+  pathname: string,
+): Promise<string | null> {
+  if (hasMfaGateOk(request, userId) || isRouterPrefetch(request)) {
+    return null
+  }
+
+  return mfaRedirectIfNeeded(supabase, userId, profile, pathname, request.url)
+}
 
 const LEGACY_STAFF_PATHS = [
   '/dashboard',
@@ -129,16 +164,17 @@ export async function updateSession(request: NextRequest) {
     if (user) {
       const profile = await loadStaffProfile(supabase, user.id)
       if (profile?.is_active !== false && profile && isStaffRole(profile.role)) {
-        const mfaTarget = await mfaRedirectIfNeeded(
+        const mfaTarget = await staffMfaRedirect(
+          request,
           supabase,
           user.id,
           profile,
           ROLE_HOME[profile.role],
-          request.url,
         )
         if (mfaTarget) {
           return NextResponse.redirect(mfaTarget)
         }
+        stampMfaGateOk(supabaseResponse, user.id)
         return NextResponse.redirect(new URL(ROLE_HOME[profile.role], request.url))
       }
     }
@@ -214,16 +250,18 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(new URL('/login', request.url))
     }
 
-    const mfaTarget = await mfaRedirectIfNeeded(
+    const mfaTarget = await staffMfaRedirect(
+      request,
       supabase,
       user.id,
       profile,
       pathname,
-      request.url,
     )
     if (mfaTarget) {
       return NextResponse.redirect(mfaTarget)
     }
+
+    stampMfaGateOk(supabaseResponse, user.id)
 
     if (
       profile.role === 'owner' &&
@@ -250,16 +288,17 @@ export async function updateSession(request: NextRequest) {
 
     const profile = await loadStaffProfile(supabase, user.id)
     if (profile && profile.is_active !== false) {
-      const mfaTarget = await mfaRedirectIfNeeded(
+      const mfaTarget = await staffMfaRedirect(
+        request,
         supabase,
         user.id,
         profile,
         pathname,
-        request.url,
       )
       if (mfaTarget) {
         return NextResponse.redirect(mfaTarget)
       }
+      stampMfaGateOk(supabaseResponse, user.id)
     }
   }
 

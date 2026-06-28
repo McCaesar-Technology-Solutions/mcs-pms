@@ -11,6 +11,8 @@ import {
 } from '@/lib/auth/mfa'
 import type { UserRole } from '@/types'
 
+export const MFA_GATE_COOKIE = 'mja_mfa_ok'
+
 interface StaffMfaProfile {
   role: UserRole
   phone: string | null

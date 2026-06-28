@@ -41,6 +41,10 @@ export function useNavBadges(
     )
   }, [])
 
+  useEffect(() => {
+    void refreshBadges()
+  }, [refreshBadges])
+
   useRealtimeRefresh('layout', refreshBadges)
   useRealtimeRefresh('complaints', refreshBadges)
   useRealtimeRefresh('housekeeping', refreshBadges)

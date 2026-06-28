@@ -4,17 +4,6 @@ import { AppShell } from '@/components/dashboard/app-shell'
 import { receptionistNavigation } from '@/lib/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getOccupancyToday, type OccupancyToday } from '@/lib/data/occupancy'
-import { getNavBadgeMap } from '@/lib/data/staff-alerts'
-
-function applyBadges<T extends { href: string; badge?: number }>(
-  items: T[],
-  badges: Record<string, number>,
-): T[] {
-  return items.map((item) => ({
-    ...item,
-    badge: badges[item.href] && badges[item.href] > 0 ? badges[item.href] : undefined,
-  }))
-}
 
 export default async function ReceptionistLayout({
   children,
@@ -24,17 +13,12 @@ export default async function ReceptionistLayout({
     redirect('/login')
   }
 
-  let navigation = receptionistNavigation.map((item) => ({ ...item }))
+  const navigation = receptionistNavigation.map((item) => ({ ...item }))
   let occupancyToday: OccupancyToday | undefined
 
   if (profile.hotel_id) {
     const supabase = await createClient()
-    const [badges, occupancy] = await Promise.all([
-      getNavBadgeMap(),
-      getOccupancyToday(supabase, profile.hotel_id),
-    ])
-    navigation = applyBadges(navigation, badges)
-    occupancyToday = occupancy
+    occupancyToday = await getOccupancyToday(supabase, profile.hotel_id)
   }
 
   return (
