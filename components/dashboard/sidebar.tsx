@@ -1,6 +1,6 @@
 'use client'
 
-import Link from 'next/link'
+import { SidebarNavLink } from '@/components/dashboard/sidebar-nav-link'
 import { usePathname } from 'next/navigation'
 import { PanelLeftClose, PanelLeft, X } from 'lucide-react'
 import { useState } from 'react'
@@ -38,34 +38,33 @@ export default function Sidebar({
     const showBadge = item.badge != null && item.badge > 0
 
     return (
-      <Link
+      <SidebarNavLink
         key={item.href}
         href={item.href}
         title={collapsed && !isDrawer ? item.name : undefined}
-        onClick={onMobileClose}
-        className={`group relative flex items-center rounded-xl py-2.5 text-sm font-medium transition-all ${
-          collapsed && !isDrawer ? 'justify-center px-0' : 'gap-3 px-3'
-        } ${isActive ? 'sidebar-nav-link--active' : 'sidebar-nav-link'}`}
+        collapsed={collapsed && !isDrawer}
+        active={isActive}
+        onNavigate={onMobileClose}
       >
-        <span className="relative shrink-0">
-          <Icon className="h-5 w-5" />
+        <span className="sidebar-nav-link__icon">
+          <Icon className="h-5 w-5" aria-hidden />
           {showBadge && collapsed && !isDrawer && (
-            <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--brand-orange)] px-0.5 text-[9px] font-bold text-white">
+            <span className="sidebar-nav-link__badge-dot">
               {item.badge! > 9 ? '9+' : item.badge}
             </span>
           )}
         </span>
         {(!collapsed || isDrawer) && (
-          <span className="flex flex-1 items-center justify-between truncate">
+          <span className="sidebar-nav-link__text">
             <span className="truncate">{item.name}</span>
             {showBadge && (
-              <span className="ml-2 rounded-md bg-[var(--brand-orange)]/90 px-2 py-0.5 text-[10px] font-bold text-white tabular-nums">
+              <span className="sidebar-nav-link__badge">
                 {item.badge! > 99 ? '99+' : item.badge}
               </span>
             )}
           </span>
         )}
-      </Link>
+      </SidebarNavLink>
     )
   }
 
@@ -74,9 +73,8 @@ export default function Sidebar({
   return (
     <>
       {mobileOpen && (
-        <button
-          type="button"
-          aria-label="Close navigation menu"
+        <div
+          role="presentation"
           className="sidebar-mobile-overlay fixed inset-0 z-40 bg-[var(--brand-purple-ink)]/55 backdrop-blur-[2px] md:hidden"
           onClick={onMobileClose}
         />
@@ -122,7 +120,7 @@ export default function Sidebar({
 
         <div className="sidebar-soft-divider mt-1" />
 
-        <nav className="flex flex-1 flex-col gap-0.5 overflow-x-hidden overflow-y-auto p-3">
+        <nav className="sidebar-nav relative z-10 flex flex-1 flex-col gap-0.5 overflow-x-hidden overflow-y-auto p-3">
           {groupedNav ? (
             groups!.map((group, index) => (
               <div key={group.label} className={index > 0 ? 'mt-4' : ''}>
