@@ -75,11 +75,9 @@ function messageForError(error?: string): string {
 
 function GuestExpiredPage({ message }: { message?: string }) {
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-center bg-[#22124C] px-6 text-center text-white">
-      <p className="font-[family-name:var(--font-cormorant)] text-3xl font-semibold text-[#D4A62E]">
-        MOJO APARTMENTS
-      </p>
-      <p className="mt-8 max-w-sm text-lg">
+    <div className="guest-auth-shell flex min-h-dvh flex-col items-center justify-center px-6 text-center">
+      <p className="guest-auth-brand text-3xl">MOJO APARTMENTS</p>
+      <p className="mt-8 max-w-sm text-lg guest-text-muted">
         {message ?? 'This link has expired. Please contact the front desk.'}
       </p>
     </div>

@@ -51,10 +51,8 @@ import { GuestPhoneEditor } from '@/components/guest/guest-phone-editor'
 import { GuestStayTimeline } from '@/components/guest/guest-stay-timeline'
 import { GuestComplaintCard } from '@/components/guest/guest-complaint-card'
 import { GuestNextStepBanner } from '@/components/guest/guest-next-step-banner'
-import { guestComplaintReference } from '@/lib/complaints/guest-progress'
 import { pickGuestNextAction } from '@/lib/complaints/guest-next-action'
 import type { GuestNextAction, GuestNextActionFocus } from '@/lib/complaints/guest-next-action'
-import { guestStatusLabel } from '@/components/complaints/complaints-overview'
 import { GuestComplaintChat } from '@/components/guest/guest-complaint-chat'
 import { GuestStayChat } from '@/components/guest/guest-stay-chat'
 import { GuestStatusAlerts } from '@/components/guest/guest-status-alerts'
@@ -69,9 +67,9 @@ type TabId = 'home' | 'stay' | 'help' | 'account'
 
 const tabs: { id: TabId; label: string; icon: typeof Home }[] = [
   { id: 'home', label: 'Home', icon: Home },
-  { id: 'stay', label: 'Stay', icon: BedDouble },
+  { id: 'stay', label: 'My stay', icon: BedDouble },
   { id: 'help', label: 'Help', icon: LifeBuoy },
-  { id: 'account', label: 'You', icon: User },
+  { id: 'account', label: 'Account', icon: User },
 ]
 
 const REQUEST_SUCCESS_LABELS: Record<string, string> = {
@@ -94,14 +92,7 @@ const REQUEST_LABELS: Record<string, string> = {
   housekeeping: 'Housekeeping',
   late_checkout: 'Late checkout',
   extension: 'Stay extension',
-  self_checkout: 'Self check-out', // legacy requests only
-}
-
-interface GuestPortalProps {
-  guest: Guest
-  roomNumber: string | null
-  propertyContacts: StaffContact[]
-  context: GuestPortalContext
+  self_checkout: 'Self check-out',
 }
 
 function PortalCard({
@@ -111,13 +102,21 @@ function PortalCard({
   children: React.ReactNode
   className?: string
 }) {
-  return (
-    <div
-      className={`rounded-2xl border border-white/10 bg-white/[0.09] p-5 shadow-[0_8px_32px_rgba(0,0,0,0.22)] backdrop-blur-md transition hover:border-white/18 hover:bg-white/[0.12] hover:shadow-[0_12px_40px_rgba(0,0,0,0.28)] ${className}`}
-    >
-      {children}
-    </div>
-  )
+  return <div className={`guest-portal-card ${className}`}>{children}</div>
+}
+
+interface GuestPortalProps {
+  guest: Guest
+  roomNumber: string | null
+  propertyContacts: StaffContact[]
+  context: GuestPortalContext
+}
+
+function formatShortDate(dateStr: string) {
+  return new Date(dateStr + 'T12:00:00').toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+  })
 }
 
 function money(value: number) {
@@ -348,14 +347,14 @@ export function GuestPortal({
 
   if (reference) {
     return (
-      <div className="flex min-h-dvh flex-col items-center justify-center bg-gradient-to-b from-[#1a0f3d] via-[#22124C] to-[#2d1860] px-6 text-center text-white">
-        <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/20">
-          <Check className="h-8 w-8 text-emerald-300" />
+      <div className="guest-portal-shell flex min-h-dvh flex-col items-center justify-center px-6 text-center">
+        <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/12">
+          <Check className="h-7 w-7 text-emerald-600" />
         </div>
-        <p className="text-2xl font-semibold">Issue reported</p>
-        <p className="mt-2 text-[#D4A62E]">Ref {reference}</p>
-        <p className="mt-4 max-w-sm text-sm text-white/70">
-          Our team has been notified and will respond shortly. You can track progress under Help.
+        <p className="text-xl font-semibold">Issue reported</p>
+        <p className="mt-2 font-mono text-sm text-[var(--brand-purple)]">Ref {reference}</p>
+        <p className="mt-3 max-w-sm text-sm leading-relaxed guest-text-muted">
+          Our team has been notified. Track progress under Help.
         </p>
         <button
           type="button"
@@ -363,22 +362,16 @@ export function GuestPortal({
             setReference(null)
             setActiveTab('help')
           }}
-          className="mt-8 rounded-2xl bg-white/10 px-8 py-3.5 font-medium backdrop-blur transition hover:bg-white/15"
+          className="guest-btn guest-btn-primary mt-8 px-8 py-3 text-sm"
         >
-          Back to portal
+          View in Help
         </button>
       </div>
     )
   }
 
   return (
-    <div className="guest-portal-shell relative min-h-dvh bg-[var(--brand-purple-ink)] text-white">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-[var(--brand-purple-deep)]/80 via-[var(--brand-purple-ink)] to-[#0e0620]" />
-        <div className="absolute -right-24 -top-20 h-72 w-72 rounded-full bg-[var(--brand-purple)]/30 blur-3xl" />
-        <div className="absolute -left-16 top-1/3 h-48 w-48 rounded-full bg-[var(--brand-purple-bright)]/20 blur-2xl" />
-        <div className="absolute bottom-0 left-1/2 h-64 w-[120%] -translate-x-1/2 rounded-[100%] bg-[var(--brand-purple)]/15 blur-3xl" />
-      </div>
+    <div className="guest-portal-shell">
       {disconnected && (
         <RealtimeReconnectBanner
           onReconnect={() => setRetryKey((k) => k + 1)}
@@ -386,49 +379,39 @@ export function GuestPortal({
         />
       )}
 
-      <header className="guest-portal-header relative z-10">
-        <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-[var(--brand-purple-bright)]/25 blur-3xl" />
-        <div className="relative flex items-start gap-4">
+      <header className="guest-portal-header">
+        <div className="mx-auto flex max-w-md items-start gap-3.5">
           {property.imageUrl ? (
-            <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl ring-2 ring-white/20">
-              <Image src={property.imageUrl} alt={`${property.name} property photo`} fill className="object-cover" sizes="56px" />
+            <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl ring-1 ring-[var(--guest-border-strong)]">
+              <Image src={property.imageUrl} alt={`${property.name} property photo`} fill className="object-cover" sizes="48px" />
             </div>
           ) : (
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#D4A62E]/20 text-lg font-bold text-[#D4A62E]">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[var(--brand-gold)]/15 text-base font-bold text-[var(--brand-gold)]">
               {property.name.charAt(0)}
             </div>
           )}
           <div className="min-w-0 flex-1">
-            <p className="truncate font-display text-2xl font-semibold text-[var(--brand-gold)]">
-              {property.name}
-            </p>
-            <p className="mt-0.5 text-sm text-white/80">
+            <p className="truncate text-lg font-semibold">{property.name}</p>
+            <p className="mt-0.5 text-sm guest-text-muted">
               Hi {guest.name.split(' ')[0]}
               {roomNumber ? ` · Room ${roomNumber}` : ''}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={toggleDnd}
-            className={`guest-btn flex shrink-0 flex-col items-center gap-1 rounded-xl px-3 py-2 text-[10px] font-semibold tracking-wide transition ${
-              dnd ? 'bg-[var(--brand-orange)]/25 text-[var(--brand-orange-light)]' : 'bg-white/10 text-white/70'
-            }`}
-          >
-            {dnd ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
-            {dnd ? 'DND on' : 'DND off'}
-          </button>
         </div>
         {property.welcome && activeTab === 'home' && (
-          <p className="relative mt-5 text-sm leading-relaxed text-white/75">{property.welcome}</p>
+          <p className="mx-auto mt-4 max-w-md text-sm leading-relaxed guest-text-muted">{property.welcome}</p>
         )}
       </header>
 
-      <main className="guest-portal-main relative z-10">
-        <GuestStatusAlerts
-          complaints={complaints}
-          requests={portalRequests}
-          onOpenHelp={() => setActiveTab('help')}
-        />
+      <main className="guest-portal-main">
+        {(activeTab === 'home' || activeTab === 'stay' || activeTab === 'help') && (
+          <GuestStatusAlerts
+            complaints={complaints}
+            requests={portalRequests}
+            onOpenHelp={() => setActiveTab('help')}
+            onOpenStay={() => setActiveTab('stay')}
+          />
+        )}
         {activeTab === 'home' && (
           <div
             role="tabpanel"
@@ -436,42 +419,62 @@ export function GuestPortal({
             aria-labelledby="guest-tab-home"
             className="guest-tab-panel"
           >
-            <div className="grid grid-cols-2 gap-3">
+            <p className="guest-tab-intro">What you need right now — Wi‑Fi, checkout, and quick actions.</p>
+
+            {guest.check_in && guest.check_out && (
+              <div className="guest-checkout-strip">
+                Check-out {formatShortDate(guest.check_out)} by {property.checkOutTime}
+                {roomNumber ? ` · Room ${roomNumber}` : ''}
+              </div>
+            )}
+
+            <div className="guest-action-list">
               <button
                 type="button"
                 onClick={() => {
                   setShowRequestForm('housekeeping')
                   setActiveTab('stay')
                 }}
-                className="guest-quick-card guest-btn flex flex-col items-start gap-2 rounded-2xl bg-gradient-to-br from-[var(--brand-purple)] to-[var(--brand-purple-deep)] p-5 text-left shadow-lg"
+                className="guest-action-row guest-btn"
               >
-                <Sparkles className="h-5 w-5 text-[var(--brand-gold)]" />
-                <span className="text-sm font-semibold">Housekeeping</span>
-                <span className="text-xs text-white/60">Request a clean</span>
+                <span className="guest-action-row__icon">
+                  <Sparkles className="h-5 w-5" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="guest-action-row__label block">Request housekeeping</span>
+                  <span className="guest-action-row__hint block">Opens in My stay</span>
+                </span>
+                <ChevronRight className="h-4 w-4 shrink-0 guest-text-subtle" />
               </button>
               <button
                 type="button"
                 onClick={() => setActiveTab('help')}
-                className="guest-quick-card guest-btn flex flex-col items-start gap-2 rounded-2xl bg-gradient-to-br from-[var(--brand-orange)]/90 to-[#a84320] p-5 text-left shadow-lg"
+                className="guest-action-row guest-btn"
               >
-                <LifeBuoy className="h-5 w-5 text-white" />
-                <span className="text-sm font-semibold">Report issue</span>
-                <span className="text-xs text-white/80">Maintenance help</span>
+                <span className="guest-action-row__icon guest-action-row__icon--help">
+                  <LifeBuoy className="h-5 w-5" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="guest-action-row__label block">Report an issue</span>
+                  <span className="guest-action-row__hint block">Maintenance or room problem</span>
+                </span>
+                <ChevronRight className="h-4 w-4 shrink-0 guest-text-subtle" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('stay')}
+                className="guest-action-row guest-btn"
+              >
+                <span className="guest-action-row__icon">
+                  <MessageCircle className="h-5 w-5" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="guest-action-row__label block">Message the team</span>
+                  <span className="guest-action-row__hint block">Chat with the front desk</span>
+                </span>
+                <ChevronRight className="h-4 w-4 shrink-0 guest-text-subtle" />
               </button>
             </div>
-
-            <button
-              type="button"
-              onClick={() => setActiveTab('stay')}
-              className="guest-btn guest-quick-card flex w-full items-center gap-3 rounded-2xl border border-white/12 bg-white/[0.08] p-4 text-left transition hover:border-white/20 hover:bg-white/[0.12]"
-            >
-              <MessageCircle className="h-5 w-5 shrink-0 text-[var(--brand-gold)]" />
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold">Message the team</p>
-                <p className="text-xs text-white/60">Chat with the front desk about your stay</p>
-              </div>
-              <ChevronRight className="h-4 w-4 shrink-0 text-white/50" />
-            </button>
 
             {primaryNextAction && (
               <GuestNextStepBanner action={primaryNextAction} onAction={handleGuestNextStep} />
@@ -479,15 +482,15 @@ export function GuestPortal({
 
             {(property.wifiSsid || property.parking || property.emergencyPhone) && (
               <PortalCard className="space-y-3">
-                <p className="label-eyebrow label-eyebrow-accent">Essentials</p>
+                <p className="guest-portal-card__title">Essentials</p>
                 {property.wifiSsid && (
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex gap-3">
-                      <Wifi className="mt-0.5 h-4 w-4 shrink-0 text-white/60" />
+                      <Wifi className="mt-0.5 h-4 w-4 shrink-0 text-[var(--brand-purple)]" />
                       <div>
                         <p className="text-sm font-medium">{property.wifiSsid}</p>
                         {property.wifiPassword && (
-                          <p className="text-xs text-white/55">Password: {property.wifiPassword}</p>
+                          <p className="text-xs guest-text-subtle">Password: {property.wifiPassword}</p>
                         )}
                       </div>
                     </div>
@@ -498,7 +501,7 @@ export function GuestPortal({
                       aria-label="Copy Wi-Fi details"
                     >
                       {copiedWifi ? (
-                        <Check className="h-4 w-4 text-emerald-300" />
+                        <Check className="h-4 w-4 text-emerald-600" />
                       ) : (
                         <Copy className="h-4 w-4" />
                       )}
@@ -506,15 +509,15 @@ export function GuestPortal({
                   </div>
                 )}
                 {property.parking && (
-                  <div className="flex gap-3 border-t border-white/10 pt-3">
-                    <Car className="mt-0.5 h-4 w-4 shrink-0 text-white/60" />
-                    <p className="text-sm text-white/80">{property.parking}</p>
+                  <div className="flex gap-3 guest-divider pt-3">
+                    <Car className="mt-0.5 h-4 w-4 shrink-0 text-[var(--brand-purple)]" />
+                    <p className="text-sm guest-text-muted">{property.parking}</p>
                   </div>
                 )}
                 {property.emergencyPhone && (
-                  <div className="flex gap-3 border-t border-white/10 pt-3">
-                    <Phone className="mt-0.5 h-4 w-4 shrink-0 text-red-300" />
-                    <a href={`tel:${property.emergencyPhone}`} className="text-sm font-medium text-red-200">
+                  <div className="flex gap-3 guest-divider pt-3">
+                    <Phone className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
+                    <a href={`tel:${property.emergencyPhone}`} className="text-sm font-medium text-red-600">
                       Emergency · {property.emergencyPhone}
                     </a>
                   </div>
@@ -524,73 +527,8 @@ export function GuestPortal({
 
             {propertyLine && (
               <PortalCard className="flex gap-3">
-                <MapPin className="h-4 w-4 shrink-0 text-[#D4A62E]" />
-                <p className="text-sm text-white/75">{propertyLine}</p>
-              </PortalCard>
-            )}
-
-            {openComplaints.length > 1 && (
-              <PortalCard>
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-semibold">More open issues</p>
-                  <span className="rounded-md bg-[var(--brand-orange)]/20 px-2 py-0.5 text-xs font-bold text-[var(--brand-orange-light)]">
-                    {openComplaints.length}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('help')}
-                  className="mt-3 flex w-full items-center justify-between text-sm text-white/70"
-                >
-                  View all issues
-                  <ChevronRight className="h-4 w-4" />
-                </button>
-              </PortalCard>
-            )}
-
-            {openComplaints.length === 1 && !primaryNextAction && (
-              <PortalCard>
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-semibold">Open issues</p>
-                  <span className="rounded-md bg-[var(--brand-orange)]/20 px-2 py-0.5 text-xs font-bold text-[var(--brand-orange-light)]">
-                    {openComplaints.length}
-                  </span>
-                </div>
-                {openComplaints[0] && (
-                  <div className="mt-3 rounded-xl bg-white/5 px-3 py-2.5">
-                    <p className="text-sm font-medium capitalize text-white">
-                      {openComplaints[0].category}
-                      <span className="ml-2 font-mono text-[10px] text-white/50">
-                        {guestComplaintReference(openComplaints[0].id)}
-                      </span>
-                    </p>
-                    <p className="mt-0.5 text-xs text-[#D4A62E]">
-                      {guestStatusLabel(
-                        openComplaints[0].status,
-                        openComplaints[0].approval_stage,
-                      )}
-                    </p>
-                  </div>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('help')}
-                  className="mt-3 flex w-full items-center justify-between text-sm text-white/70"
-                >
-                  View progress &amp; message staff
-                  <ChevronRight className="h-4 w-4" />
-                </button>
-              </PortalCard>
-            )}
-
-            {propertyContacts.length > 0 && (
-              <PortalCard className="space-y-3">
-                <PhoneContactList
-                  contacts={propertyContacts}
-                  title="Contact manager"
-                  emptyMessage=""
-                  variant="dark"
-                />
+                <MapPin className="h-4 w-4 shrink-0 text-[var(--brand-gold-dark)]" />
+                <p className="text-sm guest-text-muted">{propertyLine}</p>
               </PortalCard>
             )}
           </div>
@@ -603,11 +541,10 @@ export function GuestPortal({
             aria-labelledby="guest-tab-stay"
             className="guest-tab-panel"
           >
+            <p className="guest-tab-intro">Your dates, messages, requests, and billing for this stay.</p>
+
             {requestSuccess && (
-              <div
-                role="status"
-                className="rounded-xl border border-emerald-400/30 bg-emerald-500/15 px-4 py-3 text-sm text-emerald-100"
-              >
+              <div role="status" className="guest-checkout-strip guest-checkout-strip--success">
                 {requestSuccess}
               </div>
             )}
@@ -624,11 +561,11 @@ export function GuestPortal({
             <GuestStayChat />
 
             <PortalCard>
-              <p className="label-eyebrow label-eyebrow-accent">Requests</p>
-              <p className="mt-1 text-xs text-white/55">
-                Check-out by {property.checkOutTime}. Tap to notify the front desk.
+              <p className="guest-portal-card__title">Requests</p>
+              <p className="guest-portal-card__hint">
+                Check-out by {property.checkOutTime}. Tap a request to notify the front desk.
               </p>
-              <div className="mt-4 grid grid-cols-2 gap-2">
+              <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {(
                   [
                     { type: 'housekeeping', icon: Sparkles, label: 'Housekeeping' },
@@ -644,25 +581,23 @@ export function GuestPortal({
                       setRequestSuccess(null)
                       setRequestError(null)
                     }}
-                    className={`guest-btn flex items-center gap-2 rounded-xl px-3 py-3 text-left text-sm transition ${
-                      showRequestForm === type
-                        ? 'bg-white/12 ring-1 ring-white/25'
-                        : 'bg-white/5 hover:bg-white/10'
+                    className={`guest-request-btn guest-btn w-full ${
+                      showRequestForm === type ? 'guest-request-btn--active' : ''
                     }`}
                   >
-                    <Icon className="h-4 w-4 shrink-0 text-[#D4A62E]" />
+                    <Icon className="h-4 w-4 shrink-0 text-[var(--brand-gold-dark)]" />
                     {label}
                   </button>
                 ))}
               </div>
               {showRequestForm && (
-                <div className="mt-4 space-y-3 border-t border-white/10 pt-4">
+                <div className="mt-4 space-y-3 guest-divider pt-4">
                   {showRequestForm === 'extension' && (
                     <input
                       type="date"
                       value={requestDate}
                       onChange={(e) => setRequestDate(e.target.value)}
-                      className="w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm"
+                      className="guest-field"
                     />
                   )}
                   {showRequestForm === 'late_checkout' && (
@@ -671,7 +606,7 @@ export function GuestPortal({
                       value={requestTime}
                       onChange={(e) => setRequestTime(e.target.value)}
                       placeholder="Preferred checkout time (e.g. 2:00 PM)"
-                      className="w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm placeholder:text-white/35"
+                      className="guest-field"
                     />
                   )}
                   <textarea
@@ -679,9 +614,9 @@ export function GuestPortal({
                     onChange={(e) => setRequestNote(e.target.value)}
                     rows={2}
                     placeholder="Optional note for the front desk…"
-                    className="w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm placeholder:text-white/35"
+                    className="guest-field"
                   />
-                  {requestError && <FormError message={requestError} variant="dark" />}
+                  {requestError && <FormError message={requestError} className="mt-2" />}
                   <button
                     type="button"
                     disabled={requestLoading === showRequestForm}
@@ -696,16 +631,16 @@ export function GuestPortal({
 
             {portalRequests.length > 0 && (
               <PortalCard className="space-y-2">
-                <p className="text-sm font-semibold">Your requests</p>
+                <p className="guest-portal-card__title">Your requests</p>
                 {portalRequests.slice(0, 5).map((req) => (
                   <div
                     key={req.id}
-                    className="flex items-center justify-between rounded-xl bg-white/5 px-3 py-2 text-sm"
+                    className="guest-inset-row flex items-center justify-between px-3 py-2 text-sm"
                   >
-                    <span className="capitalize text-white/80">
-                      {req.requestType.replace(/_/g, ' ')}
+                    <span className="guest-text-muted">
+                      {REQUEST_LABELS[req.requestType] ?? req.requestType.replace(/_/g, ' ')}
                     </span>
-                    <span className="text-xs font-semibold uppercase text-[#D4A62E]">
+                    <span className="text-xs font-semibold uppercase text-[var(--brand-purple)]">
                       {req.status}
                     </span>
                   </div>
@@ -715,23 +650,23 @@ export function GuestPortal({
 
             <PortalCard className="space-y-3">
               <div className="flex items-center gap-2">
-                <FileText className="h-4 w-4 text-[#D4A62E]" />
-                <p className="text-sm font-semibold">Billing</p>
+                <FileText className="h-4 w-4 text-[var(--brand-gold-dark)]" />
+                <p className="guest-portal-card__title">Billing</p>
               </div>
               {invoices.length === 0 ? (
-                <p className="text-sm text-white/55">No invoices linked to your stay yet.</p>
+                <p className="text-sm guest-text-muted">No invoices linked to your stay yet.</p>
               ) : (
                 <ul className="space-y-2">
                   {invoices.map((inv) => (
                     <li
                       key={inv.id}
-                      className="flex items-center justify-between gap-3 rounded-xl bg-white/5 px-3 py-2.5"
+                      className="guest-inset-row flex items-center justify-between gap-3 px-3 py-2.5"
                     >
                       <div>
                         <p className="text-sm font-medium">
                           {inv.invoiceNumber ?? 'Invoice'}
                         </p>
-                        <p className="text-xs text-white/55">
+                        <p className="text-xs guest-text-subtle">
                           {money(inv.totalAmount)} · {inv.paymentStatus}
                         </p>
                       </div>
@@ -741,7 +676,7 @@ export function GuestPortal({
                             type="button"
                             onClick={() => downloadReceipt(inv.id)}
                             disabled={receiptLoading === inv.id}
-                            className="flex items-center gap-1 rounded-lg bg-emerald-500/20 px-2.5 py-1.5 text-xs font-semibold text-emerald-200 disabled:opacity-50"
+                            className="flex items-center gap-1 rounded-lg bg-emerald-500/12 px-2.5 py-1.5 text-xs font-semibold text-emerald-700 disabled:opacity-50"
                           >
                             <Download className="h-3.5 w-3.5" />
                             {receiptLoading === inv.id ? '…' : 'PDF'}
@@ -750,7 +685,7 @@ export function GuestPortal({
                             type="button"
                             onClick={() => emailReceipt(inv.id)}
                             disabled={emailReceiptLoading === inv.id}
-                            className="flex items-center gap-1 rounded-lg bg-white/10 px-2.5 py-1.5 text-xs font-semibold text-white/80 disabled:opacity-50"
+                            className="guest-btn guest-btn-ghost flex items-center gap-1 px-2.5 py-1.5 text-xs disabled:opacity-50"
                           >
                             <Mail className="h-3.5 w-3.5" />
                             {emailReceiptLoading === inv.id ? '…' : 'Email'}
@@ -761,9 +696,9 @@ export function GuestPortal({
                   ))}
                 </ul>
               )}
-              <p className="text-xs text-white/45">Pay at the front desk — staff will record your payment.</p>
+              <p className="text-xs guest-text-subtle">Pay at the front desk — staff will record your payment.</p>
               {emailReceiptMessage && (
-                <p className="text-xs text-[#D4A62E]">{emailReceiptMessage}</p>
+                <p className="text-xs text-[var(--brand-purple)]">{emailReceiptMessage}</p>
               )}
             </PortalCard>
           </div>
@@ -776,20 +711,20 @@ export function GuestPortal({
             aria-labelledby="guest-tab-help"
             className="guest-tab-panel"
           >
-            <form onSubmit={handleComplaintSubmit} className="flex flex-col gap-5">
+            <p className="guest-tab-intro">Report a problem or follow up on something already logged.</p>
+
+            <form onSubmit={handleComplaintSubmit} className="flex flex-col gap-4">
               <PortalCard>
-                <p className="text-sm font-semibold">Report an issue</p>
-                <p className="mt-1 text-xs text-white/55">Add a photo to help our team diagnose faster.</p>
-                <div className="mt-4 grid grid-cols-4 gap-2">
+                <p className="guest-portal-card__title">Report an issue</p>
+                <p className="guest-portal-card__hint">Pick a category, describe what happened, then send.</p>
+                <div className="guest-category-grid mt-4">
                   {categories.map(({ id, label, icon: Icon }) => (
                     <button
                       key={id}
                       type="button"
                       onClick={() => setCategory(id)}
-                      className={`guest-btn flex flex-col items-center gap-1.5 rounded-xl p-2.5 text-[10px] transition ${
-                        category === id
-                          ? 'bg-white/12 ring-1 ring-white/25'
-                          : 'bg-white/5 hover:bg-white/10'
+                      className={`guest-category-chip guest-btn ${
+                        category === id ? 'guest-category-chip--active' : ''
                       }`}
                     >
                       <Icon className="h-5 w-5" />
@@ -804,11 +739,11 @@ export function GuestPortal({
                   minLength={10}
                   rows={4}
                   placeholder="Describe the issue…"
-                  className="mt-4 w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2.5 text-sm placeholder:text-white/35"
+                  className="guest-field mt-4"
                 />
-                <label className="mt-3 flex cursor-pointer items-center gap-2 rounded-xl bg-white/5 px-3 py-2.5 text-sm text-white/70">
+                <label className="guest-inset-row mt-3 flex cursor-pointer items-center gap-2 px-3 py-2.5 text-sm guest-text-muted">
                   <Camera className="h-4 w-4" />
-                  {photo ? photo.name : 'Attach photo (optional)'}
+                  {photo ? photo.name : 'Add photo (optional)'}
                   <input
                     type="file"
                     accept="image/jpeg,image/png,image/webp"
@@ -824,12 +759,12 @@ export function GuestPortal({
                         key={label}
                         type="button"
                         onClick={() => setUrgent(isUrgent)}
-                        className={`guest-btn flex-1 rounded-xl py-2.5 text-sm font-semibold ${
+                        className={`guest-toggle-btn guest-btn flex-1 py-2.5 text-sm ${
                           urgent === isUrgent
                             ? isUrgent
                               ? 'guest-btn-accent'
                               : 'guest-btn-primary'
-                            : 'bg-white/5 text-white/60 hover:bg-white/10'
+                            : ''
                         }`}
                       >
                         {label}
@@ -837,11 +772,11 @@ export function GuestPortal({
                     )
                   })}
                 </div>
-                {complaintError && <FormError message={complaintError} variant="dark" className="mt-2" />}
+                {complaintError && <FormError message={complaintError} className="mt-2" />}
                 <button
                   type="submit"
                   disabled={complaintLoading || !category || description.length < 10}
-                  className="guest-btn guest-btn-accent mt-4 w-full py-3.5 text-sm disabled:opacity-50"
+                  className="guest-btn guest-btn-primary mt-4 w-full py-3 text-sm disabled:opacity-50"
                 >
                   {complaintLoading ? 'Submitting…' : 'Submit issue'}
                 </button>
@@ -850,7 +785,7 @@ export function GuestPortal({
 
             {complaints.length > 0 && (
               <section className="flex flex-col gap-3">
-                <p className="text-sm font-semibold">My issues</p>
+                <p className="guest-portal-card__title">Your issues</p>
                 <ul className="flex flex-col gap-3">
                   {complaints.map((c) => (
                     <GuestComplaintCard
@@ -867,32 +802,6 @@ export function GuestPortal({
                 </ul>
               </section>
             )}
-
-            {localGuide.length > 0 && (
-              <PortalCard className="space-y-3">
-                <p className="text-sm font-semibold">Local guide</p>
-                {localGuide.map((item) => (
-                  <div key={item.id} className="border-t border-white/10 pt-3 first:border-0 first:pt-0">
-                    <p className="text-sm font-medium text-[#D4A62E]">{item.title}</p>
-                    <p className="mt-1 text-sm text-white/70">{item.body}</p>
-                  </div>
-                ))}
-              </PortalCard>
-            )}
-
-            {rules.length > 0 && (
-              <PortalCard className="space-y-2">
-                <p className="text-sm font-semibold">Property rules</p>
-                <ol className="space-y-2 text-sm text-white/70">
-                  {rules.map((rule, i) => (
-                    <li key={rule.id}>
-                      <span className="mr-2 font-semibold text-[#D4A62E]">{i + 1}.</span>
-                      {rule.ruleText}
-                    </li>
-                  ))}
-                </ol>
-              </PortalCard>
-            )}
           </div>
         )}
 
@@ -903,14 +812,35 @@ export function GuestPortal({
             aria-labelledby="guest-tab-account"
             className="guest-tab-panel"
           >
+            <p className="guest-tab-intro">Your details, preferences, and property information.</p>
+
             <PortalCard>
-              <p className="mb-3 text-sm font-semibold">Your phone</p>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="guest-portal-card__title">Do not disturb</p>
+                  <p className="guest-portal-card__hint">Housekeeping will skip your room while this is on.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={toggleDnd}
+                  className={`guest-btn flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold ${
+                    dnd ? 'guest-btn-accent' : 'guest-btn-ghost'
+                  }`}
+                >
+                  {dnd ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+                  {dnd ? 'On' : 'Off'}
+                </button>
+              </div>
+            </PortalCard>
+
+            <PortalCard>
+              <p className="guest-portal-card__title mb-3">Your phone</p>
               <GuestPhoneEditor initialPhone={guest.phone} />
             </PortalCard>
 
             {!feedbackDone ? (
               <PortalCard>
-                <p className="text-sm font-semibold">How was your stay?</p>
+                <p className="guest-portal-card__title">How was your stay?</p>
                 <form onSubmit={handleFeedback} className="mt-4 space-y-4">
                   <div className="flex justify-center gap-2">
                     {[1, 2, 3, 4, 5].map((n) => (
@@ -923,7 +853,7 @@ export function GuestPortal({
                       >
                         <Star
                           className={`h-8 w-8 ${
-                            n <= rating ? 'fill-[#D4A62E] text-[#D4A62E]' : 'text-white/25'
+                            n <= rating ? 'fill-[var(--brand-gold)] text-[var(--brand-gold)]' : 'text-[var(--guest-border-strong)]'
                           }`}
                         />
                       </button>
@@ -934,9 +864,9 @@ export function GuestPortal({
                     onChange={(e) => setFeedbackComment(e.target.value)}
                     rows={3}
                     placeholder="Tell us more (optional)…"
-                    className="w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm placeholder:text-white/35"
+                    className="guest-field"
                   />
-                  {feedbackError && <FormError message={feedbackError} variant="dark" />}
+                  {feedbackError && <FormError message={feedbackError} className="mt-2" />}
                   <button
                     type="submit"
                     disabled={feedbackLoading || rating < 1}
@@ -948,30 +878,67 @@ export function GuestPortal({
               </PortalCard>
             ) : (
               <PortalCard className="text-center">
-                <Star className="mx-auto h-8 w-8 fill-[#D4A62E] text-[#D4A62E]" />
+                <Star className="mx-auto h-8 w-8 fill-[var(--brand-gold)] text-[var(--brand-gold)]" />
                 <p className="mt-2 text-sm font-medium">Thanks for your feedback</p>
               </PortalCard>
             )}
+
+            {propertyContacts.length > 0 && (
+              <PortalCard className="space-y-3">
+                <PhoneContactList
+                  contacts={propertyContacts}
+                  title="Contact property"
+                  emptyMessage=""
+                  variant="light"
+                />
+              </PortalCard>
+            )}
+
+            {localGuide.length > 0 && (
+              <PortalCard className="space-y-3">
+                <p className="guest-portal-card__title">Local guide</p>
+                {localGuide.map((item) => (
+                  <div key={item.id} className="guest-divider pt-3 first:border-0 first:pt-0">
+                    <p className="text-sm font-medium text-[var(--brand-purple)]">{item.title}</p>
+                    <p className="mt-1 text-sm leading-relaxed guest-text-muted">{item.body}</p>
+                  </div>
+                ))}
+              </PortalCard>
+            )}
+
+            {rules.length > 0 && (
+              <PortalCard className="space-y-2">
+                <p className="guest-portal-card__title">Property rules</p>
+                <ol className="space-y-2 text-sm leading-relaxed guest-text-muted">
+                  {rules.map((rule, i) => (
+                    <li key={rule.id}>
+                      <span className="mr-2 font-semibold text-[var(--brand-gold-dark)]">{i + 1}.</span>
+                      {rule.ruleText}
+                    </li>
+                  ))}
+                </ol>
+              </PortalCard>
+            )}
+
+            <div className="flex justify-center gap-3 pt-1 text-xs guest-text-subtle">
+              <Link href="/privacy" className="hover:text-[var(--brand-purple)] hover:underline">
+                Privacy
+              </Link>
+              <span aria-hidden="true">·</span>
+              <Link href="/terms" className="hover:text-[var(--brand-purple)] hover:underline">
+                Terms
+              </Link>
+            </div>
           </div>
         )}
       </main>
 
-      <div className="fixed bottom-[4.75rem] left-0 right-0 z-10 flex justify-center gap-3 px-4 pb-1 text-[10px] text-white/35">
-        <Link href="/privacy" className="hover:text-white/60 hover:underline">
-          Privacy
-        </Link>
-        <span aria-hidden="true">·</span>
-        <Link href="/terms" className="hover:text-white/60 hover:underline">
-          Terms
-        </Link>
-      </div>
-
       <nav
-        className="guest-portal-nav fixed bottom-0 left-0 right-0 z-20 border-t border-white/10 bg-[#12082a]/90 px-3 backdrop-blur-xl"
+        className="guest-portal-nav fixed bottom-0 left-0 right-0 z-20 px-2"
         role="tablist"
         aria-label="Guest portal sections"
       >
-        <div className="mx-auto flex max-w-lg justify-around gap-1">
+        <div className="mx-auto flex max-w-md justify-around gap-0.5">
           {tabs.map(({ id, label, icon: Icon }) => {
             const active = activeTab === id
             return (
@@ -984,11 +951,11 @@ export function GuestPortal({
                 aria-controls={`guest-panel-${id}`}
                 tabIndex={active ? 0 : -1}
                 onClick={() => setActiveTab(id)}
-                className={`guest-tab-btn flex flex-1 flex-col items-center gap-1.5 rounded-xl py-2.5 text-[10px] font-semibold ${
-                  active ? 'text-[var(--brand-gold)]' : 'text-white/45'
+                className={`guest-tab-btn flex flex-1 flex-col items-center gap-1 rounded-lg py-2 text-[10px] font-semibold ${
+                  active ? '' : 'guest-text-subtle'
                 }`}
               >
-                <Icon className={`h-5 w-5 ${active ? 'scale-110' : ''}`} />
+                <Icon className="h-5 w-5" />
                 {label}
               </button>
             )
@@ -997,10 +964,10 @@ export function GuestPortal({
       </nav>
 
       {chatComplaintId && (
-        <div className="fixed inset-0 z-30 flex flex-col bg-[#12082a]/95 backdrop-blur">
-          <div className="flex items-center justify-between border-b border-white/10 px-4 py-4">
+        <div className="guest-chat-overlay fixed inset-0 z-30 flex flex-col">
+          <div className="flex items-center justify-between border-b border-[var(--guest-border)] bg-[var(--guest-bg-elevated)] px-4 py-3.5">
             <div className="flex items-center gap-2">
-              <MessageCircle className="h-5 w-5 text-[#D4A62E]" />
+              <MessageCircle className="h-5 w-5 text-[var(--brand-purple)]" />
               <p className="font-semibold">Message staff</p>
             </div>
             <button

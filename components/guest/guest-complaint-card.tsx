@@ -89,7 +89,7 @@ export function GuestComplaintCard({
   return (
     <li
       id={`guest-issue-${complaint.id}`}
-      className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.07]"
+      className="guest-complaint-card"
     >
       <button
         type="button"
@@ -98,23 +98,23 @@ export function GuestComplaintCard({
       >
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="font-medium capitalize text-white">{complaint.category}</p>
-            <span className="rounded-md bg-white/10 px-2 py-0.5 font-mono text-[10px] text-white/60">
+            <p className="font-medium capitalize">{complaint.category}</p>
+            <span className="rounded-md bg-[var(--guest-accent-soft)] px-2 py-0.5 font-mono text-[10px] guest-text-muted">
               {guestComplaintReference(complaint.id)}
             </span>
           </div>
-          <p className="mt-0.5 text-sm text-[#D4A62E]">
+          <p className="mt-0.5 text-sm text-[var(--brand-gold-dark)]">
             {guestStatusLabel(complaint.status, complaint.approval_stage)}
           </p>
           {complaint.description && (
-            <p className="mt-1 line-clamp-2 text-sm text-white/60">{complaint.description}</p>
+            <p className="mt-1 line-clamp-2 text-sm guest-text-muted">{complaint.description}</p>
           )}
         </div>
-        <span className="shrink-0 text-xs text-white/40">{expanded ? 'Hide' : 'Details'}</span>
+        <span className="shrink-0 text-xs guest-text-subtle">{expanded ? 'Hide' : 'Details'}</span>
       </button>
 
       {expanded && (
-        <div className="border-t border-white/10 px-4 pb-4">
+        <div className="guest-divider px-4 pb-4">
           {nextAction && (
             <div className="mt-3">
               <GuestNextStepBanner
@@ -134,10 +134,10 @@ export function GuestComplaintCard({
           <GuestComplaintProgress complaint={complaint} />
 
           {(complaint.scheduled_visit_at || awaitingVisit) && (
-            <div className="mt-3 rounded-xl bg-white/5 px-3 py-3">
+            <div className="mt-3 guest-inset-row">
               <ScheduledVisitDisplay
                 scheduledVisitAt={complaint.scheduled_visit_at}
-                variant="dark"
+                variant="light"
                 pendingMessage={
                   awaitingVisit
                     ? 'Your technician will call you to agree a visit time.'
@@ -149,14 +149,14 @@ export function GuestComplaintCard({
 
           {activity.length > 0 && (
             <div className="mt-4">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-white/45">
+              <p className="text-[10px] font-bold uppercase tracking-widest guest-text-subtle">
                 Recent updates
               </p>
               <ul className="mt-2 space-y-2">
                 {activity.slice(-4).map((ev) => (
                   <li key={ev.id} className="flex items-start justify-between gap-2 text-xs">
-                    <span className="text-white/75">{ev.label}</span>
-                    <span className="shrink-0 text-white/40">
+                    <span className="guest-text-muted">{ev.label}</span>
+                    <span className="shrink-0 guest-text-subtle">
                       {new Date(ev.createdAt).toLocaleString('en-GB', {
                         month: 'short',
                         day: 'numeric',
@@ -175,7 +175,7 @@ export function GuestComplaintCard({
               id={`guest-chat-${complaint.id}`}
               type="button"
               onClick={onOpenChat}
-              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 py-2.5 text-sm font-medium text-white/80"
+              className="guest-btn guest-btn-ghost mt-4 flex w-full items-center justify-center gap-2 py-2.5 text-sm font-medium"
             >
               <MessageCircle className="h-4 w-4" />
               Message staff
@@ -185,21 +185,21 @@ export function GuestComplaintCard({
           {canApprove && (
             <div
               id={`guest-approve-${complaint.id}`}
-              className="mt-4 space-y-2 border-t border-white/10 pt-4"
+              className="mt-4 space-y-2 guest-divider pt-4"
             >
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-[#D4A62E]" />
-                <p className="text-sm font-medium text-white">Confirm work is complete</p>
+                <CheckCircle2 className="h-4 w-4 text-[var(--brand-gold-dark)]" />
+                <p className="text-sm font-medium">Confirm work is complete</p>
               </div>
-              <p className="text-xs text-white/70">
+              <p className="text-xs guest-text-muted">
                 Our technician has finished. Tap below once you are satisfied with the repair.
               </p>
-              {approveError && <p className="text-sm text-red-200">{approveError}</p>}
+              {approveError && <p className="text-sm text-red-600">{approveError}</p>}
               <button
                 type="button"
                 onClick={handleApprove}
                 disabled={approveLoading}
-                className="w-full rounded-xl bg-[#D85A30] py-3 text-sm font-semibold text-white disabled:opacity-50"
+                className="guest-btn guest-btn-accent w-full py-3 text-sm disabled:opacity-50"
               >
                 {approveLoading ? 'Confirming…' : 'Yes, work is complete'}
               </button>

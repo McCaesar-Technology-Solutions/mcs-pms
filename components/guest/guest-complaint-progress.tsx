@@ -12,8 +12,8 @@ export function GuestComplaintProgress({ complaint }: GuestComplaintProgressProp
   const steps = buildGuestRepairSteps(complaint)
 
   return (
-    <div className="mt-3 border-t border-white/10 pt-3">
-      <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">
+    <div className="mt-3 guest-divider pt-3">
+      <p className="text-[10px] font-bold uppercase tracking-widest guest-text-subtle">
         Repair progress
       </p>
       <ol className="mt-3 space-y-0">
@@ -25,10 +25,10 @@ export function GuestComplaintProgress({ complaint }: GuestComplaintProgressProp
                 <span
                   className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${
                     step.state === 'complete'
-                      ? 'bg-emerald-500/25 text-emerald-300'
+                      ? 'bg-emerald-500/15 text-emerald-600'
                       : step.state === 'current'
-                        ? 'bg-[#D4A62E]/25 text-[#D4A62E]'
-                        : 'bg-white/10 text-white/30'
+                        ? 'bg-[var(--guest-gold-soft)] text-[var(--brand-gold-dark)]'
+                        : 'bg-[var(--guest-accent-softer)] guest-text-subtle'
                   }`}
                 >
                   {step.state === 'complete' ? (
@@ -42,7 +42,7 @@ export function GuestComplaintProgress({ complaint }: GuestComplaintProgressProp
                 {!isLast && (
                   <span
                     className={`my-0.5 w-px flex-1 min-h-4 ${
-                      step.state === 'complete' ? 'bg-emerald-500/30' : 'bg-white/10'
+                      step.state === 'complete' ? 'bg-emerald-500/25' : 'bg-[var(--guest-border)]'
                     }`}
                   />
                 )}
@@ -50,7 +50,7 @@ export function GuestComplaintProgress({ complaint }: GuestComplaintProgressProp
               <div className={`pb-4 ${isLast ? 'pb-0' : ''}`}>
                 <p
                   className={`text-sm font-medium ${
-                    step.state === 'upcoming' ? 'text-white/45' : 'text-white/90'
+                    step.state === 'upcoming' ? 'guest-text-subtle' : ''
                   }`}
                 >
                   {step.label}
@@ -58,7 +58,7 @@ export function GuestComplaintProgress({ complaint }: GuestComplaintProgressProp
                 {step.detail && (
                   <p
                     className={`mt-0.5 text-xs leading-relaxed ${
-                      step.state === 'current' ? 'text-[#D4A62E]/90' : 'text-white/55'
+                      step.state === 'current' ? 'text-[var(--brand-gold-dark)]' : 'guest-text-muted'
                     }`}
                   >
                     {step.detail}

@@ -38,50 +38,52 @@ export function GuestRulesGate({ hotelName, rules, mode, slug }: GuestRulesGateP
   }
 
   return (
-    <div className="guest-auth-shell bg-[#22124C] text-white">
-      <div className="mx-auto flex max-w-lg flex-col gap-8">
-        <p className="text-center font-[family-name:var(--font-cormorant)] text-3xl font-semibold text-[#D4A62E]">
-          MOJO APARTMENTS
-        </p>
-        <p className="mt-3 text-center text-lg text-white/90">{hotelName}</p>
-        <h1 className="text-center text-xl font-semibold">Rules &amp; regulations</h1>
-        <p className="text-center text-sm leading-relaxed text-white/70">
-          Please read the following house rules. You must agree before accessing the guest portal.
-        </p>
+    <div className="guest-auth-shell">
+      <div className="mx-auto flex max-w-lg flex-col gap-6">
+        <div className="text-center">
+          <p className="guest-auth-brand">MOJO APARTMENTS</p>
+          <p className="mt-2 text-lg">{hotelName}</p>
+        </div>
 
-        <ol className="space-y-4 rounded-2xl border border-white/15 bg-white/5 p-5">
+        <div>
+          <h1 className="text-center text-lg font-semibold">House rules</h1>
+          <p className="mt-2 text-center text-sm leading-relaxed guest-text-muted">
+            Quick read before you continue. You agreed to follow these during your stay.
+          </p>
+        </div>
+
+        <ol className="guest-portal-card max-h-[50dvh] space-y-3 overflow-y-auto">
           {rules.map((rule, index) => (
-            <li key={rule.id} className="flex gap-3 text-sm leading-relaxed text-white/90">
-              <span className="mt-0.5 shrink-0 font-semibold text-[#D4A62E]">{index + 1}.</span>
+            <li key={rule.id} className="flex gap-3 text-sm leading-relaxed">
+              <span className="shrink-0 font-semibold text-[var(--brand-gold-dark)]">{index + 1}.</span>
               <span>{rule.ruleText}</span>
             </li>
           ))}
         </ol>
 
-        <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/15 bg-white/5 p-4">
+        <label className="guest-portal-card flex cursor-pointer items-start gap-3">
           <input
             type="checkbox"
             checked={agreed}
             onChange={(e) => setAgreed(e.target.checked)}
-            className="mt-1 h-4 w-4 shrink-0 accent-[#D4A62E]"
+            className="mt-1 h-4 w-4 shrink-0 accent-[var(--brand-gold)]"
           />
-          <span className="text-sm text-white/90">
-            I have read and agree to the rules and regulations of {hotelName}. I understand that
-            failure to comply may result in removal from the property.
+          <span className="text-sm leading-relaxed">
+            I agree to the rules for {hotelName}.
           </span>
         </label>
 
         {error && (
-          <p className="rounded-lg bg-red-500/20 px-3 py-2 text-sm text-red-200">{error}</p>
+          <p className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-700">{error}</p>
         )}
 
         <button
           type="button"
           onClick={handleContinue}
           disabled={!agreed || loading}
-          className="w-full rounded-xl bg-[#3C216C] py-4 text-lg font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+          className="guest-btn guest-btn-primary w-full py-3.5 text-base disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {loading ? 'Continuing…' : 'I agree — continue'}
+          {loading ? 'Continuing…' : 'Continue to portal'}
         </button>
       </div>
     </div>

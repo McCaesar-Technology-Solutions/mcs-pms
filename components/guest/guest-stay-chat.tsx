@@ -123,17 +123,17 @@ export function GuestStayChat() {
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/5">
-      <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+    <div className="guest-subpanel">
+      <div className="guest-subpanel__header">
         <div>
-          <p className="text-sm font-semibold text-white">Message the team</p>
-          <p className="text-xs text-white/55">Chat with the front desk about your stay</p>
+          <p className="text-sm font-semibold">Message the team</p>
+          <p className="text-xs guest-text-subtle">Chat with the front desk about your stay</p>
         </div>
         <button
           type="button"
           onClick={() => load()}
           disabled={refreshing}
-          className="rounded-lg p-2 text-white/60 hover:bg-white/10"
+          className="guest-icon-btn"
           aria-label="Refresh messages"
         >
           <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
@@ -146,12 +146,12 @@ export function GuestStayChat() {
         aria-live="polite"
       >
         {initialLoading ? (
-          <div className="flex items-center justify-center py-8 text-white/50">
+          <div className="flex items-center justify-center py-8 guest-text-subtle">
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             <p className="text-sm">Loading messages…</p>
           </div>
         ) : messages.length === 0 ? (
-          <p className="py-6 text-center text-sm text-white/55">
+          <p className="py-6 text-center text-sm guest-text-muted">
             Ask about checkout, requests, or anything else — the front desk will reply here.
           </p>
         ) : (
@@ -163,14 +163,12 @@ export function GuestStayChat() {
                 className={`flex ${isGuest ? 'justify-end' : 'justify-start'}`}
               >
                 <div
-                  className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
-                    isGuest
-                      ? 'rounded-br-md bg-[#D4A62E] text-[#22124C]'
-                      : 'rounded-bl-md bg-white/10 text-white'
+                  className={`guest-bubble ${
+                    isGuest ? 'guest-bubble--guest' : 'guest-bubble--staff'
                   }`}
                 >
                   {!isGuest && (
-                    <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-[#D4A62E]">
+                    <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-[var(--brand-purple)]">
                       Front desk
                     </p>
                   )}
@@ -182,7 +180,7 @@ export function GuestStayChat() {
         )}
       </div>
 
-      <div className="border-t border-white/10 px-3 py-3">
+      <div className="guest-divider px-3 py-3">
         <div className="mb-2 flex flex-wrap gap-1.5">
           {GUEST_QUICK_REPLIES.map((q) => (
             <button
@@ -190,7 +188,7 @@ export function GuestStayChat() {
               type="button"
               onClick={() => void handleSend(q)}
               disabled={loading}
-              className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] text-white/75 hover:bg-white/15"
+              className="rounded-full border border-[var(--guest-border)] bg-[var(--guest-accent-softer)] px-2.5 py-1 text-[11px] guest-text-muted hover:bg-[var(--guest-accent-soft)]"
             >
               {q}
             </button>
@@ -214,18 +212,18 @@ export function GuestStayChat() {
             }}
             rows={2}
             placeholder="Type a message…"
-            className="min-h-[44px] flex-1 resize-none rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-[#D4A62E]/50"
+            className="guest-field min-h-[44px] flex-1 resize-none"
           />
           <button
             type="submit"
             disabled={loading || !body.trim()}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#D4A62E] text-[#22124C] disabled:opacity-40"
+            className="guest-btn guest-btn-primary flex h-11 w-11 shrink-0 items-center justify-center disabled:opacity-40"
             aria-label="Send message"
           >
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           </button>
         </form>
-        <FormError message={error} variant="dark" className="mt-2" />
+        <FormError message={error} className="mt-2" />
       </div>
     </div>
   )

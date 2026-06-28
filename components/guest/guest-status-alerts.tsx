@@ -10,6 +10,7 @@ interface GuestStatusAlertsProps {
   complaints: Complaint[]
   requests: GuestPortalRequest[]
   onOpenHelp: () => void
+  onOpenStay: () => void
 }
 
 function snapshotKey(complaints: Complaint[], requests: GuestPortalRequest[]): string {
@@ -21,7 +22,12 @@ function snapshotKey(complaints: Complaint[], requests: GuestPortalRequest[]): s
   return `${c}::${r}`
 }
 
-export function GuestStatusAlerts({ complaints, requests, onOpenHelp }: GuestStatusAlertsProps) {
+export function GuestStatusAlerts({
+  complaints,
+  requests,
+  onOpenHelp,
+  onOpenStay,
+}: GuestStatusAlertsProps) {
   const [dismissedKey, setDismissedKey] = useState<string | null>(null)
   const currentKey = useMemo(() => snapshotKey(complaints, requests), [complaints, requests])
   const [seenKey, setSeenKey] = useState<string | null>(null)
@@ -45,6 +51,7 @@ export function GuestStatusAlerts({ complaints, requests, onOpenHelp }: GuestSta
 
   if (!changed && !requestUpdate) return null
 
+  const isRequestUpdate = Boolean(requestUpdate && !nextAction)
   const title = nextAction?.title ?? 'Stay update'
   const detail =
     nextAction?.detail ??
@@ -60,23 +67,32 @@ export function GuestStatusAlerts({ complaints, requests, onOpenHelp }: GuestSta
     }
   }
 
+  function openTarget() {
+    dismiss()
+    if (isRequestUpdate) {
+      onOpenStay()
+    } else {
+      onOpenHelp()
+    }
+  }
+
   return (
-    <div className="rounded-2xl border border-white/14 bg-gradient-to-br from-white/10 to-[var(--brand-purple)]/25 p-5 shadow-[0_8px_28px_rgba(0,0,0,0.2)]">
+    <div className="guest-notice-card">
       <div className="flex items-start justify-between gap-3">
         <div className="flex gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/12">
-            <Bell className="h-4 w-4 text-white" />
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--guest-accent-soft)] text-[var(--brand-purple)]">
+            <Bell className="h-4 w-4" />
           </div>
           <div>
-            <p className="label-eyebrow text-white/55">Update</p>
-            <p className="mt-0.5 text-sm font-semibold text-white">{title}</p>
-            <p className="mt-1 text-sm text-white/75">{detail}</p>
+            <p className="text-[11px] font-semibold uppercase tracking-wide guest-text-subtle">Update</p>
+            <p className="mt-0.5 text-sm font-semibold">{title}</p>
+            <p className="mt-1 text-sm leading-relaxed guest-text-muted">{detail}</p>
           </div>
         </div>
         <button
           type="button"
           onClick={dismiss}
-          className="guest-icon-btn shrink-0 text-white/50 hover:text-white"
+          className="guest-icon-btn shrink-0"
           aria-label="Dismiss"
         >
           <X className="h-4 w-4" />
@@ -84,13 +100,10 @@ export function GuestStatusAlerts({ complaints, requests, onOpenHelp }: GuestSta
       </div>
       <button
         type="button"
-        onClick={() => {
-          dismiss()
-          onOpenHelp()
-        }}
+        onClick={openTarget}
         className="guest-btn guest-btn-primary mt-3 w-full py-2.5 text-sm"
       >
-        View in Help
+        {isRequestUpdate ? 'View in My stay' : 'View in Help'}
       </button>
     </div>
   )

@@ -127,7 +127,7 @@ export function GuestComplaintChat({ complaintId }: GuestComplaintChatProps) {
           type="button"
           onClick={() => load()}
           disabled={refreshing}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-white/10 px-2.5 py-1.5 text-xs font-medium text-white/70 hover:bg-white/15 disabled:opacity-50"
+          className="guest-btn guest-btn-ghost inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium disabled:opacity-50"
           aria-label="Refresh messages"
         >
           <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
@@ -137,12 +137,12 @@ export function GuestComplaintChat({ complaintId }: GuestComplaintChatProps) {
 
       <div ref={scrollRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto">
         {initialLoading ? (
-          <div className="flex flex-col items-center justify-center gap-2 py-12 text-white/50">
+          <div className="flex flex-col items-center justify-center gap-2 py-12 guest-text-subtle">
             <Loader2 className="h-6 w-6 animate-spin" />
             <p className="text-sm">Loading messages…</p>
           </div>
         ) : messages.length === 0 ? (
-          <p className="py-8 text-center text-sm text-white/50">
+          <p className="py-8 text-center text-sm guest-text-muted">
             No messages yet. Send a note to the team about this issue.
           </p>
         ) : (
@@ -151,15 +151,15 @@ export function GuestComplaintChat({ complaintId }: GuestComplaintChatProps) {
             return (
               <div key={m.id} className={`flex ${isGuest ? 'justify-end' : 'justify-start'}`}>
                 <div
-                  className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm ${
-                    isGuest ? 'bg-[#3C216C] text-white' : 'bg-white/10 text-white/90'
+                  className={`guest-bubble ${
+                    isGuest ? 'guest-bubble--guest' : 'guest-bubble--staff'
                   }`}
                 >
-                  <p className="text-[10px] font-bold uppercase tracking-wide opacity-60">
+                  <p className="text-[10px] font-bold uppercase tracking-wide opacity-70">
                     {isGuest ? 'You' : 'Staff'}
                   </p>
                   <p className="mt-0.5 whitespace-pre-wrap">{m.body}</p>
-                  <p className="mt-1 text-[10px] opacity-45">
+                  <p className="mt-1 text-[10px] opacity-60">
                     {new Date(m.createdAt).toLocaleString('en-GB', {
                       month: 'short',
                       day: 'numeric',
@@ -182,7 +182,7 @@ export function GuestComplaintChat({ complaintId }: GuestComplaintChatProps) {
               type="button"
               onClick={() => void handleSend(reply)}
               disabled={loading}
-              className="shrink-0 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-left text-[11px] leading-snug text-white/80 hover:bg-white/10 disabled:opacity-50"
+              className="shrink-0 rounded-full border border-[var(--guest-border)] bg-[var(--guest-accent-softer)] px-3 py-1.5 text-left text-[11px] leading-snug guest-text-muted hover:bg-[var(--guest-accent-soft)] disabled:opacity-50"
             >
               {reply}
             </button>
@@ -195,18 +195,18 @@ export function GuestComplaintChat({ complaintId }: GuestComplaintChatProps) {
             onChange={(e) => setBody(e.target.value)}
             placeholder="Type a message…"
             aria-label="Message to staff"
-            className="min-w-0 flex-1 rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/35"
+            className="guest-field min-w-0 flex-1"
           />
           <button
             type="submit"
             disabled={loading || !body.trim()}
             aria-label="Send message"
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#D4A62E] text-[#22124C] disabled:opacity-50"
+            className="guest-btn guest-btn-primary flex h-12 w-12 shrink-0 items-center justify-center disabled:opacity-50"
           >
             {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
           </button>
         </form>
-        <FormError message={error} variant="dark" className="mt-2" />
+        <FormError message={error} className="mt-2" />
       </div>
     </div>
   )
