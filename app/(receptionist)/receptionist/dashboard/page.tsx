@@ -6,6 +6,9 @@ import { TodayGuestStrip } from '@/components/dashboard/today-guest-strip'
 import { ComplaintsOverviewLive } from '@/components/complaints/complaints-overview-live'
 import { fetchHotelComplaints } from '@/lib/data/complaints'
 import { getDashboardData } from '@/lib/data/dashboard'
+import { FrontDeskOpsSection } from '@/components/dashboard/front-desk-ops-section'
+import { parseOpsDate } from '@/lib/dates/ops-date'
+import { loadFrontDeskOpsContext } from '@/lib/data/load-front-desk-ops'
 import {
   computeTodayOperations,
   getTodayArrivals,
@@ -14,7 +17,15 @@ import {
 import { getOccupancyToday } from '@/lib/data/occupancy'
 import { createClient } from '@/lib/supabase/server'
 
-export default async function ReceptionistDashboardPage() {
+export default async function ReceptionistDashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ opsDate?: string }>
+}) {
+  const { opsDate: opsDateParam } = await searchParams
+  const frontDesk = await loadFrontDeskOpsContext(opsDateParam)
+  const opsDate = frontDesk?.opsDate ?? parseOpsDate(opsDateParam)
+
   const [complaints, { metrics, reservations, hotelId }] = await Promise.all([
     fetchHotelComplaints(),
     getDashboardData(),
@@ -22,9 +33,19 @@ export default async function ReceptionistDashboardPage() {
 
   const supabase = await createClient()
   const occupancyToday = hotelId ? await getOccupancyToday(supabase, hotelId) : undefined
-  const todayOps = computeTodayOperations(reservations)
-  const arrivals = getTodayArrivals(reservations)
-  const departures = getTodayDepartures(reservations)
+  const todayOps =
+    frontDesk?.ops ??
+    ({
+      ...computeTodayOperations(reservations, opsDate),
+      dirtyRooms: 0,
+      guestRequests: 0,
+      unreadMessages: 0,
+      prepaidArrivals: 0,
+      vacantRooms: 0,
+      maintenanceRooms: 0,
+    } as const)
+  const arrivals = getTodayArrivals(reservations, opsDate)
+  const departures = getTodayDepartures(reservations, opsDate)
 
   return (
     <div className="page-shell pb-10">
@@ -34,6 +55,8 @@ export default async function ReceptionistDashboardPage() {
           eyebrow="Front desk"
           occupancy={occupancyToday}
           today={todayOps}
+          opsDate={opsDate}
+          showOpsDateSelector
         />
         <DashboardAttention
           today={todayOps}
@@ -44,6 +67,9 @@ export default async function ReceptionistDashboardPage() {
       </DashboardHero>
 
       <div className="page-content-stack page-shell--after-hero">
+        <section className="dashboard-section dashboard-section--compact">
+          <FrontDeskOpsSection routePrefix="/receptionist" opsDateParam={opsDateParam} />
+        </section>
         <section className="dashboard-section space-y-4">
           <SectionHeading title="Today on the desk" description="Arrivals and departures" />
           <TodayGuestStrip

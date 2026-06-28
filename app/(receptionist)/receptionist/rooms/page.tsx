@@ -1,20 +1,19 @@
-import { RoomsManager } from '@/components/dashboard/rooms-manager'
-import { PageHeader } from '@/components/dashboard/page-header'
-import { getDashboardData } from '@/lib/data/dashboard'
-import { getRoomCategories } from '@/lib/data/room-categories'
+import { StaffRoomsPage } from '@/components/dashboard/staff-rooms-page'
 
 export default async function ReceptionistRoomsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>
+  searchParams: Promise<{ q?: string; view?: string; filter?: string; opsDate?: string }>
 }) {
-  const { q } = await searchParams
-  const [{ dbRooms }, categories] = await Promise.all([getDashboardData(), getRoomCategories()])
-
   return (
-    <div className="page-shell page-content-stack">
-      <PageHeader badge="Rooms" title="Room Status" description="Update room availability as guests arrive and leave." />
-      <RoomsManager rooms={dbRooms} categories={categories} statusOnly initialSearch={q} />
-    </div>
+    <StaffRoomsPage
+      routePrefix="/receptionist"
+      badge="Rooms"
+      title="Room Status"
+      description="Update room availability as guests arrive and leave."
+      statusOnly
+      defaultView="floor"
+      searchParams={searchParams}
+    />
   )
 }

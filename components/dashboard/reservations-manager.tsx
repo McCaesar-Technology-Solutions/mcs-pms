@@ -120,6 +120,18 @@ interface ReservationsManagerProps {
   openReservationId?: string
   initialNewFlow?: 'book' | 'check_in'
   staffRole?: UserRole
+  initialCheckInDate?: string
+  initialCheckOutDate?: string
+  initialStatus?: (typeof STATUS_FILTERS)[number]
+  initialPaymentSecured?: boolean
+}
+
+function isSecuredReservationPayment(res: Reservation): boolean {
+  if (res.paymentStatus === 'paid' || res.paymentStatus === 'deposit_paid' || res.paymentStatus === 'complimentary') {
+    return true
+  }
+  if (res.paymentStatus === 'partial') return res.depositAmount > 0
+  return false
 }
 
 export function ReservationsManager({
@@ -130,12 +142,21 @@ export function ReservationsManager({
   openReservationId,
   initialNewFlow,
   staffRole = 'receptionist',
+  initialCheckInDate,
+  initialCheckOutDate,
+  initialStatus,
+  initialPaymentSecured = false,
 }: ReservationsManagerProps) {
   const router = useRouter()
   const [selectedId, setSelectedId] = useState<string | null>(openReservationId ?? null)
   const [search, setSearch] = useState(initialSearch)
-  const [statusFilter, setStatusFilter] = useState<(typeof STATUS_FILTERS)[number]>('all')
+  const [statusFilter, setStatusFilter] = useState<(typeof STATUS_FILTERS)[number]>(
+    initialStatus ?? 'all',
+  )
   const [paymentFilter, setPaymentFilter] = useState<(typeof PAYMENT_FILTERS)[number]>('all')
+  const [checkInDateFilter, setCheckInDateFilter] = useState(initialCheckInDate ?? '')
+  const [checkOutDateFilter, setCheckOutDateFilter] = useState(initialCheckOutDate ?? '')
+  const [paymentSecuredFilter, setPaymentSecuredFilter] = useState(initialPaymentSecured)
   const [creating, setCreating] = useState(Boolean(initialNewFlow))
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
 
@@ -149,9 +170,27 @@ export function ReservationsManager({
         res.roomNumber.includes(q)
       const matchesStatus = statusFilter === 'all' || res.status === statusFilter
       const matchesPayment = paymentFilter === 'all' || res.paymentStatus === paymentFilter
-      return matchesSearch && matchesStatus && matchesPayment
+      const matchesCheckIn = !checkInDateFilter || res.checkInDate === checkInDateFilter
+      const matchesCheckOut = !checkOutDateFilter || res.checkOutDate === checkOutDateFilter
+      const matchesSecured = !paymentSecuredFilter || isSecuredReservationPayment(res)
+      return (
+        matchesSearch &&
+        matchesStatus &&
+        matchesPayment &&
+        matchesCheckIn &&
+        matchesCheckOut &&
+        matchesSecured
+      )
     })
-  }, [reservations, search, statusFilter, paymentFilter])
+  }, [
+    reservations,
+    search,
+    statusFilter,
+    paymentFilter,
+    checkInDateFilter,
+    checkOutDateFilter,
+    paymentSecuredFilter,
+  ])
 
   const selected = selectedId ? reservations.find((r) => r.id === selectedId) ?? null : null
   const bulkSelected = useMemo(

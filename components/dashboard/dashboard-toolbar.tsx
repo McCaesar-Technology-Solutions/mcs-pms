@@ -1,4 +1,6 @@
 import { LogIn, LogOut, Percent, Users } from 'lucide-react'
+import { OpsDateSelector } from '@/components/dashboard/ops-date-selector'
+import { formatOpsDateLabel, isOpsDateToday } from '@/lib/dates/ops-date'
 import type { OccupancyToday } from '@/lib/data/occupancy'
 import type { TodayOperations } from '@/lib/data/overview'
 
@@ -7,6 +9,8 @@ interface DashboardToolbarProps {
   today: TodayOperations
   title?: string
   eyebrow?: string
+  opsDate?: string
+  showOpsDateSelector?: boolean
 }
 
 function StatChip({
@@ -57,23 +61,27 @@ export function DashboardToolbar({
   today,
   title = 'Dashboard',
   eyebrow = 'Today',
+  opsDate,
+  showOpsDateSelector = false,
 }: DashboardToolbarProps) {
-  const dateLabel = new Date().toLocaleDateString('en-GB', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'short',
-  })
+  const activeDate = opsDate ?? new Date().toISOString().slice(0, 10)
+  const dateLabel = formatOpsDateLabel(activeDate)
+  const eyebrowLabel = isOpsDateToday(activeDate) ? eyebrow : formatOpsDateLabel(activeDate)
 
   return (
     <header className="flex flex-col gap-4">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="min-w-0">
-          <p className="label-eyebrow label-eyebrow-accent">{eyebrow}</p>
+          <p className="label-eyebrow label-eyebrow-accent">{eyebrowLabel}</p>
           <h1 className="font-display mt-1 text-[1.625rem] font-semibold tracking-tight text-foreground text-balance sm:text-[1.875rem]">
             {title}
           </h1>
           <p className="mt-0.5 text-sm text-muted-foreground">{dateLabel}</p>
         </div>
+
+        {showOpsDateSelector && (
+          <OpsDateSelector opsDate={activeDate} className="lg:max-w-sm lg:flex-1" />
+        )}
 
         <div className="grid w-full grid-cols-2 gap-2.5 sm:grid-cols-4 lg:max-w-[40rem] lg:flex-1">
           <StatChip

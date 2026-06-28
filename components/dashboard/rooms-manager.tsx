@@ -1,8 +1,11 @@
 'use client'
 
-import { useEffect, useMemo, useState, useTransition } from 'react'
-import { useRouter } from 'next/navigation'
-import { Copy, Download, Plus, Trash2 } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState, useTransition } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { Copy, Download, LayoutGrid, Layers, Plus, Trash2 } from 'lucide-react'
+import { FloorRoomBoard } from '@/components/dashboard/floor-room-board'
+import { OpsDateSelector } from '@/components/dashboard/ops-date-selector'
+import type { RoomBoardSignal, StaffRoutePrefix } from '@/lib/data/front-desk-ops'
 import { toast } from 'sonner'
 import { createRoom, deleteRoom, updateRoom, updateRoomStatus } from '@/app/actions/rooms'
 import { RoomCategoriesPanel } from '@/components/dashboard/room-categories-panel'
@@ -58,6 +61,11 @@ interface RoomsManagerProps {
   /** Front-desk mode: change room status only, no add/edit/delete or pricing. */
   statusOnly?: boolean
   initialSearch?: string
+  routePrefix: StaffRoutePrefix
+  opsDate: string
+  initialView?: 'grid' | 'floor'
+  filter?: 'dirty' | 'maintenance' | 'all'
+  roomSignals?: Record<string, RoomBoardSignal>
 }
 
 export function RoomsManager({
@@ -66,8 +74,18 @@ export function RoomsManager({
   canDelete = false,
   statusOnly = false,
   initialSearch = '',
+  routePrefix,
+  opsDate,
+  initialView = 'grid',
+  filter = 'all',
+  roomSignals = {},
 }: RoomsManagerProps) {
   const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const viewParam = searchParams.get('view')
+  const view: 'grid' | 'floor' =
+    viewParam === 'floor' ? 'floor' : viewParam === 'grid' ? 'grid' : initialView
   const [editing, setEditing] = useState<DbRoom | null>(null)
   const [creating, setCreating] = useState(false)
   const [searchQuery, setSearchQuery] = useState(initialSearch)
@@ -99,6 +117,19 @@ export function RoomsManager({
   }, [filteredRooms])
 
   const selection = useRowSelection(filteredRooms, filteredRooms)
+
+  const signalsMap = useMemo(() => new Map(Object.entries(roomSignals)), [roomSignals])
+
+  const setView = useCallback(
+    (next: 'grid' | 'floor') => {
+      const params = new URLSearchParams(searchParams.toString())
+      if (next === 'floor') params.set('view', 'floor')
+      else params.delete('view')
+      const qs = params.toString()
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+    },
+    [pathname, router, searchParams],
+  )
 
   function roomRef(room: DbRoom) {
     return `RM-${room.number}`
@@ -143,24 +174,50 @@ export function RoomsManager({
 
       <div className="surface-card p-6">
         <div className="surface-card-accent" />
-        <div className="relative mb-6 flex flex-wrap items-center justify-between gap-3">
-          <div>
+        <div className="relative mb-6 flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
             <h3 className="text-lg font-semibold text-foreground">Room Status</h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              {filteredRooms.length} of {rooms.length} rooms · tap a room to update
+              {filteredRooms.length} of {rooms.length} rooms ·{' '}
+              {view === 'floor' ? 'floor board with live signals' : 'tap a room to update'}
             </p>
           </div>
-          {!statusOnly && (
-            <button
-              type="button"
-              onClick={() => setCreating(true)}
-              disabled={!canAddRoom}
-              className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-elevation-1 transition-all hover:-translate-y-px hover:shadow-elevation-2 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <Plus className="h-4 w-4" />
-              Add room
-            </button>
-          )}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="rooms-view-toggle" role="tablist" aria-label="Room view">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={view === 'grid'}
+                className={`rooms-view-toggle__btn ${view === 'grid' ? 'rooms-view-toggle__btn--active' : ''}`}
+                onClick={() => setView('grid')}
+              >
+                <LayoutGrid className="h-4 w-4" />
+                Grid
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={view === 'floor'}
+                className={`rooms-view-toggle__btn ${view === 'floor' ? 'rooms-view-toggle__btn--active' : ''}`}
+                onClick={() => setView('floor')}
+              >
+                <Layers className="h-4 w-4" />
+                Floors
+              </button>
+            </div>
+            <OpsDateSelector opsDate={opsDate} />
+            {!statusOnly && (
+              <button
+                type="button"
+                onClick={() => setCreating(true)}
+                disabled={!canAddRoom}
+                className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-elevation-1 transition-all hover:-translate-y-px hover:shadow-elevation-2 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Plus className="h-4 w-4" />
+                Add room
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="relative mb-4">
@@ -185,6 +242,16 @@ export function RoomsManager({
           </p>
         ) : filteredRooms.length === 0 ? (
           <p className="py-10 text-center text-sm text-muted-foreground">No rooms match your search.</p>
+        ) : view === 'floor' ? (
+          <FloorRoomBoard
+            rooms={filteredRooms}
+            signals={signalsMap}
+            routePrefix={routePrefix}
+            filter={filter}
+            onRoomClick={(room) => setEditing(room)}
+            selectedRoomIds={selection.selectedIds}
+            categoryLabel={categoryLabel}
+          />
         ) : (
           <div className="relative grid grid-cols-4 gap-2 sm:grid-cols-6 md:grid-cols-8">
             {filteredRooms.map((room) => {

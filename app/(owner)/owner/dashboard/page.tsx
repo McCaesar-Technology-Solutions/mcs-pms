@@ -11,12 +11,15 @@ import { getDashboardData } from '@/lib/data/dashboard'
 import { loadHotelGuestFeedback } from '@/lib/data/guest-feedback'
 import { getHousekeepingTasks } from '@/lib/data/housekeeping'
 import { countOverdueTasks } from '@/lib/housekeeping/task-view'
+import { FrontDeskOpsSection } from '@/components/dashboard/front-desk-ops-section'
+import { parseOpsDate } from '@/lib/dates/ops-date'
+import { loadFrontDeskOpsContext } from '@/lib/data/load-front-desk-ops'
 import {
   computeBookingsSparkline,
   computeOccupancySparkline,
   computeRevenueSparkline,
-  computeTodayOperations,
   computeRevenueTrend,
+  computeTodayOperations,
 } from '@/lib/data/overview'
 import { getOccupancyToday } from '@/lib/data/occupancy'
 import { getRecentNightAudits } from '@/app/actions/night-audit'
@@ -24,7 +27,15 @@ import { NightAuditPanel } from '@/components/dashboard/night-audit-panel'
 import { createClient } from '@/lib/supabase/server'
 import { todayISO } from '@/lib/stays/helpers'
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ opsDate?: string }>
+}) {
+  const { opsDate: opsDateParam } = await searchParams
+  const frontDesk = await loadFrontDeskOpsContext(opsDateParam)
+  const opsDate = frontDesk?.opsDate ?? parseOpsDate(opsDateParam)
+
   const [{ metrics, availability, reservations, invoices, hotelId }, tasks, nightAudits] =
     await Promise.all([
       getDashboardData(),
@@ -38,7 +49,17 @@ export default async function DashboardPage() {
     hotelId ? getOccupancyToday(supabase, hotelId) : undefined,
   ])
 
-  const todayOps = computeTodayOperations(reservations)
+  const todayOps =
+    frontDesk?.ops ??
+    ({
+      ...computeTodayOperations(reservations),
+      dirtyRooms: 0,
+      guestRequests: 0,
+      unreadMessages: 0,
+      prepaidArrivals: 0,
+      vacantRooms: 0,
+      maintenanceRooms: 0,
+    } as const)
   const revenueTrend = computeRevenueTrend(invoices)
   const revenueSparkline = computeRevenueSparkline(invoices)
   const bookingsSparkline = computeBookingsSparkline(reservations)
@@ -50,7 +71,12 @@ export default async function DashboardPage() {
   return (
     <div className="page-shell dashboard-launchpad pb-8">
       <DashboardHero>
-        <DashboardToolbar occupancy={occupancyToday} today={todayOps} />
+        <DashboardToolbar
+          occupancy={occupancyToday}
+          today={todayOps}
+          opsDate={opsDate}
+          showOpsDateSelector
+        />
         <DashboardAttention
           today={todayOps}
           metrics={metrics}
@@ -59,6 +85,9 @@ export default async function DashboardPage() {
       </DashboardHero>
 
       <div className="page-content-stack page-shell--after-hero">
+        <section className="dashboard-section dashboard-section--compact">
+          <FrontDeskOpsSection routePrefix="/owner" opsDateParam={opsDateParam} title="Property operations" />
+        </section>
         <section className="dashboard-section dashboard-section--featured">
           <SectionHeading prominent title="Business overview" />
           <KPICards

@@ -22,6 +22,9 @@ import { getDashboardData } from '@/lib/data/dashboard'
 import { getHousekeepingTasks } from '@/lib/data/housekeeping'
 import { getNotificationLog } from '@/lib/data/notification-log'
 import { getAuditLog } from '@/lib/data/audit-log'
+import { FrontDeskOpsSection } from '@/components/dashboard/front-desk-ops-section'
+import { parseOpsDate } from '@/lib/dates/ops-date'
+import { loadFrontDeskOpsContext } from '@/lib/data/load-front-desk-ops'
 import { computeBookingsSparkline, computeTodayOperations } from '@/lib/data/overview'
 import { getOccupancyToday } from '@/lib/data/occupancy'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -39,7 +42,15 @@ const MANAGER_HASH_TO_TAB: Record<string, string> = {
   'sms-log': 'activity',
 }
 
-export default async function ManagerDashboardPage() {
+export default async function ManagerDashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ opsDate?: string }>
+}) {
+  const { opsDate: opsDateParam } = await searchParams
+  const frontDesk = await loadFrontDeskOpsContext(opsDateParam)
+  const opsDate = frontDesk?.opsDate ?? parseOpsDate(opsDateParam)
+
   const [complaints, { metrics, reservations, hotelId }, tasks, notificationLog, auditLog, nightAudits] =
     await Promise.all([
       fetchHotelComplaints(),
@@ -52,7 +63,17 @@ export default async function ManagerDashboardPage() {
 
   const supabase = await createClient()
   const occupancyToday = hotelId ? await getOccupancyToday(supabase, hotelId) : undefined
-  const todayOps = computeTodayOperations(reservations)
+  const todayOps =
+    frontDesk?.ops ??
+    ({
+      ...computeTodayOperations(reservations),
+      dirtyRooms: 0,
+      guestRequests: 0,
+      unreadMessages: 0,
+      prepaidArrivals: 0,
+      vacantRooms: 0,
+      maintenanceRooms: 0,
+    } as const)
   const bookingsSparkline = computeBookingsSparkline(reservations)
 
   let propertyName = 'Property'
@@ -94,6 +115,8 @@ export default async function ManagerDashboardPage() {
           eyebrow="Operations"
           occupancy={occupancyToday}
           today={todayOps}
+          opsDate={opsDate}
+          showOpsDateSelector
         />
         <DashboardAttention
           today={todayOps}
@@ -104,6 +127,9 @@ export default async function ManagerDashboardPage() {
       </DashboardHero>
 
       <div className="page-content-stack page-shell--after-hero">
+        <section className="dashboard-section dashboard-section--compact">
+          <FrontDeskOpsSection routePrefix="/manager" opsDateParam={opsDateParam} />
+        </section>
       <LivePageTabShell
           hashToTab={MANAGER_HASH_TO_TAB}
           defaultTab="overview"
