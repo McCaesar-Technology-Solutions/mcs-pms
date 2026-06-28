@@ -1,9 +1,12 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { MessageCircle, Search } from 'lucide-react'
+import { getGuestConversationContextAction } from '@/app/actions/guest-conversation'
+import { GuestContextRail } from '@/components/guest-messages/guest-context-rail'
 import { StaffGuestStayThread } from '@/components/guest-messages/staff-guest-stay-thread'
 import { formatConversationTime } from '@/components/guest-messages/messaging-format'
+import type { GuestConversationContext } from '@/lib/data/guest-conversation-context'
 import type { GuestConversationListItem } from '@/lib/data/guest-conversations'
 
 interface GuestMessagesInboxProps {
@@ -11,6 +14,7 @@ interface GuestMessagesInboxProps {
   selectedId: string | null
   onSelect: (id: string) => void
   onBack?: () => void
+  reservationsHref: string
 }
 
 function guestAvatarLabel(name: string) {
@@ -22,13 +26,31 @@ export function GuestMessagesInbox({
   selectedId,
   onSelect,
   onBack,
+  reservationsHref,
 }: GuestMessagesInboxProps) {
   const [query, setQuery] = useState('')
+  const [guestContext, setGuestContext] = useState<GuestConversationContext | null>(null)
 
   const selected = useMemo(
     () => conversations.find((c) => c.id === selectedId) ?? null,
     [conversations, selectedId],
   )
+
+  useEffect(() => {
+    if (!selectedId) {
+      setGuestContext(null)
+      return
+    }
+    let cancelled = false
+    void getGuestConversationContextAction(selectedId).then((result) => {
+      if (!cancelled && result.success && result.data) {
+        setGuestContext(result.data)
+      }
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [selectedId])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -46,7 +68,9 @@ export function GuestMessagesInbox({
 
   return (
     <div
-      className={`staff-messenger ${threadOpen ? 'staff-messenger--thread-open' : ''}`}
+      className={`staff-messenger ${threadOpen ? 'staff-messenger--thread-open' : ''} ${
+        threadOpen && guestContext ? 'staff-messenger--with-context' : ''
+      }`}
     >
       <aside className="staff-messenger__sidebar" aria-label="Conversations">
         <div className="staff-messenger__sidebar-top">
@@ -157,6 +181,10 @@ export function GuestMessagesInbox({
           </div>
         )}
       </main>
+
+      {selected && guestContext && (
+        <GuestContextRail context={guestContext} reservationsHref={reservationsHref} />
+      )}
     </div>
   )
 }

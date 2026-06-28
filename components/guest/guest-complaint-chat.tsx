@@ -5,6 +5,7 @@ import { Loader2, RefreshCw, Send } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { getComplaintMessages, postGuestComplaintMessage } from '@/app/actions/guest-portal'
+import { prepopulateMessageComposer } from '@/lib/messaging/prepopulate-composer'
 import { FormError } from '@/components/ui/form-error'
 
 interface GuestComplaintChatProps {
@@ -29,6 +30,7 @@ export function GuestComplaintChat({ complaintId }: GuestComplaintChatProps) {
   const [error, setError] = useState<string | null>(null)
   const staffMessageCountRef = useRef(0)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   const scrollToBottom = useCallback(() => {
     const el = scrollRef.current
@@ -180,7 +182,7 @@ export function GuestComplaintChat({ complaintId }: GuestComplaintChatProps) {
             <button
               key={reply}
               type="button"
-              onClick={() => void handleSend(reply)}
+              onClick={() => prepopulateMessageComposer(reply, setBody, inputRef)}
               disabled={loading}
               className="shrink-0 rounded-full border border-[var(--guest-border)] bg-[var(--guest-accent-softer)] px-3 py-1.5 text-left text-[11px] leading-snug guest-text-muted hover:bg-[var(--guest-accent-soft)] disabled:opacity-50"
             >
@@ -191,6 +193,7 @@ export function GuestComplaintChat({ complaintId }: GuestComplaintChatProps) {
 
         <form onSubmit={handleSubmit} className="flex gap-2">
           <input
+            ref={inputRef}
             value={body}
             onChange={(e) => setBody(e.target.value)}
             placeholder="Type a message…"

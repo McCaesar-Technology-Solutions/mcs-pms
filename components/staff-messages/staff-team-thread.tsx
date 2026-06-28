@@ -3,45 +3,39 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, Loader2, RefreshCw, Send } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import {
-  getStaffGuestStayMessages,
-  postStaffGuestStayMessage,
-} from '@/app/actions/guest-conversation'
+import { getStaffTeamMessages, postStaffTeamMessage } from '@/app/actions/staff-conversation'
 import { prepopulateMessageComposer } from '@/lib/messaging/prepopulate-composer'
 import {
   formatMessageTime,
   groupMessagesByDay,
 } from '@/components/guest-messages/messaging-format'
+import type { StaffConversationMessage } from '@/lib/data/staff-conversations'
 
-interface ChatMessage {
-  id: string
-  authorRole: string
-  body: string
-  createdAt: string
-  authorName: string | null
-}
-
-interface StaffGuestStayThreadProps {
+interface StaffTeamThreadProps {
   conversationId: string
-  guestName?: string | null
-  roomNumber?: string | null
+  title: string
+  subtitle?: string | null
   onBack?: () => void
 }
 
-const STAFF_QUICK_REPLIES = [
-  'Thanks — we will help shortly.',
-  'What time works for a room visit?',
-  'Checkout is at 11:00 AM tomorrow.',
-  'Anything else we can help with?',
+const TEAM_QUICK_REPLIES = [
+  'On my way.',
+  'Can you cover the desk for 10 minutes?',
+  'Room is ready for inspection.',
+  'Guest issue handled.',
 ] as const
 
-export function StaffGuestStayThread({
+function staffInitial(name: string) {
+  return name.trim().charAt(0).toUpperCase() || 'S'
+}
+
+export function StaffTeamThread({
   conversationId,
-  guestName,
-  roomNumber,
+  title,
+  subtitle,
   onBack,
-}: StaffGuestStayThreadProps) {
-  const [messages, setMessages] = useState<ChatMessage[]>([])
+}: StaffTeamThreadProps) {
+  const [messages, setMessages] = useState<StaffConversationMessage[]>([])
   const [body, setBody] = useState('')
   const [loading, setLoading] = useState(false)
   const [initialLoading, setInitialLoading] = useState(true)
@@ -59,7 +53,7 @@ export function StaffGuestStayThread({
   const load = useCallback(
     async (opts?: { silent?: boolean }) => {
       if (!opts?.silent) setRefreshing(true)
-      const result = await getStaffGuestStayMessages(conversationId)
+      const result = await getStaffTeamMessages(conversationId)
       if (result.success && result.data) {
         setMessages(result.data)
       }
@@ -81,13 +75,13 @@ export function StaffGuestStayThread({
   useEffect(() => {
     const supabase = createClient()
     const channel = supabase
-      .channel(`staff-stay-chat-${conversationId}`)
+      .channel(`staff-team-chat-${conversationId}`)
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'guest_conversation_messages',
+          table: 'staff_conversation_messages',
           filter: `conversation_id=eq.${conversationId}`,
         },
         () => {
@@ -101,34 +95,38 @@ export function StaffGuestStayThread({
     }
   }, [conversationId, load])
 
-  const messageGroups = useMemo(() => groupMessagesByDay(messages), [messages])
-  const guestInitial = (guestName ?? 'G').trim().charAt(0).toUpperCase() || 'G'
+  const messageGroups = useMemo(() => {
+    const adapted = messages.map((m) => ({
+      id: m.id,
+      authorRole: m.isOwn ? 'staff' : 'guest',
+      body: m.body,
+      createdAt: m.createdAt,
+      authorName: m.authorName,
+      isOwn: m.isOwn,
+    }))
+    return groupMessagesByDay(adapted).map((group) => ({
+      ...group,
+      messages: group.messages.map((msg) => {
+        const source = adapted.find((m) => m.id === msg.id)
+        return { ...msg, isOwn: source?.isOwn ?? false }
+      }),
+    }))
+  }, [messages])
 
-  async function handleSend(text?: string) {
-    const trimmed = (text ?? body).trim()
+  async function handleSend() {
+    const trimmed = body.trim()
     if (!trimmed || loading) return
 
     setLoading(true)
     setError(null)
+    setBody('')
 
-    const optimistic: ChatMessage = {
-      id: `pending-${Date.now()}`,
-      authorRole: 'staff',
-      body: trimmed,
-      createdAt: new Date().toISOString(),
-      authorName: 'You',
-    }
-    setMessages((prev) => [...prev, optimistic])
-    if (!text) setBody('')
-    requestAnimationFrame(() => scrollToBottom())
-
-    const result = await postStaffGuestStayMessage({ conversationId, body: trimmed })
+    const result = await postStaffTeamMessage({ conversationId, body: trimmed })
     setLoading(false)
 
     if (!result.success) {
-      setMessages((prev) => prev.filter((m) => m.id !== optimistic.id))
       setError(result.error ?? 'Could not send message.')
-      if (!text) setBody(trimmed)
+      setBody(trimmed)
       return
     }
 
@@ -149,14 +147,10 @@ export function StaffGuestStayThread({
             <ArrowLeft className="h-5 w-5" />
           </button>
         )}
-        <div className="staff-messenger__avatar staff-messenger__avatar--lg">{guestInitial}</div>
+        <div className="staff-messenger__avatar staff-messenger__avatar--lg">{staffInitial(title)}</div>
         <div className="min-w-0 flex-1">
-          <p className="truncate font-semibold text-foreground">{guestName ?? 'Guest'}</p>
-          <p className="truncate text-xs text-muted-foreground">
-            {roomNumber ? `Room ${roomNumber}` : 'No room assigned'}
-            <span className="mx-1.5 text-border">·</span>
-            Stay chat
-          </p>
+          <p className="truncate font-semibold text-foreground">{title}</p>
+          {subtitle && <p className="truncate text-xs text-muted-foreground">{subtitle}</p>}
         </div>
         <button
           type="button"
@@ -179,64 +173,58 @@ export function StaffGuestStayThread({
           <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
             <p className="text-sm font-medium text-foreground">Start the conversation</p>
             <p className="max-w-xs text-xs leading-relaxed text-muted-foreground">
-              Say hello or pick a quick reply below. Messages appear here in real time.
+              Pick a quick reply below or type your own message.
             </p>
           </div>
         ) : (
           messageGroups.map((group) => (
             <div key={group.label} className="staff-messenger__day-group">
               <p className="staff-messenger__day-label">{group.label}</p>
-              <div className="space-y-1">
-                {group.messages.map((m, index) => {
-                  const isStaff = m.authorRole === 'staff'
-                  const prev = group.messages[index - 1]
-                  const next = group.messages[index + 1]
-                  const sameAsPrev = prev?.authorRole === m.authorRole
-                  const sameAsNext = next?.authorRole === m.authorRole
-                  const position = sameAsPrev && sameAsNext
-                    ? 'middle'
-                    : sameAsPrev
-                      ? 'end'
-                      : sameAsNext
-                        ? 'start'
-                        : 'single'
+              {group.messages.map((msg, idx) => {
+                const isOut = 'isOwn' in msg && Boolean((msg as { isOwn?: boolean }).isOwn)
+                const prev = group.messages[idx - 1]
+                const next = group.messages[idx + 1]
+                const sameAuthor = prev?.authorRole === msg.authorRole
+                const nextSame = next?.authorRole === msg.authorRole
+                let corner = 'single'
+                if (sameAuthor && nextSame) corner = 'middle'
+                else if (sameAuthor) corner = 'end'
+                else if (nextSame) corner = 'start'
 
-                  return (
+                return (
+                  <div
+                    key={msg.id}
+                    className={`staff-messenger__bubble-row ${isOut ? 'staff-messenger__bubble-row--out' : 'staff-messenger__bubble-row--in'}`}
+                  >
                     <div
-                      key={m.id}
-                      className={`staff-messenger__bubble-row ${
-                        isStaff ? 'staff-messenger__bubble-row--out' : 'staff-messenger__bubble-row--in'
-                      }`}
+                      className={`staff-messenger__bubble ${isOut ? 'staff-messenger__bubble--staff' : 'staff-messenger__bubble--guest'} staff-messenger__bubble--${corner}`}
                     >
-                      <div
-                        className={`staff-messenger__bubble staff-messenger__bubble--${position} ${
-                          isStaff
-                            ? 'staff-messenger__bubble--staff'
-                            : 'staff-messenger__bubble--guest'
-                        }`}
-                      >
-                        <p className="whitespace-pre-wrap break-words">{m.body}</p>
-                        <span className="staff-messenger__bubble-time">
-                          {formatMessageTime(m.createdAt)}
-                        </span>
-                      </div>
+                      {!isOut && msg.authorName && (
+                        <p className="mb-0.5 text-[10px] font-semibold text-[var(--brand-purple)]">
+                          {msg.authorName}
+                        </p>
+                      )}
+                      <p className="whitespace-pre-wrap break-words text-sm">{msg.body}</p>
+                      <time className="staff-messenger__bubble-time" dateTime={msg.createdAt}>
+                        {formatMessageTime(msg.createdAt)}
+                      </time>
                     </div>
-                  )
-                })}
-              </div>
+                  </div>
+                )
+              })}
             </div>
           ))
         )}
       </div>
 
-      <footer className="staff-messenger__composer">
+      <div className="staff-messenger__composer">
         <div className="staff-messenger__quick-replies">
-          {STAFF_QUICK_REPLIES.map((q) => (
+          {TEAM_QUICK_REPLIES.map((q) => (
             <button
               key={q}
               type="button"
-              onClick={() => prepopulateMessageComposer(q, setBody, textareaRef)}
               disabled={loading}
+              onClick={() => prepopulateMessageComposer(q, setBody, textareaRef)}
               className="staff-messenger__quick-reply"
             >
               {q}
@@ -261,9 +249,9 @@ export function StaffGuestStayThread({
               }
             }}
             rows={1}
-            placeholder="Message…"
+            placeholder="Message your team…"
+            aria-label="Team message"
             className="staff-messenger__compose-input"
-            aria-label="Message guest"
           />
           <button
             type="submit"
@@ -271,11 +259,11 @@ export function StaffGuestStayThread({
             className="staff-messenger__send"
             aria-label="Send message"
           >
-            {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           </button>
         </form>
-        {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
-      </footer>
+        {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
+      </div>
     </div>
   )
 }

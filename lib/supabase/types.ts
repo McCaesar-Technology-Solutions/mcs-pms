@@ -196,6 +196,7 @@ export type Database = {
             | null
           updated_at: string | null
           updated_by: string | null
+          profile_image_path: string | null
         }
         Insert: {
           id?: string
@@ -214,6 +215,7 @@ export type Database = {
             | null
           updated_at?: string | null
           updated_by?: string | null
+          profile_image_path?: string | null
         }
         Update: {
           id?: string
@@ -232,6 +234,7 @@ export type Database = {
             | null
           updated_at?: string | null
           updated_by?: string | null
+          profile_image_path?: string | null
         }
         Relationships: [
           {
@@ -1726,6 +1729,210 @@ export type Database = {
           provider_id?: string | null
           created_at?: string | null
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      expenses: {
+        Row: {
+          id: string
+          hotel_id: string
+          category: string
+          description: string
+          amount: number
+          expense_date: string
+          vendor: string | null
+          payment_status: 'pending' | 'paid'
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          hotel_id: string
+          category: string
+          description: string
+          amount: number
+          expense_date?: string
+          vendor?: string | null
+          payment_status?: 'pending' | 'paid'
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          hotel_id?: string
+          category?: string
+          description?: string
+          amount?: number
+          expense_date?: string
+          vendor?: string | null
+          payment_status?: 'pending' | 'paid'
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      inventory_items: {
+        Row: {
+          id: string
+          hotel_id: string
+          name: string
+          category: string
+          quantity_in_stock: number
+          reorder_level: number
+          unit: string
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          hotel_id: string
+          name: string
+          category?: string
+          quantity_in_stock?: number
+          reorder_level?: number
+          unit?: string
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          hotel_id?: string
+          name?: string
+          category?: string
+          quantity_in_stock?: number
+          reorder_level?: number
+          unit?: string
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      staff_conversations: {
+        Row: {
+          id: string
+          hotel_id: string
+          conversation_type: 'dm' | 'group'
+          name: string | null
+          dm_key: string | null
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          hotel_id: string
+          conversation_type: 'dm' | 'group'
+          name?: string | null
+          dm_key?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          hotel_id?: string
+          conversation_type?: 'dm' | 'group'
+          name?: string | null
+          dm_key?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      staff_conversation_members: {
+        Row: {
+          conversation_id: string
+          profile_id: string
+          last_read_at: string | null
+          joined_at: string
+        }
+        Insert: {
+          conversation_id: string
+          profile_id: string
+          last_read_at?: string | null
+          joined_at?: string
+        }
+        Update: {
+          conversation_id?: string
+          profile_id?: string
+          last_read_at?: string | null
+          joined_at?: string
+        }
+        Relationships: []
+      }
+      staff_conversation_messages: {
+        Row: {
+          id: string
+          conversation_id: string
+          author_id: string
+          body: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          conversation_id: string
+          author_id: string
+          body: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          conversation_id?: string
+          author_id?: string
+          body?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      ops_calendar_events: {
+        Row: {
+          id: string
+          hotel_id: string
+          title: string
+          category: string
+          starts_at: string
+          ends_at: string | null
+          all_day: boolean
+          room_id: string | null
+          reservation_id: string | null
+          notes: string | null
+          created_by: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          hotel_id: string
+          title: string
+          category?: string
+          starts_at: string
+          ends_at?: string | null
+          all_day?: boolean
+          room_id?: string | null
+          reservation_id?: string | null
+          notes?: string | null
+          created_by?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          hotel_id?: string
+          title?: string
+          category?: string
+          starts_at?: string
+          ends_at?: string | null
+          all_day?: boolean
+          room_id?: string | null
+          reservation_id?: string | null
+          notes?: string | null
+          created_by?: string | null
+          created_at?: string
         }
         Relationships: []
       }

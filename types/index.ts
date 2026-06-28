@@ -334,6 +334,7 @@ export interface DbRoom {
   status: DbRoomStatus | null
   updated_at: string | null
   updated_by: string | null
+  profile_image_path?: string | null
   room_categories?: Pick<
     RoomCategory,
     'name' | 'default_nightly_rate' | 'default_monthly_rate'

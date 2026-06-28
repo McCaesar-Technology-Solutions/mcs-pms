@@ -5,6 +5,7 @@ import { Loader2, RefreshCw, Send } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { getGuestStayMessages, postGuestStayMessage } from '@/app/actions/guest-conversation'
+import { prepopulateMessageComposer } from '@/lib/messaging/prepopulate-composer'
 import { FormError } from '@/components/ui/form-error'
 
 const GUEST_QUICK_REPLIES = [
@@ -225,7 +226,7 @@ export function GuestStayChat({ variant = 'embedded', propertyName }: GuestStayC
             <button
               key={q}
               type="button"
-              onClick={() => void handleSend(q)}
+              onClick={() => prepopulateMessageComposer(q, setBody, textareaRef)}
               disabled={loading}
               className={
                 isScreen

@@ -298,3 +298,20 @@ export async function postStaffGuestStayMessage(
   revalidateStayChatPaths()
   return { success: true }
 }
+
+export async function getGuestConversationContextAction(
+  conversationId: string,
+): Promise<
+  GuestConversationActionResult<import('@/lib/data/guest-conversation-context').GuestConversationContext>
+> {
+  const profile = await requireFrontDeskProfile()
+  if (!profile?.hotel_id) return { success: false, error: 'Not authorized.' }
+
+  const access = await assertConversationAccess(conversationId, profile.hotel_id)
+  if (!access.ok) return { success: false, error: access.error }
+
+  const { loadGuestConversationContext } = await import('@/lib/data/guest-conversation-context')
+  const context = await loadGuestConversationContext(conversationId)
+  if (!context) return { success: false, error: 'Guest not found.' }
+  return { success: true, data: context }
+}

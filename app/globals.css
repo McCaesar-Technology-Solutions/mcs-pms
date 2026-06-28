@@ -4836,6 +4836,175 @@
     }
   }
 
+  .staff-messages-hub {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    flex: 1;
+  }
+
+  .staff-messages-hub .staff-messenger {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .staff-messages-hub__tabs {
+    display: flex;
+    gap: 0.25rem;
+    padding: 0 0.75rem 0.75rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .staff-messages-hub__tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    border-radius: 0.75rem;
+    padding: 0.5rem 0.875rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--muted-foreground);
+    transition: background 0.2s, color 0.2s;
+  }
+
+  .staff-messages-hub__tab--active {
+    background: rgba(60, 33, 108, 0.08);
+    color: var(--foreground);
+  }
+
+  .staff-messages-hub__badge {
+    min-width: 1.125rem;
+    border-radius: 999px;
+    background: var(--brand-purple);
+    padding: 0 0.35rem;
+    font-size: 0.625rem;
+    font-weight: 700;
+    color: white;
+    text-align: center;
+  }
+
+  .staff-messenger--with-context {
+    grid-template-columns: minmax(240px, 280px) minmax(0, 1fr) minmax(220px, 260px);
+  }
+
+  .staff-messenger__context-rail {
+    display: none;
+    border-left: 1px solid var(--border);
+    background: var(--background);
+    padding: 1rem;
+    overflow-y: auto;
+  }
+
+  @media (min-width: 1280px) {
+    .staff-messenger--with-context .staff-messenger__context-rail {
+      display: block;
+    }
+  }
+
+  .staff-messenger__context-title {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--foreground);
+    margin-bottom: 0.75rem;
+  }
+
+  .staff-messenger__context-block {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+    padding-bottom: 0.875rem;
+    margin-bottom: 0.875rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .staff-messenger__context-block:last-of-type {
+    border-bottom: 0;
+    margin-bottom: 0;
+  }
+
+  .staff-messenger__context-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .staff-messenger__context-link {
+    display: inline-flex;
+    margin-top: 0.5rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--brand-purple);
+  }
+
+  .staff-messenger__context-link:hover {
+    text-decoration: underline;
+  }
+
+  .room-photo-upload {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .room-photo-upload__frame {
+    position: relative;
+    width: 5.5rem;
+    height: 5.5rem;
+    border-radius: 1rem;
+    overflow: hidden;
+    background: var(--secondary);
+    border: 1px solid var(--border);
+  }
+
+  .room-photo-upload__placeholder {
+    display: flex;
+    height: 100%;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+  }
+
+  .room-photo-upload__loading {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.35);
+  }
+
+  .room-photo-upload__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .room-photo-upload__btn {
+    border-radius: 0.625rem;
+    border: 1px solid var(--border);
+    background: white;
+    padding: 0.375rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--foreground);
+  }
+
+  .room-photo-upload__btn--danger {
+    color: var(--destructive);
+    border-color: rgba(220, 38, 38, 0.2);
+  }
+
+  .ops-calendar-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    border-radius: 0.75rem;
+    border: 1px solid var(--border);
+    padding: 0.75rem;
+    background: var(--background);
+  }
+
   /* Technician portal — mobile-first, light, one work type per tab */
   .technician-portal-shell {
     --tech-bg: #f6f4fa;

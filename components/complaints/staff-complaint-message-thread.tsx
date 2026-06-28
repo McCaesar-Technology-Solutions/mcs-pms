@@ -3,7 +3,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Loader2, MessageCircle, RefreshCw, Send, User } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { getStaffComplaintMessages, postStaffComplaintMessage } from '@/app/actions/complaints'
+import {
+  getStaffComplaintMessages,
+  postStaffComplaintMessage,
+} from '@/app/actions/complaints'
+import { prepopulateMessageComposer } from '@/lib/messaging/prepopulate-composer'
 
 interface ChatMessage {
   id: string
@@ -292,7 +296,7 @@ export function StaffComplaintMessageThread({
             <button
               key={reply}
               type="button"
-              onClick={() => void handleSend(reply)}
+              onClick={() => prepopulateMessageComposer(reply, setBody, textareaRef)}
               disabled={loading}
               className="shrink-0 rounded-full border border-[#3C216C]/15 bg-white px-3 py-1.5 text-left text-[11px] leading-snug text-[#3C216C] shadow-sm transition hover:border-[#3C216C]/30 hover:bg-[#3C216C]/5 disabled:opacity-50"
             >

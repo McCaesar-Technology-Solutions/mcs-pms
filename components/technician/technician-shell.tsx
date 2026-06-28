@@ -1,6 +1,7 @@
 'use client'
 
-import { ChevronDown, LogOut, Phone } from 'lucide-react'
+import Link from 'next/link'
+import { ChevronDown, LogOut, MessageCircle, Phone } from 'lucide-react'
 import { useState } from 'react'
 import { signOut } from '@/app/actions/auth'
 import { TechnicianRealtime } from '@/components/realtime/technician-realtime'
@@ -35,6 +36,13 @@ export function TechnicianShell({ profile, managerContacts, children }: Technici
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
+            <Link
+              href="/technician/messages"
+              className="technician-portal-icon-btn"
+              aria-label="Team messages"
+            >
+              <MessageCircle className="h-4 w-4" />
+            </Link>
             <button
               type="button"
               onClick={() => setPhoneDialogOpen(true)}

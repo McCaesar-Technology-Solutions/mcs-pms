@@ -1,17 +1,15 @@
 import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
-import { StaffMessagesHub } from '@/components/guest-messages/staff-messages-hub'
+import { TechnicianMessagesClient } from '@/components/staff-messages/technician-messages-client'
 import { getProfile } from '@/lib/auth/get-profile'
-import { loadGuestConversations } from '@/lib/data/guest-conversations'
 import { loadStaffConversations } from '@/lib/data/staff-conversations'
 import { getStaffData } from '@/lib/data/staff'
 
-export default async function ReceptionistMessagesPage() {
+export default async function TechnicianMessagesPage() {
   const profile = await getProfile()
   if (!profile?.hotel_id) redirect('/login')
 
-  const [conversations, staffConversations, { staff }] = await Promise.all([
-    loadGuestConversations(profile.hotel_id),
+  const [staffConversations, { staff }] = await Promise.all([
     loadStaffConversations(profile.hotel_id, profile.id),
     getStaffData(),
   ])
@@ -21,13 +19,10 @@ export default async function ReceptionistMessagesPage() {
   return (
     <div className="page-shell page-shell--messages">
       <Suspense fallback={null}>
-        <StaffMessagesHub
-          guestConversations={conversations}
-          staffConversations={staffConversations}
+        <TechnicianMessagesClient
+          conversations={staffConversations}
           hotelStaff={hotelStaff}
           currentUserId={profile.id}
-          basePath="/receptionist/messages"
-          reservationsHref="/receptionist/reservations"
         />
       </Suspense>
     </div>

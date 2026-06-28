@@ -23,12 +23,15 @@ export interface NavItem {
 
 export const ownerNavigation: NavItem[] = [
   { name: 'Dashboard', href: '/owner/dashboard', icon: 'layout-dashboard' },
+  { name: 'Messages', href: '/owner/messages', icon: 'message-circle' },
   { name: 'Reservations', href: '/owner/reservations', icon: 'calendar' },
   { name: 'Guests', href: '/owner/guests', icon: 'users' },
   { name: 'Rooms', href: '/owner/rooms', icon: 'bed-double' },
   { name: 'Housekeeping', href: '/owner/housekeeping', icon: 'briefcase' },
   { name: 'Complaints', href: '/owner/complaints', icon: 'wrench' },
   { name: 'Billing', href: '/owner/billing', icon: 'banknote' },
+  { name: 'Expenses', href: '/owner/expenses', icon: 'banknote' },
+  { name: 'Inventory', href: '/owner/inventory', icon: 'briefcase' },
   { name: 'GRA Reports', href: '/owner/gra-reports', icon: 'file-text' },
   { name: 'Analytics', href: '/owner/analytics', icon: 'bar-chart-3' },
   { name: 'Staff', href: '/owner/staff', icon: 'user-cog' },
@@ -59,6 +62,7 @@ export const managerNavigation: NavItem[] = [
   { name: 'Reservations', href: '/manager/reservations', icon: 'calendar' },
   { name: 'Complaints', href: '/manager/complaints', icon: 'wrench' },
   { name: 'Housekeeping', href: '/manager/housekeeping', icon: 'briefcase' },
+  { name: 'Inventory', href: '/manager/inventory', icon: 'briefcase' },
   { name: 'Staff', href: '/manager/staff', icon: 'user-cog' },
 ]
 

@@ -1,4 +1,4 @@
-import { HousekeepingKanban } from '@/components/dashboard/housekeeping-kanban'
+import { HousekeepingBoard } from '@/components/dashboard/housekeeping-board'
 import { RoomStatusGrid } from '@/components/dashboard/room-status-grid'
 import { StaffAvailability } from '@/components/dashboard/staff-availability'
 import { PageHeader } from '@/components/dashboard/page-header'
@@ -29,7 +29,7 @@ export default async function HousekeepingPage() {
         description="Assign tasks, track cleans, and approve rooms after inspection."
       />
 
-      <HousekeepingKanban
+      <HousekeepingBoard
         tasks={tasks}
         rooms={roomOptions}
         staff={assignableStaff}

@@ -32,6 +32,8 @@ import { createClient } from '@/lib/supabase/server'
 import { getRecentNightAudits } from '@/app/actions/night-audit'
 import { NightAuditPanel } from '@/components/dashboard/night-audit-panel'
 import { getManagerTabBadges } from '@/lib/data/staff-alerts'
+import { OpsCalendarPanel } from '@/components/dashboard/ops-calendar-panel'
+import { loadOpsCalendarEvents } from '@/lib/data/ops-calendar'
 import { todayISO } from '@/lib/stays/helpers'
 
 const MANAGER_HASH_TO_TAB: Record<string, string> = {
@@ -82,9 +84,14 @@ export default async function ManagerDashboardPage({
   let smsPrefs: Record<string, boolean> | null = null
   let emailPrefs: Record<string, boolean> | null = null
   let guestFeedback: Awaited<ReturnType<typeof loadHotelGuestFeedback>> | null = null
+  let opsCalendarEvents: Awaited<ReturnType<typeof loadOpsCalendarEvents>> = []
   if (hotelId) {
+    const weekStart = new Date()
+    weekStart.setHours(0, 0, 0, 0)
+    const weekEnd = new Date(weekStart)
+    weekEnd.setDate(weekEnd.getDate() + 7)
     const admin = createAdminClient()
-    const [{ data: hotel }, requests, inbox, feedback, hotelPrefs] = await Promise.all([
+    const [{ data: hotel }, requests, inbox, feedback, hotelPrefs, calendarEvents] = await Promise.all([
       admin.from('hotels').select('name').eq('id', hotelId).maybeSingle(),
       loadHotelGuestRequests(hotelId),
       loadOpsInbox(hotelId),
@@ -94,11 +101,13 @@ export default async function ManagerDashboardPage({
         .select('notification_sms_prefs, notification_email_prefs')
         .eq('id', hotelId)
         .maybeSingle(),
+      loadOpsCalendarEvents(hotelId, weekStart.toISOString(), weekEnd.toISOString()),
     ])
     propertyName = hotel?.name ?? propertyName
     guestRequests = requests
     opsInbox = inbox
     guestFeedback = feedback
+    opsCalendarEvents = calendarEvents
     smsPrefs = (hotelPrefs.data?.notification_sms_prefs as Record<string, boolean>) ?? null
     emailPrefs = (hotelPrefs.data?.notification_email_prefs as Record<string, boolean>) ?? null
   }
@@ -146,6 +155,8 @@ export default async function ManagerDashboardPage({
                 </section>
 
                 <OpsInboxPanel items={opsInbox} />
+
+                <OpsCalendarPanel events={opsCalendarEvents} canManage />
 
                 <div className="grid gap-6 xl:grid-cols-2">
                   <section className="dashboard-section space-y-4">

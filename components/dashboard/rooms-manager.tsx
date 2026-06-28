@@ -14,6 +14,7 @@ import { BulkSelectCheckbox } from '@/components/dashboard/bulk-select-checkbox'
 import { downloadCsv } from '@/lib/export/download-csv'
 import { copyToClipboard } from '@/lib/export/entity-refs'
 import { useRowSelection } from '@/lib/hooks/use-row-selection'
+import { RoomProfilePhotoUpload } from '@/components/dashboard/room-profile-photo-upload'
 import {
   CenteredModal,
   ModalBody,
@@ -432,6 +433,15 @@ function RoomModal({ room, categories, canDelete, statusOnly = false, onClose, o
       </ModalHeader>
 
       <ModalBody className="space-y-4">
+        {isEdit && !statusOnly && (
+          <RoomProfilePhotoUpload
+            roomId={room!.id}
+            imagePath={room!.profile_image_path}
+            roomNumber={room!.number}
+            canEdit
+          />
+        )}
+
         {!statusOnly && (
           <>
             <Field label="Room number">

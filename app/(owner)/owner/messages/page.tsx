@@ -6,7 +6,7 @@ import { loadGuestConversations } from '@/lib/data/guest-conversations'
 import { loadStaffConversations } from '@/lib/data/staff-conversations'
 import { getStaffData } from '@/lib/data/staff'
 
-export default async function ReceptionistMessagesPage() {
+export default async function OwnerMessagesPage() {
   const profile = await getProfile()
   if (!profile?.hotel_id) redirect('/login')
 
@@ -26,8 +26,8 @@ export default async function ReceptionistMessagesPage() {
           staffConversations={staffConversations}
           hotelStaff={hotelStaff}
           currentUserId={profile.id}
-          basePath="/receptionist/messages"
-          reservationsHref="/receptionist/reservations"
+          basePath="/owner/messages"
+          reservationsHref="/owner/reservations"
         />
       </Suspense>
     </div>

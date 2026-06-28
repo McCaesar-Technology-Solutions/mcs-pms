@@ -2,11 +2,19 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { createRoomSchema, updateRoomSchema } from '@/lib/validations'
 import { writeAuditLog, moneyDelta, logRoomStatusChange } from '@/lib/audit/log'
+import {
+  ROOM_IMAGE_BUCKET,
+  roomImagePublicUrl,
+  roomImageStoragePath,
+} from '@/lib/rooms/image-storage'
 import type { DbRoomStatus } from '@/types'
 
-export type RoomActionResult = { success: true } | { success: false; error: string }
+export type RoomActionResult<T = void> =
+  | { success: true; data?: T }
+  | { success: false; error: string }
 
 async function requireStaff() {
   const supabase = await createClient()
@@ -289,6 +297,101 @@ export async function deleteRoom(id: string): Promise<RoomActionResult> {
 
   const { error } = await supabase.from('rooms').delete().eq('id', id)
   if (error) return { success: false, error: error.message }
+
+  revalidateRoomViews()
+  return { success: true }
+}
+
+export async function uploadRoomProfileImage(
+  roomId: string,
+  formData: FormData,
+): Promise<RoomActionResult<{ imageUrl: string }>> {
+  const { supabase, profile } = await requireStaff()
+  if (!profile || !['owner', 'manager'].includes(profile.role) || !profile.hotel_id) {
+    return { success: false, error: 'Only owners and managers can upload room photos.' }
+  }
+
+  const file = formData.get('file')
+  if (!file || !(file instanceof File)) {
+    return { success: false, error: 'No image file provided.' }
+  }
+
+  const allowed = ['image/jpeg', 'image/png', 'image/webp']
+  if (!allowed.includes(file.type)) {
+    return { success: false, error: 'Use JPEG, PNG, or WebP.' }
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    return { success: false, error: 'Image must be 5 MB or smaller.' }
+  }
+
+  const { data: room } = await supabase
+    .from('rooms')
+    .select('id, profile_image_path')
+    .eq('id', roomId)
+    .eq('hotel_id', profile.hotel_id)
+    .maybeSingle()
+
+  if (!room) return { success: false, error: 'Room not found.' }
+
+  const ext = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg'
+  const path = roomImageStoragePath(profile.hotel_id, roomId, ext)
+  const buffer = Buffer.from(await file.arrayBuffer())
+  const admin = createAdminClient()
+
+  const { error: uploadError } = await admin.storage.from(ROOM_IMAGE_BUCKET).upload(path, buffer, {
+    contentType: file.type,
+    upsert: false,
+  })
+
+  if (uploadError) {
+    return { success: false, error: uploadError.message ?? 'Could not upload image.' }
+  }
+
+  const { error: updateError } = await admin
+    .from('rooms')
+    .update({ profile_image_path: path, updated_by: profile.id, updated_at: new Date().toISOString() })
+    .eq('id', roomId)
+    .eq('hotel_id', profile.hotel_id)
+
+  if (updateError) {
+    await admin.storage.from(ROOM_IMAGE_BUCKET).remove([path])
+    return { success: false, error: updateError.message }
+  }
+
+  if (room.profile_image_path && room.profile_image_path !== path) {
+    await admin.storage.from(ROOM_IMAGE_BUCKET).remove([room.profile_image_path])
+  }
+
+  revalidateRoomViews()
+  return { success: true, data: { imageUrl: roomImagePublicUrl(path) ?? '' } }
+}
+
+export async function clearRoomProfileImage(roomId: string): Promise<RoomActionResult> {
+  const { supabase, profile } = await requireStaff()
+  if (!profile || !['owner', 'manager'].includes(profile.role) || !profile.hotel_id) {
+    return { success: false, error: 'Only owners and managers can remove room photos.' }
+  }
+
+  const { data: room } = await supabase
+    .from('rooms')
+    .select('profile_image_path')
+    .eq('id', roomId)
+    .eq('hotel_id', profile.hotel_id)
+    .maybeSingle()
+
+  if (!room?.profile_image_path) return { success: true }
+
+  const admin = createAdminClient()
+  await admin.storage.from(ROOM_IMAGE_BUCKET).remove([room.profile_image_path])
+  await admin
+    .from('rooms')
+    .update({
+      profile_image_path: null,
+      updated_by: profile.id,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', roomId)
+    .eq('hotel_id', profile.hotel_id)
 
   revalidateRoomViews()
   return { success: true }
