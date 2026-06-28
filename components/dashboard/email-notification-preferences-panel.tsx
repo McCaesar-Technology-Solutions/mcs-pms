@@ -81,7 +81,7 @@ export function EmailNotificationPreferencesPanel({
       </div>
 
       <div className="space-y-6 p-6">
-        <div className="rounded-xl border border-[#E9ECEF] bg-[#FAFDFF] p-4">
+        <div className="surface-inset rounded-xl p-4">
           <label htmlFor="notification-from-email" className="text-sm font-semibold text-foreground">
             Sender email address
           </label>
@@ -119,9 +119,9 @@ export function EmailNotificationPreferencesPanel({
               <p className="font-semibold text-foreground">{group.title}</p>
               <p className="text-sm text-muted-foreground">{group.description}</p>
             </div>
-            <ul className="divide-y divide-[#E9ECEF] rounded-xl border border-[#E9ECEF]">
+            <ul className="card-list-tray">
               {group.keys.map((key) => (
-                <li key={key} className="flex items-center justify-between gap-4 px-4 py-3.5">
+                <li key={key} className="elevated-list-item flex items-center justify-between gap-4 px-4 py-3.5">
                   <p className="text-sm font-medium text-foreground">{EMAIL_PREF_LABELS[key]}</p>
                   <ToggleSwitch
                     checked={prefs[key]}

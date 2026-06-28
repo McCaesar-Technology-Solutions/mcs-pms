@@ -395,11 +395,7 @@ function ComplaintsManagerContent() {
               type="button"
               aria-pressed={statusFilter === s}
               onClick={() => setStatusFilter(s)}
-              className={`rounded-full px-3.5 py-1.5 text-xs font-semibold capitalize transition-all ${
-                statusFilter === s
-                  ? 'bg-[#3C216C] text-white shadow-elevation-2'
-                  : 'bg-white text-foreground shadow-elevation-1 hover:shadow-elevation-2'
-              }`}
+              className={`filter-pill filter-pill--sm ${statusFilter === s ? 'filter-pill--active' : ''}`}
             >
               {s.replace('_', ' ')}
             </button>

@@ -217,7 +217,7 @@ export function ReservationsManager({
         </div>
 
         <div className="surface-card-header space-y-4">
-          <div className="flex items-center gap-3 rounded-xl surface-inset px-4 py-2.5">
+          <div className="app-search-field">
             <Search className="h-5 w-5 shrink-0 text-muted-foreground" />
             <input
               type="search"
@@ -236,11 +236,7 @@ export function ReservationsManager({
                 type="button"
                 aria-pressed={statusFilter === status}
                 onClick={() => setStatusFilter(status)}
-                className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold transition-all ${
-                  statusFilter === status
-                    ? 'bg-primary text-primary-foreground shadow-elevation-1'
-                    : 'bg-secondary text-foreground hover:bg-secondary/80'
-                }`}
+                className={`filter-pill ${statusFilter === status ? 'filter-pill--active' : ''}`}
               >
                 {status === 'all' ? 'All' : formatStatus(status)}
               </button>
@@ -254,11 +250,7 @@ export function ReservationsManager({
                 type="button"
                 aria-pressed={paymentFilter === status}
                 onClick={() => setPaymentFilter(status)}
-                className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold transition-all ${
-                  paymentFilter === status
-                    ? 'bg-[#3C216C] text-white shadow-elevation-1'
-                    : 'bg-secondary text-muted-foreground hover:bg-secondary/80'
-                }`}
+                className={`filter-pill filter-pill--sm ${paymentFilter === status ? 'filter-pill--active' : ''}`}
               >
                 {status === 'all' ? 'Any payment' : formatPaymentStatus(status as ReservationPaymentStatus)}
               </button>

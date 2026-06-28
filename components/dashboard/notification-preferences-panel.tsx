@@ -78,9 +78,9 @@ export function NotificationPreferencesPanel({
               <p className="font-semibold text-foreground">{group.title}</p>
               <p className="text-sm text-muted-foreground">{group.description}</p>
             </div>
-            <ul className="divide-y divide-[#E9ECEF] rounded-xl border border-[#E9ECEF]">
+            <ul className="card-list-tray">
               {group.keys.map((key) => (
-                <li key={key} className="flex items-center justify-between gap-4 px-4 py-3.5">
+                <li key={key} className="elevated-list-item flex items-center justify-between gap-4 px-4 py-3.5">
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-foreground">
                       {NOTIFICATION_PREF_LABELS[key]}

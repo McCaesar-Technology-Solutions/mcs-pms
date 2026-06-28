@@ -4,7 +4,6 @@ import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { MFA_GATE_COOKIE } from '@/lib/auth/mfa-server'
 import { ROLE_HOME, isStaffRole } from '@/lib/auth/roles'
 import { getAppOrigin, isPublicSignupAllowed } from '@/lib/env'
 import { getClientIp } from '@/lib/auth/client-ip'
@@ -301,9 +300,6 @@ export async function signUpOwner(input: {
 export async function signOut(): Promise<void> {
   const supabase = await createClient()
   await supabase.auth.signOut()
-  const { cookies } = await import('next/headers')
-  const cookieStore = await cookies()
-  cookieStore.delete(MFA_GATE_COOKIE)
   redirect('/login')
 }
 

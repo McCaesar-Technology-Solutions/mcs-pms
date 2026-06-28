@@ -7,7 +7,6 @@ import { AuditLogPanel } from '@/components/dashboard/audit-log-panel'
 import { GuestRulesPanel } from '@/components/dashboard/guest-rules-panel'
 import { GuestPortalSettingsPanel } from '@/components/dashboard/guest-portal-settings-panel'
 import { PageHeader } from '@/components/dashboard/page-header'
-import { DarkSection } from '@/components/dashboard/dark-section'
 import { PageTabShell } from '@/components/dashboard/page-tab-shell'
 import { getActiveHotelSettings } from '@/lib/data/settings'
 import { getNotificationLog } from '@/lib/data/notification-log'
@@ -84,12 +83,10 @@ export default async function SettingsPage() {
               </p>
             ),
           activity: (
-            <DarkSection variant="inset">
-              <div className="grid gap-6 xl:grid-cols-2">
-                <AuditLogPanel entries={auditLog} />
-                <NotificationLogPanel entries={notificationLog} />
-              </div>
-            </DarkSection>
+            <div className="grid gap-6 xl:grid-cols-2">
+              <AuditLogPanel entries={auditLog} />
+              <NotificationLogPanel entries={notificationLog} />
+            </div>
           ),
         }}
       />

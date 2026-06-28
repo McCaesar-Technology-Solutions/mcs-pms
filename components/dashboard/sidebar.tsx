@@ -1,11 +1,11 @@
 'use client'
 
+import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { PanelLeftClose, PanelLeft, X } from 'lucide-react'
 import { useState } from 'react'
 import { SidebarLogo } from '@/components/brand/sidebar-logo'
 import { PropertySwitcher } from '@/components/dashboard/property-switcher'
-import { SidebarNavLink } from '@/components/dashboard/sidebar-nav-link'
 import { useNavBadges } from '@/components/dashboard/use-nav-badges'
 import type { NavItem, NavGroup } from '@/lib/navigation'
 import { getNavIcon } from '@/components/dashboard/nav-icons'
@@ -38,12 +38,12 @@ export default function Sidebar({
     const showBadge = item.badge != null && item.badge > 0
 
     return (
-      <SidebarNavLink
+      <Link
         key={item.href}
         href={item.href}
         title={collapsed && !isDrawer ? item.name : undefined}
-        onNavigate={onMobileClose}
-        className={`group relative flex items-center rounded-xl py-2.5 text-sm font-medium transition-colors ${
+        onClick={onMobileClose}
+        className={`group relative flex items-center rounded-xl py-2.5 text-sm font-medium transition-all ${
           collapsed && !isDrawer ? 'justify-center px-0' : 'gap-3 px-3'
         } ${isActive ? 'sidebar-nav-link--active' : 'sidebar-nav-link'}`}
       >
@@ -65,7 +65,7 @@ export default function Sidebar({
             )}
           </span>
         )}
-      </SidebarNavLink>
+      </Link>
     )
   }
 

@@ -169,7 +169,7 @@ export function RoomsManager({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search room number, category, floor…"
-            className="w-full max-w-md rounded-lg border border-[#E9ECEF] px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20"
+            className="app-field max-w-md"
           />
         </div>
 

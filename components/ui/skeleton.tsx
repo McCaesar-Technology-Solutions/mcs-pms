@@ -18,11 +18,15 @@ export function Skeleton({ className, tone = 'light' }: SkeletonProps) {
 
 export function SkeletonPageHeader() {
   return (
-    <header className="page-header mb-6 space-y-2">
-      <Skeleton className="h-3 w-20 rounded-md" />
-      <Skeleton className="h-8 w-56 max-w-full" />
-      <Skeleton className="h-4 w-72 max-w-full" />
-    </header>
+    <div className="page-header-bleed">
+      <div className="page-header-band">
+        <header className="page-shell page-header-band__inner page-header space-y-2">
+          <div className="skeleton h-3 w-20 rounded-md" />
+          <div className="skeleton h-8 w-56 max-w-full" />
+          <div className="skeleton h-4 w-72 max-w-full" />
+        </header>
+      </div>
+    </div>
   )
 }
 

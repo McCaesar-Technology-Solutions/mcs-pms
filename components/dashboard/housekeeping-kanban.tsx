@@ -316,12 +316,10 @@ function DbKanban({
 
           return (
             <div key={column.id} className="surface-card overflow-hidden">
-              <div
-                className={`relative flex items-center gap-2 border-b border-[#E9ECEF] ${column.headerTint} px-5 py-4`}
-              >
+              <div className={`kanban-column-header ${column.headerTint}`}>
                 <ColumnIcon className={`h-5 w-5 ${column.iconClass}`} />
-                <h3 className="text-lg font-semibold text-[#111827]">{column.title}</h3>
-                <span className="ml-auto rounded-full bg-white/80 px-2.5 py-0.5 text-sm font-bold text-[#111827] shadow-elevation-1">
+                <h3 className="text-lg font-semibold text-foreground">{column.title}</h3>
+                <span className="ml-auto rounded-full bg-white/80 px-2.5 py-0.5 text-sm font-bold text-foreground shadow-elevation-1">
                   {columnTasks.length}
                 </span>
               </div>

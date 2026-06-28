@@ -1,6 +1,5 @@
 import { BillingOverview } from '@/components/dashboard/billing-overview'
 import { PaymentReconciliationPanel } from '@/components/dashboard/payment-reconciliation-panel'
-import { DarkSection } from '@/components/dashboard/dark-section'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { PageTabShell } from '@/components/dashboard/page-tab-shell'
 import { getInvoicesData } from '@/lib/data/billing'
@@ -44,9 +43,7 @@ export default async function BillingPage({
             />
           ),
           reconciliation: (
-            <DarkSection variant="inset">
-              <PaymentReconciliationPanel summary={paymentSummary} records={paymentRecords} />
-            </DarkSection>
+            <PaymentReconciliationPanel summary={paymentSummary} records={paymentRecords} />
           ),
         }}
       />

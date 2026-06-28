@@ -5,6 +5,17 @@ import { ownerNavGroups } from '@/lib/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { requiresOnboarding } from '@/lib/onboarding/state'
 import { getOccupancyToday, type OccupancyToday } from '@/lib/data/occupancy'
+import { getNavBadgeMap } from '@/lib/data/staff-alerts'
+
+function applyBadges<T extends { href: string; badge?: number }>(
+  items: T[],
+  badges: Record<string, number>,
+): T[] {
+  return items.map((item) => ({
+    ...item,
+    badge: badges[item.href] && badges[item.href] > 0 ? badges[item.href] : undefined,
+  }))
+}
 
 export default async function OwnerLayout({
   children,
@@ -18,7 +29,7 @@ export default async function OwnerLayout({
     redirect('/get-started')
   }
 
-  const navGroups = ownerNavGroups.map((group) => ({
+  let navGroups = ownerNavGroups.map((group) => ({
     ...group,
     items: group.items.map((item) => ({ ...item })),
   }))
@@ -26,7 +37,15 @@ export default async function OwnerLayout({
 
   if (profile.hotel_id) {
     const supabase = await createClient()
-    occupancyToday = await getOccupancyToday(supabase, profile.hotel_id)
+    const [badges, occupancy] = await Promise.all([
+      getNavBadgeMap(),
+      getOccupancyToday(supabase, profile.hotel_id),
+    ])
+    navGroups = navGroups.map((group) => ({
+      ...group,
+      items: applyBadges(group.items, badges),
+    }))
+    occupancyToday = occupancy
   }
 
   return (

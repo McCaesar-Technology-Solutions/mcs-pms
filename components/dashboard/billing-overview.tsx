@@ -351,7 +351,7 @@ export function BillingOverview({
               placeholder="Filter by invoice number, guest, or room…"
               value={textFilter}
               onChange={(e) => setTextFilter(e.target.value)}
-              className="w-full max-w-md rounded-lg border border-[#E9ECEF] bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20"
+              className="app-field max-w-md"
             />
           </div>
         )}
@@ -359,9 +359,7 @@ export function BillingOverview({
         <div className="surface-card-header flex items-center gap-2 overflow-x-auto">
           <button
             onClick={() => setStatusFilter(null)}
-            className={`px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-all ${
-              statusFilter === null ? 'bg-primary text-primary-foreground shadow-elevation-1' : 'bg-secondary text-foreground hover:bg-secondary/80'
-            }`}
+            className={`filter-pill ${statusFilter === null ? 'filter-pill--active' : ''}`}
           >
             All
           </button>
@@ -369,9 +367,7 @@ export function BillingOverview({
             <button
               key={status}
               onClick={() => setStatusFilter(status)}
-              className={`px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-all ${
-                statusFilter === status ? 'bg-primary text-primary-foreground shadow-elevation-1' : 'bg-secondary text-foreground hover:bg-secondary/80'
-              }`}
+              className={`filter-pill ${statusFilter === status ? 'filter-pill--active' : ''}`}
             >
               {status.charAt(0).toUpperCase() + status.slice(1)}
             </button>

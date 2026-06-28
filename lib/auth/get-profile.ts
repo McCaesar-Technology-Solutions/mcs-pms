@@ -1,16 +1,15 @@
-import { cache } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import type { Profile } from '@/types'
 
-export const getSessionUser = cache(async () => {
+export async function getSessionUser() {
   const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
   return user
-})
+}
 
-export const getProfile = cache(async (): Promise<Profile | null> => {
+export async function getProfile(): Promise<Profile | null> {
   const supabase = await createClient()
   const {
     data: { user },
@@ -27,4 +26,4 @@ export const getProfile = cache(async (): Promise<Profile | null> => {
   if (error || !data) return null
 
   return data as Profile
-})
+}

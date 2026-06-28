@@ -153,7 +153,7 @@ export function GuestsTable({ guests, initialSearch = '', readOnly = false }: Gu
         </div>
 
         <div className="surface-card-header space-y-4">
-          <div className="flex items-center gap-3 surface-inset rounded-xl px-4 py-2.5">
+          <div className="app-search-field">
             <Search className="h-5 w-5 text-muted-foreground" />
             <input
               type="search"
@@ -170,11 +170,7 @@ export function GuestsTable({ guests, initialSearch = '', readOnly = false }: Gu
               type="button"
               aria-pressed={selectedStatus === null}
               onClick={() => setSelectedStatus(null)}
-              className={`px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-all ${
-                selectedStatus === null
-                  ? 'bg-primary text-primary-foreground shadow-elevation-1'
-                  : 'bg-secondary text-foreground hover:bg-secondary/80'
-              }`}
+              className={`filter-pill ${selectedStatus === null ? 'filter-pill--active' : ''}`}
             >
               All Guests
             </button>
@@ -184,11 +180,7 @@ export function GuestsTable({ guests, initialSearch = '', readOnly = false }: Gu
                 type="button"
                 aria-pressed={selectedStatus === status}
                 onClick={() => setSelectedStatus(status)}
-                className={`px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-all ${
-                  selectedStatus === status
-                    ? 'bg-primary text-primary-foreground shadow-elevation-1'
-                    : 'bg-secondary text-foreground hover:bg-secondary/80'
-                }`}
+                className={`filter-pill ${selectedStatus === status ? 'filter-pill--active' : ''}`}
               >
                 {STATUS_LABEL[status]}
               </button>
