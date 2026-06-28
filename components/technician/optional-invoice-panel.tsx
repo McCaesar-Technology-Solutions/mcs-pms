@@ -20,10 +20,10 @@ export function OptionalInvoicePanel({
 }: OptionalInvoicePanelProps) {
   return (
     <details
-      className="group rounded-xl bg-white shadow-elevation-1 open:shadow-elevation-2"
+      className="technician-detail-card group open:shadow-[var(--tech-shadow)]"
       open={defaultOpen}
     >
-      <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-[#3C216C] marker:content-none [&::-webkit-details-marker]:hidden">
+      <summary className="cursor-pointer list-none px-1 py-1 text-sm font-semibold text-[var(--brand-purple)] marker:content-none [&::-webkit-details-marker]:hidden">
         <span className="flex items-center justify-between gap-2">
           Optional: send invoice to manager
           <span className="text-xs font-normal text-muted-foreground group-open:hidden">

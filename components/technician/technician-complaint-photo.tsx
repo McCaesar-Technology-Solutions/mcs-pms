@@ -36,8 +36,8 @@ export function TechnicianComplaintPhoto({ complaintId, hasPhoto }: TechnicianCo
   if (!hasPhoto) return null
 
   return (
-    <div className="overflow-hidden rounded-xl bg-white shadow-elevation-1">
-      <p className="border-b border-border/60 px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+    <div className="technician-detail-card overflow-hidden p-0">
+      <p className="technician-eyebrow border-b border-[var(--tech-border)] px-3 py-2">
         Guest photo
       </p>
       <div className="flex min-h-[180px] items-center justify-center bg-muted p-2">
