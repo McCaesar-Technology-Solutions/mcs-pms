@@ -17,6 +17,7 @@ export default async function ReceptionistMessagesPage() {
         badge="Concierge"
         title="Guest messages"
         description="Reply to guests from their portal — checkout questions, arrivals, and general help."
+        compact
       />
       <Suspense fallback={null}>
         <GuestMessagesPageClient

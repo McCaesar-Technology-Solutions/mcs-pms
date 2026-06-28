@@ -17,6 +17,7 @@ export default async function ManagerMessagesPage() {
         badge="Concierge"
         title="Guest messages"
         description="Chat with in-house guests about their stay — separate from maintenance complaints."
+        compact
       />
       <Suspense fallback={null}>
         <GuestMessagesPageClient conversations={conversations} basePath="/manager/messages" />

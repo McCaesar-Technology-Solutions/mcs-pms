@@ -14,7 +14,13 @@ const GUEST_QUICK_REPLIES = [
   'Thank you!',
 ] as const
 
-export function GuestStayChat() {
+interface GuestStayChatProps {
+  variant?: 'embedded' | 'screen'
+  propertyName?: string
+}
+
+export function GuestStayChat({ variant = 'embedded', propertyName }: GuestStayChatProps) {
+  const isScreen = variant === 'screen'
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [messages, setMessages] = useState<
     { id: string; authorRole: string; body: string; createdAt: string }[]
@@ -26,6 +32,7 @@ export function GuestStayChat() {
   const [error, setError] = useState<string | null>(null)
   const staffMessageCountRef = useRef(0)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const scrollToBottom = useCallback(() => {
     const el = scrollRef.current
@@ -120,14 +127,23 @@ export function GuestStayChat() {
     }
 
     await load({ silent: true })
+    textareaRef.current?.focus()
   }
 
   return (
-    <div className="guest-subpanel">
-      <div className="guest-subpanel__header">
+    <div
+      className={
+        isScreen ? 'guest-stay-chat guest-stay-chat--screen' : 'guest-subpanel'
+      }
+    >
+      <div className={isScreen ? 'guest-stay-chat__header' : 'guest-subpanel__header'}>
         <div>
           <p className="text-sm font-semibold">Message the team</p>
-          <p className="text-xs guest-text-subtle">Chat with the front desk about your stay</p>
+          <p className="text-xs guest-text-subtle">
+            {isScreen && propertyName
+              ? `Chat with ${propertyName} — replies usually within a few minutes`
+              : 'Chat with the front desk about your stay'}
+          </p>
         </div>
         <button
           type="button"
@@ -142,53 +158,80 @@ export function GuestStayChat() {
 
       <div
         ref={scrollRef}
-        className="max-h-72 space-y-3 overflow-y-auto px-4 py-4"
+        className={
+          isScreen
+            ? 'guest-stay-chat__messages'
+            : 'max-h-72 space-y-3 overflow-y-auto px-4 py-4'
+        }
         aria-live="polite"
       >
         {initialLoading ? (
-          <div className="flex items-center justify-center py-8 guest-text-subtle">
+          <div
+            className={`flex items-center justify-center guest-text-subtle ${
+              isScreen ? 'flex-1 py-16' : 'py-8'
+            }`}
+          >
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             <p className="text-sm">Loading messages…</p>
           </div>
         ) : messages.length === 0 ? (
-          <p className="py-6 text-center text-sm guest-text-muted">
-            Ask about checkout, requests, or anything else — the front desk will reply here.
-          </p>
+          <div
+            className={`text-center ${isScreen ? 'flex flex-1 flex-col items-center justify-center px-6 py-16' : 'py-6'}`}
+          >
+            <p className={`font-medium text-foreground ${isScreen ? 'text-base' : 'text-sm'}`}>
+              {isScreen ? 'Say hello to the front desk' : 'Start a conversation'}
+            </p>
+            <p className="mt-2 text-sm leading-relaxed guest-text-muted">
+              Ask about checkout, arrivals, or anything else — the team will reply here.
+            </p>
+          </div>
         ) : (
-          messages.map((m) => {
-            const isGuest = m.authorRole === 'guest'
-            return (
-              <div
-                key={m.id}
-                className={`flex ${isGuest ? 'justify-end' : 'justify-start'}`}
-              >
+          <div className="space-y-3">
+            {messages.map((m) => {
+              const isGuest = m.authorRole === 'guest'
+              return (
                 <div
-                  className={`guest-bubble ${
-                    isGuest ? 'guest-bubble--guest' : 'guest-bubble--staff'
-                  }`}
+                  key={m.id}
+                  className={`flex ${isGuest ? 'justify-end' : 'justify-start'}`}
                 >
-                  {!isGuest && (
-                    <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-[var(--brand-purple)]">
-                      Front desk
-                    </p>
-                  )}
-                  <p className="whitespace-pre-wrap break-words">{m.body}</p>
+                  <div
+                    className={`guest-bubble ${
+                      isGuest ? 'guest-bubble--guest' : 'guest-bubble--staff'
+                    }`}
+                  >
+                    {!isGuest && (
+                      <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-[var(--brand-purple)]">
+                        Front desk
+                      </p>
+                    )}
+                    <p className="whitespace-pre-wrap break-words">{m.body}</p>
+                  </div>
                 </div>
-              </div>
-            )
-          })
+              )
+            })}
+          </div>
         )}
       </div>
 
-      <div className="guest-divider px-3 py-3">
-        <div className="mb-2 flex flex-wrap gap-1.5">
+      <div className={isScreen ? 'guest-stay-chat__composer' : 'guest-divider px-3 py-3'}>
+        <div
+          className={
+            isScreen
+              ? 'guest-stay-chat__quick-replies'
+              : 'mb-2 flex flex-wrap gap-1.5'
+          }
+        >
           {GUEST_QUICK_REPLIES.map((q) => (
             <button
               key={q}
               type="button"
               onClick={() => void handleSend(q)}
               disabled={loading}
-              className="rounded-full border border-[var(--guest-border)] bg-[var(--guest-accent-softer)] px-2.5 py-1 text-[11px] guest-text-muted hover:bg-[var(--guest-accent-soft)]"
+              className={
+                isScreen
+                  ? 'guest-stay-chat__quick-reply'
+                  : 'rounded-full border border-[var(--guest-border)] bg-[var(--guest-accent-softer)] px-2.5 py-1 text-[11px] guest-text-muted hover:bg-[var(--guest-accent-soft)]'
+              }
             >
               {q}
             </button>
@@ -199,9 +242,10 @@ export function GuestStayChat() {
             e.preventDefault()
             void handleSend()
           }}
-          className="flex items-end gap-2"
+          className={isScreen ? 'guest-stay-chat__compose-form' : 'flex items-end gap-2'}
         >
           <textarea
+            ref={textareaRef}
             value={body}
             onChange={(e) => setBody(e.target.value)}
             onKeyDown={(e) => {
@@ -210,14 +254,23 @@ export function GuestStayChat() {
                 void handleSend()
               }
             }}
-            rows={2}
+            rows={isScreen ? 1 : 2}
             placeholder="Type a message…"
-            className="guest-field min-h-[44px] flex-1 resize-none"
+            className={
+              isScreen
+                ? 'guest-stay-chat__compose-input'
+                : 'guest-field min-h-[44px] flex-1 resize-none'
+            }
+            aria-label="Message to front desk"
           />
           <button
             type="submit"
             disabled={loading || !body.trim()}
-            className="guest-btn guest-btn-primary flex h-11 w-11 shrink-0 items-center justify-center disabled:opacity-40"
+            className={
+              isScreen
+                ? 'guest-stay-chat__send'
+                : 'guest-btn guest-btn-primary flex h-11 w-11 shrink-0 items-center justify-center disabled:opacity-40'
+            }
             aria-label="Send message"
           >
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}

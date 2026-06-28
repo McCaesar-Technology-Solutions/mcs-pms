@@ -27,11 +27,16 @@ export function GuestMessagesPageClient({ conversations, basePath }: GuestMessag
     router.replace(`${basePath}?conversation=${id}`, { scroll: false })
   }
 
+  function onBack() {
+    router.replace(basePath, { scroll: false })
+  }
+
   return (
     <GuestMessagesInbox
       conversations={conversations}
       selectedId={selectedId}
       onSelect={onSelect}
+      onBack={onBack}
     />
   )
 }

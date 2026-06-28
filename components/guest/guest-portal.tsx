@@ -63,10 +63,11 @@ import type { GuestPortalContext } from '@/lib/data/guest-portal'
 import type { StaffContact } from '@/lib/data/contacts'
 import type { Complaint, ComplaintCategory, Guest } from '@/types'
 
-type TabId = 'home' | 'stay' | 'help' | 'account'
+type TabId = 'home' | 'stay' | 'messages' | 'help' | 'account'
 
 const tabs: { id: TabId; label: string; icon: typeof Home }[] = [
   { id: 'home', label: 'Home', icon: Home },
+  { id: 'messages', label: 'Messages', icon: MessageCircle },
   { id: 'stay', label: 'My stay', icon: BedDouble },
   { id: 'help', label: 'Help', icon: LifeBuoy },
   { id: 'account', label: 'Account', icon: User },
@@ -403,7 +404,9 @@ export function GuestPortal({
         )}
       </header>
 
-      <main className="guest-portal-main">
+      <main
+        className={`guest-portal-main ${activeTab === 'messages' ? 'guest-portal-main--fill' : ''}`}
+      >
         {(activeTab === 'home' || activeTab === 'stay' || activeTab === 'help') && (
           <GuestStatusAlerts
             complaints={complaints}
@@ -462,7 +465,7 @@ export function GuestPortal({
               </button>
               <button
                 type="button"
-                onClick={() => setActiveTab('stay')}
+                onClick={() => setActiveTab('messages')}
                 className="guest-action-row guest-btn"
               >
                 <span className="guest-action-row__icon">
@@ -470,7 +473,7 @@ export function GuestPortal({
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="guest-action-row__label block">Message the team</span>
-                  <span className="guest-action-row__hint block">Chat with the front desk</span>
+                  <span className="guest-action-row__hint block">Opens in Messages</span>
                 </span>
                 <ChevronRight className="h-4 w-4 shrink-0 guest-text-subtle" />
               </button>
@@ -541,7 +544,7 @@ export function GuestPortal({
             aria-labelledby="guest-tab-stay"
             className="guest-tab-panel"
           >
-            <p className="guest-tab-intro">Your dates, messages, requests, and billing for this stay.</p>
+            <p className="guest-tab-intro">Your dates, requests, and billing for this stay.</p>
 
             {requestSuccess && (
               <div role="status" className="guest-checkout-strip guest-checkout-strip--success">
@@ -557,8 +560,6 @@ export function GuestPortal({
                 checkOutTime={property.checkOutTime}
               />
             )}
-
-            <GuestStayChat />
 
             <PortalCard>
               <p className="guest-portal-card__title">Requests</p>
@@ -701,6 +702,17 @@ export function GuestPortal({
                 <p className="text-xs text-[var(--brand-purple)]">{emailReceiptMessage}</p>
               )}
             </PortalCard>
+          </div>
+        )}
+
+        {activeTab === 'messages' && (
+          <div
+            role="tabpanel"
+            id="guest-panel-messages"
+            aria-labelledby="guest-tab-messages"
+            className="guest-tab-panel guest-tab-panel--fill"
+          >
+            <GuestStayChat variant="screen" propertyName={property.name} />
           </div>
         )}
 
