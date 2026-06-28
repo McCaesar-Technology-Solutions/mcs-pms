@@ -325,11 +325,12 @@ export function GuestPortal({
 
   function handleGuestNextStep(action: GuestNextAction) {
     setActiveTab('help')
-    setFocusComplaintId(action.complaintId)
-    setFocusSection(action.focus)
     if (action.focus === 'chat') {
       setChatComplaintId(action.complaintId)
+      return
     }
+    setFocusComplaintId(action.complaintId)
+    setFocusSection(action.focus)
   }
 
   function handleComplaintNextStep(complaintId: string, focus: GuestNextActionFocus) {
@@ -468,7 +469,7 @@ export function GuestPortal({
                 onClick={() => setActiveTab('messages')}
                 className="guest-action-row guest-btn"
               >
-                <span className="guest-action-row__icon">
+                <span className="guest-action-row__icon guest-action-row__icon--messages">
                   <MessageCircle className="h-5 w-5" />
                 </span>
                 <span className="min-w-0 flex-1">
@@ -723,7 +724,27 @@ export function GuestPortal({
             aria-labelledby="guest-tab-help"
             className="guest-tab-panel"
           >
-            <p className="guest-tab-intro">Report a problem or follow up on something already logged.</p>
+            <p className="guest-tab-intro">Check open issues or report something new.</p>
+
+            {complaints.length > 0 && (
+              <section className="mb-4 flex flex-col gap-3">
+                <p className="guest-portal-card__title">Your issues</p>
+                <ul className="flex flex-col gap-3">
+                  {complaints.map((c) => (
+                    <GuestComplaintCard
+                      key={c.id}
+                      complaint={c}
+                      onUpdated={loadComplaints}
+                      onOpenChat={() => setChatComplaintId(c.id)}
+                      forceOpen={focusComplaintId === c.id}
+                      focusSection={focusComplaintId === c.id ? focusSection : null}
+                      onFocusHandled={clearComplaintFocus}
+                      onNextStep={handleComplaintNextStep}
+                    />
+                  ))}
+                </ul>
+              </section>
+            )}
 
             <form onSubmit={handleComplaintSubmit} className="flex flex-col gap-4">
               <PortalCard>
@@ -794,26 +815,6 @@ export function GuestPortal({
                 </button>
               </PortalCard>
             </form>
-
-            {complaints.length > 0 && (
-              <section className="flex flex-col gap-3">
-                <p className="guest-portal-card__title">Your issues</p>
-                <ul className="flex flex-col gap-3">
-                  {complaints.map((c) => (
-                    <GuestComplaintCard
-                      key={c.id}
-                      complaint={c}
-                      onUpdated={loadComplaints}
-                      onOpenChat={() => setChatComplaintId(c.id)}
-                      forceExpanded={focusComplaintId === c.id}
-                      focusSection={focusComplaintId === c.id ? focusSection : null}
-                      onFocusHandled={clearComplaintFocus}
-                      onNextStep={handleComplaintNextStep}
-                    />
-                  ))}
-                </ul>
-              </section>
-            )}
           </div>
         )}
 

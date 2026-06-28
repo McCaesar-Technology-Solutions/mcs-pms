@@ -33,11 +33,9 @@ function StatChip({
       }`}
     >
       <div className="flex items-center gap-2">
-        <Icon
-          className={`stat-chip__icon--${accent} h-3.5 w-3.5 shrink-0`}
-          strokeWidth={2}
-          aria-hidden
-        />
+        <span className={`stat-chip__icon-badge stat-chip__icon-badge--${accent}`}>
+          <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} aria-hidden />
+        </span>
         <span className="stat-chip__label">{label}</span>
       </div>
       <p className="stat-chip__value">{value}</p>
@@ -70,7 +68,7 @@ export function DashboardToolbar({
     <header className="flex flex-col gap-4">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="min-w-0">
-          <p className="text-sm font-medium text-muted-foreground">{eyebrow}</p>
+          <p className="label-eyebrow label-eyebrow-accent">{eyebrow}</p>
           <h1 className="font-display mt-1 text-[1.625rem] font-semibold tracking-tight text-foreground text-balance sm:text-[1.875rem]">
             {title}
           </h1>

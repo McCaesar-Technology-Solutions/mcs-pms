@@ -28,8 +28,8 @@ export function GuestNextStepBanner({
 
   return (
     <div
-      className={`guest-portal-card ${
-        isConfirm ? 'border-[var(--brand-orange)]/30 bg-[var(--brand-orange)]/8' : ''
+      className={`guest-portal-card guest-portal-card--spotlight ${
+        isConfirm ? 'border-[var(--brand-orange)]/30' : ''
       } ${isHome ? '' : '!p-3.5'}`}
     >
       <div className="flex items-start gap-3">

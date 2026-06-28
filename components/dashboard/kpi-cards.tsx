@@ -1,7 +1,7 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { BarChart3 } from 'lucide-react'
+import { BarChart3, Users, Wallet } from 'lucide-react'
 import { AnimatedMetric } from '@/components/dashboard/animated-metric'
 import { DataEmptyState } from '@/components/dashboard/data-empty-state'
 import { OccupancySnapshot } from '@/components/dashboard/occupancy-snapshot'
@@ -95,9 +95,19 @@ function MetricTile({
         ? 'kpi-card--tile-tone-balance-ok'
         : 'kpi-card--tile-tone-rate'
 
+  const Icon = tone === 'bookings' ? Users : tone === 'balance' ? Wallet : BarChart3
+  const badgeClass = warning
+    ? 'kpi-card__icon-badge--balance-warn'
+    : `kpi-card__icon-badge--${tone}`
+
   return (
     <div className={`kpi-card kpi-card--tile kpi-card--tile-elevated kpi-card--tile-compact ${toneClass}`}>
-      <p className="kpi-card__label">{label}</p>
+      <div className="flex items-start justify-between gap-2">
+        <p className="kpi-card__label">{label}</p>
+        <div className={`kpi-card__icon-badge ${badgeClass}`}>
+          <Icon className="h-4 w-4" strokeWidth={2.25} aria-hidden />
+        </div>
+      </div>
       <div className="mt-1.5">
         <p className="kpi-card__value kpi-card__value--tile-sm">
           {rawValue != null && formatValue ? (
