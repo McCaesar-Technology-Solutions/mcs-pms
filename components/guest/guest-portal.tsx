@@ -35,6 +35,7 @@ import {
   Volume2,
   HelpCircle,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { getGuestComplaints } from '@/app/actions/guest'
 import {
@@ -220,7 +221,12 @@ export function GuestPortal({
     const next = !dnd
     setDnd(next)
     const result = await setGuestDoNotDisturb(next)
-    if (!result.success) setDnd(!next)
+    if (!result.success) {
+      setDnd(!next)
+      toast.error(result.error ?? 'Could not update Do Not Disturb.')
+      return
+    }
+    toast.success(next ? 'Do Not Disturb is on' : 'Do Not Disturb is off')
   }
 
   async function handleRequest(type: string) {
@@ -833,7 +839,9 @@ export function GuestPortal({
               <div className="guest-account-dnd-row flex items-center justify-between gap-3">
                 <div>
                   <p className="guest-portal-card__title">Do not disturb</p>
-                  <p className="guest-portal-card__hint">Housekeeping will skip your room while this is on.</p>
+                  <p className="guest-portal-card__hint">
+                    Staff will see a do-not-disturb flag on your room and call before entering.
+                  </p>
                 </div>
                 <button
                   type="button"

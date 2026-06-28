@@ -13,6 +13,7 @@ import {
   guestRateKey,
 } from '@/lib/rate-limit'
 import type { Guest } from '@/types'
+import { guestFacingAuthorName } from '@/lib/contacts/display'
 import { profilePhotoPublicUrl } from '@/lib/profile-photos/storage'
 
 export type GuestConversationActionResult<T = void> =
@@ -144,8 +145,8 @@ export async function getGuestStayMessages(): Promise<
   ]
 
   const { data: profiles } = staffIds.length
-    ? await admin.from('profiles').select('id, name, profile_image_path').in('id', staffIds)
-    : { data: [] as { id: string; name: string; profile_image_path: string | null }[] }
+    ? await admin.from('profiles').select('id, name, role, profile_image_path').in('id', staffIds)
+    : { data: [] as { id: string; name: string; role: string; profile_image_path: string | null }[] }
 
   const staffById = new Map((profiles ?? []).map((p) => [p.id, p]))
 
@@ -162,10 +163,14 @@ export async function getGuestStayMessages(): Promise<
           authorRole: m.author_role,
           body: m.body,
           createdAt: m.created_at ?? new Date(0).toISOString(),
-          authorName: isGuest ? auth.guest.name : (staff?.name ?? 'Front desk'),
+          authorName: isGuest
+            ? auth.guest.name
+            : guestFacingAuthorName(staff?.name, staff?.role),
           authorAvatarUrl: isGuest
             ? guestAvatarUrl
-            : profilePhotoPublicUrl(staff?.profile_image_path),
+            : staff?.role === 'owner'
+              ? null
+              : profilePhotoPublicUrl(staff?.profile_image_path),
         }
       }),
     },

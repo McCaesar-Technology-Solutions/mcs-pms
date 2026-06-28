@@ -15,6 +15,7 @@ export interface HousekeepingTaskView {
   completedAt: string | null
   completedBy: string | null
   isOverdue: boolean
+  roomDoNotDisturb?: boolean
 }
 
 function taskPriorityRank(priority: TaskPriority): number {

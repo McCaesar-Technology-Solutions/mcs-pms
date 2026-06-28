@@ -36,7 +36,7 @@ export async function getStaffContacts(
     }))
 }
 
-/** Guest portal — managers only (owner contact is not exposed to guests). */
+/** Guest portal — managers and front desk (owner contact is not exposed to guests). */
 export async function getGuestPropertyContacts(hotelId: string): Promise<StaffContact[]> {
   const admin = createAdminClient()
   const { data, error } = await admin
@@ -44,8 +44,9 @@ export async function getGuestPropertyContacts(hotelId: string): Promise<StaffCo
     .select('id, name, phone, role')
     .eq('hotel_id', hotelId)
     .eq('is_active', true)
-    .eq('role', 'manager')
+    .in('role', ['manager', 'receptionist'])
     .not('phone', 'is', null)
+    .order('role')
     .order('name')
 
   if (error) return []

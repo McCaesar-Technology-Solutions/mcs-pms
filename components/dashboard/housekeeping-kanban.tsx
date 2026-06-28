@@ -349,6 +349,11 @@ function DbKanban({
                           <div className="min-w-0">
                             <p className="text-base font-bold text-[#111827]">
                               {task.roomNumber ? `Room ${task.roomNumber}` : 'No room'}
+                              {task.roomDoNotDisturb && (
+                                <span className="ml-2 inline-flex items-center rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-indigo-800">
+                                  DND
+                                </span>
+                              )}
                             </p>
                             <div className="mt-1.5 inline-flex items-center gap-1.5 rounded-lg bg-[#faf8fc] px-2 py-1">
                               <TaskIcon className="h-3.5 w-3.5 text-[#4c1d95]" />

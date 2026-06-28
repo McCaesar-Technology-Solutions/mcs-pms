@@ -18,8 +18,8 @@ import {
   extendStay,
   markNoShow,
   moveStayRoom,
-  searchGuests,
 } from '@/app/actions/stays'
+import { GuestSearchField } from '@/components/dashboard/guest-search-field'
 import { PortalLinkPanel } from '@/components/dashboard/portal-link-panel'
 import { ReservationsBulkBar } from '@/components/dashboard/reservations-bulk-bar'
 import { TablePagination } from '@/components/dashboard/table-pagination'
@@ -542,6 +542,7 @@ function ReservationDrawer({ reservation, roomOptions, staffRole, onClose, onMut
   const [recordingDeposit, setRecordingDeposit] = useState(false)
   const [earlyCheckout, setEarlyCheckout] = useState(false)
   const [markAsPaid, setMarkAsPaid] = useState(true)
+  const [includeTax, setIncludeTax] = useState(true)
   const [phone, setPhone] = useState(reservation.guestPhone)
   const [email, setEmail] = useState(reservation.guestEmail)
   const [guestName, setGuestName] = useState(reservation.guestName)
@@ -553,26 +554,10 @@ function ReservationDrawer({ reservation, roomOptions, staffRole, onClose, onMut
   const [editRateType, setEditRateType] = useState<RateType>(reservation.rateType)
   const [editNightlyRate, setEditNightlyRate] = useState(String(reservation.nightlyRate))
   const [editMonthlyRate, setEditMonthlyRate] = useState(String(reservation.monthlyRate))
-  const [guestQuery, setGuestQuery] = useState('')
-  const [guestMatches, setGuestMatches] = useState<
-    { id: string; name: string; phone: string | null; email: string | null }[]
-  >([])
   const [selectedGuestId, setSelectedGuestId] = useState<string | null>(null)
   const [portalUrl, setPortalUrl] = useState<string | null>(null)
   const [newCheckOut, setNewCheckOut] = useState(reservation.checkOutDate)
   const [newRoomId, setNewRoomId] = useState(reservation.roomId)
-
-  useEffect(() => {
-    if (!guestQuery.trim() || guestQuery.length < 2) {
-      setGuestMatches([])
-      return
-    }
-    const t = setTimeout(async () => {
-      const result = await searchGuests(guestQuery)
-      if (result.success && result.data) setGuestMatches(result.data)
-    }, 300)
-    return () => clearTimeout(t)
-  }, [guestQuery])
 
   function run(action: () => Promise<{ success: boolean; error?: string }>, onSuccess?: () => void) {
     setError(null)
@@ -997,7 +982,10 @@ function ReservationDrawer({ reservation, roomOptions, staffRole, onClose, onMut
                 <div className="space-y-3 rounded-xl surface-inset p-4">
                   <p className="text-sm font-semibold text-foreground">Guest check-in</p>
                   <Field label="Guest name">
-                    <input value={guestName} onChange={(e) => setGuestName(e.target.value)} className={fieldClass} />
+                    <input value={guestName} onChange={(e) => {
+                      setGuestName(e.target.value)
+                      setSelectedGuestId(null)
+                    }} className={fieldClass} />
                   </Field>
                   <Field label="Phone (required)">
                     <input
@@ -1016,39 +1004,21 @@ function ReservationDrawer({ reservation, roomOptions, staffRole, onClose, onMut
                       className={fieldClass}
                     />
                   </Field>
-                  <Field label="Find returning guest">
-                    <input
-                      value={guestQuery}
-                      onChange={(e) => setGuestQuery(e.target.value)}
-                      placeholder="Search name or phone…"
-                      className={fieldClass}
-                    />
-                    {guestMatches.length > 0 && (
-                      <ul className="mt-2 max-h-32 overflow-y-auto rounded-lg border border-border bg-white">
-                        {guestMatches.map((g) => (
-                          <li key={g.id}>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedGuestId(g.id)
-                                setGuestName(g.name)
-                                setPhone(g.phone ?? '')
-                                setEmail(g.email ?? '')
-                                setGuestQuery(g.name)
-                                setGuestMatches([])
-                              }}
-                              className={`w-full px-3 py-2 text-left text-sm hover:bg-secondary ${
-                                selectedGuestId === g.id ? 'bg-secondary font-semibold' : ''
-                              }`}
-                            >
-                              {g.name}
-                              {g.phone ? ` · ${g.phone}` : ''}
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </Field>
+                  <GuestSearchField
+                    label="Find returning guest"
+                    fieldClass={fieldClass}
+                    selectedGuestId={selectedGuestId}
+                    onSelectGuest={(g) => {
+                      if (g) {
+                        setSelectedGuestId(g.id)
+                        setGuestName(g.name)
+                        setPhone(g.phone ?? '')
+                        setEmail(g.email ?? '')
+                      } else {
+                        setSelectedGuestId(null)
+                      }
+                    }}
+                  />
                   <div className="flex gap-2">
                     <button
                       type="button"
@@ -1179,9 +1149,19 @@ function ReservationDrawer({ reservation, roomOptions, staffRole, onClose, onMut
                   <div>
                     <p className="text-sm font-semibold text-foreground">Collect payment</p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
-                      A GRA tax invoice will be generated on check-out.
+                      {includeTax
+                        ? 'A GRA tax invoice will be generated on check-out.'
+                        : 'Invoice will use the room total without GRA taxes.'}
                     </p>
                   </div>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={includeTax}
+                      onChange={(e) => setIncludeTax(e.target.checked)}
+                    />
+                    Include VAT &amp; GRA levies on invoice
+                  </label>
                   <label className="flex items-center gap-2 text-sm">
                     <input
                       type="checkbox"
@@ -1223,7 +1203,13 @@ function ReservationDrawer({ reservation, roomOptions, staffRole, onClose, onMut
                       disabled={pending}
                       onClick={() =>
                         run(() =>
-                          checkOutReservation(reservation.id, paymentMethod, earlyCheckout, markAsPaid),
+                          checkOutReservation(
+                            reservation.id,
+                            paymentMethod,
+                            earlyCheckout,
+                            markAsPaid,
+                            includeTax,
+                          ),
                         )
                       }
                       className="flex flex-[2] items-center justify-center gap-2 rounded-xl bg-[#3C216C] py-2.5 text-sm font-semibold text-white shadow-elevation-1 transition-all hover:shadow-elevation-2 disabled:opacity-50"
@@ -1392,10 +1378,6 @@ function ReservationFormModal({
   const [rateType, setRateType] = useState<RateType>('nightly')
   const [nightlyRate, setNightlyRate] = useState(String(roomOptions[0]?.nightlyRate ?? 0))
   const [monthlyRate, setMonthlyRate] = useState(String(roomOptions[0]?.monthlyRate ?? 0))
-  const [guestQuery, setGuestQuery] = useState('')
-  const [guestMatches, setGuestMatches] = useState<
-    { id: string; name: string; phone: string | null; email: string | null }[]
-  >([])
   const [selectedGuestId, setSelectedGuestId] = useState<string | null>(null)
   const [portalUrl, setPortalUrl] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -1415,18 +1397,6 @@ function ReservationFormModal({
       setCheckIn(today)
     }
   }, [flowMode, today])
-
-  useEffect(() => {
-    if (!guestQuery.trim() || guestQuery.length < 2) {
-      setGuestMatches([])
-      return
-    }
-    const t = setTimeout(async () => {
-      const result = await searchGuests(guestQuery)
-      if (result.success && result.data) setGuestMatches(result.data)
-    }, 300)
-    return () => clearTimeout(t)
-  }, [guestQuery])
 
   const datesValid = checkOut > checkIn
 
@@ -1578,43 +1548,30 @@ function ReservationFormModal({
         <Field label="Guest name">
           <input
             value={guestName}
-            onChange={(e) => setGuestName(e.target.value)}
+            onChange={(e) => {
+              setGuestName(e.target.value)
+              setSelectedGuestId(null)
+            }}
             placeholder="Full name"
             className={fieldClass}
           />
         </Field>
 
-        <Field label="Find existing guest (optional)">
-          <input
-            value={guestQuery}
-            onChange={(e) => setGuestQuery(e.target.value)}
-            placeholder="Search name or phone…"
-            className={fieldClass}
-          />
-          {guestMatches.length > 0 && (
-            <ul className="mt-2 max-h-28 overflow-y-auto rounded-lg border border-border bg-white">
-              {guestMatches.map((g) => (
-                <li key={g.id}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedGuestId(g.id)
-                      setGuestName(g.name)
-                      setPhone(g.phone ?? '')
-                      setEmail(g.email ?? '')
-                      setGuestQuery(g.name)
-                      setGuestMatches([])
-                    }}
-                    className="w-full px-3 py-2 text-left text-sm hover:bg-secondary"
-                  >
-                    {g.name}
-                    {g.phone ? ` · ${g.phone}` : ''}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Field>
+        <GuestSearchField
+          label="Find existing guest (optional)"
+          fieldClass={fieldClass}
+          selectedGuestId={selectedGuestId}
+          onSelectGuest={(g) => {
+            if (g) {
+              setSelectedGuestId(g.id)
+              setGuestName(g.name)
+              setPhone(g.phone ?? '')
+              setEmail(g.email ?? '')
+            } else {
+              setSelectedGuestId(null)
+            }
+          }}
+        />
 
         <Field label="Room">
           {roomOptions.length === 0 ? (

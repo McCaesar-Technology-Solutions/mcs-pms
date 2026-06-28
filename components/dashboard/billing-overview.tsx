@@ -14,7 +14,7 @@ import { downloadCsv } from '@/lib/export/download-csv'
 import { copyToClipboard } from '@/lib/export/entity-refs'
 import { usePagination } from '@/lib/hooks/use-pagination'
 import { useRowSelection } from '@/lib/hooks/use-row-selection'
-import { PAYMENT_METHOD_LABELS, computeInvoiceTaxes, type VatMode } from '@/lib/tax'
+import { PAYMENT_METHOD_LABELS, computeInvoiceTaxesWithOption, type VatMode } from '@/lib/tax'
 import { formatInvoiceNumber } from '@/lib/invoices/numbering'
 import { downloadInvoicePdf } from '@/lib/export/invoice-pdf'
 import type { ExportHotelInfo } from '@/lib/export/types'
@@ -123,6 +123,7 @@ export function BillingOverview({
   const [newSubtotal, setNewSubtotal] = useState('')
   const [newPaymentMethod, setNewPaymentMethod] = useState<PaymentMethod>('cash')
   const [newMarkPaid, setNewMarkPaid] = useState(true)
+  const [newIncludeTax, setNewIncludeTax] = useState(true)
   const [partialAmount, setPartialAmount] = useState('')
   const [partialMethod, setPartialMethod] = useState<PaymentMethod>('cash')
   const [pending, startTransition] = useTransition()
@@ -192,7 +193,10 @@ export function BillingOverview({
   }
 
   const newSubtotalNum = parseFloat(newSubtotal) || 0
-  const newTaxPreview = newSubtotalNum > 0 ? computeInvoiceTaxes(newSubtotalNum, vatMode) : null
+  const newTaxPreview =
+    newSubtotalNum > 0
+      ? computeInvoiceTaxesWithOption(newSubtotalNum, vatMode, newIncludeTax)
+      : null
   const amountFieldLabel =
     vatMode === 'inclusive' ? 'Gross amount (includes tax)' : 'Subtotal (before tax)'
 
@@ -204,6 +208,7 @@ export function BillingOverview({
         subtotal: newSubtotalNum,
         paymentMethod: newPaymentMethod,
         markAsPaid: newMarkPaid,
+        includeTax: newIncludeTax,
       })
       if (result.success) {
         toast.success('Invoice created')
@@ -337,7 +342,7 @@ export function BillingOverview({
           <button
             type="button"
             onClick={() => setCreating(true)}
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 font-semibold text-primary-foreground shadow-elevation-1 transition-all hover:-translate-y-0.5 hover:shadow-elevation-2 sm:w-auto"
+            className="app-btn app-btn-primary flex w-full items-center justify-center gap-2 sm:w-auto"
           >
             <Plus className="h-4 w-4" />
             New Invoice
@@ -682,12 +687,25 @@ export function BillingOverview({
               onChange={(e) => setNewSubtotal(e.target.value)}
               className="mt-1 w-full rounded-lg border border-[#E9ECEF] px-3 py-2 text-sm"
             />
-            {newTaxPreview && (
+            {newTaxPreview && newIncludeTax && (
               <p className="mt-1 text-xs text-muted-foreground">
                 Total with GRA taxes: {money(newTaxPreview.total)}
               </p>
             )}
+            {newTaxPreview && !newIncludeTax && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Invoice total (no tax): {money(newTaxPreview.total)}
+              </p>
+            )}
           </div>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={newIncludeTax}
+              onChange={(e) => setNewIncludeTax(e.target.checked)}
+            />
+            Include VAT &amp; GRA levies
+          </label>
           <div>
             <label className="text-sm font-semibold">Payment method</label>
             <select
@@ -716,7 +734,7 @@ export function BillingOverview({
             type="button"
             disabled={pending || newGuestName.trim().length < 2 || newSubtotalNum <= 0}
             onClick={submitNewInvoice}
-            className="w-full rounded-lg bg-primary py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+            className="app-btn app-btn-primary w-full"
           >
             {pending ? 'Creating…' : 'Create invoice'}
           </button>

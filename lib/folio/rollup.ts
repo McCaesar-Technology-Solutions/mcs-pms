@@ -16,8 +16,22 @@ function round2(value: number): number {
 export function mergeRoomTaxesWithFolio(
   roomTaxes: InvoiceTaxes,
   folioSubtotal: number,
+  includeTax = true,
 ): InvoiceTaxes {
   if (folioSubtotal <= 0) return roomTaxes
+
+  if (!includeTax) {
+    const subtotal = round2(roomTaxes.subtotal + folioSubtotal)
+    return {
+      subtotal,
+      nhil: 0,
+      getfund: 0,
+      covid: 0,
+      vat: 0,
+      elevy: 0,
+      total: subtotal,
+    }
+  }
 
   const folioTaxes = computeInvoiceTaxes(folioSubtotal, 'exclusive')
   return {
@@ -77,6 +91,7 @@ export async function prepareCheckoutTaxesWithFolio(
   guestId: string,
   reservationId: string | null | undefined,
   roomTaxes: InvoiceTaxes,
+  includeTax = true,
 ): Promise<{
   taxes: InvoiceTaxes
   folioCharges: UnbilledFolioCharge[]
@@ -84,6 +99,6 @@ export async function prepareCheckoutTaxesWithFolio(
 }> {
   const folioCharges = await loadUnbilledFolioCharges(admin, hotelId, guestId, reservationId)
   const folioSubtotal = sumFolioSubtotal(folioCharges)
-  const taxes = mergeRoomTaxesWithFolio(roomTaxes, folioSubtotal)
+  const taxes = mergeRoomTaxesWithFolio(roomTaxes, folioSubtotal, includeTax)
   return { taxes, folioCharges, folioSubtotal }
 }

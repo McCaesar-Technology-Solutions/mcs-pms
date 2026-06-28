@@ -2,6 +2,7 @@
 
 import { MessageCircle, Phone } from 'lucide-react'
 import { telHref, whatsAppHref } from '@/lib/phone'
+import { staffContactLabel } from '@/lib/contacts/display'
 import type { StaffContact } from '@/lib/data/contacts'
 
 interface PhoneContactProps {
@@ -110,7 +111,7 @@ export function PhoneContactList({
           key={contact.id}
           name={contact.name}
           phone={contact.phone}
-          label={`${contact.name}${contact.role === 'owner' ? ' (Owner)' : ''}`}
+          label={staffContactLabel(contact.name, contact.role)}
           variant={variant}
         />
       ))}

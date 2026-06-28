@@ -431,12 +431,19 @@ export async function checkOutReservation(
   paymentMethod: PaymentMethod = 'cash',
   earlyCheckout = false,
   markAsPaid = true,
+  includeTax = true,
 ): Promise<ReservationActionResult> {
   if (!VALID_PAYMENT_METHODS.includes(paymentMethod)) {
     return { success: false, error: 'Invalid payment method.' }
   }
   const { checkOutStay } = await import('@/app/actions/stays')
-  const result = await checkOutStay({ reservationId: id, paymentMethod, earlyCheckout, markAsPaid })
+  const result = await checkOutStay({
+    reservationId: id,
+    paymentMethod,
+    earlyCheckout,
+    markAsPaid,
+    includeTax,
+  })
   if (!result.success) return { success: false, error: result.error }
   return { success: true }
 }

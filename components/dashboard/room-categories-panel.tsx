@@ -38,7 +38,7 @@ export function RoomCategoriesPanel({ categories }: RoomCategoriesPanelProps) {
         <button
           type="button"
           onClick={() => setCreating(true)}
-          className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-elevation-1 transition-all hover:-translate-y-px hover:shadow-elevation-2"
+          className="app-btn app-btn-primary inline-flex items-center gap-2"
         >
           <Plus className="h-4 w-4" />
           Add category

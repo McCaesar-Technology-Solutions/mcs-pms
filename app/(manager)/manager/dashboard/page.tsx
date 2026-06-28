@@ -181,15 +181,11 @@ export default async function ManagerDashboardPage({
                 <GuestRequestsPanel hotelId={hotelId} initialRequests={guestRequests} />
                 {guestFeedback && <GuestFeedbackPanel summary={guestFeedback} />}
                 <ManagerNotificationSummary smsPrefs={smsPrefs} emailPrefs={emailPrefs} />
-                <p className="text-sm text-muted-foreground">
-                  Guest portal content and house rules are managed by the property owner in Settings.
-                </p>
                 <GuestPortalSettingsPanel
                   hotelId={hotelId}
                   propertyName={propertyName}
-                  canEdit={false}
                 />
-                <GuestRulesPanel hotelId={hotelId} propertyName={propertyName} canEdit={false} />
+                <GuestRulesPanel hotelId={hotelId} propertyName={propertyName} />
               </>
             ) : (
               <p className="text-sm text-muted-foreground">No property linked to this account.</p>

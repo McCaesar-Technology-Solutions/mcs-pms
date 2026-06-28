@@ -6,7 +6,7 @@ import { randomUUID } from 'node:crypto'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { allocateInvoiceNumber } from '@/lib/invoices/numbering'
-import { computeInvoiceTaxes } from '@/lib/tax'
+import { computeInvoiceTaxesWithOption } from '@/lib/tax'
 import { getHotelVatMode } from '@/lib/data/settings'
 import {
   invoiceBalanceDue,
@@ -43,6 +43,7 @@ const createManualInvoiceSchema = z.object({
     'bank_transfer',
   ]),
   markAsPaid: z.boolean().default(true),
+  includeTax: z.boolean().default(true),
 })
 
 const partialPaymentSchema = z.object({
@@ -298,7 +299,7 @@ export async function createManualInvoice(
 
   const admin = createAdminClient()
   const vatMode = await getHotelVatMode(profile.hotel_id)
-  const taxes = computeInvoiceTaxes(parsed.data.subtotal, vatMode)
+  const taxes = computeInvoiceTaxesWithOption(parsed.data.subtotal, vatMode, parsed.data.includeTax)
   const now = new Date().toISOString()
   const paidNow = parsed.data.markAsPaid
   const invoiceNumber = await allocateInvoiceNumber(profile.hotel_id)

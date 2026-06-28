@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { computeInvoiceTaxes } from '@/lib/tax'
+import { computeInvoiceTaxes, noTaxInvoice } from '@/lib/tax'
 import { getHotelVatMode } from '@/lib/data/settings'
 import { allocateInvoiceNumber } from '@/lib/invoices/numbering'
 import { createPostCheckoutCleanTask } from '@/lib/housekeeping/checkout-task'
@@ -93,6 +93,7 @@ async function computeCheckoutTaxes(
   monthlyRateInput?: number | null,
   totalAmountInput?: number | null,
   plannedCheckOut?: string | null,
+  includeTax = true,
 ) {
   const vatMode = await getHotelVatMode(hotelId)
 
@@ -114,7 +115,9 @@ async function computeCheckoutTaxes(
     chargeAmount = calculateStayTotal(rateType, checkIn, effectiveCheckOut, nightlyRate, monthlyRate)
   }
 
-  const taxes = computeInvoiceTaxes(chargeAmount, vatMode)
+  const taxes = includeTax
+    ? computeInvoiceTaxes(chargeAmount, vatMode)
+    : noTaxInvoice(chargeAmount)
   return { chargeAmount, taxes, vatMode }
 }
 
@@ -153,7 +156,7 @@ export async function searchGuests(query: string): Promise<
   const { profile } = await requireManager()
   if (!profile?.hotel_id) return { success: false, error: 'Not authorized.' }
 
-  const q = query.trim()
+  const q = query.trim().replace(/[,()]/g, ' ').trim()
   if (q.length < 2) return { success: true, data: [] }
 
   const admin = createAdminClient()
@@ -440,6 +443,7 @@ export async function checkOutStay(input: {
   paymentMethod: PaymentMethod
   earlyCheckout?: boolean
   markAsPaid?: boolean
+  includeTax?: boolean
 }): Promise<StayActionResult> {
   const { profile, userId } = await requireManager()
   if (!profile?.hotel_id || !userId || !['owner', 'manager', 'receptionist'].includes(profile.role)) {
@@ -453,6 +457,7 @@ export async function checkOutStay(input: {
   }
 
   const admin = createAdminClient()
+  const includeTax = input.includeTax !== false
   let reservation: {
     id: string
     hotel_id: string
@@ -523,6 +528,7 @@ export async function checkOutStay(input: {
       null,
       null,
       guest.check_out,
+      includeTax,
     )
     const { taxes, folioCharges, folioSubtotal } = await prepareCheckoutTaxesWithFolio(
       admin,
@@ -530,6 +536,7 @@ export async function checkOutStay(input: {
       guest.id,
       null,
       roomTaxes,
+      includeTax,
     )
     const now = new Date().toISOString()
     const paidNow = input.markAsPaid !== false
@@ -700,6 +707,7 @@ export async function checkOutStay(input: {
     reservation.monthly_rate,
     reservation.total_amount,
     reservation.check_out,
+    includeTax,
   )
 
   const guestIdForFolio = reservation.guest_id
@@ -710,6 +718,7 @@ export async function checkOutStay(input: {
         guestIdForFolio,
         reservation.id,
         roomTaxes,
+        includeTax,
       )
     : { taxes: roomTaxes, folioCharges: [], folioSubtotal: 0 }
   const now = new Date().toISOString()

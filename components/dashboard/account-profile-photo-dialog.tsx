@@ -4,6 +4,12 @@ import { Camera } from 'lucide-react'
 import { ProfilePhotoUpload } from '@/components/profile/profile-photo-upload'
 import { clearMyProfilePhoto, uploadMyProfilePhoto } from '@/app/actions/profile-photo'
 import { profilePhotoPublicUrl } from '@/lib/profile-photos/storage'
+import {
+  CenteredModal,
+  ModalBody,
+  ModalFooter,
+  ModalHeader,
+} from '@/components/ui/centered-modal'
 import type { Profile } from '@/types'
 
 interface AccountProfilePhotoDialogProps {
@@ -17,29 +23,24 @@ export function AccountProfilePhotoDialog({
   onClose,
   profile,
 }: AccountProfilePhotoDialogProps) {
-  if (!open) return null
-
   const imagePath = (profile as Profile & { profile_image_path?: string | null }).profile_image_path
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-end justify-center p-4 sm:items-center">
-      <button
-        type="button"
-        className="absolute inset-0 bg-black/40"
-        aria-label="Close profile photo dialog"
-        onClick={onClose}
-      />
-      <div
-        role="dialog"
-        aria-labelledby="profile-photo-title"
-        className="relative z-[1] w-full max-w-md rounded-2xl border border-border/60 bg-white p-5 shadow-elevation-3"
-      >
-        <div className="mb-4 flex items-center gap-2">
-          <Camera className="h-5 w-5 text-primary" />
-          <h2 id="profile-photo-title" className="text-base font-semibold text-foreground">
-            Profile photo
-          </h2>
+    <CenteredModal open={open} onClose={onClose} className="max-w-md" aria-label="Profile photo">
+      <ModalHeader onClose={onClose}>
+        <div className="flex items-center gap-2">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <Camera className="h-4 w-4" />
+          </span>
+          <div>
+            <h2 className="text-lg font-semibold text-foreground">Profile photo</h2>
+            <p className="text-sm text-muted-foreground">
+              Crop your photo — it appears in team and guest messages.
+            </p>
+          </div>
         </div>
+      </ModalHeader>
+      <ModalBody>
         <ProfilePhotoUpload
           name={profile.name}
           imagePath={imagePath}
@@ -55,15 +56,13 @@ export function AccountProfilePhotoDialog({
             return { success: result.success, error: !result.success ? result.error : undefined }
           }}
         />
-        <button
-          type="button"
-          onClick={onClose}
-          className="mt-4 w-full rounded-xl border border-border/60 px-4 py-2.5 text-sm font-medium text-foreground transition hover:bg-secondary/60"
-        >
+      </ModalBody>
+      <ModalFooter>
+        <button type="button" onClick={onClose} className="app-btn app-btn-secondary">
           Done
         </button>
-      </div>
-    </div>
+      </ModalFooter>
+    </CenteredModal>
   )
 }
 

@@ -53,6 +53,12 @@ function taxesFromBase(base: number): InvoiceTaxes {
  * - exclusive: `amount` is pre-tax room/service charges; taxes are added.
  * - inclusive: `amount` is the gross total; taxes are extracted for the invoice.
  */
+/** Invoice with no GRA levies — subtotal equals total. */
+export function noTaxInvoice(amount: number): InvoiceTaxes {
+  const subtotal = Math.max(0, round2(amount))
+  return { subtotal, nhil: 0, getfund: 0, covid: 0, vat: 0, elevy: 0, total: subtotal }
+}
+
 export function computeInvoiceTaxes(amount: number, mode: VatMode = 'exclusive'): InvoiceTaxes {
   const value = Math.max(0, round2(amount))
 
@@ -68,6 +74,15 @@ export function computeInvoiceTaxes(amount: number, mode: VatMode = 'exclusive')
   }
 
   return taxesFromBase(value)
+}
+
+export function computeInvoiceTaxesWithOption(
+  amount: number,
+  mode: VatMode,
+  includeTax: boolean,
+): InvoiceTaxes {
+  if (!includeTax) return noTaxInvoice(amount)
+  return computeInvoiceTaxes(amount, mode)
 }
 
 export const VAT_MODE_LABELS: Record<VatMode, string> = {
