@@ -37,7 +37,7 @@ export function InventoryManager({ items, canDelete = false }: InventoryManagerP
         <button
           type="button"
           onClick={() => setCreating(true)}
-          className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground"
+          className="app-btn app-btn-primary inline-flex items-center gap-2"
         >
           <Plus className="h-4 w-4" />
           Add item
@@ -51,28 +51,29 @@ export function InventoryManager({ items, canDelete = false }: InventoryManagerP
           </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="hk-table w-full min-w-[640px] text-left text-sm">
-              <thead>
-                <tr className="border-b border-border bg-secondary/40">
-                  <th className="px-4 py-3 font-semibold">Item</th>
-                  <th className="px-4 py-3 font-semibold">Category</th>
-                  <th className="px-4 py-3 font-semibold">In stock</th>
-                  <th className="px-4 py-3 font-semibold">Reorder at</th>
-                  <th className="px-4 py-3 font-semibold">Unit</th>
-                  <th className="px-4 py-3" />
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((item) => (
-                  <tr key={item.id} className="border-b border-border/70 last:border-0">
-                    <td className="px-4 py-3 font-medium">{item.name}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{item.category}</td>
-                    <td className="px-4 py-3">
-                      <InlineStockEditor item={item} disabled={pending} />
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">{item.reorderLevel}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{item.unit}</td>
-                    <td className="px-4 py-3">
+            <div className="data-table-wrap px-4 pb-4 pt-2">
+              <table className="data-table w-full min-w-[640px]">
+                <thead>
+                  <tr>
+                    <th>Item</th>
+                    <th>Category</th>
+                    <th>In stock</th>
+                    <th>Reorder at</th>
+                    <th>Unit</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((item) => (
+                    <tr key={item.id}>
+                      <td className="font-medium">{item.name}</td>
+                      <td className="text-muted-foreground">{item.category}</td>
+                      <td>
+                        <InlineStockEditor item={item} disabled={pending} />
+                      </td>
+                      <td className="text-muted-foreground">{item.reorderLevel}</td>
+                      <td className="text-muted-foreground">{item.unit}</td>
+                      <td>
                       {canDelete && (
                         <button
                           type="button"
@@ -95,6 +96,7 @@ export function InventoryManager({ items, canDelete = false }: InventoryManagerP
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         )}
       </div>
@@ -126,7 +128,7 @@ function InlineStockEditor({ item, disabled }: { item: InventoryRow; disabled: b
       disabled={disabled}
       onChange={(e) => setValue(e.target.value)}
       onBlur={commit}
-      className={`app-field w-20 py-1 text-xs ${item.lowStock ? 'border-amber-400 bg-amber-50' : ''}`}
+      className={`app-field app-field--compact w-20 ${item.lowStock ? 'border-amber-300 bg-amber-50/80' : ''}`}
     />
   )
 }

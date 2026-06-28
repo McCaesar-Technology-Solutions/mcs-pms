@@ -42,7 +42,7 @@ export function ExpensesManager({ expenses }: ExpensesManagerProps) {
         <button
           type="button"
           onClick={() => setCreating(true)}
-          className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground"
+          className="app-btn app-btn-primary inline-flex items-center gap-2"
         >
           <Plus className="h-4 w-4" />
           Add expense
@@ -56,28 +56,29 @@ export function ExpensesManager({ expenses }: ExpensesManagerProps) {
           </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="hk-table w-full min-w-[640px] text-left text-sm">
-              <thead>
-                <tr className="border-b border-border bg-secondary/40">
-                  <th className="px-4 py-3 font-semibold">Date</th>
-                  <th className="px-4 py-3 font-semibold">Category</th>
-                  <th className="px-4 py-3 font-semibold">Description</th>
-                  <th className="px-4 py-3 font-semibold">Vendor</th>
-                  <th className="px-4 py-3 font-semibold">Amount</th>
-                  <th className="px-4 py-3 font-semibold">Status</th>
-                  <th className="px-4 py-3" />
-                </tr>
-              </thead>
-              <tbody>
-                {expenses.map((e) => (
-                  <tr key={e.id} className="border-b border-border/70 last:border-0">
-                    <td className="px-4 py-3 text-muted-foreground">{e.expenseDate}</td>
-                    <td className="px-4 py-3">{e.category}</td>
-                    <td className="px-4 py-3">{e.description}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{e.vendor ?? '-'}</td>
-                    <td className="px-4 py-3 font-medium">₵{e.amount.toFixed(2)}</td>
-                    <td className="px-4 py-3 capitalize">{e.paymentStatus}</td>
-                    <td className="px-4 py-3">
+            <div className="data-table-wrap px-4 pb-4 pt-2">
+              <table className="data-table w-full min-w-[640px]">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Category</th>
+                    <th>Description</th>
+                    <th>Vendor</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {expenses.map((e) => (
+                    <tr key={e.id}>
+                      <td className="text-muted-foreground">{e.expenseDate}</td>
+                      <td>{e.category}</td>
+                      <td>{e.description}</td>
+                      <td className="text-muted-foreground">{e.vendor ?? '-'}</td>
+                      <td className="font-medium">₵{e.amount.toFixed(2)}</td>
+                      <td className="capitalize">{e.paymentStatus}</td>
+                      <td>
                       <button
                         type="button"
                         disabled={pending}
@@ -98,6 +99,7 @@ export function ExpensesManager({ expenses }: ExpensesManagerProps) {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         )}
       </div>

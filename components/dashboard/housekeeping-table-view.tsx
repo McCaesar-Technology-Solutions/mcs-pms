@@ -70,34 +70,34 @@ export function HousekeepingTableView({
 
   return (
     <div className="surface-card overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="hk-table w-full min-w-[720px] text-left text-sm">
+      <div className="data-table-wrap overflow-x-auto px-4 pb-4 pt-2">
+        <table className="data-table w-full min-w-[720px]">
           <thead>
-            <tr className="border-b border-border bg-secondary/40">
-              <th className="px-4 py-3 font-semibold text-foreground">Room</th>
-              <th className="px-4 py-3 font-semibold text-foreground">Task</th>
-              <th className="px-4 py-3 font-semibold text-foreground">Due</th>
-              <th className="px-4 py-3 font-semibold text-foreground">Assignee</th>
-              <th className="px-4 py-3 font-semibold text-foreground">Status</th>
+            <tr>
+              <th>Room</th>
+              <th>Task</th>
+              <th>Due</th>
+              <th>Assignee</th>
+              <th>Status</th>
             </tr>
           </thead>
           <tbody>
             {sorted.map((task) => (
-              <tr key={task.id} className="border-b border-border/70 last:border-0">
-                <td className="px-4 py-3 font-medium text-foreground">
+              <tr key={task.id}>
+                <td className="font-medium text-foreground">
                   {task.roomId ? (roomMap.get(task.roomId) ?? task.roomId.slice(0, 6)) : '-'}
                 </td>
-                <td className="px-4 py-3 capitalize text-muted-foreground">{task.taskType}</td>
-                <td className="px-4 py-3 text-muted-foreground">
+                <td className="capitalize text-muted-foreground">{task.taskType}</td>
+                <td className="text-muted-foreground">
                   {task.dueDate ? formatDueDate(task.dueDate) : '-'}
                 </td>
-                <td className="px-4 py-3">
+                <td>
                   {canManage ? (
                     <select
                       value={task.assignedTo ?? ''}
                       disabled={pending}
                       onChange={(e) => onAssign(task.id, e.target.value)}
-                      className="app-field py-1.5 text-xs"
+                      className="app-field app-field--compact w-full max-w-[180px]"
                     >
                       <option value="">Unassigned</option>
                       {staff.map((s) => (
@@ -112,13 +112,13 @@ export function HousekeepingTableView({
                     </span>
                   )}
                 </td>
-                <td className="px-4 py-3">
-                  {(canManage || task.assignedTo === currentUserId) ? (
+                <td>
+                  {canManage || task.assignedTo === currentUserId ? (
                     <select
                       value={task.status}
                       disabled={pending}
                       onChange={(e) => onStatusChange(task.id, e.target.value as TaskStatus)}
-                      className="app-field py-1.5 text-xs capitalize"
+                      className="app-field app-field--compact w-full max-w-[140px] capitalize"
                     >
                       {(['todo', 'in_progress', 'done'] as TaskStatus[]).map((s) => (
                         <option key={s} value={s}>

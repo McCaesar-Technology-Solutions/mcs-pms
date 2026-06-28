@@ -50,11 +50,11 @@ export function RoomCategoriesPanel({ categories }: RoomCategoriesPanelProps) {
           No categories yet. Add one before creating rooms.
         </p>
       ) : (
-        <div className="relative divide-y divide-border/60 rounded-xl bg-white shadow-elevation-1">
+        <div className="relative flex flex-col gap-2">
           {categories.map((category) => (
             <div
               key={category.id}
-              className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
+              className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-white px-4 py-3.5 shadow-[0_0_0_1px_rgba(var(--glow-purple),0.05),0_1px_2px_rgba(var(--shadow-tint),0.04)] transition-shadow hover:shadow-[0_0_0_1px_rgba(var(--glow-purple),0.1),0_4px_12px_rgba(var(--glow-purple),0.08)]"
             >
               <div>
                 <p className="font-semibold text-foreground">{category.name}</p>
@@ -68,7 +68,7 @@ export function RoomCategoriesPanel({ categories }: RoomCategoriesPanelProps) {
               <button
                 type="button"
                 onClick={() => setEditing(category)}
-                className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                className="app-btn app-btn-secondary app-btn-sm"
               >
                 <Pencil className="h-3.5 w-3.5" />
                 Edit
@@ -218,7 +218,7 @@ function CategoryModal({ category, onClose, onDone }: CategoryModalProps) {
             type="button"
             onClick={onClose}
             disabled={pending}
-            className="rounded-xl px-4 py-2.5 text-sm font-semibold text-muted-foreground transition-colors hover:bg-secondary disabled:opacity-50"
+            className="app-btn app-btn-ghost"
           >
             Cancel
           </button>
@@ -226,7 +226,7 @@ function CategoryModal({ category, onClose, onDone }: CategoryModalProps) {
             type="button"
             onClick={save}
             disabled={pending}
-            className="rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-elevation-1 transition-all hover:shadow-elevation-2 disabled:opacity-50"
+            className="app-btn app-btn-primary"
           >
             {pending ? 'Saving…' : isEdit ? 'Save changes' : 'Add category'}
           </button>
@@ -236,8 +236,7 @@ function CategoryModal({ category, onClose, onDone }: CategoryModalProps) {
   )
 }
 
-const fieldClass =
-  'w-full appearance-none rounded-xl border-0 bg-white px-4 py-3 text-sm text-foreground shadow-elevation-1 outline-none transition-[box-shadow] focus:shadow-elevation-2 focus:ring-2 focus:ring-[#3C216C]/10'
+const fieldClass = 'app-field w-full'
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (

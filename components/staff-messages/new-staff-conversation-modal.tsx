@@ -89,18 +89,14 @@ export function NewStaffConversationModal({
           <button
             type="button"
             onClick={() => setMode('dm')}
-            className={`flex-1 rounded-xl px-3 py-2 text-sm font-medium ${
-              mode === 'dm' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-foreground'
-            }`}
+            className={`app-btn flex-1 ${mode === 'dm' ? 'app-btn-primary' : 'app-btn-secondary'}`}
           >
             Direct message
           </button>
           <button
             type="button"
             onClick={() => setMode('group')}
-            className={`flex-1 rounded-xl px-3 py-2 text-sm font-medium ${
-              mode === 'group' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-foreground'
-            }`}
+            className={`app-btn flex-1 ${mode === 'group' ? 'app-btn-primary' : 'app-btn-secondary'}`}
           >
             Group chat
           </button>
@@ -141,7 +137,7 @@ export function NewStaffConversationModal({
             </div>
             <div>
               <p className="mb-2 text-sm font-medium text-foreground">Members</p>
-              <ul className="max-h-48 space-y-1 overflow-y-auto rounded-xl border border-border p-2">
+              <ul className="max-h-48 space-y-1 overflow-y-auto rounded-xl bg-secondary/25 p-2 shadow-[inset_0_1px_2px_rgba(var(--shadow-tint),0.04)]">
                 {hotelStaff.map((s) => (
                   <li key={s.id}>
                     <label className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-secondary">

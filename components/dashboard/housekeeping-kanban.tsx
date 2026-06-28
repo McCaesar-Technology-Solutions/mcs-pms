@@ -40,7 +40,6 @@ import {
   ModalFooter,
   ModalHeader,
 } from '@/components/ui/centered-modal'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import type { HousekeepingTaskView } from '@/lib/housekeeping/task-view'
@@ -161,7 +160,7 @@ function TaskStatusControls({
           onStatusChange(e.target.value as TaskStatus, isAssignedToOther || overrideOpen)
         }
         disabled={isPending}
-        className="min-w-0 flex-1 rounded-lg border border-border bg-white px-2 py-1.5 text-xs"
+        className="app-field app-field--compact min-w-0 flex-1"
         aria-label="Task status"
       >
         <option value="todo">To Do</option>
@@ -293,19 +292,19 @@ function DbKanban({
             />
             Select all
           </label>
-          <Button onClick={() => setAdding(true)} className="bg-[#3C216C] text-white hover:bg-[#4c2a85]">
+          <button type="button" onClick={() => setAdding(true)} className="app-btn app-btn-primary">
             <Plus className="mr-1.5 h-4 w-4" />
             Add task
-          </Button>
+          </button>
         </div>
       )}
 
       {canManage && tasks.length === 0 && (
         <div className="flex justify-end">
-          <Button onClick={() => setAdding(true)} className="bg-[#3C216C] text-white hover:bg-[#4c2a85]">
+          <button type="button" onClick={() => setAdding(true)} className="app-btn app-btn-primary">
             <Plus className="mr-1.5 h-4 w-4" />
             Add task
-          </Button>
+          </button>
         </div>
       )}
 
@@ -415,7 +414,7 @@ function DbKanban({
                                   run(() => assignHousekeepingTask(task.id, e.target.value || null))
                                 }
                                 disabled={isPending}
-                                className="min-w-0 flex-1 rounded-lg border border-border bg-white px-2 py-1.5 text-xs"
+                                className="app-field app-field--compact min-w-0 flex-1"
                                 aria-label="Assign task"
                               >
                                 <option value="">Unassigned</option>
@@ -531,7 +530,7 @@ function AddTaskModal({
           <select
             value={roomId}
             onChange={(e) => setRoomId(e.target.value)}
-            className="w-full rounded-lg border border-border px-3 py-2 text-sm"
+            className="app-field w-full"
           >
             <option value="">Select room</option>
             {rooms.map((r) => (
@@ -547,7 +546,7 @@ function AddTaskModal({
             <select
               value={taskType}
               onChange={(e) => setTaskType(e.target.value as HousekeepingTaskType)}
-              className="w-full rounded-lg border border-border px-3 py-2 text-sm"
+              className="app-field w-full"
             >
               <option value="clean">Clean</option>
               <option value="inspect">Inspect</option>
@@ -560,7 +559,7 @@ function AddTaskModal({
             <select
               value={priority}
               onChange={(e) => setPriority(e.target.value as TaskPriority)}
-              className="w-full rounded-lg border border-border px-3 py-2 text-sm"
+              className="app-field w-full"
             >
               <option value="low">Low</option>
               <option value="medium">Medium</option>
@@ -574,7 +573,7 @@ function AddTaskModal({
             <select
               value={assignedTo}
               onChange={(e) => setAssignedTo(e.target.value)}
-              className="w-full rounded-lg border border-border px-3 py-2 text-sm"
+              className="app-field w-full"
             >
               <option value="">Unassigned</option>
               {staff.map((s) => (
@@ -596,13 +595,17 @@ function AddTaskModal({
         {error && <p className="text-sm text-destructive">{error}</p>}
       </ModalBody>
       <ModalFooter>
-        <Button
+        <button type="button" onClick={onClose} className="app-btn app-btn-ghost">
+          Cancel
+        </button>
+        <button
+          type="button"
           onClick={handleCreate}
           disabled={submitting || !roomId}
-          className="w-full bg-[#3C216C] text-white"
+          className="app-btn app-btn-primary"
         >
           {submitting ? 'Creating…' : 'Create task'}
-        </Button>
+        </button>
       </ModalFooter>
     </CenteredModal>
   )

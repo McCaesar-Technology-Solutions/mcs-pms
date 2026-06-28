@@ -135,7 +135,7 @@ export function ModalFooter({
   return (
     <div
       className={cn(
-        'shrink-0 bg-[#FAFDFF] px-6 py-4 shadow-[0_-4px_24px_rgba(34,18,76,0.06)]',
+        'flex shrink-0 items-center justify-end gap-2.5 bg-[#FAFDFF] px-6 py-4 shadow-[0_-4px_24px_rgba(34,18,76,0.06)]',
         className,
       )}
     >
