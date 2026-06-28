@@ -57,7 +57,7 @@ export default function Topbar({ onMenuOpen, profile }: TopbarProps) {
         <header
           className={`main-header topbar-floating ${scrolled ? 'topbar-floating--scrolled' : ''}`}
         >
-          <div className="relative flex h-14 items-center gap-2 px-3 sm:h-16 sm:gap-3 sm:px-4 md:px-5">
+          <div className="relative z-[1] flex h-[3.25rem] items-center gap-2 px-3 sm:h-14 sm:gap-3 sm:px-4 md:px-5">
           <button
             type="button"
             onClick={onMenuOpen}
@@ -96,7 +96,7 @@ export default function Topbar({ onMenuOpen, profile }: TopbarProps) {
                 onClick={() => setShowUserMenu(!showUserMenu)}
                 aria-expanded={showUserMenu}
                 aria-haspopup="menu"
-                className="main-header-user flex items-center gap-2 rounded-xl border border-[rgba(var(--glow-purple),0.08)] bg-white/60 px-2 py-1.5 shadow-none backdrop-blur-sm transition-all hover:border-[rgba(var(--glow-purple),0.14)] hover:bg-white/80 sm:px-2.5 md:px-3 md:py-2"
+                className="main-header-user flex items-center gap-2 rounded-xl bg-[rgba(var(--glow-purple),0.04)] px-2 py-1.5 transition-all hover:bg-[rgba(var(--glow-purple),0.08)] sm:px-2.5 md:px-3 md:py-2"
               >
                 <div className="gradient-primary flex h-7 w-7 items-center justify-center rounded-lg text-xs font-bold text-white">
                   {user.name.charAt(0)}
