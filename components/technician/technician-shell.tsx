@@ -1,11 +1,16 @@
 'use client'
 
 import Link from 'next/link'
-import { ChevronDown, LogOut, MessageCircle, Phone } from 'lucide-react'
+import { ChevronDown, Camera, LogOut, MessageCircle, Phone } from 'lucide-react'
 import { useState } from 'react'
 import { signOut } from '@/app/actions/auth'
 import { TechnicianRealtime } from '@/components/realtime/technician-realtime'
 import { AccountPhoneDialog } from '@/components/dashboard/account-phone-dialog'
+import {
+  AccountProfilePhotoDialog,
+  profileAvatarUrl,
+} from '@/components/dashboard/account-profile-photo-dialog'
+import { MessengerAvatar } from '@/components/messaging/messenger-avatar'
 import { ProfilePhoneBanner } from '@/components/dashboard/profile-phone-banner'
 import { PhoneContactList } from '@/components/ui/phone-contact'
 import { hasPhoneNumber } from '@/lib/phone'
@@ -21,7 +26,9 @@ interface TechnicianShellProps {
 
 export function TechnicianShell({ profile, managerContacts, children }: TechnicianShellProps) {
   const [phoneDialogOpen, setPhoneDialogOpen] = useState(false)
+  const [photoDialogOpen, setPhotoDialogOpen] = useState(false)
   const [supportOpen, setSupportOpen] = useState(false)
+  const avatarUrl = profileAvatarUrl(profile)
 
   return (
     <div className="technician-portal-shell">
@@ -30,10 +37,15 @@ export function TechnicianShell({ profile, managerContacts, children }: Technici
         <div className="technician-portal-header__inner">
           <div className="min-w-0 flex-1">
             <p className="technician-portal-brand">MOJO APARTMENTS</p>
-            <p className="truncate text-base font-semibold text-[var(--tech-fg)]">{profile.name}</p>
-            <p className="text-xs capitalize text-[var(--tech-fg-muted)]">
-              {profile.specialty ?? 'Technician'}
-            </p>
+            <div className="flex items-center gap-2">
+              <MessengerAvatar name={profile.name} imageUrl={avatarUrl} size="xs" className="!h-8 !w-8" />
+              <div className="min-w-0">
+                <p className="truncate text-base font-semibold text-[var(--tech-fg)]">{profile.name}</p>
+                <p className="text-xs capitalize text-[var(--tech-fg-muted)]">
+                  {profile.specialty ?? 'Technician'}
+                </p>
+              </div>
+            </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <Link
@@ -43,6 +55,14 @@ export function TechnicianShell({ profile, managerContacts, children }: Technici
             >
               <MessageCircle className="h-4 w-4" />
             </Link>
+            <button
+              type="button"
+              onClick={() => setPhotoDialogOpen(true)}
+              className="technician-portal-icon-btn"
+              aria-label="Profile photo"
+            >
+              <Camera className="h-4 w-4" />
+            </button>
             <button
               type="button"
               onClick={() => setPhoneDialogOpen(true)}
@@ -98,6 +118,11 @@ export function TechnicianShell({ profile, managerContacts, children }: Technici
         onClose={() => setPhoneDialogOpen(false)}
         phone={profile.phone}
         roleLabel="technician"
+      />
+      <AccountProfilePhotoDialog
+        open={photoDialogOpen}
+        onClose={() => setPhotoDialogOpen(false)}
+        profile={profile}
       />
     </div>
   )

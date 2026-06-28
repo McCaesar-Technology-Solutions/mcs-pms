@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { getComplaintMessages, postGuestComplaintMessage } from '@/app/actions/guest-portal'
 import { prepopulateMessageComposer } from '@/lib/messaging/prepopulate-composer'
 import { FormError } from '@/components/ui/form-error'
+import { MessengerAvatar } from '@/components/messaging/messenger-avatar'
 
 interface GuestComplaintChatProps {
   complaintId: string
@@ -21,8 +22,16 @@ const GUEST_QUICK_REPLIES = [
 
 export function GuestComplaintChat({ complaintId }: GuestComplaintChatProps) {
   const [messages, setMessages] = useState<
-    { id: string; authorRole: string; body: string; createdAt: string }[]
+    {
+      id: string
+      authorRole: string
+      body: string
+      createdAt: string
+      authorName: string | null
+      authorAvatarUrl: string | null
+    }[]
   >([])
+  const [guestAvatarUrl, setGuestAvatarUrl] = useState<string | null>(null)
   const [body, setBody] = useState('')
   const [loading, setLoading] = useState(false)
   const [initialLoading, setInitialLoading] = useState(true)
@@ -53,6 +62,7 @@ export function GuestComplaintChat({ complaintId }: GuestComplaintChatProps) {
           toast.info('New message from staff')
         }
         staffMessageCountRef.current = staffCount
+        setGuestAvatarUrl(result.data.guestAvatarUrl)
         setMessages(next)
       }
       setInitialLoading(false)
@@ -151,14 +161,24 @@ export function GuestComplaintChat({ complaintId }: GuestComplaintChatProps) {
           messages.map((m) => {
             const isGuest = m.authorRole === 'guest'
             return (
-              <div key={m.id} className={`flex ${isGuest ? 'justify-end' : 'justify-start'}`}>
+              <div
+                key={m.id}
+                className={`flex items-end gap-2 ${isGuest ? 'justify-end' : 'justify-start'}`}
+              >
+                {!isGuest && (
+                  <MessengerAvatar
+                    name={m.authorName ?? 'Staff'}
+                    imageUrl={m.authorAvatarUrl}
+                    size="xs"
+                  />
+                )}
                 <div
                   className={`guest-bubble ${
                     isGuest ? 'guest-bubble--guest' : 'guest-bubble--staff'
                   }`}
                 >
                   <p className="text-[10px] font-bold uppercase tracking-wide opacity-70">
-                    {isGuest ? 'You' : 'Staff'}
+                    {isGuest ? 'You' : (m.authorName ?? 'Staff')}
                   </p>
                   <p className="mt-0.5 whitespace-pre-wrap">{m.body}</p>
                   <p className="mt-1 text-[10px] opacity-60">
@@ -170,6 +190,13 @@ export function GuestComplaintChat({ complaintId }: GuestComplaintChatProps) {
                     })}
                   </p>
                 </div>
+                {isGuest && (
+                  <MessengerAvatar
+                    name="You"
+                    imageUrl={m.authorAvatarUrl ?? guestAvatarUrl}
+                    size="xs"
+                  />
+                )}
               </div>
             )
           })

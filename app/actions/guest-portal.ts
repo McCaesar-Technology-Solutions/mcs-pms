@@ -28,6 +28,7 @@ import {
 } from '@/lib/guest/complaint-photos'
 import { notifyGuestRequestCreated } from '@/lib/notifications/guest-requests'
 import { loadGuestPortalContext } from '@/lib/data/guest-portal'
+import { profilePhotoPublicUrl } from '@/lib/profile-photos/storage'
 import { getClientIp } from '@/lib/auth/client-ip'
 import {
   assertRateLimit,
@@ -319,7 +320,15 @@ export async function getComplaintMessages(
   complaintId: string,
 ): Promise<
   GuestPortalActionResult<{
-    messages: { id: string; authorRole: string; body: string; createdAt: string }[]
+    guestAvatarUrl: string | null
+    messages: {
+      id: string
+      authorRole: string
+      body: string
+      createdAt: string
+      authorName: string | null
+      authorAvatarUrl: string | null
+    }[]
   }>
 > {
   const auth = await requireGuestWithRules()
@@ -335,21 +344,46 @@ export async function getComplaintMessages(
 
   if (!complaint) return { success: false, error: 'Issue not found.' }
 
+  const guestAvatarUrl = profilePhotoPublicUrl(auth.guest.profile_image_path)
+
   const { data } = await admin
     .from('complaint_messages')
-    .select('id, author_role, body, created_at')
+    .select('id, author_role, body, created_at, author_id')
     .eq('complaint_id', complaintId)
     .order('created_at', { ascending: true })
+
+  const staffIds = [
+    ...new Set(
+      (data ?? [])
+        .filter((m) => m.author_role === 'staff' && m.author_id)
+        .map((m) => m.author_id as string),
+    ),
+  ]
+
+  const { data: profiles } = staffIds.length
+    ? await admin.from('profiles').select('id, name, profile_image_path').in('id', staffIds)
+    : { data: [] as { id: string; name: string; profile_image_path: string | null }[] }
+
+  const staffById = new Map((profiles ?? []).map((p) => [p.id, p]))
 
   return {
     success: true,
     data: {
-      messages: (data ?? []).map((m) => ({
-        id: m.id,
-        authorRole: m.author_role,
-        body: m.body,
-        createdAt: m.created_at ?? new Date(0).toISOString(),
-      })),
+      guestAvatarUrl,
+      messages: (data ?? []).map((m) => {
+        const isGuest = m.author_role === 'guest'
+        const staff = !isGuest && m.author_id ? staffById.get(m.author_id) : null
+        return {
+          id: m.id,
+          authorRole: m.author_role,
+          body: m.body,
+          createdAt: m.created_at ?? new Date(0).toISOString(),
+          authorName: isGuest ? 'You' : (staff?.name ?? 'Staff'),
+          authorAvatarUrl: isGuest
+            ? guestAvatarUrl
+            : profilePhotoPublicUrl(staff?.profile_image_path),
+        }
+      }),
     },
   }
 }

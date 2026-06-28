@@ -1,9 +1,11 @@
 import { createAdminClient } from '@/lib/supabase/admin'
+import { profilePhotoPublicUrl } from '@/lib/profile-photos/storage'
 
 export interface StaffConversationListItem {
   id: string
   conversationType: 'dm' | 'group'
   name: string
+  avatarUrl: string | null
   memberNames: string[]
   lastMessageBody: string | null
   lastMessageAt: string | null
@@ -15,6 +17,7 @@ export interface StaffConversationMessage {
   id: string
   authorId: string
   authorName: string
+  authorAvatarUrl: string | null
   body: string
   createdAt: string
   isOwn: boolean
@@ -65,10 +68,13 @@ export async function loadStaffConversations(
 
   const profileIds = [...new Set((allMembers ?? []).map((m) => m.profile_id))]
   const { data: profiles } = profileIds.length
-    ? await admin.from('profiles').select('id, name').in('id', profileIds)
-    : { data: [] as { id: string; name: string }[] }
+    ? await admin.from('profiles').select('id, name, profile_image_path').in('id', profileIds)
+    : { data: [] as { id: string; name: string; profile_image_path: string | null }[] }
 
   const nameById = new Map((profiles ?? []).map((p) => [p.id, p.name]))
+  const avatarById = new Map(
+    (profiles ?? []).map((p) => [p.id, profilePhotoPublicUrl(p.profile_image_path)]),
+  )
 
   const membersByConv = new Map<string, { profile_id: string; name: string }[]>()
   for (const m of allMembers ?? []) {
@@ -108,6 +114,11 @@ export async function loadStaffConversations(
       latest.author_id !== currentUserId &&
       (!lastRead || (lastAt !== null && lastAt > lastRead))
 
+    const otherMemberId =
+      c.conversation_type === 'dm'
+        ? members.find((m) => m.profile_id !== currentUserId)?.profile_id
+        : null
+
     return {
       id: c.id,
       conversationType: c.conversation_type as 'dm' | 'group',
@@ -117,6 +128,7 @@ export async function loadStaffConversations(
         members.map((m) => m.profile_id),
         currentUserId,
       ),
+      avatarUrl: otherMemberId ? (avatarById.get(otherMemberId) ?? null) : null,
       memberNames: members.map((m) => m.name),
       lastMessageBody: latest?.body ?? null,
       lastMessageAt: lastAt,
@@ -140,14 +152,18 @@ export async function loadStaffConversationMessages(
 
   const authorIds = [...new Set((data ?? []).map((m) => m.author_id))]
   const { data: profiles } = authorIds.length
-    ? await admin.from('profiles').select('id, name').in('id', authorIds)
-    : { data: [] as { id: string; name: string }[] }
+    ? await admin.from('profiles').select('id, name, profile_image_path').in('id', authorIds)
+    : { data: [] as { id: string; name: string; profile_image_path: string | null }[] }
   const nameById = new Map((profiles ?? []).map((p) => [p.id, p.name]))
+  const avatarById = new Map(
+    (profiles ?? []).map((p) => [p.id, profilePhotoPublicUrl(p.profile_image_path)]),
+  )
 
   return (data ?? []).map((m) => ({
     id: m.id,
     authorId: m.author_id,
     authorName: nameById.get(m.author_id) ?? 'Staff',
+    authorAvatarUrl: avatarById.get(m.author_id) ?? null,
     body: m.body,
     createdAt: m.created_at ?? new Date().toISOString(),
     isOwn: m.author_id === currentUserId,

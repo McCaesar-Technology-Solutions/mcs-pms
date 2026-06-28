@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { ChevronDown, LogOut, Menu, Phone, Plus } from 'lucide-react'
+import { ChevronDown, LogOut, Menu, Phone, Plus, Camera } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import {
   NotificationsMenu,
@@ -10,6 +10,11 @@ import {
 } from '@/components/dashboard/notifications-menu'
 import { HeaderDropdownPanel } from '@/components/dashboard/header-dropdown-panel'
 import { AccountPhoneDialog } from '@/components/dashboard/account-phone-dialog'
+import {
+  AccountProfilePhotoDialog,
+  profileAvatarUrl,
+} from '@/components/dashboard/account-profile-photo-dialog'
+import { MessengerAvatar } from '@/components/messaging/messenger-avatar'
 import { TopbarSearch } from '@/components/dashboard/topbar-search'
 import { signOut } from '@/app/actions/auth'
 import { getDashboardPrimaryAction } from '@/lib/dashboard/primary-actions'
@@ -39,10 +44,12 @@ export default function Topbar({ onMenuOpen, profile }: TopbarProps) {
     : { name: 'User', email: '' }
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [phoneDialogOpen, setPhoneDialogOpen] = useState(false)
+  const [photoDialogOpen, setPhotoDialogOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
   const userTriggerRef = useRef<HTMLButtonElement>(null)
   const canManagePhone = profile?.role === 'owner' || profile?.role === 'manager'
   const primaryAction = getDashboardPrimaryAction(profile?.role)
+  const avatarUrl = profileAvatarUrl(profile)
 
   useEffect(() => {
     const main = document.querySelector('main.app-main')
@@ -110,9 +117,15 @@ export default function Topbar({ onMenuOpen, profile }: TopbarProps) {
                 aria-haspopup="menu"
                 className="main-header-user flex items-center gap-2 rounded-xl px-2 py-1 transition-colors sm:px-2.5 md:px-3"
               >
-                <div className="gradient-primary flex h-7 w-7 items-center justify-center rounded-lg text-xs font-bold text-white">
-                  {user.name.charAt(0)}
-                </div>
+                {avatarUrl ? (
+                  <div className="relative h-7 w-7 shrink-0 overflow-hidden rounded-lg">
+                    <MessengerAvatar name={user.name} imageUrl={avatarUrl} size="xs" className="!h-7 !w-7 !text-[10px]" />
+                  </div>
+                ) : (
+                  <div className="gradient-primary flex h-7 w-7 items-center justify-center rounded-lg text-xs font-bold text-white">
+                    {user.name.charAt(0)}
+                  </div>
+                )}
                 <span className="main-header-user-name hidden text-sm font-medium sm:inline">
                   {user.name}
                 </span>
@@ -151,6 +164,19 @@ export default function Topbar({ onMenuOpen, profile }: TopbarProps) {
                     {hasPhoneNumber(profile?.phone) ? 'Edit phone number' : 'Add phone number'}
                   </button>
                 )}
+                {profile && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowUserMenu(false)
+                      setPhotoDialogOpen(true)
+                    }}
+                    className="flex w-full items-center gap-2 px-4 py-2.5 text-sm transition-colors hover:bg-secondary/60"
+                  >
+                    <Camera className="h-4 w-4" />
+                    Profile photo
+                  </button>
+                )}
                 <Link
                   href={settingsHref(profile?.role)}
                   onClick={() => setShowUserMenu(false)}
@@ -179,6 +205,13 @@ export default function Topbar({ onMenuOpen, profile }: TopbarProps) {
           onClose={() => setPhoneDialogOpen(false)}
           phone={profile?.phone}
           roleLabel={roleLabel(profile?.role)}
+        />
+      )}
+      {profile && (
+        <AccountProfilePhotoDialog
+          open={photoDialogOpen}
+          onClose={() => setPhotoDialogOpen(false)}
+          profile={profile}
         />
       )}
     </>

@@ -15,6 +15,8 @@ import { PropertyImageCropField } from '@/components/dashboard/property-image-cr
 import type { HotelSettings } from '@/lib/data/settings'
 import type { Profile, VatMode } from '@/types'
 import { ProfilePhoneEditor } from '@/components/dashboard/profile-phone-editor'
+import { ProfilePhotoUpload } from '@/components/profile/profile-photo-upload'
+import { clearMyProfilePhoto, uploadMyProfilePhoto } from '@/app/actions/profile-photo'
 import { MfaSettingsCard } from '@/components/dashboard/mfa-settings-card'
 
 const GHANA_REGIONS = [
@@ -143,6 +145,23 @@ export function SettingsPanel({ hotelSettings, staffHref = '/owner/staff', profi
             roleLabel="property owner"
             variant="card"
           />
+          <div className="surface-card rounded-xl border border-border/60 p-5">
+            <ProfilePhotoUpload
+              name={profile.name}
+              imagePath={profile.profile_image_path}
+              onUpload={async (formData) => {
+                const result = await uploadMyProfilePhoto(formData)
+                if (result.success && result.data) {
+                  return { success: true, imageUrl: result.data.imageUrl }
+                }
+                return { success: false, error: !result.success ? result.error : undefined }
+              }}
+              onClear={async () => {
+                const result = await clearMyProfilePhoto()
+                return { success: result.success, error: !result.success ? result.error : undefined }
+              }}
+            />
+          </div>
           <Suspense
             fallback={<p className="text-sm text-muted-foreground">Checking sign-in verification…</p>}
           >

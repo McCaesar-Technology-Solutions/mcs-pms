@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { getGuestStayMessages, postGuestStayMessage } from '@/app/actions/guest-conversation'
 import { prepopulateMessageComposer } from '@/lib/messaging/prepopulate-composer'
 import { FormError } from '@/components/ui/form-error'
+import { MessengerAvatar } from '@/components/messaging/messenger-avatar'
 
 const GUEST_QUICK_REPLIES = [
   'What time is checkout?',
@@ -24,8 +25,16 @@ export function GuestStayChat({ variant = 'embedded', propertyName }: GuestStayC
   const isScreen = variant === 'screen'
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [messages, setMessages] = useState<
-    { id: string; authorRole: string; body: string; createdAt: string }[]
+    {
+      id: string
+      authorRole: string
+      body: string
+      createdAt: string
+      authorName: string | null
+      authorAvatarUrl: string | null
+    }[]
   >([])
+  const [guestAvatarUrl, setGuestAvatarUrl] = useState<string | null>(null)
   const [body, setBody] = useState('')
   const [loading, setLoading] = useState(false)
   const [initialLoading, setInitialLoading] = useState(true)
@@ -56,6 +65,7 @@ export function GuestStayChat({ variant = 'embedded', propertyName }: GuestStayC
       }
       staffMessageCountRef.current = staffCount
       setConversationId(result.data.conversationId)
+      setGuestAvatarUrl(result.data.guestAvatarUrl)
       setMessages(next)
     }
     setInitialLoading(false)
@@ -112,6 +122,8 @@ export function GuestStayChat({ variant = 'embedded', propertyName }: GuestStayC
       authorRole: 'guest',
       body: trimmed,
       createdAt: new Date().toISOString(),
+      authorName: 'You',
+      authorAvatarUrl: guestAvatarUrl,
     }
     setMessages((prev) => [...prev, optimistic])
     if (!text) setBody('')
@@ -193,8 +205,15 @@ export function GuestStayChat({ variant = 'embedded', propertyName }: GuestStayC
               return (
                 <div
                   key={m.id}
-                  className={`flex ${isGuest ? 'justify-end' : 'justify-start'}`}
+                  className={`flex items-end gap-2 ${isGuest ? 'justify-end' : 'justify-start'}`}
                 >
+                  {!isGuest && (
+                    <MessengerAvatar
+                      name={m.authorName ?? 'Front desk'}
+                      imageUrl={m.authorAvatarUrl}
+                      size="xs"
+                    />
+                  )}
                   <div
                     className={`guest-bubble ${
                       isGuest ? 'guest-bubble--guest' : 'guest-bubble--staff'
@@ -202,11 +221,18 @@ export function GuestStayChat({ variant = 'embedded', propertyName }: GuestStayC
                   >
                     {!isGuest && (
                       <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-[var(--brand-purple)]">
-                        Front desk
+                        {m.authorName ?? 'Front desk'}
                       </p>
                     )}
                     <p className="whitespace-pre-wrap break-words">{m.body}</p>
                   </div>
+                  {isGuest && (
+                    <MessengerAvatar
+                      name="You"
+                      imageUrl={m.authorAvatarUrl ?? guestAvatarUrl}
+                      size="xs"
+                    />
+                  )}
                 </div>
               )
             })}

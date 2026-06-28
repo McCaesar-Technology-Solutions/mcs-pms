@@ -48,6 +48,8 @@ import {
 } from '@/app/actions/guest-portal'
 import { downloadInvoicePdf } from '@/lib/export/invoice-pdf'
 import { GuestPhoneEditor } from '@/components/guest/guest-phone-editor'
+import { ProfilePhotoUpload } from '@/components/profile/profile-photo-upload'
+import { clearGuestProfilePhoto, uploadGuestProfilePhoto } from '@/app/actions/profile-photo'
 import { GuestStayTimeline } from '@/components/guest/guest-stay-timeline'
 import { GuestComplaintCard } from '@/components/guest/guest-complaint-card'
 import { GuestNextStepBanner } from '@/components/guest/guest-next-step-banner'
@@ -844,6 +846,26 @@ export function GuestPortal({
                   {dnd ? 'On' : 'Off'}
                 </button>
               </div>
+            </PortalCard>
+
+            <PortalCard>
+              <ProfilePhotoUpload
+                name={guest.name}
+                imagePath={guest.profile_image_path}
+                compact
+                hint="Your photo appears in messages with the front desk and maintenance team."
+                onUpload={async (formData) => {
+                  const result = await uploadGuestProfilePhoto(formData)
+                  if (result.success && result.data) {
+                    return { success: true, imageUrl: result.data.imageUrl }
+                  }
+                  return { success: false, error: !result.success ? result.error : undefined }
+                }}
+                onClear={async () => {
+                  const result = await clearGuestProfilePhoto()
+                  return { success: result.success, error: !result.success ? result.error : undefined }
+                }}
+              />
             </PortalCard>
 
             <PortalCard>

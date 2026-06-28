@@ -7,7 +7,7 @@ export async function fetchHotelComplaints(limit?: number): Promise<Complaint[]>
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('complaints')
-    .select('*, rooms(number), guests(name, phone), assignee:profiles!complaints_assigned_to_fkey(id, name, phone, specialty)')
+    .select('*, rooms(number), guests(name, phone, profile_image_path), assignee:profiles!complaints_assigned_to_fkey(id, name, phone, specialty)')
     .order('submitted_at', { ascending: false })
     .limit(clampLimit(limit))
 

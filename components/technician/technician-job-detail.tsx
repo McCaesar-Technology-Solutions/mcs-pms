@@ -12,6 +12,7 @@ import { TechnicianJobProgress } from '@/components/technician/technician-job-pr
 import { TechnicianNextStepBanner } from '@/components/technician/technician-next-step-banner'
 import { PhoneContact } from '@/components/ui/phone-contact'
 import { guestComplaintReference } from '@/lib/complaints/guest-progress'
+import { profilePhotoPublicUrl } from '@/lib/profile-photos/storage'
 import { getTechnicianNextAction, technicianScrollTarget } from '@/lib/complaints/technician-progress'
 import type { TechnicianNextAction } from '@/lib/complaints/technician-progress'
 import {
@@ -255,6 +256,7 @@ export function TechnicianJobDetail({
             <StaffComplaintMessageThread
               complaintId={c.id}
               guestName={c.guests?.name}
+              guestAvatarUrl={profilePhotoPublicUrl(c.guests?.profile_image_path)}
               roomNumber={roomLabel}
               complaintCategory={c.category as ComplaintCategory}
               quickReplies={TECHNICIAN_QUICK_REPLIES}

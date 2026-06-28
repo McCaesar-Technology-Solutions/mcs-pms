@@ -126,6 +126,7 @@ export type Database = {
           organization_id: string | null
           onboarding_step: 'welcome' | 'property' | 'compliance' | 'team' | 'done' | null
           onboarding_completed_at: string | null
+          profile_image_path: string | null
           created_at: string | null
         }
         Insert: {
@@ -146,6 +147,7 @@ export type Database = {
           organization_id?: string | null
           onboarding_step?: 'welcome' | 'property' | 'compliance' | 'team' | 'done' | null
           onboarding_completed_at?: string | null
+          profile_image_path?: string | null
           created_at?: string | null
         }
         Update: {
@@ -166,6 +168,7 @@ export type Database = {
           organization_id?: string | null
           onboarding_step?: 'welcome' | 'property' | 'compliance' | 'team' | 'done' | null
           onboarding_completed_at?: string | null
+          profile_image_path?: string | null
           created_at?: string | null
         }
         Relationships: [
@@ -515,6 +518,7 @@ export type Database = {
           check_out: string | null
           guest_rules_accepted_version: number | null
           do_not_disturb: boolean
+          profile_image_path: string | null
           guest_photo_path: string | null
           guest_photo_mime: string | null
           pre_arrival_eta: string | null
@@ -539,6 +543,7 @@ export type Database = {
           check_out?: string | null
           guest_rules_accepted_version?: number | null
           do_not_disturb?: boolean
+          profile_image_path?: string | null
           guest_photo_path?: string | null
           guest_photo_mime?: string | null
           pre_arrival_eta?: string | null
@@ -563,6 +568,7 @@ export type Database = {
           check_out?: string | null
           guest_rules_accepted_version?: number | null
           do_not_disturb?: boolean
+          profile_image_path?: string | null
           guest_photo_path?: string | null
           guest_photo_mime?: string | null
           pre_arrival_eta?: string | null

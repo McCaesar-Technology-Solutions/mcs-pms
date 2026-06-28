@@ -13,6 +13,7 @@ import {
   guestRateKey,
 } from '@/lib/rate-limit'
 import type { Guest } from '@/types'
+import { profilePhotoPublicUrl } from '@/lib/profile-photos/storage'
 
 export type GuestConversationActionResult<T = void> =
   | { success: true; data?: T }
@@ -105,7 +106,15 @@ export async function getGuestStayConversationId(): Promise<
 export async function getGuestStayMessages(): Promise<
   GuestConversationActionResult<{
     conversationId: string
-    messages: { id: string; authorRole: string; body: string; createdAt: string }[]
+    guestAvatarUrl: string | null
+    messages: {
+      id: string
+      authorRole: string
+      body: string
+      createdAt: string
+      authorName: string | null
+      authorAvatarUrl: string | null
+    }[]
   }>
 > {
   const auth = await requireGuestWithRules()
@@ -118,22 +127,47 @@ export async function getGuestStayMessages(): Promise<
     auth.guest.id,
   )
 
+  const guestAvatarUrl = profilePhotoPublicUrl(auth.guest.profile_image_path)
+
   const { data } = await admin
     .from('guest_conversation_messages')
-    .select('id, author_role, body, created_at')
+    .select('id, author_role, body, created_at, author_id')
     .eq('conversation_id', conversationId)
     .order('created_at', { ascending: true })
+
+  const staffIds = [
+    ...new Set(
+      (data ?? [])
+        .filter((m) => m.author_role === 'staff' && m.author_id)
+        .map((m) => m.author_id as string),
+    ),
+  ]
+
+  const { data: profiles } = staffIds.length
+    ? await admin.from('profiles').select('id, name, profile_image_path').in('id', staffIds)
+    : { data: [] as { id: string; name: string; profile_image_path: string | null }[] }
+
+  const staffById = new Map((profiles ?? []).map((p) => [p.id, p]))
 
   return {
     success: true,
     data: {
       conversationId,
-      messages: (data ?? []).map((m) => ({
-        id: m.id,
-        authorRole: m.author_role,
-        body: m.body,
-        createdAt: m.created_at ?? new Date(0).toISOString(),
-      })),
+      guestAvatarUrl,
+      messages: (data ?? []).map((m) => {
+        const isGuest = m.author_role === 'guest'
+        const staff = !isGuest && m.author_id ? staffById.get(m.author_id) : null
+        return {
+          id: m.id,
+          authorRole: m.author_role,
+          body: m.body,
+          createdAt: m.created_at ?? new Date(0).toISOString(),
+          authorName: isGuest ? auth.guest.name : (staff?.name ?? 'Front desk'),
+          authorAvatarUrl: isGuest
+            ? guestAvatarUrl
+            : profilePhotoPublicUrl(staff?.profile_image_path),
+        }
+      }),
     },
   }
 }
@@ -201,6 +235,7 @@ export async function getStaffGuestStayMessages(
       body: string
       createdAt: string
       authorName: string | null
+      authorAvatarUrl: string | null
     }[]
   >
 > {
@@ -211,9 +246,22 @@ export async function getStaffGuestStayMessages(
   if (!access.ok) return { success: false, error: access.error }
 
   const admin = createAdminClient()
+
+  const { data: conversation } = await admin
+    .from('guest_conversations')
+    .select('guest_id, guests(name, profile_image_path)')
+    .eq('id', conversationId)
+    .maybeSingle()
+
+  const guestRow = conversation?.guests as {
+    name?: string
+    profile_image_path?: string | null
+  } | null
+  const guestAvatarUrl = profilePhotoPublicUrl(guestRow?.profile_image_path)
+
   const { data } = await admin
     .from('guest_conversation_messages')
-    .select('id, author_role, body, created_at, author_id, profiles(name)')
+    .select('id, author_role, body, created_at, author_id, profiles(name, profile_image_path)')
     .eq('conversation_id', conversationId)
     .order('created_at', { ascending: true })
 
@@ -225,16 +273,20 @@ export async function getStaffGuestStayMessages(
   return {
     success: true,
     data: (data ?? []).map((m) => {
-      const author =
+      const authorProfile =
         m.profiles && typeof m.profiles === 'object' && 'name' in m.profiles
-          ? (m.profiles as { name: string }).name
+          ? (m.profiles as { name: string; profile_image_path?: string | null })
           : null
+      const isGuest = m.author_role === 'guest'
       return {
         id: m.id,
         authorRole: m.author_role,
         body: m.body,
         createdAt: m.created_at ?? new Date(0).toISOString(),
-        authorName: author,
+        authorName: isGuest ? (guestRow?.name ?? 'Guest') : (authorProfile?.name ?? null),
+        authorAvatarUrl: isGuest
+          ? guestAvatarUrl
+          : profilePhotoPublicUrl(authorProfile?.profile_image_path),
       }
     }),
   }

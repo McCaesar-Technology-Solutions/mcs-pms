@@ -27,6 +27,7 @@ import { useRowSelection } from '@/lib/hooks/use-row-selection'
 import { PhoneContact } from '@/components/ui/phone-contact'
 import { useRealtimeRefresh } from '@/components/realtime/realtime-refresh-context'
 import { managerPendingLabel } from '@/lib/complaints/workflow'
+import { profilePhotoPublicUrl } from '@/lib/profile-photos/storage'
 import type {
   Complaint,
   ComplaintCategory,
@@ -78,6 +79,10 @@ function roomNumberOf(c: Complaint): string | null {
 
 function guestNameOf(c: Complaint): string | null {
   return c.guests?.name ?? c.guest?.name ?? null
+}
+
+function guestAvatarUrlOf(c: Complaint): string | null {
+  return profilePhotoPublicUrl(c.guests?.profile_image_path ?? c.guest?.profile_image_path)
 }
 
 function guestPhoneOf(c: Complaint): string | null {
@@ -318,6 +323,7 @@ export function ComplaintsOwnerView({ canLog = false, canMessage = false }: Comp
                 <StaffComplaintMessageThread
                   complaintId={selected.id}
                   guestName={guestNameOf(selected)}
+                  guestAvatarUrl={guestAvatarUrlOf(selected)}
                   roomNumber={roomNumberOf(selected)}
                   complaintCategory={selected.category}
                 />

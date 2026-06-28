@@ -6,6 +6,7 @@ import { getGuestConversationContextAction } from '@/app/actions/guest-conversat
 import { GuestContextRail } from '@/components/guest-messages/guest-context-rail'
 import { StaffGuestStayThread } from '@/components/guest-messages/staff-guest-stay-thread'
 import { formatConversationTime } from '@/components/guest-messages/messaging-format'
+import { MessengerAvatar } from '@/components/messaging/messenger-avatar'
 import type { GuestConversationContext } from '@/lib/data/guest-conversation-context'
 import type { GuestConversationListItem } from '@/lib/data/guest-conversations'
 
@@ -15,10 +16,6 @@ interface GuestMessagesInboxProps {
   onSelect: (id: string) => void
   onBack?: () => void
   reservationsHref: string
-}
-
-function guestAvatarLabel(name: string) {
-  return name.trim().charAt(0).toUpperCase() || 'G'
 }
 
 export function GuestMessagesInbox({
@@ -124,9 +121,7 @@ export function GuestMessagesInbox({
                       c.unread ? 'staff-messenger__row--unread' : ''
                     }`}
                   >
-                    <div className="staff-messenger__avatar" aria-hidden>
-                      {guestAvatarLabel(c.guestName)}
-                    </div>
+                    <MessengerAvatar name={c.guestName} imageUrl={c.guestAvatarUrl} />
                     <div className="staff-messenger__row-body">
                       <div className="staff-messenger__row-top">
                         <p className="staff-messenger__row-name">{c.guestName}</p>
@@ -166,6 +161,7 @@ export function GuestMessagesInbox({
           <StaffGuestStayThread
             conversationId={selected.id}
             guestName={selected.guestName}
+            guestAvatarUrl={selected.guestAvatarUrl}
             roomNumber={selected.roomNumber}
             onBack={onBack}
           />

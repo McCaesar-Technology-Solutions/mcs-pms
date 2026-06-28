@@ -6,6 +6,7 @@ import { Building2, Check, ChevronDown, Plus } from 'lucide-react'
 import { useProperty } from '@/lib/property-context'
 import { AddPropertyDialog } from '@/components/dashboard/add-property-dialog'
 import { PropertyThumb } from '@/components/dashboard/property-thumb'
+import { SidebarDropdownPanel } from '@/components/dashboard/sidebar-dropdown-panel'
 import { Skeleton } from '@/components/ui/skeleton'
 
 interface PropertySwitcherProps {
@@ -27,22 +28,11 @@ export function PropertySwitcher({ collapsed = false }: PropertySwitcherProps) {
   const [open, setOpen] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
   const [pending, startTransition] = useTransition()
-  const containerRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
     setOpen(false)
   }, [pathname])
-
-  useEffect(() => {
-    if (!open) return
-    const onPointerDown = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', onPointerDown)
-    return () => document.removeEventListener('mousedown', onPointerDown)
-  }, [open])
 
   if (loading) {
     return (
@@ -89,8 +79,9 @@ export function PropertySwitcher({ collapsed = false }: PropertySwitcherProps) {
 
   return (
     <>
-      <div ref={containerRef} className="relative">
+      <div className="relative">
         <button
+          ref={triggerRef}
           type="button"
           onClick={() => setOpen(!open)}
           aria-expanded={open}
@@ -123,15 +114,19 @@ export function PropertySwitcher({ collapsed = false }: PropertySwitcherProps) {
           )}
         </button>
 
-        {open && (
+        <SidebarDropdownPanel
+          open={open}
+          anchorRef={triggerRef}
+          preferSide={collapsed}
+          onClose={() => setOpen(false)}
+          className="sidebar-property-menu overflow-hidden rounded-xl border border-[rgba(212,166,46,0.22)] bg-[#2D215B] shadow-elevation-3"
+        >
           <div
             role="listbox"
             aria-label="Select property"
-            className={`sidebar-property-menu absolute z-50 w-64 overflow-hidden rounded-xl border border-[rgba(212,166,46,0.22)] bg-[#2D215B] shadow-elevation-3 ${
-              collapsed ? 'left-full top-0 ml-2' : 'left-0 top-[calc(100%+0.5rem)] md:left-full md:top-0 md:ml-2'
-            }`}
+            className="flex max-h-[min(16rem,calc(100dvh-2rem))] flex-col"
           >
-            <div className="max-h-64 overflow-y-auto p-1.5">
+            <div className="min-h-0 flex-1 overflow-y-auto p-1.5">
               {properties.map((property) => {
                 const isActive = property.id === activePropertyId
                 return (
@@ -174,7 +169,7 @@ export function PropertySwitcher({ collapsed = false }: PropertySwitcherProps) {
             </div>
 
             {isAdmin && (
-              <div className="border-t border-white/10 p-1.5">
+              <div className="shrink-0 border-t border-white/10 p-1.5">
                 <button
                   type="button"
                   onClick={() => {
@@ -189,7 +184,7 @@ export function PropertySwitcher({ collapsed = false }: PropertySwitcherProps) {
               </div>
             )}
           </div>
-        )}
+        </SidebarDropdownPanel>
       </div>
 
       <AddPropertyDialog open={addOpen} onClose={() => setAddOpen(false)} />

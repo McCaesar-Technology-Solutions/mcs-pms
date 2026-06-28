@@ -12,6 +12,7 @@ import {
   formatMessageTime,
   groupMessagesByDay,
 } from '@/components/guest-messages/messaging-format'
+import { MessengerAvatar } from '@/components/messaging/messenger-avatar'
 
 interface ChatMessage {
   id: string
@@ -19,11 +20,13 @@ interface ChatMessage {
   body: string
   createdAt: string
   authorName: string | null
+  authorAvatarUrl: string | null
 }
 
 interface StaffGuestStayThreadProps {
   conversationId: string
   guestName?: string | null
+  guestAvatarUrl?: string | null
   roomNumber?: string | null
   onBack?: () => void
 }
@@ -38,6 +41,7 @@ const STAFF_QUICK_REPLIES = [
 export function StaffGuestStayThread({
   conversationId,
   guestName,
+  guestAvatarUrl,
   roomNumber,
   onBack,
 }: StaffGuestStayThreadProps) {
@@ -102,7 +106,6 @@ export function StaffGuestStayThread({
   }, [conversationId, load])
 
   const messageGroups = useMemo(() => groupMessagesByDay(messages), [messages])
-  const guestInitial = (guestName ?? 'G').trim().charAt(0).toUpperCase() || 'G'
 
   async function handleSend(text?: string) {
     const trimmed = (text ?? body).trim()
@@ -117,6 +120,7 @@ export function StaffGuestStayThread({
       body: trimmed,
       createdAt: new Date().toISOString(),
       authorName: 'You',
+      authorAvatarUrl: null,
     }
     setMessages((prev) => [...prev, optimistic])
     if (!text) setBody('')
@@ -149,7 +153,11 @@ export function StaffGuestStayThread({
             <ArrowLeft className="h-5 w-5" />
           </button>
         )}
-        <div className="staff-messenger__avatar staff-messenger__avatar--lg">{guestInitial}</div>
+        <MessengerAvatar
+          name={guestName ?? 'Guest'}
+          imageUrl={guestAvatarUrl}
+          size="lg"
+        />
         <div className="min-w-0 flex-1">
           <p className="truncate font-semibold text-foreground">{guestName ?? 'Guest'}</p>
           <p className="truncate text-xs text-muted-foreground">
@@ -208,6 +216,13 @@ export function StaffGuestStayThread({
                         isStaff ? 'staff-messenger__bubble-row--out' : 'staff-messenger__bubble-row--in'
                       }`}
                     >
+                      {!isStaff && (
+                        <MessengerAvatar
+                          name={guestName ?? 'Guest'}
+                          imageUrl={m.authorAvatarUrl ?? guestAvatarUrl}
+                          size="xs"
+                        />
+                      )}
                       <div
                         className={`staff-messenger__bubble staff-messenger__bubble--${position} ${
                           isStaff

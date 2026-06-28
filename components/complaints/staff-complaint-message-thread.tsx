@@ -8,6 +8,7 @@ import {
   postStaffComplaintMessage,
 } from '@/app/actions/complaints'
 import { prepopulateMessageComposer } from '@/lib/messaging/prepopulate-composer'
+import { MessengerAvatar } from '@/components/messaging/messenger-avatar'
 
 interface ChatMessage {
   id: string
@@ -15,11 +16,13 @@ interface ChatMessage {
   body: string
   createdAt: string
   authorName: string | null
+  authorAvatarUrl: string | null
 }
 
 interface StaffComplaintMessageThreadProps {
   complaintId: string
   guestName?: string | null
+  guestAvatarUrl?: string | null
   roomNumber?: string | null
   complaintCategory?: string | null
   quickReplies?: readonly string[]
@@ -66,6 +69,7 @@ function categoryLabel(value: string | null | undefined) {
 export function StaffComplaintMessageThread({
   complaintId,
   guestName,
+  guestAvatarUrl,
   roomNumber,
   complaintCategory,
   quickReplies = DEFAULT_QUICK_REPLIES,
@@ -150,6 +154,7 @@ export function StaffComplaintMessageThread({
       body: trimmed,
       createdAt: new Date().toISOString(),
       authorName: 'You',
+      authorAvatarUrl: null,
     }
     setMessages((prev) => [...prev, optimistic])
     if (!text) setBody('')
@@ -180,15 +185,16 @@ export function StaffComplaintMessageThread({
     }
   }
 
-  const guestInitial = (guestName ?? 'G').charAt(0).toUpperCase()
-
   return (
     <div className="overflow-hidden rounded-2xl border border-[#3C216C]/10 bg-gradient-to-b from-[#3C216C]/[0.04] to-white shadow-elevation-1">
       <div className="flex items-start justify-between gap-3 border-b border-[#3C216C]/10 bg-[#3C216C]/[0.06] px-4 py-3.5">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#3C216C] text-sm font-bold text-white shadow-elevation-1">
-            {guestInitial}
-          </div>
+          <MessengerAvatar
+            name={guestName ?? 'Guest'}
+            imageUrl={guestAvatarUrl}
+            size="lg"
+            className="!h-10 !w-10"
+          />
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
               <p className="truncate text-sm font-semibold text-foreground">
@@ -259,7 +265,14 @@ export function StaffComplaintMessageThread({
                     </span>
                   </div>
                 )}
-                <div className={`flex ${isStaff ? 'justify-end' : 'justify-start'}`}>
+                <div className={`flex items-end gap-2 ${isStaff ? 'justify-end' : 'justify-start'}`}>
+                  {!isStaff && (
+                    <MessengerAvatar
+                      name={guestName ?? 'Guest'}
+                      imageUrl={m.authorAvatarUrl ?? guestAvatarUrl}
+                      size="xs"
+                    />
+                  )}
                   <div
                     className={`max-w-[88%] rounded-2xl px-3.5 py-2.5 text-sm shadow-sm ${
                       isStaff

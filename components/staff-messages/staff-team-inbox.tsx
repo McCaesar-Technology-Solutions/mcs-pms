@@ -5,6 +5,7 @@ import { MessageCircle, Plus, Search, Users } from 'lucide-react'
 import { StaffTeamThread } from '@/components/staff-messages/staff-team-thread'
 import { NewStaffConversationModal } from '@/components/staff-messages/new-staff-conversation-modal'
 import { formatConversationTime } from '@/components/guest-messages/messaging-format'
+import { MessengerAvatar } from '@/components/messaging/messenger-avatar'
 import type { StaffConversationListItem } from '@/lib/data/staff-conversations'
 
 interface StaffTeamInboxProps {
@@ -15,10 +16,6 @@ interface StaffTeamInboxProps {
   hotelStaff: { id: string; name: string; role: string }[]
   currentUserId: string
   onConversationCreated: (id: string) => void
-}
-
-function avatarLabel(name: string) {
-  return name.trim().charAt(0).toUpperCase() || 'T'
 }
 
 export function StaffTeamInbox({
@@ -124,13 +121,11 @@ export function StaffTeamInbox({
                         c.unread ? 'staff-messenger__row--unread' : ''
                       }`}
                     >
-                      <div className="staff-messenger__avatar" aria-hidden>
-                        {c.conversationType === 'group' ? (
-                          <Users className="h-4 w-4" />
-                        ) : (
-                          avatarLabel(c.name)
-                        )}
-                      </div>
+                      <MessengerAvatar
+                        name={c.name}
+                        imageUrl={c.avatarUrl}
+                        variant={c.conversationType === 'group' ? 'group' : 'person'}
+                      />
                       <div className="staff-messenger__row-body">
                         <div className="staff-messenger__row-top">
                           <p className="staff-messenger__row-name">{c.name}</p>
@@ -170,6 +165,8 @@ export function StaffTeamInbox({
             <StaffTeamThread
               conversationId={selected.id}
               title={selected.name}
+              avatarUrl={selected.avatarUrl}
+              conversationType={selected.conversationType}
               subtitle={
                 selected.conversationType === 'group'
                   ? `${selected.memberNames.length} members`

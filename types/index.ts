@@ -26,6 +26,7 @@ export interface Profile {
   is_active: boolean | null
   onboarding_step?: 'welcome' | 'property' | 'compliance' | 'team' | 'done' | null
   onboarding_completed_at?: string | null
+  profile_image_path?: string | null
   created_at: string | null
 }
 
@@ -355,6 +356,7 @@ export interface Guest {
   check_out: string | null
   guest_rules_accepted_version: number | null
   do_not_disturb?: boolean | null
+  profile_image_path?: string | null
   enrolled_by: string | null
   created_at: string | null
 }
@@ -407,7 +409,7 @@ export interface Complaint {
   guest?: Guest | null
   assignee?: Pick<Profile, 'id' | 'name' | 'phone' | 'specialty'> | null
   rooms?: { number: string } | null
-  guests?: { name: string; phone: string | null } | null
+  guests?: { name: string; phone: string | null; profile_image_path?: string | null } | null
 }
 
 export interface ComplaintEvent {

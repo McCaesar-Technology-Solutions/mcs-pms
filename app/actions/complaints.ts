@@ -10,6 +10,7 @@ import { isVisitTimeValid, parseVisitDateTime } from '@/lib/complaints/visit'
 import { canManagerApproveCompletion, canTechnicianScheduleVisit } from '@/lib/complaints/workflow'
 import { scheduleComplaintVisitSchema } from '@/lib/validations'
 import type { Complaint, ComplaintEvent, ComplaintPriority, DbRoomStatus } from '@/types'
+import { profilePhotoPublicUrl } from '@/lib/profile-photos/storage'
 
 export type ComplaintActionResult<T = void> =
   | { success: true; data?: T }
@@ -710,7 +711,14 @@ export async function getStaffComplaintMessages(
   complaintId: string,
 ): Promise<
   ComplaintActionResult<
-    { id: string; authorRole: string; body: string; createdAt: string; authorName: string | null }[]
+    {
+      id: string
+      authorRole: string
+      body: string
+      createdAt: string
+      authorName: string | null
+      authorAvatarUrl: string | null
+    }[]
   >
 > {
   const profile = await requireStaffProfile()
@@ -720,25 +728,42 @@ export async function getStaffComplaintMessages(
   if (!access.ok) return { success: false, error: access.error }
 
   const admin = createAdminClient()
+
+  const { data: complaint } = await admin
+    .from('complaints')
+    .select('guest_id, guests(name, profile_image_path)')
+    .eq('id', complaintId)
+    .maybeSingle()
+
+  const guestRow = complaint?.guests as {
+    name?: string
+    profile_image_path?: string | null
+  } | null
+  const guestAvatarUrl = profilePhotoPublicUrl(guestRow?.profile_image_path)
+
   const { data } = await admin
     .from('complaint_messages')
-    .select('id, author_role, body, created_at, author_id, profiles(name)')
+    .select('id, author_role, body, created_at, author_id, profiles(name, profile_image_path)')
     .eq('complaint_id', complaintId)
     .order('created_at', { ascending: true })
 
   return {
     success: true,
     data: (data ?? []).map((m) => {
-      const author =
+      const authorProfile =
         m.profiles && typeof m.profiles === 'object' && 'name' in m.profiles
-          ? (m.profiles as { name: string }).name
+          ? (m.profiles as { name: string; profile_image_path?: string | null })
           : null
+      const isGuestRole = m.author_role === 'guest'
       return {
         id: m.id,
         authorRole: m.author_role,
         body: m.body,
         createdAt: m.created_at ?? new Date(0).toISOString(),
-        authorName: author,
+        authorName: isGuestRole ? (guestRow?.name ?? 'Guest') : (authorProfile?.name ?? null),
+        authorAvatarUrl: isGuestRole
+          ? guestAvatarUrl
+          : profilePhotoPublicUrl(authorProfile?.profile_image_path),
       }
     }),
   }

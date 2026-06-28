@@ -1,9 +1,11 @@
 import { createAdminClient } from '@/lib/supabase/admin'
+import { profilePhotoPublicUrl } from '@/lib/profile-photos/storage'
 
 export interface GuestConversationListItem {
   id: string
   guestId: string
   guestName: string
+  guestAvatarUrl: string | null
   roomNumber: string | null
   lastMessageBody: string | null
   lastMessageAt: string | null
@@ -15,7 +17,7 @@ export async function loadGuestConversations(hotelId: string): Promise<GuestConv
   const admin = createAdminClient()
   const { data: conversations } = await admin
     .from('guest_conversations')
-    .select('id, guest_id, staff_last_read_at, updated_at, guests(name, room_id, rooms(number))')
+    .select('id, guest_id, staff_last_read_at, updated_at, guests(name, profile_image_path, room_id, rooms(number))')
     .eq('hotel_id', hotelId)
     .order('updated_at', { ascending: false })
     .limit(50)
@@ -41,7 +43,11 @@ export async function loadGuestConversations(hotelId: string): Promise<GuestConv
   }
 
   return conversations.map((c) => {
-    const guest = c.guests as { name?: string; rooms?: { number?: string } | null } | null
+    const guest = c.guests as {
+      name?: string
+      profile_image_path?: string | null
+      rooms?: { number?: string } | null
+    } | null
     const latest = latestByConv.get(c.id)
     const lastAt = latest?.created_at ?? c.updated_at ?? null
     const staffRead = c.staff_last_read_at
@@ -53,6 +59,7 @@ export async function loadGuestConversations(hotelId: string): Promise<GuestConv
       id: c.id,
       guestId: c.guest_id,
       guestName: guest?.name ?? 'Guest',
+      guestAvatarUrl: profilePhotoPublicUrl(guest?.profile_image_path),
       roomNumber: guest?.rooms?.number ?? null,
       lastMessageBody: latest?.body ?? null,
       lastMessageAt: lastAt,

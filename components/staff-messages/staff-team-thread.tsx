@@ -9,11 +9,14 @@ import {
   formatMessageTime,
   groupMessagesByDay,
 } from '@/components/guest-messages/messaging-format'
+import { MessengerAvatar } from '@/components/messaging/messenger-avatar'
 import type { StaffConversationMessage } from '@/lib/data/staff-conversations'
 
 interface StaffTeamThreadProps {
   conversationId: string
   title: string
+  avatarUrl?: string | null
+  conversationType?: 'dm' | 'group'
   subtitle?: string | null
   onBack?: () => void
 }
@@ -25,13 +28,11 @@ const TEAM_QUICK_REPLIES = [
   'Guest issue handled.',
 ] as const
 
-function staffInitial(name: string) {
-  return name.trim().charAt(0).toUpperCase() || 'S'
-}
-
 export function StaffTeamThread({
   conversationId,
   title,
+  avatarUrl,
+  conversationType = 'dm',
   subtitle,
   onBack,
 }: StaffTeamThreadProps) {
@@ -147,7 +148,12 @@ export function StaffTeamThread({
             <ArrowLeft className="h-5 w-5" />
           </button>
         )}
-        <div className="staff-messenger__avatar staff-messenger__avatar--lg">{staffInitial(title)}</div>
+        <MessengerAvatar
+          name={title}
+          imageUrl={avatarUrl}
+          size="lg"
+          variant={conversationType === 'group' ? 'group' : 'person'}
+        />
         <div className="min-w-0 flex-1">
           <p className="truncate font-semibold text-foreground">{title}</p>
           {subtitle && <p className="truncate text-xs text-muted-foreground">{subtitle}</p>}
@@ -196,6 +202,15 @@ export function StaffTeamThread({
                     key={msg.id}
                     className={`staff-messenger__bubble-row ${isOut ? 'staff-messenger__bubble-row--out' : 'staff-messenger__bubble-row--in'}`}
                   >
+                    {!isOut && (
+                      <MessengerAvatar
+                        name={msg.authorName ?? 'Staff'}
+                        imageUrl={
+                          messages.find((m) => m.id === msg.id)?.authorAvatarUrl ?? null
+                        }
+                        size="xs"
+                      />
+                    )}
                     <div
                       className={`staff-messenger__bubble ${isOut ? 'staff-messenger__bubble--staff' : 'staff-messenger__bubble--guest'} staff-messenger__bubble--${corner}`}
                     >
