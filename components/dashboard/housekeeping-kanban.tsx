@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { useRealtimeRefresh } from '@/components/realtime/realtime-refresh-context'
 import { DataEmptyState } from '@/components/dashboard/data-empty-state'
+import { GuestDndBadge } from '@/components/ui/guest-dnd-badge'
 import { BulkActionBar } from '@/components/dashboard/bulk-action-bar'
 import { BulkSelectCheckbox } from '@/components/dashboard/bulk-select-checkbox'
 import { downloadCsv } from '@/lib/export/download-csv'
@@ -349,11 +350,7 @@ function DbKanban({
                           <div className="min-w-0">
                             <p className="text-base font-bold text-[#111827]">
                               {task.roomNumber ? `Room ${task.roomNumber}` : 'No room'}
-                              {task.roomDoNotDisturb && (
-                                <span className="ml-2 inline-flex items-center rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-indigo-800">
-                                  DND
-                                </span>
-                              )}
+                              {task.roomDoNotDisturb && <GuestDndBadge compact className="ml-2" />}
                             </p>
                             <div className="mt-1.5 inline-flex items-center gap-1.5 rounded-lg bg-[#faf8fc] px-2 py-1">
                               <TaskIcon className="h-3.5 w-3.5 text-[#4c1d95]" />

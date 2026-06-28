@@ -11,6 +11,7 @@ import { TechnicianComplaintPhoto } from '@/components/technician/technician-com
 import { TechnicianJobProgress } from '@/components/technician/technician-job-progress'
 import { TechnicianNextStepBanner } from '@/components/technician/technician-next-step-banner'
 import { PhoneContact } from '@/components/ui/phone-contact'
+import { GuestDndBadge, guestDoNotDisturb } from '@/components/ui/guest-dnd-badge'
 import { guestComplaintReference } from '@/lib/complaints/guest-progress'
 import { profilePhotoPublicUrl } from '@/lib/profile-photos/storage'
 import { getTechnicianNextAction, technicianScrollTarget } from '@/lib/complaints/technician-progress'
@@ -24,7 +25,9 @@ import {
   technicianStatusLabel,
 } from '@/lib/complaints/workflow'
 import { formatComplaintVisit } from '@/lib/complaints/visit'
+import { roomImagePublicUrl } from '@/lib/rooms/image-storage'
 import type { Complaint, ComplaintCategory, ComplaintEstimate } from '@/types'
+import Image from 'next/image'
 import type { LucideIcon } from 'lucide-react'
 
 const TECHNICIAN_QUICK_REPLIES = [
@@ -84,6 +87,8 @@ export function TechnicianJobDetail({
       nextAction?.type === 'mark_complete' ||
       nextAction?.type === 'rework')
 
+  const roomImageUrl = roomImagePublicUrl(c.rooms?.profile_image_path)
+
   const footerAction = useMemo(() => {
     if (nextAction?.actionKind === 'start') {
       return { label: nextAction.actionLabel, onClick: onStart, variant: 'accent' as const }
@@ -120,9 +125,15 @@ export function TechnicianJobDetail({
         </button>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <div className="technician-job-card__icon h-9 w-9 shrink-0">
-              <Icon className="h-4 w-4" />
-            </div>
+            {roomImageUrl ? (
+              <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-lg ring-1 ring-[var(--tech-border)]">
+                <Image src={roomImageUrl} alt={`Room ${roomLabel}`} fill className="object-cover" sizes="36px" />
+              </div>
+            ) : (
+              <div className="technician-job-card__icon h-9 w-9 shrink-0">
+                <Icon className="h-4 w-4" />
+              </div>
+            )}
             <div className="min-w-0">
               <p className="truncate text-base font-semibold">Room {roomLabel}</p>
               <p className="truncate text-xs capitalize text-[var(--tech-fg-muted)]">
@@ -133,6 +144,7 @@ export function TechnicianJobDetail({
           <div className="mt-2 flex flex-wrap gap-1.5">
             <span className={`technician-pill ${priorityClass}`}>{c.priority ?? 'medium'}</span>
             <span className={`technician-pill ${statusClass}`}>{technicianStatusLabel(c)}</span>
+            {guestDoNotDisturb(c.guests ?? c.guest) && <GuestDndBadge compact />}
           </div>
         </div>
       </header>
@@ -164,6 +176,11 @@ export function TechnicianJobDetail({
       <div className="technician-job-screen__body">
         {tab === 'overview' && (
           <div className="technician-job-screen__overview">
+            {roomImageUrl && (
+              <div className="relative mb-3 aspect-[16/10] overflow-hidden rounded-xl ring-1 ring-[var(--tech-border)]">
+                <Image src={roomImageUrl} alt={`Room ${roomLabel}`} fill className="object-cover" sizes="(max-width: 480px) 100vw, 480px" />
+              </div>
+            )}
             {c.description && (
               <p className="text-sm leading-relaxed text-[var(--tech-fg-muted)]">{c.description}</p>
             )}
@@ -185,6 +202,11 @@ export function TechnicianJobDetail({
 
             {showGuestContact && c.guests?.phone && (
               <div id={technicianScrollTarget(c.id, 'contact')} className="technician-detail-card">
+                {guestDoNotDisturb(c.guests) && (
+                  <div className="mb-3">
+                    <GuestDndBadge />
+                  </div>
+                )}
                 <PhoneContact
                   name={c.guests.name ?? 'Guest'}
                   phone={c.guests.phone}
@@ -258,6 +280,7 @@ export function TechnicianJobDetail({
               guestName={c.guests?.name}
               guestAvatarUrl={profilePhotoPublicUrl(c.guests?.profile_image_path)}
               roomNumber={roomLabel}
+              guestDoNotDisturb={guestDoNotDisturb(c.guests)}
               complaintCategory={c.category as ComplaintCategory}
               quickReplies={TECHNICIAN_QUICK_REPLIES}
               compact

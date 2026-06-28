@@ -23,6 +23,7 @@ export interface GuestRow {
   tokenExpiresAt: string | null
   reservationId: string | null
   isInHouse: boolean
+  doNotDisturb: boolean
 }
 
 interface GuestQueryRow {
@@ -36,6 +37,7 @@ interface GuestQueryRow {
   created_at: string | null
   token: string | null
   token_expires_at: string | null
+  do_not_disturb?: boolean | null
   rooms?: { number: string } | null
 }
 
@@ -70,7 +72,7 @@ export async function getGuestsData(limit?: number): Promise<GuestRow[]> {
     supabase
       .from('guests')
       .select(
-        'id, name, email, phone, room_id, check_in, check_out, created_at, token, token_expires_at, rooms(number)',
+        'id, name, email, phone, room_id, check_in, check_out, created_at, token, token_expires_at, do_not_disturb, rooms(number)',
       )
       .eq('hotel_id', hotelId)
       .order('created_at', { ascending: false })
@@ -139,6 +141,7 @@ export async function getGuestsData(limit?: number): Promise<GuestRow[]> {
       tokenExpiresAt: guest.token_expires_at,
       reservationId: activeReservation?.id ?? null,
       isInHouse: isCurrentlyStaying,
+      doNotDisturb: Boolean(guest.do_not_disturb),
     }
   })
 }

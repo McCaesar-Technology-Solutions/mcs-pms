@@ -2,6 +2,7 @@
 
 import type { LucideIcon } from 'lucide-react'
 import { BulkSelectCheckbox } from '@/components/dashboard/bulk-select-checkbox'
+import { GuestDndBadge, guestDoNotDisturb } from '@/components/ui/guest-dnd-badge'
 import type { Complaint, ComplaintCategory, ComplaintStatus } from '@/types'
 
 const priorityAccent: Record<string, string> = {
@@ -68,7 +69,10 @@ export function ComplaintsSelectableList({
                     </span>
                   )}
                   {guestNameOf(c) && (
-                    <span className="text-xs text-muted-foreground">{guestNameOf(c)}</span>
+                    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                      {guestNameOf(c)}
+                      {guestDoNotDisturb(c.guests ?? c.guest) && <GuestDndBadge compact />}
+                    </span>
                   )}
                 </div>
                 <p className="truncate text-sm text-muted-foreground">{c.description}</p>

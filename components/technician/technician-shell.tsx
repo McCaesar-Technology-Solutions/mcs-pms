@@ -13,6 +13,8 @@ import {
 import { MessengerAvatar } from '@/components/messaging/messenger-avatar'
 import { ProfilePhoneBanner } from '@/components/dashboard/profile-phone-banner'
 import { PhoneContactList } from '@/components/ui/phone-contact'
+import { PortalBrand } from '@/components/brand/portal-brand'
+import Image from 'next/image'
 import { hasPhoneNumber } from '@/lib/phone'
 import type { StaffContact } from '@/lib/data/contacts'
 import type { Profile } from '@/types'
@@ -21,10 +23,18 @@ import type { ReactNode } from 'react'
 interface TechnicianShellProps {
   profile: Profile
   managerContacts: StaffContact[]
+  propertyName: string
+  propertyImageUrl?: string | null
   children: ReactNode
 }
 
-export function TechnicianShell({ profile, managerContacts, children }: TechnicianShellProps) {
+export function TechnicianShell({
+  profile,
+  managerContacts,
+  propertyName,
+  propertyImageUrl = null,
+  children,
+}: TechnicianShellProps) {
   const [phoneDialogOpen, setPhoneDialogOpen] = useState(false)
   const [photoDialogOpen, setPhotoDialogOpen] = useState(false)
   const [supportOpen, setSupportOpen] = useState(false)
@@ -35,8 +45,20 @@ export function TechnicianShell({ profile, managerContacts, children }: Technici
       {!hasPhoneNumber(profile.phone) && <ProfilePhoneBanner roleLabel="technician" />}
       <header className="technician-portal-header">
         <div className="technician-portal-header__inner">
-          <div className="min-w-0 flex-1">
-            <p className="technician-portal-brand">MOJO APARTMENTS</p>
+          <div className="min-w-0 flex-1 space-y-3">
+            <PortalBrand variant="technician" />
+            <div className="flex items-center gap-3">
+              {propertyImageUrl ? (
+                <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl ring-1 ring-[var(--tech-border)]">
+                  <Image src={propertyImageUrl} alt={propertyName} fill className="object-cover" sizes="40px" />
+                </div>
+              ) : (
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--tech-accent-softer)] text-sm font-bold text-[var(--brand-purple)] ring-1 ring-[var(--tech-border)]">
+                  {propertyName.charAt(0)}
+                </div>
+              )}
+              <p className="truncate text-sm font-semibold text-[var(--tech-fg)]">{propertyName}</p>
+            </div>
             <div className="flex items-center gap-2">
               <MessengerAvatar name={profile.name} imageUrl={avatarUrl} size="xs" className="!h-8 !w-8" />
               <div className="min-w-0">

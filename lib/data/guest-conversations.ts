@@ -11,13 +11,14 @@ export interface GuestConversationListItem {
   lastMessageAt: string | null
   lastAuthorRole: 'guest' | 'staff' | null
   unread: boolean
+  doNotDisturb: boolean
 }
 
 export async function loadGuestConversations(hotelId: string): Promise<GuestConversationListItem[]> {
   const admin = createAdminClient()
   const { data: conversations } = await admin
     .from('guest_conversations')
-    .select('id, guest_id, staff_last_read_at, updated_at, guests(name, profile_image_path, room_id, rooms(number))')
+    .select('id, guest_id, staff_last_read_at, updated_at, guests(name, profile_image_path, room_id, do_not_disturb, rooms(number))')
     .eq('hotel_id', hotelId)
     .order('updated_at', { ascending: false })
     .limit(50)
@@ -46,6 +47,7 @@ export async function loadGuestConversations(hotelId: string): Promise<GuestConv
     const guest = c.guests as {
       name?: string
       profile_image_path?: string | null
+      do_not_disturb?: boolean | null
       rooms?: { number?: string } | null
     } | null
     const latest = latestByConv.get(c.id)
@@ -65,6 +67,7 @@ export async function loadGuestConversations(hotelId: string): Promise<GuestConv
       lastMessageAt: lastAt,
       lastAuthorRole: (latest?.author_role as 'guest' | 'staff') ?? null,
       unread,
+      doNotDisturb: Boolean(guest?.do_not_disturb),
     }
   })
 }

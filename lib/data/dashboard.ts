@@ -100,7 +100,7 @@ function nightsBetween(checkIn: string, checkOut: string): number {
 
 interface ReservationRow extends DbReservation {
   rooms?: { number: string } | null
-  guests?: { email: string | null; phone: string | null } | null
+  guests?: { email: string | null; phone: string | null; do_not_disturb?: boolean | null } | null
 }
 
 function mapReservation(row: ReservationRow, folioMap: Map<string, number>): Reservation {
@@ -153,6 +153,7 @@ function mapReservation(row: ReservationRow, folioMap: Map<string, number>): Res
     monthlyRate,
     createdAt: row.created_at ?? new Date().toISOString(),
     updatedAt: row.created_at ?? new Date().toISOString(),
+    guestDoNotDisturb: Boolean(row.guests?.do_not_disturb),
   }
 }
 
@@ -286,7 +287,7 @@ export async function getDashboardData(): Promise<DashboardData> {
       .order('number'),
     supabase
       .from('reservations')
-      .select('*, rooms(number), guests(email, phone)')
+      .select('*, rooms(number), guests(email, phone, do_not_disturb)')
       .eq('hotel_id', hotelId)
       .order('check_in', { ascending: false }),
     supabase.from('invoices').select('*').eq('hotel_id', hotelId),

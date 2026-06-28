@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition } from 'react'
 import { Bell } from 'lucide-react'
+import { GuestDndBadge } from '@/components/ui/guest-dnd-badge'
 import { toast } from 'sonner'
 import { updateGuestRequestStatus } from '@/app/actions/guest-portal-staff'
 
@@ -13,6 +14,7 @@ export interface GuestRequestRow {
   createdAt: string
   guestName: string
   roomNumber: string | null
+  doNotDisturb: boolean
 }
 
 const REQUEST_LABELS: Record<string, string> = {
@@ -87,8 +89,10 @@ export function GuestRequestsPanel({ initialRequests = [] }: GuestRequestsPanelP
                   {REQUEST_LABELS[req.requestType] ?? req.requestType}
                   {req.roomNumber ? ` · Room ${req.roomNumber}` : ''}
                 </p>
-                <p className="text-xs text-muted-foreground">
-                  {req.guestName} ·{' '}
+                <p className="text-xs text-muted-foreground inline-flex flex-wrap items-center gap-1.5">
+                  {req.guestName}
+                  {req.doNotDisturb && <GuestDndBadge compact />}
+                  <span aria-hidden>·</span>
                   {new Date(req.createdAt).toLocaleString('en-GB', {
                     month: 'short',
                     day: 'numeric',

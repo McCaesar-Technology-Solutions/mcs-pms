@@ -85,6 +85,27 @@ export function computeInvoiceTaxesWithOption(
   return computeInvoiceTaxes(amount, mode)
 }
 
+/** True when an invoice includes GRA levies (show tax breakdown in UI/PDF). */
+export function invoiceHasTaxBreakdown(taxes: {
+  nhil?: number | null
+  getfund?: number | null
+  covid?: number | null
+  vat?: number | null
+  elevy?: number | null
+  nhil_amount?: number | null
+  getfund_amount?: number | null
+  covid_levy_amount?: number | null
+  vat_amount?: number | null
+  elevy_amount?: number | null
+}): boolean {
+  const nhil = Number(taxes.nhil ?? taxes.nhil_amount ?? 0)
+  const getfund = Number(taxes.getfund ?? taxes.getfund_amount ?? 0)
+  const covid = Number(taxes.covid ?? taxes.covid_levy_amount ?? 0)
+  const vat = Number(taxes.vat ?? taxes.vat_amount ?? 0)
+  const elevy = Number(taxes.elevy ?? taxes.elevy_amount ?? 0)
+  return nhil + getfund + covid + vat + elevy > 0.009
+}
+
 export const VAT_MODE_LABELS: Record<VatMode, string> = {
   exclusive: 'Taxes added at checkout',
   inclusive: 'Rates include VAT & levies',

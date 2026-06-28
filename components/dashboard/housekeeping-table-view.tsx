@@ -4,6 +4,7 @@ import { useMemo, useTransition } from 'react'
 import { toast } from 'sonner'
 import { assignHousekeepingTask, setHousekeepingTaskStatus } from '@/app/actions/housekeeping'
 import { DataEmptyState } from '@/components/dashboard/data-empty-state'
+import { GuestDndBadge } from '@/components/ui/guest-dnd-badge'
 import type { HousekeepingTaskView } from '@/lib/housekeeping/task-view'
 import type { TaskStatus } from '@/types'
 
@@ -85,7 +86,10 @@ export function HousekeepingTableView({
             {sorted.map((task) => (
               <tr key={task.id}>
                 <td className="font-medium text-foreground">
-                  {task.roomId ? (roomMap.get(task.roomId) ?? task.roomId.slice(0, 6)) : '-'}
+                  <span className="inline-flex flex-wrap items-center gap-2">
+                    {task.roomId ? (roomMap.get(task.roomId) ?? task.roomId.slice(0, 6)) : '-'}
+                    {task.roomDoNotDisturb && <GuestDndBadge compact />}
+                  </span>
                 </td>
                 <td className="capitalize text-muted-foreground">{task.taskType}</td>
                 <td className="text-muted-foreground">

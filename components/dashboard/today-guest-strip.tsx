@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { GuestDndBadge } from '@/components/ui/guest-dnd-badge'
 import type { Reservation } from '@/types'
 
 interface TodayGuestStripProps {
@@ -38,7 +39,10 @@ function GuestCard({
           {initial}
         </div>
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-foreground">{reservation.guestName}</p>
+          <p className="truncate text-sm font-semibold text-foreground inline-flex items-center gap-1.5">
+            {reservation.guestName}
+            {reservation.guestDoNotDisturb && <GuestDndBadge compact />}
+          </p>
           <p className="text-xs text-muted-foreground">
             Room {reservation.roomNumber} · {kind === 'arrival' ? 'Arriving' : 'Departing'} {dateLabel}
           </p>

@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { getUpcomingBookings } from '@/lib/data/overview'
 import { DataEmptyState } from '@/components/dashboard/data-empty-state'
+import { GuestDndBadge } from '@/components/ui/guest-dnd-badge'
 import { ChevronRight } from 'lucide-react'
 import type { Reservation } from '@/types'
 
@@ -65,6 +66,7 @@ export function BookingsList({
                   <div className="min-w-0 flex-1">
                     <div className="mb-1.5 flex flex-wrap items-center gap-2">
                       <p className="font-semibold text-foreground">{booking.guestName}</p>
+                      {booking.guestDoNotDisturb && <GuestDndBadge compact />}
                       <span className={statusPillClass(booking.status)}>
                         {statusLabel(booking.status)}
                       </span>

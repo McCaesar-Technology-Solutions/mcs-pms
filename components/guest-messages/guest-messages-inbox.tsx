@@ -7,6 +7,7 @@ import { GuestContextRail } from '@/components/guest-messages/guest-context-rail
 import { StaffGuestStayThread } from '@/components/guest-messages/staff-guest-stay-thread'
 import { formatConversationTime } from '@/components/guest-messages/messaging-format'
 import { MessengerAvatar } from '@/components/messaging/messenger-avatar'
+import { GuestDndBadge } from '@/components/ui/guest-dnd-badge'
 import type { GuestConversationContext } from '@/lib/data/guest-conversation-context'
 import type { GuestConversationListItem } from '@/lib/data/guest-conversations'
 
@@ -124,7 +125,10 @@ export function GuestMessagesInbox({
                     <MessengerAvatar name={c.guestName} imageUrl={c.guestAvatarUrl} />
                     <div className="staff-messenger__row-body">
                       <div className="staff-messenger__row-top">
-                        <p className="staff-messenger__row-name">{c.guestName}</p>
+                        <p className="staff-messenger__row-name inline-flex flex-wrap items-center gap-1.5">
+                          {c.guestName}
+                          {c.doNotDisturb && <GuestDndBadge compact />}
+                        </p>
                         <span className="staff-messenger__row-time">
                           {formatConversationTime(c.lastMessageAt)}
                         </span>
@@ -163,6 +167,7 @@ export function GuestMessagesInbox({
             guestName={selected.guestName}
             guestAvatarUrl={selected.guestAvatarUrl}
             roomNumber={selected.roomNumber}
+            guestDoNotDisturb={selected.doNotDisturb}
             onBack={onBack}
           />
         ) : (

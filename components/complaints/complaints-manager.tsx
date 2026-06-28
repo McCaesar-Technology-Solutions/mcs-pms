@@ -49,6 +49,7 @@ import {
   canManagerApproveCompletion,
 } from '@/lib/complaints/workflow'
 import { profilePhotoPublicUrl } from '@/lib/profile-photos/storage'
+import { GuestDndBadge, guestDoNotDisturb } from '@/components/ui/guest-dnd-badge'
 import type {
   Complaint,
   ComplaintCategory,
@@ -99,6 +100,10 @@ function guestAvatarUrlOf(c: Complaint): string | null {
 
 function guestPhoneOf(c: Complaint): string | null {
   return c.guests?.phone ?? c.guest?.phone ?? null
+}
+
+function guestDndOf(c: Complaint): boolean {
+  return guestDoNotDisturb(c.guests ?? c.guest)
 }
 
 function priorityBadge(priority: string | null | undefined) {
@@ -474,6 +479,7 @@ function ComplaintsManagerContent() {
                 <span className={`rounded-full px-3 py-1 text-xs font-semibold shadow-sm ${statusBadge(selected.status)}`}>
                   {formatLabel(selected.status ?? 'open')}
                 </span>
+                {guestDndOf(selected) && <GuestDndBadge />}
               </div>
             </div>
 
@@ -506,6 +512,7 @@ function ComplaintsManagerContent() {
                     guestName={guestNameOf(selected)}
                     guestAvatarUrl={guestAvatarUrlOf(selected)}
                     roomNumber={roomNumberOf(selected)}
+                    guestDoNotDisturb={guestDndOf(selected)}
                     complaintCategory={selected.category}
                   />
                 </div>

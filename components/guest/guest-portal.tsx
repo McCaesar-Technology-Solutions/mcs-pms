@@ -62,6 +62,7 @@ import { GuestStatusAlerts } from '@/components/guest/guest-status-alerts'
 import { FormError } from '@/components/ui/form-error'
 import { RealtimeReconnectBanner } from '@/components/realtime/reconnect-banner'
 import { PhoneContactList } from '@/components/ui/phone-contact'
+import { PortalBrand } from '@/components/brand/portal-brand'
 import type { GuestPortalContext } from '@/lib/data/guest-portal'
 import type { StaffContact } from '@/lib/data/contacts'
 import type { Complaint, ComplaintCategory, Guest } from '@/types'
@@ -107,6 +108,47 @@ function PortalCard({
   className?: string
 }) {
   return <div className={`guest-portal-card ${className}`}>{children}</div>
+}
+
+function GuestContactPropertyCard({ contacts }: { contacts: StaffContact[] }) {
+  if (contacts.length === 0) return null
+  return (
+    <PortalCard className="space-y-3">
+      <PhoneContactList
+        contacts={contacts}
+        title="Contact property"
+        emptyMessage=""
+        variant="light"
+      />
+    </PortalCard>
+  )
+}
+
+function GuestRoomCard({
+  roomNumber,
+  roomImageUrl,
+}: {
+  roomNumber: string | null
+  roomImageUrl: string | null
+}) {
+  if (!roomNumber) return null
+  return (
+    <PortalCard className="flex items-center gap-3">
+      {roomImageUrl ? (
+        <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl ring-1 ring-[var(--guest-border-strong)]">
+          <Image src={roomImageUrl} alt={`Room ${roomNumber}`} fill className="object-cover" sizes="64px" />
+        </div>
+      ) : (
+        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-[var(--guest-accent-softer)] text-lg font-bold text-[var(--brand-purple)]">
+          {roomNumber}
+        </div>
+      )}
+      <div>
+        <p className="guest-portal-card__title">Your room</p>
+        <p className="text-sm guest-text-muted">Room {roomNumber}</p>
+      </div>
+    </PortalCard>
+  )
 }
 
 interface GuestPortalProps {
@@ -170,6 +212,7 @@ export function GuestPortal({
   const [portalRequests, setPortalRequests] = useState(context.requests)
 
   const { property, rules, localGuide, invoices } = context
+  const roomImageUrl = property.roomImageUrl
 
   useEffect(() => {
     setPortalRequests(context.requests)
@@ -390,22 +433,30 @@ export function GuestPortal({
       )}
 
       <header className={`guest-portal-header ${activeTab === 'messages' ? 'guest-portal-header--compact' : ''}`}>
-        <div className="mx-auto flex max-w-md items-start gap-3.5">
-          {property.imageUrl ? (
-            <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl ring-1 ring-[var(--guest-border-strong)]">
-              <Image src={property.imageUrl} alt={`${property.name} property photo`} fill className="object-cover" sizes="48px" />
+        <div className="mx-auto max-w-md">
+          <PortalBrand variant="guest" className="mb-3" />
+          <div className="flex items-start gap-3.5">
+            {property.imageUrl ? (
+              <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl ring-1 ring-[var(--guest-border-strong)]">
+                <Image src={property.imageUrl} alt={`${property.name} property photo`} fill className="object-cover" sizes="48px" />
+              </div>
+            ) : (
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--brand-gold-light)] to-[var(--brand-gold)] text-base font-bold text-[var(--brand-purple-ink)] shadow-sm ring-1 ring-[var(--guest-gold-border)]">
+                {property.name.charAt(0)}
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="guest-portal-header__title truncate text-lg font-semibold">{property.name}</p>
+              <p className="guest-portal-header__greeting mt-0.5 text-sm">
+                Hi <strong>{guest.name.split(' ')[0]}</strong>
+                {roomNumber ? ` · Room ${roomNumber}` : ''}
+              </p>
             </div>
-          ) : (
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--brand-gold-light)] to-[var(--brand-gold)] text-base font-bold text-[var(--brand-purple-ink)] shadow-sm ring-1 ring-[var(--guest-gold-border)]">
-              {property.name.charAt(0)}
-            </div>
-          )}
-          <div className="min-w-0 flex-1">
-            <p className="guest-portal-header__title truncate text-lg font-semibold">{property.name}</p>
-            <p className="guest-portal-header__greeting mt-0.5 text-sm">
-              Hi <strong>{guest.name.split(' ')[0]}</strong>
-              {roomNumber ? ` · Room ${roomNumber}` : ''}
-            </p>
+            {roomNumber && roomImageUrl && (
+              <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl ring-1 ring-[var(--guest-border-strong)]">
+                <Image src={roomImageUrl} alt={`Room ${roomNumber}`} fill className="object-cover" sizes="48px" />
+              </div>
+            )}
           </div>
         </div>
         {property.welcome && activeTab === 'home' && (
@@ -492,6 +543,8 @@ export function GuestPortal({
               <GuestNextStepBanner action={primaryNextAction} onAction={handleGuestNextStep} />
             )}
 
+            <GuestContactPropertyCard contacts={propertyContacts} />
+
             {(property.wifiSsid || property.parking || property.emergencyPhone) && (
               <PortalCard className="space-y-3">
                 <p className="guest-portal-card__title">Essentials</p>
@@ -554,6 +607,8 @@ export function GuestPortal({
             className="guest-tab-panel"
           >
             <p className="guest-tab-intro">Your dates, requests, and billing for this stay.</p>
+
+            <GuestRoomCard roomNumber={roomNumber} roomImageUrl={roomImageUrl} />
 
             {requestSuccess && (
               <div role="status" className="guest-checkout-strip guest-checkout-strip--success">
@@ -928,14 +983,7 @@ export function GuestPortal({
             )}
 
             {propertyContacts.length > 0 && (
-              <PortalCard className="space-y-3">
-                <PhoneContactList
-                  contacts={propertyContacts}
-                  title="Contact property"
-                  emptyMessage=""
-                  variant="light"
-                />
-              </PortalCard>
+              <GuestContactPropertyCard contacts={propertyContacts} />
             )}
 
             {localGuide.length > 0 && (

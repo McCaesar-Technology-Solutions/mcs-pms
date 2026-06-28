@@ -20,6 +20,7 @@ import {
   moveStayRoom,
 } from '@/app/actions/stays'
 import { GuestSearchField } from '@/components/dashboard/guest-search-field'
+import { GuestDndBadge } from '@/components/ui/guest-dnd-badge'
 import { PortalLinkPanel } from '@/components/dashboard/portal-link-panel'
 import { ReservationsBulkBar } from '@/components/dashboard/reservations-bulk-bar'
 import { TablePagination } from '@/components/dashboard/table-pagination'
@@ -325,7 +326,10 @@ export function ReservationsManager({
                 >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="font-semibold text-foreground">{res.guestName}</p>
+                    <p className="font-semibold text-foreground inline-flex flex-wrap items-center gap-2">
+                      {res.guestName}
+                      {res.guestDoNotDisturb && <GuestDndBadge compact />}
+                    </p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
                       {res.bookingRef} · Room {res.roomNumber}
                     </p>
@@ -408,7 +412,10 @@ export function ReservationsManager({
                       />
                     </td>
                     <td className="px-4 py-4">
-                      <p className="font-semibold text-foreground">{res.guestName}</p>
+                      <p className="font-semibold text-foreground inline-flex flex-wrap items-center gap-2">
+                      {res.guestName}
+                      {res.guestDoNotDisturb && <GuestDndBadge compact />}
+                    </p>
                       {res.guestEmail && (
                         <p className="text-xs text-muted-foreground">{res.guestEmail}</p>
                       )}
@@ -616,7 +623,10 @@ function ReservationDrawer({ reservation, roomOptions, staffRole, onClose, onMut
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="font-mono text-xs font-medium text-white/70">{reservation.bookingRef}</p>
-              <h3 className="mt-1 text-xl font-bold">{reservation.guestName}</h3>
+              <h3 className="mt-1 text-xl font-bold inline-flex flex-wrap items-center gap-2">
+                {reservation.guestName}
+                {reservation.guestDoNotDisturb && <GuestDndBadge />}
+              </h3>
               <p className="mt-1 text-sm text-white/80">Room {reservation.roomNumber}</p>
             </div>
             <button

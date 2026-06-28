@@ -12,6 +12,7 @@ export interface GuestConversationContext {
   checkOutDate: string | null
   reservationStatus: string | null
   paymentStatus: string | null
+  doNotDisturb: boolean
 }
 
 export async function loadGuestConversationContext(
@@ -20,7 +21,7 @@ export async function loadGuestConversationContext(
   const admin = createAdminClient()
   const { data: conv } = await admin
     .from('guest_conversations')
-    .select('guest_id, guests(id, name, phone, email, room_id, check_in, check_out, rooms(number))')
+    .select('guest_id, guests(id, name, phone, email, room_id, check_in, check_out, do_not_disturb, rooms(number))')
     .eq('id', conversationId)
     .maybeSingle()
 
@@ -34,6 +35,7 @@ export async function loadGuestConversationContext(
     room_id?: string | null
     check_in?: string | null
     check_out?: string | null
+    do_not_disturb?: boolean | null
     rooms?: { number?: string } | null
   } | null
 
@@ -63,5 +65,6 @@ export async function loadGuestConversationContext(
     checkOutDate: active?.check_out ?? guest.check_out ?? null,
     reservationStatus: active?.status ?? null,
     paymentStatus: active?.payment_status ?? null,
+    doNotDisturb: Boolean(guest.do_not_disturb),
   }
 }

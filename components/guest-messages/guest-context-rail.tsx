@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { CalendarDays, CreditCard, Mail, Phone, User } from 'lucide-react'
+import { GuestDndBadge } from '@/components/ui/guest-dnd-badge'
 import type { GuestConversationContext } from '@/lib/data/guest-conversation-context'
 
 interface GuestContextRailProps {
@@ -32,7 +33,10 @@ export function GuestContextRail({ context, reservationsHref }: GuestContextRail
         <div className="staff-messenger__context-row">
           <User className="h-4 w-4 shrink-0 text-[var(--brand-purple)]" aria-hidden />
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-foreground">{context.guestName}</p>
+            <p className="text-sm font-semibold text-foreground inline-flex flex-wrap items-center gap-2">
+              {context.guestName}
+              {context.doNotDisturb && <GuestDndBadge compact />}
+            </p>
             {context.roomNumber && (
               <p className="text-xs text-muted-foreground">Room {context.roomNumber}</p>
             )}

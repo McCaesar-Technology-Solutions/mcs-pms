@@ -19,6 +19,7 @@ import {
   LogOut,
 } from 'lucide-react'
 import { CenteredModal, ModalBody, ModalHeader } from '@/components/ui/centered-modal'
+import { GuestDndBadge } from '@/components/ui/guest-dnd-badge'
 import { regenerateGuestAccess, revokeGuestAccess, checkOutGuest, updateGuest } from '@/app/actions/guest'
 import { GuestFolioPanel } from '@/components/dashboard/guest-folio-panel'
 import { GuestsBulkBar } from '@/components/dashboard/guests-bulk-bar'
@@ -216,7 +217,10 @@ export function GuestsTable({ guests, initialSearch = '', readOnly = false }: Gu
               >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="font-semibold text-foreground">{guest.name}</p>
+                  <p className="font-semibold text-foreground inline-flex flex-wrap items-center gap-2">
+                    {guest.name}
+                    {guest.doNotDisturb && <GuestDndBadge compact />}
+                  </p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
                     {guest.roomNumber ? `Room ${guest.roomNumber}` : 'No room assigned'}
                   </p>
@@ -287,7 +291,10 @@ export function GuestsTable({ guests, initialSearch = '', readOnly = false }: Gu
                     />
                   </td>
                   <td className="py-4 px-6">
-                    <p className="font-semibold text-foreground">{guest.name}</p>
+                    <p className="font-semibold text-foreground inline-flex flex-wrap items-center gap-2">
+                    {guest.name}
+                    {guest.doNotDisturb && <GuestDndBadge compact />}
+                  </p>
                     <p className="text-xs text-muted-foreground mt-1">
                       {guest.roomNumber ? `Room ${guest.roomNumber}` : 'No room assigned'}
                     </p>
@@ -357,7 +364,10 @@ export function GuestsTable({ guests, initialSearch = '', readOnly = false }: Gu
               setSelectedGuest(null)
               setEditingGuest(false)
             }}>
-              <h3 className="text-xl font-semibold">{selectedGuest.name}</h3>
+              <h3 className="text-xl font-semibold inline-flex flex-wrap items-center gap-2">
+                {selectedGuest.name}
+                {selectedGuest.doNotDisturb && <GuestDndBadge compact />}
+              </h3>
             </ModalHeader>
 
             <ModalBody className="space-y-6">
@@ -492,6 +502,7 @@ function GuestCheckoutPanel({
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
   const [earlyCheckout, setEarlyCheckout] = useState(false)
   const [markAsPaid, setMarkAsPaid] = useState(true)
+  const [includeTax, setIncludeTax] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
@@ -513,6 +524,7 @@ function GuestCheckoutPanel({
         paymentMethod,
         earlyCheckout,
         markAsPaid,
+        includeTax,
       })
       if (result.success) {
         toast.success('Guest checked out')
@@ -537,6 +549,19 @@ function GuestCheckoutPanel({
   return (
     <div className="space-y-3 rounded-xl surface-inset p-4">
       <p className="text-sm font-semibold">Check out & collect payment</p>
+      <p className="text-xs text-muted-foreground">
+        {includeTax
+          ? 'A GRA tax invoice will be generated on check-out.'
+          : 'Invoice will use the stay total without GRA taxes.'}
+      </p>
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={includeTax}
+          onChange={(e) => setIncludeTax(e.target.checked)}
+        />
+        Include VAT &amp; GRA levies on invoice
+      </label>
       <label className="flex items-center gap-2 text-sm">
         <input
           type="checkbox"

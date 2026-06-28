@@ -13,6 +13,7 @@ import {
   groupMessagesByDay,
 } from '@/components/guest-messages/messaging-format'
 import { MessengerAvatar } from '@/components/messaging/messenger-avatar'
+import { GuestDndBadge } from '@/components/ui/guest-dnd-badge'
 
 interface ChatMessage {
   id: string
@@ -28,6 +29,7 @@ interface StaffGuestStayThreadProps {
   guestName?: string | null
   guestAvatarUrl?: string | null
   roomNumber?: string | null
+  guestDoNotDisturb?: boolean
   onBack?: () => void
 }
 
@@ -43,6 +45,7 @@ export function StaffGuestStayThread({
   guestName,
   guestAvatarUrl,
   roomNumber,
+  guestDoNotDisturb,
   onBack,
 }: StaffGuestStayThreadProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -159,7 +162,10 @@ export function StaffGuestStayThread({
           size="lg"
         />
         <div className="min-w-0 flex-1">
-          <p className="truncate font-semibold text-foreground">{guestName ?? 'Guest'}</p>
+          <p className="truncate font-semibold text-foreground inline-flex items-center gap-2">
+            {guestName ?? 'Guest'}
+            {guestDoNotDisturb && <GuestDndBadge compact />}
+          </p>
           <p className="truncate text-xs text-muted-foreground">
             {roomNumber ? `Room ${roomNumber}` : 'No room assigned'}
             <span className="mx-1.5 text-border">·</span>

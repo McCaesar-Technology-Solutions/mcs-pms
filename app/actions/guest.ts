@@ -378,12 +378,14 @@ export async function checkOutGuest(input: {
   paymentMethod: import('@/types').PaymentMethod
   earlyCheckout?: boolean
   markAsPaid?: boolean
+  includeTax?: boolean
 }): Promise<GuestActionResult> {
   const result = await checkOutStay({
     guestId: input.guestId,
     paymentMethod: input.paymentMethod,
     earlyCheckout: input.earlyCheckout,
     markAsPaid: input.markAsPaid,
+    includeTax: input.includeTax,
   })
   if (!result.success) return { success: false, error: result.error }
   return { success: true }

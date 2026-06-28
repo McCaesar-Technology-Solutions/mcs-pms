@@ -1,5 +1,6 @@
 import { jsPDF } from 'jspdf'
 import type { ExportHotelInfo, InvoiceExportRow } from '@/lib/export/types'
+import { invoiceHasTaxBreakdown } from '@/lib/tax'
 
 function money(value: number): string {
   return `GHS ${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -33,7 +34,8 @@ export function downloadInvoicePdf(hotel: ExportHotelInfo, invoice: InvoiceExpor
 
   doc.setFontSize(14)
   doc.setFont('helvetica', 'bold')
-  doc.text('TAX INVOICE', pageW - 14, 18, { align: 'right' })
+  const showTax = invoiceHasTaxBreakdown(invoice)
+  doc.text(showTax ? 'TAX INVOICE' : 'INVOICE', pageW - 14, 18, { align: 'right' })
 
   doc.setFontSize(10)
   doc.setFont('helvetica', 'normal')
@@ -90,26 +92,29 @@ export function downloadInvoicePdf(hotel: ExportHotelInfo, invoice: InvoiceExpor
   doc.text(money(invoice.subtotal), pageW - 14, y, { align: 'right' })
   y += 10
 
-  doc.setFont('helvetica', 'bold')
-  doc.text('GRA tax breakdown', 14, y)
-  y += 7
-  doc.setFont('helvetica', 'normal')
+  if (showTax) {
+    doc.setFont('helvetica', 'bold')
+    doc.text('GRA tax breakdown', 14, y)
+    y += 7
+    doc.setFont('helvetica', 'normal')
 
-  const taxRows: [string, number][] = [
-    ['NHIL (2.5%)', invoice.nhil],
-    ['GETFund (2.5%)', invoice.getfund],
-    ['COVID-19 levy (1%)', invoice.covid],
-    ['VAT (15%)', invoice.vat],
-  ]
-  if (invoice.elevy > 0) taxRows.push(['E-Levy', invoice.elevy])
+    const taxRows: [string, number][] = [
+      ['NHIL (2.5%)', invoice.nhil],
+      ['GETFund (2.5%)', invoice.getfund],
+      ['COVID-19 levy (1%)', invoice.covid],
+      ['VAT (15%)', invoice.vat],
+    ]
+    if (invoice.elevy > 0) taxRows.push(['E-Levy', invoice.elevy])
 
-  for (const [label, amount] of taxRows) {
-    doc.text(label, 14, y)
-    doc.text(money(amount), pageW - 14, y, { align: 'right' })
-    y += 5
+    for (const [label, amount] of taxRows) {
+      doc.text(label, 14, y)
+      doc.text(money(amount), pageW - 14, y, { align: 'right' })
+      y += 5
+    }
+
+    y += 4
   }
 
-  y += 4
   doc.setDrawColor(220)
   doc.line(14, y, pageW - 14, y)
   y += 7

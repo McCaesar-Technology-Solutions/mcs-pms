@@ -2,6 +2,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { getHotelGuestRules, type GuestRuleRow } from '@/lib/data/guest-rules'
 import { getHotelLocalGuide, type LocalGuideRow } from '@/lib/data/local-guide'
 import { propertyImagePublicUrl } from '@/lib/properties/image-storage'
+import { roomImagePublicUrl } from '@/lib/rooms/image-storage'
 import type { Guest } from '@/types'
 
 export interface GuestPortalPropertyInfo {
@@ -11,6 +12,7 @@ export interface GuestPortalPropertyInfo {
   city: string | null
   region: string | null
   imageUrl: string | null
+  roomImageUrl: string | null
   wifiSsid: string | null
   wifiPassword: string | null
   parking: string | null
@@ -39,6 +41,7 @@ export interface GuestPortalRequest {
 export interface GuestRequestPanelRow extends GuestPortalRequest {
   guestName: string
   roomNumber: string | null
+  doNotDisturb: boolean
 }
 
 export interface GuestPortalContext {
@@ -85,6 +88,16 @@ export async function loadGuestPortalContext(guest: Guest): Promise<GuestPortalC
 
   if (hotelError || !hotel) return null
 
+  let roomImageUrl: string | null = null
+  if (guest.room_id) {
+    const { data: room } = await admin
+      .from('rooms')
+      .select('profile_image_path')
+      .eq('id', guest.room_id)
+      .maybeSingle()
+    roomImageUrl = roomImagePublicUrl(room?.profile_image_path)
+  }
+
   const [rulesBundle, localGuide, portalExtras, invoicesRes, requestsRes, feedbackRes] =
     await Promise.all([
       getHotelGuestRules(guest.hotel_id),
@@ -117,6 +130,7 @@ export async function loadGuestPortalContext(guest: Guest): Promise<GuestPortalC
       city: hotel.city,
       region: hotel.region,
       imageUrl: propertyImagePublicUrl(hotel.profile_image_path),
+      roomImageUrl,
       wifiSsid: portalExtras?.guest_portal_wifi_ssid ?? null,
       wifiPassword: portalExtras?.guest_portal_wifi_password ?? null,
       parking: portalExtras?.guest_portal_parking ?? null,
@@ -151,7 +165,7 @@ export async function loadHotelGuestRequests(hotelId: string): Promise<GuestRequ
   const admin = createAdminClient()
   const { data, error } = await admin
     .from('guest_requests')
-    .select('id, request_type, note, status, created_at, guests(name), rooms(number)')
+    .select('id, request_type, note, status, created_at, guests(name, do_not_disturb), rooms(number)')
     .eq('hotel_id', hotelId)
     .order('created_at', { ascending: false })
     .limit(15)
@@ -159,10 +173,11 @@ export async function loadHotelGuestRequests(hotelId: string): Promise<GuestRequ
   if (error) return []
 
   return (data ?? []).map((row) => {
-    const guest =
+    const guestRow =
       row.guests && typeof row.guests === 'object' && 'name' in row.guests
-        ? (row.guests as { name: string }).name
-        : 'Guest'
+        ? (row.guests as { name: string; do_not_disturb?: boolean | null })
+        : null
+    const guest = guestRow?.name ?? 'Guest'
     const room =
       row.rooms && typeof row.rooms === 'object' && 'number' in row.rooms
         ? (row.rooms as { number: string }).number
@@ -175,6 +190,7 @@ export async function loadHotelGuestRequests(hotelId: string): Promise<GuestRequ
       createdAt: row.created_at ?? new Date(0).toISOString(),
       guestName: guest,
       roomNumber: room,
+      doNotDisturb: Boolean(guestRow?.do_not_disturb),
     }
   })
 }

@@ -120,6 +120,7 @@ export interface Reservation {
   notes?: string
   createdAt: string
   updatedAt: string
+  guestDoNotDisturb?: boolean
 }
 
 export type RateType = 'nightly' | 'monthly'
@@ -408,8 +409,13 @@ export interface Complaint {
   room?: DbRoom | null
   guest?: Guest | null
   assignee?: Pick<Profile, 'id' | 'name' | 'phone' | 'specialty'> | null
-  rooms?: { number: string } | null
-  guests?: { name: string; phone: string | null; profile_image_path?: string | null } | null
+  rooms?: { number: string; profile_image_path?: string | null } | null
+  guests?: {
+    name: string
+    phone: string | null
+    profile_image_path?: string | null
+    do_not_disturb?: boolean | null
+  } | null
 }
 
 export interface ComplaintEvent {

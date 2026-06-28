@@ -14,7 +14,7 @@ import { downloadCsv } from '@/lib/export/download-csv'
 import { copyToClipboard } from '@/lib/export/entity-refs'
 import { usePagination } from '@/lib/hooks/use-pagination'
 import { useRowSelection } from '@/lib/hooks/use-row-selection'
-import { PAYMENT_METHOD_LABELS, computeInvoiceTaxesWithOption, type VatMode } from '@/lib/tax'
+import { PAYMENT_METHOD_LABELS, computeInvoiceTaxesWithOption, invoiceHasTaxBreakdown, type VatMode } from '@/lib/tax'
 import { formatInvoiceNumber } from '@/lib/invoices/numbering'
 import { downloadInvoicePdf } from '@/lib/export/invoice-pdf'
 import type { ExportHotelInfo } from '@/lib/export/types'
@@ -525,21 +525,32 @@ export function BillingOverview({
             </ModalHeader>
             <ModalBody className="space-y-4">
               <div className="rounded-xl surface-inset p-4">
-                <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  GRA tax breakdown
-                </p>
-                <div className="space-y-2 text-sm">
-                  <Row label="Subtotal (room charges)" value={money(detail.subtotal)} />
-                  <Row label="NHIL (2.5%)" value={money(detail.nhil_amount)} />
-                  <Row label="GETFund (2.5%)" value={money(detail.getfund_amount)} />
-                  <Row label="COVID-19 levy (1%)" value={money(detail.covid_levy_amount)} />
-                  <Row label="VAT (15%)" value={money(detail.vat_amount)} />
-                  {(detail.elevy_amount ?? 0) > 0 && <Row label="E-Levy" value={money(detail.elevy_amount)} />}
-                  <div className="flex justify-between border-t border-[#E9ECEF] pt-2">
-                    <span className="font-semibold text-foreground">Total</span>
-                    <span className="font-bold text-foreground">{money(detail.total_amount)}</span>
+                {invoiceHasTaxBreakdown(detail) ? (
+                  <>
+                    <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      GRA tax breakdown
+                    </p>
+                    <div className="space-y-2 text-sm">
+                      <Row label="Subtotal (room charges)" value={money(detail.subtotal)} />
+                      <Row label="NHIL (2.5%)" value={money(detail.nhil_amount)} />
+                      <Row label="GETFund (2.5%)" value={money(detail.getfund_amount)} />
+                      <Row label="COVID-19 levy (1%)" value={money(detail.covid_levy_amount)} />
+                      <Row label="VAT (15%)" value={money(detail.vat_amount)} />
+                      {(detail.elevy_amount ?? 0) > 0 && (
+                        <Row label="E-Levy" value={money(detail.elevy_amount)} />
+                      )}
+                      <div className="flex justify-between border-t border-[#E9ECEF] pt-2">
+                        <span className="font-semibold text-foreground">Total</span>
+                        <span className="font-bold text-foreground">{money(detail.total_amount)}</span>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="space-y-2 text-sm">
+                    <Row label="Amount" value={money(detail.total_amount)} />
+                    <p className="text-xs text-muted-foreground">No VAT or GRA levies on this invoice.</p>
                   </div>
-                </div>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3 text-sm">

@@ -28,6 +28,7 @@ import { PhoneContact } from '@/components/ui/phone-contact'
 import { useRealtimeRefresh } from '@/components/realtime/realtime-refresh-context'
 import { managerPendingLabel } from '@/lib/complaints/workflow'
 import { profilePhotoPublicUrl } from '@/lib/profile-photos/storage'
+import { GuestDndBadge, guestDoNotDisturb } from '@/components/ui/guest-dnd-badge'
 import type {
   Complaint,
   ComplaintCategory,
@@ -87,6 +88,10 @@ function guestAvatarUrlOf(c: Complaint): string | null {
 
 function guestPhoneOf(c: Complaint): string | null {
   return c.guests?.phone ?? c.guest?.phone ?? null
+}
+
+function guestDndOf(c: Complaint): boolean {
+  return guestDoNotDisturb(c.guests ?? c.guest)
 }
 
 function priorityBadge(priority: string | null | undefined) {
@@ -308,6 +313,7 @@ export function ComplaintsOwnerView({ canLog = false, canMessage = false }: Comp
                     ? managerPendingLabel(selected)
                     : formatLabel(selected.status ?? 'open')}
                 </span>
+                {guestDndOf(selected) && <GuestDndBadge />}
               </div>
             </div>
 
@@ -325,6 +331,7 @@ export function ComplaintsOwnerView({ canLog = false, canMessage = false }: Comp
                   guestName={guestNameOf(selected)}
                   guestAvatarUrl={guestAvatarUrlOf(selected)}
                   roomNumber={roomNumberOf(selected)}
+                  guestDoNotDisturb={guestDndOf(selected)}
                   complaintCategory={selected.category}
                 />
               )}

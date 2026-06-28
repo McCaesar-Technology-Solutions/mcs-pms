@@ -9,6 +9,7 @@ import {
 } from '@/app/actions/complaints'
 import { prepopulateMessageComposer } from '@/lib/messaging/prepopulate-composer'
 import { MessengerAvatar } from '@/components/messaging/messenger-avatar'
+import { GuestDndBadge } from '@/components/ui/guest-dnd-badge'
 
 interface ChatMessage {
   id: string
@@ -24,6 +25,7 @@ interface StaffComplaintMessageThreadProps {
   guestName?: string | null
   guestAvatarUrl?: string | null
   roomNumber?: string | null
+  guestDoNotDisturb?: boolean
   complaintCategory?: string | null
   quickReplies?: readonly string[]
   compact?: boolean
@@ -71,6 +73,7 @@ export function StaffComplaintMessageThread({
   guestName,
   guestAvatarUrl,
   roomNumber,
+  guestDoNotDisturb,
   complaintCategory,
   quickReplies = DEFAULT_QUICK_REPLIES,
   compact = false,
@@ -197,8 +200,9 @@ export function StaffComplaintMessageThread({
           />
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-              <p className="truncate text-sm font-semibold text-foreground">
+              <p className="truncate text-sm font-semibold text-foreground inline-flex items-center gap-1.5">
                 {guestName ?? 'Guest'}
+                {guestDoNotDisturb && <GuestDndBadge compact />}
               </p>
               {roomNumber && (
                 <span className="rounded-md bg-[#3C216C]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#3C216C]">
