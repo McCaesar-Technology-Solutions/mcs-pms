@@ -18,6 +18,7 @@ export function TechnicianWorkspace({
   unassignedTasks,
 }: TechnicianWorkspaceProps) {
   const [tab, setTab] = useState<WorkTab>('maintenance')
+  const [jobDetailOpen, setJobDetailOpen] = useState(false)
 
   const housekeepingOpenCount = useMemo(() => {
     const assignedOpen = assignedTasks.filter((t) => t.status !== 'done').length
@@ -27,7 +28,8 @@ export function TechnicianWorkspace({
   const hasHousekeeping = housekeepingOpenCount > 0
 
   return (
-    <div className="technician-workspace">
+    <div className={`technician-workspace ${jobDetailOpen ? 'technician-workspace--job-open' : ''}`}>
+      {!jobDetailOpen && (
       <div className="technician-workspace__tabs" role="tablist" aria-label="Work type">
         <button
           type="button"
@@ -63,6 +65,7 @@ export function TechnicianWorkspace({
           )}
         </button>
       </div>
+      )}
 
       {tab === 'maintenance' && (
         <div
@@ -70,11 +73,11 @@ export function TechnicianWorkspace({
           id="technician-work-panel-maintenance"
           aria-labelledby="technician-work-tab-maintenance"
         >
-          <TechnicianTasks />
+          <TechnicianTasks onJobDetailOpen={setJobDetailOpen} />
         </div>
       )}
 
-      {tab === 'housekeeping' && (
+      {tab === 'housekeeping' && !jobDetailOpen && (
         <div
           role="tabpanel"
           id="technician-work-panel-housekeeping"

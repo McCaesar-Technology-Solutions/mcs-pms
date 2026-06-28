@@ -73,38 +73,33 @@ function TaskCard({
   const TaskIcon = typeConfig.icon
 
   return (
-    <article
-      className={`technician-job-card ${task.isOverdue ? 'technician-job-card--alert' : ''}`}
-    >
-      <div className="technician-job-card__summary">
+    <article className={`technician-job-card technician-job-card--row ${task.isOverdue ? 'technician-job-card--alert' : ''}`}>
+      <div className="technician-job-card__row-btn pointer-events-none">
         <div className="technician-job-card__icon">
           <TaskIcon className="h-5 w-5" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-base font-semibold text-[var(--tech-fg)]">
-            {task.roomNumber ? `Room ${task.roomNumber}` : 'No room'}
-          </p>
-          <p className="mt-1 text-sm text-[var(--tech-fg-muted)]">{typeConfig.label}</p>
-          {task.notes && (
-            <p className="mt-2 text-sm leading-relaxed text-[var(--tech-fg-muted)]">{task.notes}</p>
-          )}
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <span className={`technician-pill ${statusPillForHousekeeping(task.status)}`}>
-              {STATUS_LABEL[task.status]}
-            </span>
-            <span className={`technician-pill ${priorityPillClass(task.priority)}`}>
-              {task.priority}
-            </span>
-            {task.dueDate && (
-              <span className="text-xs text-[var(--tech-fg-muted)]">
-                Due {formatDueDate(task.dueDate)}
-                {task.isOverdue && <span className="font-semibold text-red-600"> · Overdue</span>}
-              </span>
-            )}
+          <div className="flex items-center gap-2">
+            <p className="truncate text-sm font-semibold">
+              {task.roomNumber ? `Room ${task.roomNumber}` : 'No room'}
+            </p>
+            <span className={`technician-pill ${priorityPillClass(task.priority)}`}>{task.priority}</span>
           </div>
+          <p className="mt-0.5 text-xs text-[var(--tech-fg-muted)]">{typeConfig.label}</p>
+          {task.dueDate && (
+            <p className="mt-0.5 text-xs text-[var(--tech-fg-subtle)]">
+              Due {formatDueDate(task.dueDate)}
+              {task.isOverdue && <span className="font-semibold text-red-600"> · Overdue</span>}
+            </p>
+          )}
         </div>
+        <span className={`technician-pill ${statusPillForHousekeeping(task.status)}`}>
+          {STATUS_LABEL[task.status]}
+        </span>
       </div>
-
+      {task.notes && (
+        <p className="px-3 pb-2 text-xs leading-relaxed text-[var(--tech-fg-muted)]">{task.notes}</p>
+      )}
       {task.status !== 'done' && (
         <div className="technician-job-card__actions">
           {task.status === 'todo' && (
@@ -172,29 +167,30 @@ function ClaimCard({
   const TaskIcon = typeConfig.icon
 
   return (
-    <article className="technician-job-card technician-job-card--claim">
-      <div className="technician-job-card__summary">
+    <article className="technician-job-card technician-job-card--row technician-job-card--claim">
+      <div className="technician-job-card__row-btn pointer-events-none">
         <div className="technician-job-card__icon">
           <TaskIcon className="h-5 w-5" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-base font-semibold text-[var(--tech-fg)]">
-            {task.roomNumber ? `Room ${task.roomNumber}` : 'No room'}
-          </p>
-          <p className="mt-1 text-sm text-[var(--tech-fg-muted)]">{typeConfig.label}</p>
-          {task.notes && (
-            <p className="mt-2 text-sm leading-relaxed text-[var(--tech-fg-muted)]">{task.notes}</p>
-          )}
-          <span className={`technician-pill mt-3 ${priorityPillClass(task.priority)}`}>
-            {task.priority}
-          </span>
+          <div className="flex items-center gap-2">
+            <p className="truncate text-sm font-semibold">
+              {task.roomNumber ? `Room ${task.roomNumber}` : 'No room'}
+            </p>
+            <span className={`technician-pill ${priorityPillClass(task.priority)}`}>{task.priority}</span>
+          </div>
+          <p className="mt-0.5 text-xs text-[var(--tech-fg-muted)]">{typeConfig.label}</p>
         </div>
+        <span className="technician-pill technician-pill--status-waiting">Open</span>
       </div>
+      {task.notes && (
+        <p className="px-3 pb-2 text-xs leading-relaxed text-[var(--tech-fg-muted)]">{task.notes}</p>
+      )}
       <button
         type="button"
         onClick={onClaim}
         disabled={isPending}
-        className="technician-btn technician-btn--ghost w-full"
+        className="technician-btn technician-btn--ghost mx-3 mb-2 w-[calc(100%-1.5rem)]"
       >
         Claim & start
       </button>
@@ -231,11 +227,11 @@ export function TechnicianTaskCards({
     runAction(startTransition, router, action, msg)
 
   return (
-    <div className="technician-job-list">
+    <div className="technician-job-list technician-job-list--compact">
       {openAssigned.length > 0 && (
-        <section className="space-y-3">
+        <section className="space-y-2">
           <h3 className="technician-list-label">My jobs ({openAssigned.length})</h3>
-          <div className="space-y-3">
+          <div className="space-y-2">
             {openAssigned.map((task) => (
               <TaskCard
                 key={task.id}
@@ -259,9 +255,9 @@ export function TechnicianTaskCards({
       )}
 
       {unassignedTasks.length > 0 && (
-        <section className="space-y-3">
+        <section className="space-y-2">
           <h3 className="technician-list-label">Available to claim ({unassignedTasks.length})</h3>
-          <div className="space-y-3">
+          <div className="space-y-2">
             {unassignedTasks.map((task) => (
               <ClaimCard
                 key={task.id}

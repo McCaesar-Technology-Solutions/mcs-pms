@@ -13,9 +13,6 @@ export function TechnicianHousekeeping({
   assignedTasks,
   unassignedTasks = [],
 }: TechnicianHousekeepingProps) {
-  const openCount =
-    assignedTasks.filter((t) => t.status !== 'done').length + (unassignedTasks?.length ?? 0)
-
   const hasWork =
     assignedTasks.some((t) => t.status !== 'done') ||
     (unassignedTasks?.length ?? 0) > 0 ||
@@ -38,15 +35,6 @@ export function TechnicianHousekeeping({
 
   return (
     <section className="technician-section">
-      <div className="technician-section__intro">
-        <p className="technician-section__title">Housekeeping</p>
-        <p className="technician-section__hint">
-          Start assigned jobs or claim open tasks from the board.
-        </p>
-        {openCount > 0 && (
-          <span className="technician-section__count">{openCount} open</span>
-        )}
-      </div>
       <TechnicianTaskCards assignedTasks={assignedTasks} unassignedTasks={unassignedTasks} />
     </section>
   )
