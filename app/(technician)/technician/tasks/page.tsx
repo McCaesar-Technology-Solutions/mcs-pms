@@ -1,5 +1,4 @@
-import { TechnicianTasks } from '@/components/technician/technician-tasks'
-import { TechnicianHousekeeping } from '@/components/technician/technician-housekeeping'
+import { TechnicianWorkspace } from '@/components/technician/technician-workspace'
 import {
   getAssignedHousekeepingTasks,
   getUnassignedHousekeepingTasks,
@@ -12,14 +11,9 @@ export default async function TechnicianTasksPage() {
   ])
 
   return (
-    <>
-      <TechnicianTasks />
-      <div className="mx-auto w-full max-w-lg px-4">
-        <TechnicianHousekeeping
-          assignedTasks={assignedTasks}
-          unassignedTasks={unassignedTasks}
-        />
-      </div>
-    </>
+    <TechnicianWorkspace
+      assignedTasks={assignedTasks}
+      unassignedTasks={unassignedTasks}
+    />
   )
 }

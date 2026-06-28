@@ -458,8 +458,9 @@ export async function scheduleTechnicianComplaintVisit(
   }
 
   const visitIso = visitAt.toISOString()
+  const admin = createAdminClient()
 
-  const { error } = await supabase
+  const { error } = await admin
     .from('complaints')
     .update({
       scheduled_visit_at: visitIso,
@@ -470,7 +471,7 @@ export async function scheduleTechnicianComplaintVisit(
 
   if (error) return { success: false, error: error.message }
 
-  await supabase.from('complaint_events').insert({
+  await admin.from('complaint_events').insert({
     complaint_id: parsed.data.complaintId,
     actor_id: user.id,
     actor_role: 'technician',

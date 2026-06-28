@@ -18,33 +18,25 @@ export function TechnicianNextStepBanner({
 }: TechnicianNextStepBannerProps) {
   if (action.actionKind === 'none' || action.type === 'resolved') {
     return (
-      <div
-        className={`rounded-xl border-l-4 border-[#3C216C] bg-white shadow-elevation-1 ${
-          compact ? 'p-3' : 'p-3.5'
-        }`}
-      >
-        <p className="text-[10px] font-bold uppercase tracking-widest text-[#3C216C]">Status</p>
-        <p className="mt-1 text-sm font-semibold text-foreground">{action.title}</p>
-        <p className="mt-0.5 text-sm leading-relaxed text-muted-foreground">{action.detail}</p>
+      <div className={`technician-notice-card ${compact ? '!p-3' : ''}`}>
+        <p className="technician-eyebrow">Status</p>
+        <p className="mt-1 text-sm font-semibold">{action.title}</p>
+        <p className="mt-0.5 text-sm leading-relaxed text-[var(--tech-fg-muted)]">{action.detail}</p>
       </div>
     )
   }
 
   return (
-    <div
-      className={`rounded-xl border-l-4 border-[#3C216C] bg-white shadow-elevation-1 ${
-        compact ? 'p-3' : 'p-3.5'
-      }`}
-    >
-      <p className="text-[10px] font-bold uppercase tracking-widest text-[#3C216C]">Next step</p>
-      <p className="mt-1 text-sm font-semibold text-foreground">{action.title}</p>
-      <p className="mt-0.5 text-sm leading-relaxed text-muted-foreground">{action.detail}</p>
+    <div className={`technician-notice-card ${compact ? '!p-3' : ''}`}>
+      <p className="technician-eyebrow">Next step</p>
+      <p className="mt-1 text-sm font-semibold">{action.title}</p>
+      <p className="mt-0.5 text-sm leading-relaxed text-[var(--tech-fg-muted)]">{action.detail}</p>
       {action.actionLabel && (
         <button
           type="button"
           onClick={onAction}
           disabled={loading}
-          className={`mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-[#3C216C] font-semibold text-white shadow-elevation-1 transition hover:bg-[#4c2a85] disabled:opacity-60 ${
+          className={`technician-btn technician-btn--primary mt-3 flex w-full items-center justify-center gap-2 ${
             compact ? 'py-2.5 text-sm' : 'py-3 text-sm'
           }`}
         >

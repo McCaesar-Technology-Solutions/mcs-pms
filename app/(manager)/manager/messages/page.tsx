@@ -1,5 +1,4 @@
 import { Suspense } from 'react'
-import { PageHeader } from '@/components/dashboard/page-header'
 import { GuestMessagesPageClient } from '@/components/guest-messages/guest-messages-page-client'
 import { loadGuestConversations } from '@/lib/data/guest-conversations'
 import { getProfile } from '@/lib/auth/get-profile'
@@ -12,13 +11,7 @@ export default async function ManagerMessagesPage() {
   const conversations = await loadGuestConversations(profile.hotel_id)
 
   return (
-    <div className="page-shell page-content-stack">
-      <PageHeader
-        badge="Concierge"
-        title="Guest messages"
-        description="Chat with in-house guests about their stay — separate from maintenance complaints."
-        compact
-      />
+    <div className="page-shell page-shell--messages">
       <Suspense fallback={null}>
         <GuestMessagesPageClient conversations={conversations} basePath="/manager/messages" />
       </Suspense>

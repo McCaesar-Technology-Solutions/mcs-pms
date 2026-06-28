@@ -4,10 +4,7 @@ import { useCallback, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import {
-  AlertCircle,
-  CalendarDays,
   CheckCircle,
-  Clock,
   Play,
   Sparkles,
   Search,
@@ -21,7 +18,6 @@ import {
 } from '@/app/actions/housekeeping'
 import { useRealtimeRefresh } from '@/components/realtime/realtime-refresh-context'
 import { DataEmptyState } from '@/components/dashboard/data-empty-state'
-import { Button } from '@/components/ui/button'
 import type { HousekeepingTaskView } from '@/lib/housekeeping/task-view'
 import type { HousekeepingTaskType, TaskStatus } from '@/types'
 
@@ -78,71 +74,89 @@ function TaskCard({
 
   return (
     <article
-      className={`elevated-list-item p-5 ${task.isOverdue ? 'ring-2 ring-red-200' : ''}`}
+      className={`technician-job-card ${task.isOverdue ? 'technician-job-card--alert' : ''}`}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-lg font-bold text-foreground">
+      <div className="technician-job-card__summary">
+        <div className="technician-job-card__icon">
+          <TaskIcon className="h-5 w-5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-base font-semibold text-[var(--tech-fg)]">
             {task.roomNumber ? `Room ${task.roomNumber}` : 'No room'}
           </p>
-          <div className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-[#faf8fc] px-2.5 py-1">
-            <TaskIcon className="h-4 w-4 text-[#4c1d95]" />
-            <span className="text-sm font-medium text-[#374151]">{typeConfig.label}</span>
+          <p className="mt-1 text-sm text-[var(--tech-fg-muted)]">{typeConfig.label}</p>
+          {task.notes && (
+            <p className="mt-2 text-sm leading-relaxed text-[var(--tech-fg-muted)]">{task.notes}</p>
+          )}
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className={`technician-pill ${statusPillForHousekeeping(task.status)}`}>
+              {STATUS_LABEL[task.status]}
+            </span>
+            <span className={`technician-pill ${priorityPillClass(task.priority)}`}>
+              {task.priority}
+            </span>
+            {task.dueDate && (
+              <span className="text-xs text-[var(--tech-fg-muted)]">
+                Due {formatDueDate(task.dueDate)}
+                {task.isOverdue && <span className="font-semibold text-red-600"> · Overdue</span>}
+              </span>
+            )}
           </div>
         </div>
-        <span className={`kanban-priority-pill kanban-priority-pill--${task.priority}`}>
-          {task.priority}
-        </span>
-      </div>
-
-      {task.notes && (
-        <p className="mt-3 text-sm text-muted-foreground">{task.notes}</p>
-      )}
-
-      <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-        <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 font-semibold text-foreground">
-          {task.status === 'todo' && <AlertCircle className="h-3.5 w-3.5 text-red-500" />}
-          {task.status === 'in_progress' && <Clock className="h-3.5 w-3.5 text-amber-500" />}
-          {task.status === 'done' && <CheckCircle className="h-3.5 w-3.5 text-[#3C216C]" />}
-          {STATUS_LABEL[task.status]}
-        </span>
-        {task.dueDate && (
-          <span className="inline-flex items-center gap-1">
-            <CalendarDays className="h-3.5 w-3.5" />
-            Due {formatDueDate(task.dueDate)}
-            {task.isOverdue && <span className="font-bold text-red-600">· Overdue</span>}
-          </span>
-        )}
       </div>
 
       {task.status !== 'done' && (
-        <div className="mt-4 flex gap-2">
+        <div className="technician-job-card__actions">
           {task.status === 'todo' && (
-            <Button
+            <button
               type="button"
               onClick={onStart}
               disabled={isPending}
-              className="flex-1 bg-[#3C216C] text-white hover:bg-[#4c2a85]"
+              className="technician-btn technician-btn--primary flex-1"
             >
-              <Play className="mr-2 h-4 w-4" />
+              <Play className="h-4 w-4" />
               Start job
-            </Button>
+            </button>
           )}
           {task.status === 'in_progress' && (
-            <Button
+            <button
               type="button"
               onClick={onComplete}
               disabled={isPending}
-              className="flex-1 bg-[#D4A62E] text-white hover:bg-[#c49a28]"
+              className="technician-btn technician-btn--accent flex-1"
             >
-              <CheckCircle className="mr-2 h-4 w-4" />
+              <CheckCircle className="h-4 w-4" />
               Mark complete
-            </Button>
+            </button>
           )}
         </div>
       )}
     </article>
   )
+}
+
+function statusPillForHousekeeping(status: TaskStatus) {
+  switch (status) {
+    case 'todo':
+      return 'technician-pill--status-waiting'
+    case 'in_progress':
+      return 'technician-pill--status-active'
+    default:
+      return 'technician-pill--status-done'
+  }
+}
+
+function priorityPillClass(priority: string) {
+  switch (priority) {
+    case 'urgent':
+      return 'technician-pill--priority-urgent'
+    case 'high':
+      return 'technician-pill--priority-high'
+    case 'low':
+      return 'technician-pill--priority-low'
+    default:
+      return 'technician-pill--priority-medium'
+  }
 }
 
 function ClaimCard({
@@ -158,31 +172,32 @@ function ClaimCard({
   const TaskIcon = typeConfig.icon
 
   return (
-    <article className="elevated-list-item border-dashed p-5">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-lg font-bold text-foreground">
+    <article className="technician-job-card technician-job-card--claim">
+      <div className="technician-job-card__summary">
+        <div className="technician-job-card__icon">
+          <TaskIcon className="h-5 w-5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-base font-semibold text-[var(--tech-fg)]">
             {task.roomNumber ? `Room ${task.roomNumber}` : 'No room'}
           </p>
-          <div className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-[#faf8fc] px-2.5 py-1">
-            <TaskIcon className="h-4 w-4 text-[#4c1d95]" />
-            <span className="text-sm font-medium">{typeConfig.label}</span>
-          </div>
+          <p className="mt-1 text-sm text-[var(--tech-fg-muted)]">{typeConfig.label}</p>
+          {task.notes && (
+            <p className="mt-2 text-sm leading-relaxed text-[var(--tech-fg-muted)]">{task.notes}</p>
+          )}
+          <span className={`technician-pill mt-3 ${priorityPillClass(task.priority)}`}>
+            {task.priority}
+          </span>
         </div>
-        <span className={`kanban-priority-pill kanban-priority-pill--${task.priority}`}>
-          {task.priority}
-        </span>
       </div>
-      {task.notes && <p className="mt-3 text-sm text-muted-foreground">{task.notes}</p>}
-      <Button
+      <button
         type="button"
         onClick={onClaim}
         disabled={isPending}
-        variant="outline"
-        className="mt-4 w-full border-[#3C216C] text-[#3C216C] hover:bg-[#3C216C]/5"
+        className="technician-btn technician-btn--ghost w-full"
       >
         Claim & start
-      </Button>
+      </button>
     </article>
   )
 }
@@ -216,12 +231,10 @@ export function TechnicianTaskCards({
     runAction(startTransition, router, action, msg)
 
   return (
-    <div className="space-y-8">
+    <div className="technician-job-list">
       {openAssigned.length > 0 && (
         <section className="space-y-3">
-          <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-            My jobs ({openAssigned.length})
-          </h3>
+          <h3 className="technician-list-label">My jobs ({openAssigned.length})</h3>
           <div className="space-y-3">
             {openAssigned.map((task) => (
               <TaskCard
@@ -247,9 +260,7 @@ export function TechnicianTaskCards({
 
       {unassignedTasks.length > 0 && (
         <section className="space-y-3">
-          <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-            Available to claim ({unassignedTasks.length})
-          </h3>
+          <h3 className="technician-list-label">Available to claim ({unassignedTasks.length})</h3>
           <div className="space-y-3">
             {unassignedTasks.map((task) => (
               <ClaimCard
@@ -267,19 +278,14 @@ export function TechnicianTaskCards({
 
       {doneToday.length > 0 && (
         <section className="space-y-3">
-          <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-            Recently completed
-          </h3>
+          <h3 className="technician-list-label">Recently completed</h3>
           <div className="space-y-2">
             {doneToday.map((task) => (
-              <div
-                key={task.id}
-                className="flex items-center justify-between rounded-xl bg-secondary/50 px-4 py-3 text-sm"
-              >
-                <span className="font-medium text-foreground">
+              <div key={task.id} className="technician-done-row">
+                <span className="font-medium text-[var(--tech-fg)]">
                   Room {task.roomNumber ?? '?'} · {TASK_TYPE_CONFIG[task.taskType].label}
                 </span>
-                <CheckCircle className="h-4 w-4 text-[#3C216C]" />
+                <CheckCircle className="h-4 w-4 text-[var(--brand-purple)]" />
               </div>
             ))}
           </div>

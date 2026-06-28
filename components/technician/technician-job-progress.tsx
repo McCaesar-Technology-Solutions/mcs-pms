@@ -13,9 +13,7 @@ export function TechnicianJobProgress({ complaint }: TechnicianJobProgressProps)
 
   return (
     <div>
-      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-        Job progress
-      </p>
+      <p className="technician-eyebrow">Job progress</p>
       <ol className="mt-3 space-y-0">
         {steps.map((step, index) => {
           const isLast = index === steps.length - 1
@@ -25,10 +23,10 @@ export function TechnicianJobProgress({ complaint }: TechnicianJobProgressProps)
                 <span
                   className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${
                     step.state === 'complete'
-                      ? 'bg-emerald-500/15 text-emerald-700'
+                      ? 'bg-emerald-500/12 text-emerald-700'
                       : step.state === 'current'
-                        ? 'bg-[#3C216C]/12 text-[#3C216C]'
-                        : 'bg-muted text-muted-foreground/40'
+                        ? 'bg-[var(--tech-accent-soft)] text-[var(--brand-purple)]'
+                        : 'bg-[var(--tech-accent-softer)] text-[var(--tech-fg-subtle)]'
                   }`}
                 >
                   {step.state === 'complete' ? (
@@ -42,7 +40,9 @@ export function TechnicianJobProgress({ complaint }: TechnicianJobProgressProps)
                 {!isLast && (
                   <span
                     className={`my-0.5 min-h-4 w-px flex-1 ${
-                      step.state === 'complete' ? 'bg-emerald-500/25' : 'bg-border'
+                      step.state === 'complete'
+                        ? 'bg-emerald-500/25'
+                        : 'bg-[var(--tech-border)]'
                     }`}
                   />
                 )}
@@ -50,7 +50,7 @@ export function TechnicianJobProgress({ complaint }: TechnicianJobProgressProps)
               <div className={`pb-4 ${isLast ? 'pb-0' : ''}`}>
                 <p
                   className={`text-sm font-medium ${
-                    step.state === 'upcoming' ? 'text-muted-foreground' : 'text-foreground'
+                    step.state === 'upcoming' ? 'text-[var(--tech-fg-muted)]' : ''
                   }`}
                 >
                   {step.label}
@@ -58,7 +58,9 @@ export function TechnicianJobProgress({ complaint }: TechnicianJobProgressProps)
                 {step.detail && (
                   <p
                     className={`mt-0.5 text-xs leading-relaxed ${
-                      step.state === 'current' ? 'text-[#3C216C]' : 'text-muted-foreground'
+                      step.state === 'current'
+                        ? 'text-[var(--brand-purple)]'
+                        : 'text-[var(--tech-fg-muted)]'
                     }`}
                   >
                     {step.detail}

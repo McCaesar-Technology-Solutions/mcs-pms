@@ -50,10 +50,15 @@ export function GuestMessagesInbox({
     >
       <aside className="staff-messenger__sidebar" aria-label="Conversations">
         <div className="staff-messenger__sidebar-top">
-          <div className="flex items-center justify-between gap-2">
-            <h2 className="text-base font-semibold tracking-tight text-foreground">Messages</h2>
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <h1 className="text-base font-semibold tracking-tight text-foreground">Guest messages</h1>
+              <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
+                Concierge chat with in-house guests
+              </p>
+            </div>
             {unreadCount > 0 && (
-              <span className="staff-messenger__unread-pill">{unreadCount} new</span>
+              <span className="staff-messenger__unread-pill shrink-0">{unreadCount} new</span>
             )}
           </div>
           <div className="staff-messenger__search">

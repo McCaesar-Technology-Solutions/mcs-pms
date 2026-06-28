@@ -172,6 +172,41 @@
     gap: 1.5rem;
   }
 
+  /* Staff messages — fill viewport below topbar; scroll only inside inbox/thread */
+  .app-main:has(.page-shell--messages) {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .page-shell--messages {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+    padding-block: 0.75rem;
+  }
+
+  @media (min-width: 640px) {
+    .page-shell--messages {
+      padding-block: 1rem;
+    }
+  }
+
+  @media (min-width: 768px) {
+    .page-shell--messages {
+      padding-block: 1rem;
+    }
+  }
+
+  .page-shell--messages .staff-messenger {
+    flex: 1;
+    min-height: 0;
+    max-height: none;
+    height: auto;
+  }
+
   @media (min-width: 640px) {
     .page-shell {
       --page-pad-inline: 1.5rem;
@@ -3929,6 +3964,7 @@
     grid-template-columns: minmax(280px, 340px) 1fr;
     min-height: min(680px, calc(100dvh - 11rem));
     max-height: calc(100dvh - 11rem);
+    height: 100%;
     overflow: hidden;
     border-radius: 1rem;
     border: 1px solid var(--messenger-border);
@@ -4396,6 +4432,11 @@
       grid-template-columns: 1fr;
       min-height: min(600px, calc(100dvh - 10rem));
       max-height: calc(100dvh - 10rem);
+    }
+
+    .page-shell--messages .staff-messenger {
+      min-height: 0;
+      max-height: none;
     }
 
     .staff-messenger--thread-open .staff-messenger__sidebar {

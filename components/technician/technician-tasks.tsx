@@ -72,26 +72,26 @@ const TECHNICIAN_QUICK_REPLIES = [
   'Please confirm in your guest portal when the repair looks good to you.',
 ] as const
 
-function priorityBadge(priority: string | null | undefined) {
+function priorityPillClass(priority: string | null | undefined) {
   switch (priority) {
     case 'urgent':
-      return 'bg-[#D85A30]/12 text-[#D85A30]'
+      return 'technician-pill--priority-urgent'
     case 'high':
-      return 'bg-orange-100 text-orange-800'
-    case 'medium':
-      return 'bg-[#D4A62E]/20 text-[#B88D24]'
+      return 'technician-pill--priority-high'
+    case 'low':
+      return 'technician-pill--priority-low'
     default:
-      return 'bg-[#E9ECEF]/80 text-[#5E5872]'
+      return 'technician-pill--priority-medium'
   }
 }
 
-function statusBadge(c: Complaint) {
-  if (isPendingEstimate(c) || isPendingCompletion(c)) return 'bg-[#D85A30]/12 text-[#D85A30]'
-  if (canStartJob(c)) return 'bg-emerald-500/10 text-emerald-700'
-  if (c.status === 'assigned' || c.status === 'in_progress') return 'bg-[#D4A62E]/15 text-[#B88D24]'
-  if (c.status === 'resolved') return 'bg-emerald-500/10 text-emerald-700'
-  if (c.status === 'rejected') return 'bg-red-500/10 text-red-700'
-  return 'bg-[#3C216C]/10 text-[#3C216C]'
+function statusPillClass(c: Complaint) {
+  if (isPendingEstimate(c) || isPendingCompletion(c)) return 'technician-pill--status-waiting'
+  if (canStartJob(c)) return 'technician-pill--status-ready'
+  if (c.status === 'assigned' || c.status === 'in_progress') return 'technician-pill--status-active'
+  if (c.status === 'resolved') return 'technician-pill--status-done'
+  if (c.status === 'rejected') return 'technician-pill--status-rejected'
+  return 'technician-pill--status-default'
 }
 
 export function TechnicianTasks() {
@@ -205,14 +205,17 @@ export function TechnicianTasks() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-lg flex-1 flex-col px-4 pb-8 pt-4">
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <p className="text-sm font-semibold text-foreground">Your jobs</p>
+    <section className="technician-section">
+      <div className="technician-section__toolbar">
+        <div>
+          <p className="technician-section__title">Maintenance jobs</p>
+          <p className="technician-section__hint">Guest issues assigned to you — urgent first.</p>
+        </div>
         <button
           type="button"
           onClick={() => void refreshList()}
           disabled={listRefreshing}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-[#3C216C] shadow-elevation-1 hover:shadow-elevation-2 disabled:opacity-50"
+          className="technician-btn technician-btn--ghost text-xs"
           aria-label="Refresh task list"
         >
           <RefreshCw className={`h-3.5 w-3.5 ${listRefreshing ? 'animate-spin' : ''}`} />
@@ -220,7 +223,7 @@ export function TechnicianTasks() {
         </button>
       </div>
 
-      <div className="mb-5 flex rounded-2xl bg-white p-1 shadow-elevation-1" role="tablist" aria-label="Task list">
+      <div className="technician-segment" role="tablist" aria-label="Maintenance task list">
         {(['active', 'completed'] as const).map((t) => (
           <button
             key={t}
@@ -231,10 +234,8 @@ export function TechnicianTasks() {
             aria-controls={t === 'active' ? 'technician-panel-active' : 'technician-panel-completed'}
             tabIndex={tab === t ? 0 : -1}
             onClick={() => setTab(t)}
-            className={`flex-1 rounded-xl py-2.5 text-sm font-semibold transition-all ${
-              tab === t
-                ? 'bg-[#3C216C] text-white shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
+            className={`technician-segment__btn ${
+              tab === t ? 'technician-segment__btn--active' : ''
             }`}
           >
             {t === 'active' ? 'My tasks' : 'Completed (30d)'}
@@ -243,7 +244,7 @@ export function TechnicianTasks() {
       </div>
 
       <div
-        className="space-y-3"
+        className="technician-job-list"
         role="tabpanel"
         id={tab === 'active' ? 'technician-panel-active' : 'technician-panel-completed'}
         aria-labelledby={tab === 'active' ? 'technician-tab-active' : 'technician-tab-completed'}
@@ -275,29 +276,21 @@ export function TechnicianTasks() {
           return (
             <article
               key={c.id}
-              className={`overflow-hidden rounded-2xl bg-white shadow-elevation-1 transition-all ${
-                expanded ? 'shadow-elevation-2' : 'hover:-translate-y-px hover:shadow-elevation-2'
-              } ${isRejected ? 'ring-2 ring-red-500/10' : ''} ${isPending ? 'ring-2 ring-[#D85A30]/10' : ''}`}
+              className={`technician-job-card ${expanded ? 'technician-job-card--open' : ''} ${
+                isRejected ? 'technician-job-card--alert' : ''
+              } ${isPending ? 'technician-job-card--pending' : ''}`}
             >
-              <div className="flex w-full items-start gap-3 p-4">
+              <div className="technician-job-card__summary">
                 <div
-                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${
+                  className={`technician-job-card__icon ${
                     isRejected
-                      ? 'bg-red-500/10'
+                      ? 'technician-job-card__icon--alert'
                       : isPending
-                        ? 'bg-[#D85A30]/12'
-                        : 'bg-[#3C216C]/6'
+                        ? 'technician-job-card__icon--pending'
+                        : ''
                   }`}
                 >
-                  <Icon
-                    className={`h-5 w-5 ${
-                      isRejected
-                        ? 'text-red-600'
-                        : isPending
-                          ? 'text-[#D85A30]'
-                          : 'text-[#3C216C]'
-                    }`}
-                  />
+                  <Icon className="h-5 w-5" />
                 </div>
 
                 <div className="min-w-0 flex-1">
@@ -308,23 +301,19 @@ export function TechnicianTasks() {
                     onClick={() => toggleExpanded(c)}
                   >
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-lg font-bold text-[#3C216C]">Room {roomsJoin}</p>
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${priorityBadge(c.priority)}`}
-                      >
+                      <p className="text-base font-semibold text-[var(--tech-fg)]">Room {roomsJoin}</p>
+                      <span className={`technician-pill ${priorityPillClass(c.priority)}`}>
                         {c.priority ?? 'medium'}
                       </span>
                     </div>
-                    <p className="mt-0.5 text-sm font-medium capitalize text-foreground">
+                    <p className="mt-0.5 text-sm font-medium capitalize">
                       {c.category}
-                      <span className="ml-2 font-mono text-[10px] text-muted-foreground">
+                      <span className="ml-2 font-mono text-[10px] text-[var(--tech-fg-subtle)]">
                         {guestComplaintReference(c.id)}
                       </span>
                     </p>
-                    <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{c.description}</p>
-                    <span
-                      className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${statusBadge(c)}`}
-                    >
+                    <p className="mt-1 line-clamp-2 text-sm text-[var(--tech-fg-muted)]">{c.description}</p>
+                    <span className={`technician-pill mt-2 ${statusPillClass(c)}`}>
                       {technicianStatusLabel(c)}
                     </span>
                   </button>
@@ -332,7 +321,7 @@ export function TechnicianTasks() {
                     <button
                       type="button"
                       onClick={() => void handleTechnicianNextAction(c, nextAction)}
-                      className="mt-2 block w-full rounded-lg bg-[#3C216C]/8 px-2.5 py-2 text-left text-xs font-semibold text-[#3C216C] hover:bg-[#3C216C]/12"
+                      className="technician-job-card__next mt-2 w-full text-left"
                     >
                       Next: {nextAction.actionLabel} →
                     </button>
@@ -343,7 +332,7 @@ export function TechnicianTasks() {
                   type="button"
                   aria-expanded={expanded}
                   aria-label={expanded ? 'Collapse task details' : 'Expand task details'}
-                  className="mt-1 shrink-0 rounded-lg p-1 text-muted-foreground hover:bg-[#3C216C]/5"
+                  className="technician-portal-icon-btn mt-0.5 shrink-0"
                   onClick={() => toggleExpanded(c)}
                 >
                   {expanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
@@ -351,7 +340,7 @@ export function TechnicianTasks() {
               </div>
 
               {expanded && (
-                <div className="mx-4 mb-4 space-y-3 rounded-xl bg-[#F7F4FB] p-4">
+                <div className="technician-job-detail">
                   {nextAction && (
                     <TechnicianNextStepBanner
                       action={nextAction}
@@ -365,14 +354,14 @@ export function TechnicianTasks() {
                     hasPhoto={Boolean(c.guest_photo_path)}
                   />
 
-                  <div className="rounded-xl bg-white p-3.5 shadow-elevation-1">
+                  <div className="technician-detail-card">
                     <TechnicianJobProgress complaint={c} />
                   </div>
 
                   {showGuestContact && c.guests?.phone && (
                     <div
                       id={technicianScrollTarget(c.id, 'contact')}
-                      className="rounded-xl bg-white p-3 shadow-elevation-1"
+                      className="technician-detail-card"
                     >
                       <PhoneContact
                         name={c.guests.name ?? 'Guest'}
@@ -385,7 +374,7 @@ export function TechnicianTasks() {
                   {canTechnicianScheduleVisit(c) && (
                     <div
                       id={technicianScrollTarget(c.id, 'visit')}
-                      className="rounded-xl bg-white p-3 shadow-elevation-1"
+                      className="technician-detail-card"
                     >
                       <ScheduleVisitForm
                         complaintId={c.id}
@@ -399,13 +388,11 @@ export function TechnicianTasks() {
                   )}
 
                   {c.scheduled_visit_at && !canTechnicianScheduleVisit(c) && (
-                    <div className="flex items-start gap-2 rounded-xl bg-white p-3 shadow-elevation-1">
-                      <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-[#3C216C]" />
+                    <div className="technician-detail-card flex items-start gap-2">
+                      <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-[var(--brand-purple)]" />
                       <div>
-                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                          Agreed visit
-                        </p>
-                        <p className="mt-1 text-sm font-medium text-foreground">
+                        <p className="technician-eyebrow">Agreed visit</p>
+                        <p className="mt-1 text-sm font-medium">
                           {formatComplaintVisit(c.scheduled_visit_at)}
                         </p>
                       </div>
@@ -415,7 +402,7 @@ export function TechnicianTasks() {
                   {c.rejection_note && (
                     <div
                       id={technicianScrollTarget(c.id, 'rejection')}
-                      className="rounded-xl bg-red-50 px-3 py-2.5 text-sm text-red-700 shadow-elevation-1"
+                      className="technician-detail-card technician-detail-card--danger"
                     >
                       <p className="font-semibold">Manager note</p>
                       <p className="mt-1">{c.rejection_note}</p>
@@ -428,7 +415,7 @@ export function TechnicianTasks() {
                       type="button"
                       disabled={loading === c.id}
                       onClick={() => handleComplete(c.id)}
-                      className="w-full rounded-xl bg-[#3C216C] py-3 text-sm font-semibold text-white shadow-elevation-1 transition-all hover:shadow-elevation-2 disabled:opacity-60"
+                      className="technician-btn technician-btn--primary w-full"
                     >
                       {loading === c.id ? 'Submitting…' : 'Request sign-off'}
                     </button>
@@ -440,7 +427,7 @@ export function TechnicianTasks() {
                       type="button"
                       disabled={loading === c.id}
                       onClick={() => handleStart(c.id)}
-                      className="w-full rounded-xl border border-[#D4A62E]/40 bg-[#D4A62E]/10 py-2.5 text-sm font-semibold text-[#8B6914] shadow-elevation-1 transition-all hover:shadow-elevation-2 disabled:opacity-60"
+                      className="technician-btn technician-btn--accent w-full"
                     >
                       {loading === c.id ? 'Starting…' : 'Mark as started (optional)'}
                     </button>
@@ -491,14 +478,14 @@ export function TechnicianTasks() {
         })}
 
         {complaints.length === 0 && (
-          <div className="rounded-2xl bg-white px-6 py-14 text-center shadow-elevation-1">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#3C216C]/8">
-              <ClipboardList className="h-5 w-5 text-[#3C216C]" />
+          <div className="technician-empty">
+            <div className="technician-empty__icon">
+              <ClipboardList className="h-6 w-6" />
             </div>
-            <p className="font-medium text-foreground">
-              {tab === 'active' ? 'No active tasks' : 'No completed tasks yet'}
+            <p className="text-sm font-semibold text-[var(--tech-fg)]">
+              {tab === 'active' ? 'No active maintenance jobs' : 'No completed jobs yet'}
             </p>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="mt-1 text-sm text-[var(--tech-fg-muted)]">
               {tab === 'active'
                 ? 'New assignments will show up here.'
                 : 'Finished jobs from the last 30 days appear here.'}
@@ -506,6 +493,6 @@ export function TechnicianTasks() {
           </div>
         )}
       </div>
-    </div>
+    </section>
   )
 }

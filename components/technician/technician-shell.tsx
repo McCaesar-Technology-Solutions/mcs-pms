@@ -1,12 +1,11 @@
 'use client'
 
-import { LogOut, Phone } from 'lucide-react'
+import { ChevronDown, LogOut, Phone } from 'lucide-react'
 import { useState } from 'react'
 import { signOut } from '@/app/actions/auth'
 import { TechnicianRealtime } from '@/components/realtime/technician-realtime'
 import { AccountPhoneDialog } from '@/components/dashboard/account-phone-dialog'
 import { ProfilePhoneBanner } from '@/components/dashboard/profile-phone-banner'
-import { ProfilePhoneEditor } from '@/components/dashboard/profile-phone-editor'
 import { PhoneContactList } from '@/components/ui/phone-contact'
 import { hasPhoneNumber } from '@/lib/phone'
 import type { StaffContact } from '@/lib/data/contacts'
@@ -21,62 +20,70 @@ interface TechnicianShellProps {
 
 export function TechnicianShell({ profile, managerContacts, children }: TechnicianShellProps) {
   const [phoneDialogOpen, setPhoneDialogOpen] = useState(false)
+  const [supportOpen, setSupportOpen] = useState(false)
 
   return (
-    <div className="flex min-h-dvh flex-col bg-background">
+    <div className="technician-portal-shell">
       {!hasPhoneNumber(profile.phone) && <ProfilePhoneBanner roleLabel="technician" />}
-      <header className="sticky top-0 z-30 bg-white shadow-elevation-1">
-        <div className="mx-auto max-w-lg px-4 py-3">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="font-display text-sm font-semibold tracking-wide text-[#D4A62E]">
-                MOJO APARTMENTS
-              </p>
-              <p className="text-sm font-medium text-[#3C216C]">{profile.name}</p>
-              <p className="text-xs text-muted-foreground capitalize">
-                {profile.specialty ?? 'Technician'}
-              </p>
-            </div>
-            <div className="flex shrink-0 items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setPhoneDialogOpen(true)}
-                className="flex h-10 items-center gap-1.5 rounded-xl bg-[#F7F4FB] px-3 text-xs font-semibold text-[#3C216C] transition-colors hover:bg-[#3C216C]/8"
-              >
-                <Phone className="h-4 w-4" />
-                {hasPhoneNumber(profile.phone) ? 'Phone' : 'Add phone'}
-              </button>
-              <button
-                type="button"
-                onClick={() => signOut()}
-                className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#F7F4FB] text-muted-foreground transition-colors hover:bg-[#3C216C]/8 hover:text-[#3C216C]"
-                aria-label="Sign out"
-              >
-                <LogOut className="h-5 w-5" />
-              </button>
-            </div>
+      <header className="technician-portal-header">
+        <div className="technician-portal-header__inner">
+          <div className="min-w-0 flex-1">
+            <p className="technician-portal-brand">MOJO APARTMENTS</p>
+            <p className="truncate text-base font-semibold text-[var(--tech-fg)]">{profile.name}</p>
+            <p className="text-xs capitalize text-[var(--tech-fg-muted)]">
+              {profile.specialty ?? 'Technician'}
+            </p>
           </div>
-          {hasPhoneNumber(profile.phone) && (
-            <div className="mt-3 border-t border-border/60 pt-3">
-              <ProfilePhoneEditor
-                initialPhone={profile.phone}
-                roleLabel="technician"
-                variant="inline"
-              />
-            </div>
-          )}
-          {managerContacts.length > 0 && (
-            <div className="mt-3 border-t border-border/60 pt-3">
-              <PhoneContactList
-                contacts={managerContacts}
-                title="Call manager"
-                variant="light"
-              />
-            </div>
-          )}
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setPhoneDialogOpen(true)}
+              className="technician-portal-icon-btn"
+              aria-label={hasPhoneNumber(profile.phone) ? 'Update phone' : 'Add phone'}
+            >
+              <Phone className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => signOut()}
+              className="technician-portal-icon-btn"
+              aria-label="Sign out"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
+          </div>
         </div>
+
+        {managerContacts.length > 0 && (
+          <div className="technician-portal-header__support">
+            <button
+              type="button"
+              onClick={() => setSupportOpen((v) => !v)}
+              className="technician-portal-support-toggle"
+              aria-expanded={supportOpen}
+            >
+              <span>Call manager</span>
+              <ChevronDown
+                className={`h-4 w-4 transition-transform ${supportOpen ? 'rotate-180' : ''}`}
+              />
+            </button>
+            {supportOpen && (
+              <div className="technician-portal-support-panel">
+                <PhoneContactList
+                  contacts={managerContacts}
+                  title=""
+                  emptyMessage=""
+                  variant="light"
+                />
+              </div>
+            )}
+          </div>
+        )}
       </header>
-      <TechnicianRealtime userId={profile.id}>{children}</TechnicianRealtime>
+
+      <main className="technician-portal-main">
+        <TechnicianRealtime userId={profile.id}>{children}</TechnicianRealtime>
+      </main>
 
       <AccountPhoneDialog
         open={phoneDialogOpen}
