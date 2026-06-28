@@ -1,10 +1,9 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { BarChart3, TrendingUp } from 'lucide-react'
+import { BarChart3 } from 'lucide-react'
 import { AnimatedMetric } from '@/components/dashboard/animated-metric'
 import { DataEmptyState } from '@/components/dashboard/data-empty-state'
-import { MiniSparkline } from '@/components/dashboard/mini-sparkline'
 import { OccupancySnapshot } from '@/components/dashboard/occupancy-snapshot'
 import { TrendBadge } from '@/components/dashboard/trend-badge'
 import type { RevenueTrend } from '@/lib/data/overview'
@@ -24,23 +23,17 @@ interface KPICardsProps {
   roomsHref?: string
 }
 
-function hasSparklineVariance(values?: number[]) {
-  return values && values.length >= 2 && new Set(values).size > 1
-}
-
 function RevenueBanner({
   metrics,
   revenueTrend,
-  revenueSparkline,
 }: {
   metrics: KPIMetrics
   revenueTrend?: RevenueTrend
-  revenueSparkline?: number[]
 }) {
   return (
     <div className="kpi-card kpi-card--revenue">
       <div className="kpi-card--revenue__body">
-        <p className="kpi-card__label kpi-card__label--on-dark">Total revenue</p>
+        <p className="kpi-card__label">Total revenue</p>
 
         <div className="kpi-card--revenue__hero">
           <p className="kpi-card__value kpi-card__value--revenue">
@@ -49,27 +42,24 @@ function RevenueBanner({
               format={(n) => `₵${Math.round(n).toLocaleString()}`}
             />
           </p>
-          {hasSparklineVariance(revenueSparkline) && (
-            <MiniSparkline values={revenueSparkline!} tone="light" className="kpi-card--revenue__sparkline" />
-          )}
         </div>
 
         <div className="kpi-card--revenue__meta">
-          <p className="kpi-card__subtext kpi-card__subtext--on-dark">
+          <p className="kpi-card__subtext">
             RevPAR ₵{metrics.reviParMetric.toLocaleString()}
           </p>
           {revenueTrend?.changePercent != null && (
-            <TrendBadge value={revenueTrend.changePercent} onDark label="" />
+            <TrendBadge value={revenueTrend.changePercent} label="vs last month" />
           )}
         </div>
 
         {revenueTrend && (revenueTrend.lastMonth > 0 || revenueTrend.thisMonth > 0) && (
           <div className="kpi-card--revenue__compare">
-            <div className="kpi-metric-pill kpi-metric-pill--on-dark">
+            <div className="kpi-metric-pill">
               <p className="kpi-metric-pill__label">This month</p>
               <p className="kpi-metric-pill__value">₵{revenueTrend.thisMonth.toLocaleString()}</p>
             </div>
-            <div className="kpi-metric-pill kpi-metric-pill--on-dark">
+            <div className="kpi-metric-pill">
               <p className="kpi-metric-pill__label">Last month</p>
               <p className="kpi-metric-pill__value">₵{revenueTrend.lastMonth.toLocaleString()}</p>
             </div>
@@ -87,8 +77,6 @@ function MetricTile({
   formatValue,
   subtext,
   warning,
-  sparkline,
-  trendUp,
   tone = 'bookings',
 }: {
   label: string
@@ -97,8 +85,6 @@ function MetricTile({
   formatValue?: (n: number) => string
   subtext: string
   warning?: boolean
-  sparkline?: number[]
-  trendUp?: boolean
   tone?: 'bookings' | 'balance' | 'rate'
 }) {
   const toneClass = warning
@@ -109,13 +95,10 @@ function MetricTile({
         ? 'kpi-card--tile-tone-balance-ok'
         : 'kpi-card--tile-tone-rate'
 
-  const sparklineTone =
-    tone === 'bookings' ? 'primary' : tone === 'balance' && !warning ? 'gold' : warning ? 'gold' : 'primary'
-
   return (
     <div className={`kpi-card kpi-card--tile kpi-card--tile-elevated kpi-card--tile-compact ${toneClass}`}>
       <p className="kpi-card__label">{label}</p>
-      <div className="mt-1.5 flex items-end justify-between gap-3">
+      <div className="mt-1.5">
         <p className="kpi-card__value kpi-card__value--tile-sm">
           {rawValue != null && formatValue ? (
             <AnimatedMetric value={rawValue} format={formatValue} />
@@ -123,16 +106,6 @@ function MetricTile({
             value
           )}
         </p>
-        <div className="flex items-center gap-2">
-          {trendUp && (
-            <span className="inline-flex items-center text-primary/70">
-              <TrendingUp className="h-3.5 w-3.5" strokeWidth={2.25} />
-            </span>
-          )}
-          {hasSparklineVariance(sparkline) && (
-            <MiniSparkline values={sparkline!} tone={sparklineTone} className="h-8 w-[4.5rem]" />
-          )}
-        </div>
       </div>
       <p className="kpi-card__subtext mt-auto pt-2">{subtext}</p>
     </div>
@@ -142,8 +115,6 @@ function MetricTile({
 export function KPICards({
   metrics,
   revenueTrend,
-  revenueSparkline,
-  bookingsSparkline,
   occupancyToday,
   occupancySparkline,
   showRevenue = true,
@@ -180,8 +151,6 @@ export function KPICards({
         rawValue={m.totalBookings}
         formatValue={(n) => Math.round(n).toString()}
         subtext={`${m.totalGuests} guest${m.totalGuests === 1 ? '' : 's'}`}
-        sparkline={bookingsSparkline}
-        trendUp={m.totalBookings > 0}
         tone="bookings"
       />
       <MetricTile
@@ -215,7 +184,6 @@ export function KPICards({
           rawValue={m.totalBookings}
           formatValue={(n) => Math.round(n).toString()}
           subtext={`${m.totalGuests} guest${m.totalGuests === 1 ? '' : 's'} on record`}
-          sparkline={bookingsSparkline}
           tone="bookings"
         />
         <MetricTile
@@ -241,7 +209,6 @@ export function KPICards({
         <RevenueBanner
           metrics={m}
           revenueTrend={revenueTrend}
-          revenueSparkline={revenueSparkline}
         />
         <OccupancySnapshot
           occupancy={occupancyToday}

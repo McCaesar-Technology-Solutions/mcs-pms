@@ -2,7 +2,6 @@
 
 import Link from 'next/link'
 import { ChevronRight, Percent } from 'lucide-react'
-import { MiniSparkline } from '@/components/dashboard/mini-sparkline'
 import type { OccupancyToday } from '@/lib/data/occupancy'
 
 interface OccupancySnapshotProps {
@@ -11,12 +10,30 @@ interface OccupancySnapshotProps {
   roomsHref?: string
 }
 
+function trendCaption(values: number[], todayPercent?: number): string | null {
+  if (values.length === 0) return null
+
+  const avg = Math.round(values.reduce((sum, value) => sum + value, 0) / values.length)
+
+  if (todayPercent == null) {
+    return `14-day average ${avg}%`
+  }
+
+  const diff = todayPercent - avg
+  if (diff === 0) {
+    return `14-day average ${avg}% · in line with today`
+  }
+
+  const direction = diff > 0 ? 'above' : 'below'
+  return `14-day average ${avg}% · ${Math.abs(diff)} pts ${direction} average`
+}
+
 export function OccupancySnapshot({
   occupancy,
   trend = [],
   roomsHref = '/owner/rooms',
 }: OccupancySnapshotProps) {
-  const hasTrend = trend.length >= 2 && new Set(trend).size > 1
+  const trendLabel = trend.length > 0 ? trendCaption(trend, occupancy?.percent) : null
 
   return (
     <div className="kpi-card kpi-card--occupancy-hero">
@@ -47,11 +64,8 @@ export function OccupancySnapshot({
           </div>
         )}
 
-        {hasTrend && (
-          <div className="mt-4 flex items-end justify-between gap-3">
-            <p className="text-[11px] font-medium text-muted-foreground">14-day trend</p>
-            <MiniSparkline values={trend} tone="gold" className="h-9 w-[6.5rem]" />
-          </div>
+        {trendLabel && (
+          <p className="mt-3 text-xs leading-relaxed text-muted-foreground">{trendLabel}</p>
         )}
 
         <Link
