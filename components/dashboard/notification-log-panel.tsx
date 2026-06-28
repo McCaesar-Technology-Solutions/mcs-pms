@@ -4,8 +4,10 @@ import { MessageSquare, Smartphone, Mail, Copy, Download } from 'lucide-react'
 import { toast } from 'sonner'
 import { BulkActionBar } from '@/components/dashboard/bulk-action-bar'
 import { BulkSelectCheckbox } from '@/components/dashboard/bulk-select-checkbox'
+import { TablePagination } from '@/components/dashboard/table-pagination'
 import { downloadCsv } from '@/lib/export/download-csv'
 import { copyToClipboard, logRef } from '@/lib/export/entity-refs'
+import { usePagination } from '@/lib/hooks/use-pagination'
 import { useRowSelection } from '@/lib/hooks/use-row-selection'
 import type { NotificationLogEntry } from '@/lib/data/notification-log'
 
@@ -38,6 +40,7 @@ interface NotificationLogPanelProps {
 
 export function NotificationLogPanel({ entries, compact = false }: NotificationLogPanelProps) {
   const selection = useRowSelection(entries, entries)
+  const pagination = usePagination(entries)
 
   function copyRecipients() {
     const recipients = selection.selected
@@ -109,52 +112,53 @@ export function NotificationLogPanel({ entries, compact = false }: NotificationL
             No messages logged yet. Alerts appear here when SMS or WhatsApp is sent.
           </p>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          <div className="data-table-wrap overflow-x-auto px-4 sm:px-6">
             <table className="data-table w-full text-sm">
               <thead>
                 <tr>
-                  <th className="w-10 px-4 py-3">
+                  <th className="w-10">
                     <BulkSelectCheckbox
                       checked={selection.allFilteredSelected}
                       onChange={selection.toggleAllFiltered}
                       aria-label="Select all visible messages"
                     />
                   </th>
-                  <th className="px-4 py-3 text-left font-semibold text-foreground">When</th>
-                  <th className="px-4 py-3 text-left font-semibold text-foreground">To</th>
+                  <th className="text-left font-semibold text-foreground">When</th>
+                  <th className="text-left font-semibold text-foreground">To</th>
                   {!compact && (
-                    <th className="px-4 py-3 text-left font-semibold text-foreground">Template</th>
+                    <th className="text-left font-semibold text-foreground">Template</th>
                   )}
-                  <th className="px-4 py-3 text-left font-semibold text-foreground">Channel</th>
-                  <th className="px-4 py-3 text-left font-semibold text-foreground">Status</th>
+                  <th className="text-left font-semibold text-foreground">Channel</th>
+                  <th className="text-left font-semibold text-foreground">Status</th>
                   {!compact && (
-                    <th className="px-4 py-3 text-left font-semibold text-foreground">Message</th>
+                    <th className="text-left font-semibold text-foreground">Message</th>
                   )}
                 </tr>
               </thead>
               <tbody>
-                {entries.map((entry) => (
+                {pagination.paginatedItems.map((entry) => (
                   <tr
                     key={entry.id}
-                    className={`hover:bg-[#FAFDFF] ${selection.isSelected(entry.id) ? 'bg-primary/[0.03]' : ''}`}
+                    className={selection.isSelected(entry.id) ? 'is-selected' : ''}
                   >
-                    <td className="px-4 py-3">
+                    <td>
                       <BulkSelectCheckbox
                         checked={selection.isSelected(entry.id)}
                         onChange={() => selection.toggle(entry.id)}
                         aria-label={`Select message to ${entry.recipientEmail ?? entry.recipientPhone ?? 'recipient'}`}
                       />
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
+                    <td className="whitespace-nowrap text-muted-foreground">
                       {formatWhen(entry.createdAt)}
                     </td>
-                    <td className="px-4 py-3 font-mono text-xs text-foreground">
+                    <td className="font-mono text-xs text-foreground">
                       {entry.recipientEmail ?? entry.recipientPhone ?? '—'}
                     </td>
                     {!compact && (
-                      <td className="px-4 py-3 text-foreground">{entry.templateKey}</td>
+                      <td className="text-foreground">{entry.templateKey}</td>
                     )}
-                    <td className="px-4 py-3">
+                    <td>
                       <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground">
                         {entry.channel === 'whatsapp' ? (
                           <MessageSquare className="h-3.5 w-3.5" />
@@ -166,7 +170,7 @@ export function NotificationLogPanel({ entries, compact = false }: NotificationL
                         {entry.channel}
                       </span>
                     </td>
-                    <td className="px-4 py-3">
+                    <td>
                       <span
                         className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusClass(entry.status)}`}
                       >
@@ -177,7 +181,7 @@ export function NotificationLogPanel({ entries, compact = false }: NotificationL
                       )}
                     </td>
                     {!compact && (
-                      <td className="max-w-xs px-4 py-3 text-muted-foreground">
+                      <td className="max-w-xs text-muted-foreground">
                         <p className="line-clamp-2">{entry.body}</p>
                       </td>
                     )}
@@ -186,6 +190,15 @@ export function NotificationLogPanel({ entries, compact = false }: NotificationL
               </tbody>
             </table>
           </div>
+          <TablePagination
+            page={pagination.page}
+            totalPages={pagination.totalPages}
+            totalItems={pagination.totalItems}
+            rangeStart={pagination.rangeStart}
+            rangeEnd={pagination.rangeEnd}
+            onPageChange={pagination.setPage}
+          />
+          </>
         )}
       </div>
     </>

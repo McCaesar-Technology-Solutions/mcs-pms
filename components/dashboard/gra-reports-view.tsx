@@ -6,9 +6,11 @@ import { toast } from 'sonner'
 import { DataEmptyState } from '@/components/dashboard/data-empty-state'
 import { BulkActionBar } from '@/components/dashboard/bulk-action-bar'
 import { BulkSelectCheckbox } from '@/components/dashboard/bulk-select-checkbox'
+import { TablePagination } from '@/components/dashboard/table-pagination'
 import { downloadGraCsv, downloadGraAllZip, downloadGraPdf } from '@/lib/export/gra-export'
 import { downloadCsv } from '@/lib/export/download-csv'
 import { copyToClipboard } from '@/lib/export/entity-refs'
+import { usePagination } from '@/lib/hooks/use-pagination'
 import { useRowSelection } from '@/lib/hooks/use-row-selection'
 import type { ExportHotelInfo } from '@/lib/export/types'
 import type { GraReportRow, GraReportsSummary } from '@/lib/data/gra-reports'
@@ -25,6 +27,7 @@ export function GRAReportsView({ reports, summary, invoices, hotel }: GRAReports
   const [exportMenu, setExportMenu] = useState<string | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const selection = useRowSelection(reports, reports)
+  const pagination = usePagination(reports)
 
   useEffect(() => {
     if (!exportMenu) return
@@ -182,54 +185,55 @@ export function GRAReportsView({ reports, summary, invoices, hotel }: GRAReports
             />
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          <div className="data-table-wrap overflow-x-auto px-4 sm:px-6">
             <table className="data-table w-full text-sm">
               <thead>
                 <tr>
-                  <th className="w-10 px-6 py-4">
+                  <th className="w-10">
                     <BulkSelectCheckbox
                       checked={selection.allFilteredSelected}
                       onChange={selection.toggleAllFiltered}
                       aria-label="Select all visible periods"
                     />
                   </th>
-                  <th className="text-left py-4 px-6 font-semibold text-foreground">Period</th>
-                  <th className="text-left py-4 px-6 font-semibold text-foreground">Total Revenue</th>
-                  <th className="text-left py-4 px-6 font-semibold text-foreground">Tax Paid</th>
-                  <th className="text-left py-4 px-6 font-semibold text-foreground">Invoices</th>
-                  <th className="text-center py-4 px-6 font-semibold text-foreground">Status</th>
-                  <th className="text-center py-4 px-6 font-semibold text-foreground" />
+                  <th className="text-left font-semibold text-foreground">Period</th>
+                  <th className="text-left font-semibold text-foreground">Total Revenue</th>
+                  <th className="text-left font-semibold text-foreground">Tax Paid</th>
+                  <th className="text-left font-semibold text-foreground">Invoices</th>
+                  <th className="text-center font-semibold text-foreground">Status</th>
+                  <th className="text-center font-semibold text-foreground" />
                 </tr>
               </thead>
               <tbody>
-                {reports.map((report) => (
+                {pagination.paginatedItems.map((report) => (
                   <tr
                     key={report.id}
-                    className={selection.isSelected(report.id) ? 'bg-primary/[0.03]' : ''}
+                    className={selection.isSelected(report.id) ? 'is-selected' : ''}
                   >
-                    <td className="px-6 py-4">
+                    <td>
                       <BulkSelectCheckbox
                         checked={selection.isSelected(report.id)}
                         onChange={() => selection.toggle(report.id)}
                         aria-label={`Select period ${report.month}`}
                       />
                     </td>
-                    <td className="py-4 px-6">
+                    <td>
                       <p className="font-semibold text-foreground">{report.month}</p>
                       <p className="text-xs text-muted-foreground">{report.id}</p>
                     </td>
-                    <td className="py-4 px-6">
+                    <td>
                       <p className="font-semibold text-foreground">₵{report.totalRevenue.toLocaleString()}</p>
                     </td>
-                    <td className="py-4 px-6">
+                    <td>
                       <p className="font-semibold text-foreground">₵{report.taxAmount.toLocaleString()}</p>
                     </td>
-                    <td className="py-4 px-6">
+                    <td>
                       <p className="text-sm text-muted-foreground">
                         {report.invoicesPaid}/{report.invoicesIssued}
                       </p>
                     </td>
-                    <td className="py-4 px-6 text-center">
+                    <td className="text-center">
                       <span
                         className={`inline-flex items-center gap-1 text-xs px-3 py-1.5 rounded-full font-semibold ${getStatusColor(report.status)} shadow-elevation-1`}
                       >
@@ -237,7 +241,7 @@ export function GRAReportsView({ reports, summary, invoices, hotel }: GRAReports
                         {report.status.charAt(0).toUpperCase() + report.status.slice(1)}
                       </span>
                     </td>
-                    <td className="py-4 px-6 text-center">
+                    <td className="text-center">
                       <div className="relative inline-block" ref={exportMenu === report.id ? menuRef : undefined}>
                         <button
                           type="button"
@@ -282,6 +286,15 @@ export function GRAReportsView({ reports, summary, invoices, hotel }: GRAReports
               </tbody>
             </table>
           </div>
+          <TablePagination
+            page={pagination.page}
+            totalPages={pagination.totalPages}
+            totalItems={pagination.totalItems}
+            rangeStart={pagination.rangeStart}
+            rangeEnd={pagination.rangeEnd}
+            onPageChange={pagination.setPage}
+          />
+          </>
         )}
       </div>
     </>

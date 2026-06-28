@@ -1,44 +1,50 @@
 'use client'
 
 import Link from 'next/link'
-import { CheckCircle, AlertCircle, Clock, ArrowRight } from 'lucide-react'
+import { useMemo } from 'react'
+import { ArrowRight, CheckCircle, Clock, AlertCircle } from 'lucide-react'
 import { DataEmptyState } from '@/components/dashboard/data-empty-state'
 import type { HousekeepingTaskView } from '@/lib/housekeeping/task-view'
 import { countNeedsInspectionTasks, countOverdueTasks } from '@/lib/housekeeping/task-view'
-import type { TaskStatus } from '@/types'
+import type { TaskPriority, TaskStatus } from '@/types'
 
-type ColumnId = TaskStatus
-
-const columnMeta: Record<ColumnId, { label: string; tint: string }> = {
-  todo: { label: 'To Do', tint: 'bg-[var(--comp-coral-soft)]' },
-  in_progress: { label: 'In Progress', tint: 'bg-[var(--comp-sand-soft)]' },
-  done: { label: 'Done', tint: 'bg-[var(--comp-teal-soft)]' },
+const statusLabels: Record<TaskStatus, string> = {
+  todo: 'To do',
+  in_progress: 'In progress',
+  done: 'Done',
 }
 
-function getTaskIcon(status: ColumnId) {
-  switch (status) {
-    case 'done':
-      return <CheckCircle className="h-4 w-4 text-[var(--comp-teal)]" />
-    case 'in_progress':
-      return <Clock className="h-4 w-4 text-[var(--comp-sand)]" />
-    case 'todo':
-      return <AlertCircle className="h-4 w-4 text-red-600" />
-    default:
-      return null
-  }
+const statusColors: Record<TaskStatus, string> = {
+  todo: 'task-summary-pipeline__segment--todo',
+  in_progress: 'task-summary-pipeline__segment--progress',
+  done: 'task-summary-pipeline__segment--done',
 }
 
-function getPriorityColor(priority: string) {
+function priorityLabel(priority: TaskPriority) {
+  return priority.charAt(0).toUpperCase() + priority.slice(1)
+}
+
+function priorityClass(priority: TaskPriority) {
   switch (priority) {
     case 'high':
-      return 'kanban-priority-pill kanban-priority-pill--high'
+      return 'bg-red-500/12 text-red-700'
     case 'medium':
-      return 'kanban-priority-pill kanban-priority-pill--medium'
-    case 'low':
-      return 'kanban-priority-pill kanban-priority-pill--low'
+      return 'bg-[var(--comp-sand-soft)] text-[var(--comp-sand-ink)]'
     default:
-      return 'kanban-priority-pill bg-gray-100 text-gray-700'
+      return 'bg-[var(--comp-slate-soft)] text-[var(--comp-slate-ink)]'
   }
+}
+
+function sortOpenTasks(tasks: HousekeepingTaskView[]) {
+  const rank = { high: 0, medium: 1, low: 2 }
+  return [...tasks]
+    .filter((t) => t.status !== 'done')
+    .sort((a, b) => {
+      if (a.isOverdue !== b.isOverdue) return a.isOverdue ? -1 : 1
+      if (a.status === 'todo' && b.status !== 'todo') return -1
+      if (b.status === 'todo' && a.status !== 'todo') return 1
+      return rank[a.priority] - rank[b.priority]
+    })
 }
 
 export function TasksList({
@@ -48,15 +54,21 @@ export function TasksList({
   tasks: HousekeepingTaskView[]
   housekeepingHref?: string
 }) {
-  const byStatus: Record<ColumnId, HousekeepingTaskView[]> = {
-    todo: tasks.filter((t) => t.status === 'todo'),
-    in_progress: tasks.filter((t) => t.status === 'in_progress'),
-    done: tasks.filter((t) => t.status === 'done'),
-  }
-
   const isEmpty = tasks.length === 0
   const overdueCount = countOverdueTasks(tasks.filter((t) => t.status !== 'done'))
   const inspectCount = countNeedsInspectionTasks(tasks)
+
+  const counts = useMemo(
+    () => ({
+      todo: tasks.filter((t) => t.status === 'todo').length,
+      in_progress: tasks.filter((t) => t.status === 'in_progress').length,
+      done: tasks.filter((t) => t.status === 'done').length,
+    }),
+    [tasks],
+  )
+
+  const total = Math.max(tasks.length, 1)
+  const queue = useMemo(() => sortOpenTasks(tasks).slice(0, 5), [tasks])
 
   return (
     <div className="surface-card overflow-hidden">
@@ -65,7 +77,7 @@ export function TasksList({
           <div>
             <h3 className="text-lg font-semibold text-foreground">Task summary</h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              Housekeeping and maintenance across your rooms
+              Open work across housekeeping and maintenance
             </p>
           </div>
           {!isEmpty && (
@@ -81,7 +93,7 @@ export function TasksList({
         {(overdueCount > 0 || inspectCount > 0) && (
           <div className="mt-3 flex flex-wrap gap-2">
             {overdueCount > 0 && (
-              <span className="rounded-full bg-red-500/15 px-3 py-1 text-xs font-semibold text-red-700">
+              <span className="rounded-full bg-red-500/12 px-3 py-1 text-xs font-semibold text-red-700">
                 {overdueCount} overdue
               </span>
             )}
@@ -99,35 +111,66 @@ export function TasksList({
           <DataEmptyState message="No housekeeping tasks yet." className="border-0 shadow-none" />
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-3 sm:p-6">
-          {(['todo', 'in_progress', 'done'] as ColumnId[]).map((status) => (
-            <div key={status} className={`overflow-hidden rounded-xl p-4 ${columnMeta[status].tint}`}>
-              <h4 className="text-sm font-semibold text-foreground">{columnMeta[status].label}</h4>
-              <p className="mt-1 text-3xl font-bold text-primary">{byStatus[status].length}</p>
-
-              <div className="card-list-tray mt-3 space-y-2.5">
-                {byStatus[status].slice(0, 3).map((task) => (
-                  <Link
-                    key={task.id}
-                    href={housekeepingHref}
-                    className="elevated-list-item flex items-start gap-2.5 p-3 transition-colors hover:bg-white/80"
-                  >
-                    <div className="mt-0.5 shrink-0">{getTaskIcon(status)}</div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs font-bold text-[#111827]">
-                        {task.roomNumber ? `Room ${task.roomNumber}` : 'No room'}
-                      </p>
-                      <p className="mt-0.5 text-xs capitalize text-muted-foreground">{task.taskType}</p>
-                      <span className={`mt-2 inline-flex ${getPriorityColor(task.priority)}`}>
-                        {task.priority}
-                      </span>
-                    </div>
-                  </Link>
-                ))}
-              </div>
+        <>
+          <div className="task-summary-pipeline">
+            <div className="task-summary-pipeline__bar" aria-hidden>
+              {(['todo', 'in_progress', 'done'] as TaskStatus[]).map((status) =>
+                counts[status] > 0 ? (
+                  <div
+                    key={status}
+                    className={`task-summary-pipeline__segment ${statusColors[status]}`}
+                    style={{ flexGrow: counts[status] / total }}
+                  />
+                ) : null,
+              )}
             </div>
-          ))}
-        </div>
+            <div className="task-summary-pipeline__legend">
+              {(['todo', 'in_progress', 'done'] as TaskStatus[]).map((status) => (
+                <span key={status} className="task-summary-pipeline__legend-item">
+                  <span className={`task-summary-pipeline__dot ${statusColors[status]}`} />
+                  {statusLabels[status]} <strong>{counts[status]}</strong>
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div className="task-summary-queue">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {queue.length > 0 ? 'Up next' : 'All caught up'}
+            </p>
+            {queue.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No open tasks in the queue.</p>
+            ) : (
+              queue.map((task) => (
+                <Link key={task.id} href={housekeepingHref} className="task-summary-row">
+                  <span className="shrink-0 text-muted-foreground">
+                    {task.status === 'in_progress' ? (
+                      <Clock className="h-4 w-4 text-[var(--comp-sand)]" />
+                    ) : task.isOverdue ? (
+                      <AlertCircle className="h-4 w-4 text-red-600" />
+                    ) : (
+                      <CheckCircle className="h-4 w-4 text-[var(--comp-coral)]" />
+                    )}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold text-foreground">
+                      {task.roomNumber ? `Room ${task.roomNumber}` : 'General task'}
+                    </span>
+                    <span className="mt-0.5 block truncate text-xs capitalize text-muted-foreground">
+                      {task.taskType.replace(/_/g, ' ')}
+                      {task.isOverdue ? ' · overdue' : ''}
+                    </span>
+                  </span>
+                  <span
+                    className={`shrink-0 rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${priorityClass(task.priority)}`}
+                  >
+                    {priorityLabel(task.priority)}
+                  </span>
+                </Link>
+              ))
+            )}
+          </div>
+        </>
       )}
     </div>
   )

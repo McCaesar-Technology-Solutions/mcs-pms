@@ -8,9 +8,11 @@ import { createManualInvoice, recordInvoicePayment, recordPartialInvoicePayment,
 import { invoiceBalanceDue } from '@/lib/billing/invoice-payments'
 import { BulkActionBar } from '@/components/dashboard/bulk-action-bar'
 import { BulkSelectCheckbox } from '@/components/dashboard/bulk-select-checkbox'
+import { TablePagination } from '@/components/dashboard/table-pagination'
 import { CenteredModal, ModalBody, ModalFooter, ModalHeader } from '@/components/ui/centered-modal'
 import { downloadCsv } from '@/lib/export/download-csv'
 import { copyToClipboard } from '@/lib/export/entity-refs'
+import { usePagination } from '@/lib/hooks/use-pagination'
 import { useRowSelection } from '@/lib/hooks/use-row-selection'
 import { PAYMENT_METHOD_LABELS, computeInvoiceTaxes, type VatMode } from '@/lib/tax'
 import { formatInvoiceNumber } from '@/lib/invoices/numbering'
@@ -151,6 +153,12 @@ export function BillingOverview({
   const selection = useRowSelection(
     rows.map((r) => ({ ...r, id: r.rowKey })),
     filteredInvoices.map((r) => ({ ...r, id: r.rowKey })),
+  )
+
+  const pagination = usePagination(
+    filteredInvoices,
+    10,
+    `${statusFilter ?? ''}|${textFilter}`,
   )
 
   function copyInvoiceRefs() {
@@ -377,7 +385,7 @@ export function BillingOverview({
         )}
 
         <div className="space-y-3 p-4 md:hidden">
-          {filteredInvoices.map((invoice) => (
+          {pagination.paginatedItems.map((invoice) => (
             <div
               key={invoice.rowKey}
               className={`elevated-list-item flex gap-3 p-4 ${
@@ -417,36 +425,36 @@ export function BillingOverview({
           ))}
         </div>
 
-        <div className="hidden overflow-x-auto md:block">
+        <div className="hidden data-table-wrap overflow-x-auto px-4 md:block sm:px-6">
           <table className="data-table w-full text-sm">
             <thead>
               <tr>
-                <th className="w-10 px-6 py-4">
+                <th className="w-10">
                   <BulkSelectCheckbox
                     checked={selection.allFilteredSelected}
                     onChange={selection.toggleAllFiltered}
                     aria-label="Select all visible invoices"
                   />
                 </th>
-                <th className="text-left py-4 px-6 font-semibold text-foreground">Invoice</th>
-                <th className="text-left py-4 px-6 font-semibold text-foreground">Guest & Room</th>
-                <th className="text-left py-4 px-6 font-semibold text-foreground">Date</th>
-                <th className="text-left py-4 px-6 font-semibold text-foreground">Payment Method</th>
-                <th className="text-right py-4 px-6 font-semibold text-foreground">Amount</th>
-                <th className="text-center py-4 px-6 font-semibold text-foreground">Status</th>
-                <th className="text-center py-4 px-6 font-semibold text-foreground"></th>
+                <th className="text-left font-semibold text-foreground">Invoice</th>
+                <th className="text-left font-semibold text-foreground">Guest & Room</th>
+                <th className="text-left font-semibold text-foreground">Date</th>
+                <th className="text-left font-semibold text-foreground">Payment Method</th>
+                <th className="text-right font-semibold text-foreground">Amount</th>
+                <th className="text-center font-semibold text-foreground">Status</th>
+                <th className="text-center font-semibold text-foreground"></th>
               </tr>
             </thead>
             <tbody>
-              {filteredInvoices.map((invoice) => (
+              {pagination.paginatedItems.map((invoice) => (
                 <tr
                   key={invoice.rowKey}
                   className={`${invoice.invoice ? 'cursor-pointer' : ''} ${
-                    selection.isSelected(invoice.rowKey) ? 'bg-primary/[0.03]' : ''
+                    selection.isSelected(invoice.rowKey) ? 'is-selected' : ''
                   }`}
                   onClick={() => invoice.invoice && setDetail(invoice.invoice)}
                 >
-                  <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                  <td onClick={(e) => e.stopPropagation()}>
                     <BulkSelectCheckbox
                       checked={selection.isSelected(invoice.rowKey)}
                       onChange={() => selection.toggle(invoice.rowKey)}
@@ -491,6 +499,17 @@ export function BillingOverview({
             </tbody>
           </table>
         </div>
+
+        {filteredInvoices.length > 0 && (
+          <TablePagination
+            page={pagination.page}
+            totalPages={pagination.totalPages}
+            totalItems={pagination.totalItems}
+            rangeStart={pagination.rangeStart}
+            rangeEnd={pagination.rangeEnd}
+            onPageChange={pagination.setPage}
+          />
+        )}
       </div>
 
       <CenteredModal open={!!detail} onClose={() => setDetail(null)} className="max-w-md" aria-label="Invoice details">

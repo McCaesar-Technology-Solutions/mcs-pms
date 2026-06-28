@@ -22,6 +22,7 @@ import {
 } from '@/app/actions/stays'
 import { PortalLinkPanel } from '@/components/dashboard/portal-link-panel'
 import { ReservationsBulkBar } from '@/components/dashboard/reservations-bulk-bar'
+import { TablePagination } from '@/components/dashboard/table-pagination'
 import {
   CenteredModal,
   ModalBody,
@@ -34,6 +35,7 @@ import type { RoomOption } from '@/lib/data/dashboard'
 import type { OccupancySpan } from '@/lib/data/occupancy'
 import { PAYMENT_METHOD_LABELS } from '@/lib/tax'
 import { calculateStayTotal, rateTypeLabel } from '@/lib/pricing/stay-totals'
+import { usePagination } from '@/lib/hooks/use-pagination'
 
 const STATUS_FILTERS = ['all', 'checked_in', 'confirmed', 'checked_out', 'cancelled', 'no_show'] as const
 
@@ -160,6 +162,12 @@ export function ReservationsManager({
   const allFilteredSelected =
     filtered.length > 0 && filtered.every((r) => selectedIds.has(r.id))
 
+  const pagination = usePagination(
+    filtered,
+    10,
+    `${search}|${statusFilter}|${paymentFilter}`,
+  )
+
   function toggleSelected(id: string) {
     setSelectedIds((prev) => {
       const next = new Set(prev)
@@ -265,7 +273,7 @@ export function ReservationsManager({
               No reservations match your filters.
             </p>
           ) : (
-            filtered.map((res) => (
+            pagination.paginatedItems.map((res) => (
               <div
                 key={res.id}
                 className={`elevated-list-item flex gap-3 p-4 ${
@@ -351,12 +359,12 @@ export function ReservationsManager({
                   </td>
                 </tr>
               ) : (
-                filtered.map((res) => (
+                pagination.paginatedItems.map((res) => (
                   <tr
                     key={res.id}
-                    className={`cursor-pointer transition-colors ${
-                      selectedId === res.id ? 'bg-[#3C216C]/6' : 'hover:bg-[#FAFDFF]'
-                    } ${selectedIds.has(res.id) ? 'bg-primary/[0.03]' : ''}`}
+                    className={`cursor-pointer ${
+                      selectedId === res.id ? 'is-selected' : ''
+                    } ${selectedIds.has(res.id) ? 'is-selected' : ''}`}
                     onClick={() => setSelectedId(res.id)}
                   >
                     <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
@@ -422,6 +430,17 @@ export function ReservationsManager({
             </tbody>
           </table>
         </div>
+
+        {filtered.length > 0 && (
+          <TablePagination
+            page={pagination.page}
+            totalPages={pagination.totalPages}
+            totalItems={pagination.totalItems}
+            rangeStart={pagination.rangeStart}
+            rangeEnd={pagination.rangeEnd}
+            onPageChange={pagination.setPage}
+          />
+        )}
       </div>
 
       {selected && (

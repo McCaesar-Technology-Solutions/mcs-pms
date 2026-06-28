@@ -22,7 +22,9 @@ import { CenteredModal, ModalBody, ModalHeader } from '@/components/ui/centered-
 import { regenerateGuestAccess, revokeGuestAccess, checkOutGuest, updateGuest } from '@/app/actions/guest'
 import { GuestFolioPanel } from '@/components/dashboard/guest-folio-panel'
 import { GuestsBulkBar } from '@/components/dashboard/guests-bulk-bar'
+import { TablePagination } from '@/components/dashboard/table-pagination'
 import { hasPhoneNumber } from '@/lib/phone'
+import { usePagination } from '@/lib/hooks/use-pagination'
 import { toast } from 'sonner'
 import { PAYMENT_METHOD_LABELS } from '@/lib/tax'
 import type { PaymentMethod } from '@/types'
@@ -112,6 +114,12 @@ export function GuestsTable({ guests, initialSearch = '', readOnly = false }: Gu
   const allFilteredSelected =
     filteredGuests.length > 0 && filteredGuests.every((g) => selectedIds.has(g.id))
 
+  const pagination = usePagination(
+    filteredGuests,
+    10,
+    `${searchQuery}|${selectedStatus ?? ''}`,
+  )
+
   function toggleSelected(id: string) {
     setSelectedIds((prev) => {
       const next = new Set(prev)
@@ -195,7 +203,7 @@ export function GuestsTable({ guests, initialSearch = '', readOnly = false }: Gu
         )}
 
         <div className="space-y-3 p-4 md:hidden">
-          {filteredGuests.map((guest) => (
+          {pagination.paginatedItems.map((guest) => (
             <div
               key={guest.id}
               className={`elevated-list-item flex gap-3 p-4 ${
@@ -244,11 +252,11 @@ export function GuestsTable({ guests, initialSearch = '', readOnly = false }: Gu
           ))}
         </div>
 
-        <div className="hidden overflow-x-auto md:block">
+        <div className="hidden data-table-wrap overflow-x-auto px-4 md:block sm:px-6">
           <table className="data-table w-full text-sm">
             <thead>
               <tr>
-                <th className="w-10 px-6 py-4">
+                <th className="w-10">
                   <input
                     type="checkbox"
                     checked={allFilteredSelected}
@@ -257,20 +265,20 @@ export function GuestsTable({ guests, initialSearch = '', readOnly = false }: Gu
                     className="h-4 w-4 rounded border-border text-primary"
                   />
                 </th>
-                <th className="text-left py-4 px-6 font-semibold text-foreground">Guest Name</th>
-                <th className="text-left py-4 px-6 font-semibold text-foreground">Contact</th>
-                <th className="text-left py-4 px-6 font-semibold text-foreground">Source</th>
-                <th className="text-center py-4 px-6 font-semibold text-foreground">Stays</th>
-                <th className="text-right py-4 px-6 font-semibold text-foreground">Total Spent</th>
-                <th className="text-center py-4 px-6 font-semibold text-foreground">Status</th>
+                <th className="text-left font-semibold text-foreground">Guest Name</th>
+                <th className="text-left font-semibold text-foreground">Contact</th>
+                <th className="text-left font-semibold text-foreground">Source</th>
+                <th className="text-center font-semibold text-foreground">Stays</th>
+                <th className="text-right font-semibold text-foreground">Total Spent</th>
+                <th className="text-center font-semibold text-foreground">Status</th>
               </tr>
             </thead>
             <tbody>
-              {filteredGuests.map((guest) => (
+              {pagination.paginatedItems.map((guest) => (
                 <tr
                   key={guest.id}
-                  className={`cursor-pointer transition-colors ${
-                    selectedIds.has(guest.id) ? 'bg-primary/[0.03]' : ''
+                  className={`cursor-pointer ${
+                    selectedIds.has(guest.id) ? 'is-selected' : ''
                   }`}
                   onClick={() => {
                     setSelectedGuest(guest)
@@ -329,6 +337,17 @@ export function GuestsTable({ guests, initialSearch = '', readOnly = false }: Gu
             </tbody>
           </table>
         </div>
+
+        {filteredGuests.length > 0 && (
+          <TablePagination
+            page={pagination.page}
+            totalPages={pagination.totalPages}
+            totalItems={pagination.totalItems}
+            rangeStart={pagination.rangeStart}
+            rangeEnd={pagination.rangeEnd}
+            onPageChange={pagination.setPage}
+          />
+        )}
       </div>
 
       <CenteredModal

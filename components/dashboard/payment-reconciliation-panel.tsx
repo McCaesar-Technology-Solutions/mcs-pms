@@ -1,6 +1,8 @@
 'use client'
 
 import type { PaymentRecordRow, PaymentReconciliationSummary } from '@/lib/data/payments'
+import { TablePagination } from '@/components/dashboard/table-pagination'
+import { usePagination } from '@/lib/hooks/use-pagination'
 
 function money(value: number) {
   return `₵${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -12,6 +14,8 @@ interface PaymentReconciliationPanelProps {
 }
 
 export function PaymentReconciliationPanel({ summary, records }: PaymentReconciliationPanelProps) {
+  const pagination = usePagination(records)
+
   if (!summary) return null
 
   return (
@@ -32,48 +36,58 @@ export function PaymentReconciliationPanel({ summary, records }: PaymentReconcil
         {records.length === 0 ? (
           <p className="px-6 py-8 text-sm text-muted-foreground">No payment records yet.</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
-                  <th className="px-6 py-3">Date</th>
-                  <th className="px-6 py-3">Invoice</th>
-                  <th className="px-6 py-3">Guest</th>
-                  <th className="px-6 py-3">Provider</th>
-                  <th className="px-6 py-3">Reference</th>
-                  <th className="px-6 py-3 text-right">Amount</th>
-                  <th className="px-6 py-3">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {records.map((row) => (
-                  <tr key={row.id} className="border-b border-border/60">
-                    <td className="px-6 py-3 whitespace-nowrap">
-                      {row.completedAt
-                        ? new Date(row.completedAt).toLocaleDateString('en-GB', {
-                            day: 'numeric',
-                            month: 'short',
-                            year: '2-digit',
-                          })
-                        : '—'}
-                    </td>
-                    <td className="px-6 py-3 font-medium">{row.invoiceLabel ?? '—'}</td>
-                    <td className="px-6 py-3">{row.guestName ?? '—'}</td>
-                    <td className="px-6 py-3 capitalize">{row.provider}</td>
-                    <td className="px-6 py-3 max-w-[140px] truncate text-muted-foreground">
-                      {row.providerReference ?? '—'}
-                    </td>
-                    <td
-                      className={`px-6 py-3 text-right font-semibold ${row.amount < 0 ? 'text-red-600' : ''}`}
-                    >
-                      {money(row.amount)}
-                    </td>
-                    <td className="px-6 py-3 capitalize">{row.status}</td>
+          <>
+            <div className="data-table-wrap overflow-x-auto px-4 sm:px-6">
+              <table className="data-table w-full text-sm">
+                <thead>
+                  <tr>
+                    <th className="text-left">Date</th>
+                    <th className="text-left">Invoice</th>
+                    <th className="text-left">Guest</th>
+                    <th className="text-left">Provider</th>
+                    <th className="text-left">Reference</th>
+                    <th className="text-right">Amount</th>
+                    <th className="text-left">Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {pagination.paginatedItems.map((row) => (
+                    <tr key={row.id}>
+                      <td className="whitespace-nowrap">
+                        {row.completedAt
+                          ? new Date(row.completedAt).toLocaleDateString('en-GB', {
+                              day: 'numeric',
+                              month: 'short',
+                              year: '2-digit',
+                            })
+                          : '—'}
+                      </td>
+                      <td className="font-medium">{row.invoiceLabel ?? '—'}</td>
+                      <td>{row.guestName ?? '—'}</td>
+                      <td className="capitalize">{row.provider}</td>
+                      <td className="max-w-[140px] truncate text-muted-foreground">
+                        {row.providerReference ?? '—'}
+                      </td>
+                      <td
+                        className={`text-right font-semibold tabular-nums ${row.amount < 0 ? 'text-red-600' : ''}`}
+                      >
+                        {money(row.amount)}
+                      </td>
+                      <td className="capitalize">{row.status}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <TablePagination
+              page={pagination.page}
+              totalPages={pagination.totalPages}
+              totalItems={pagination.totalItems}
+              rangeStart={pagination.rangeStart}
+              rangeEnd={pagination.rangeEnd}
+              onPageChange={pagination.setPage}
+            />
+          </>
         )}
       </div>
     </div>

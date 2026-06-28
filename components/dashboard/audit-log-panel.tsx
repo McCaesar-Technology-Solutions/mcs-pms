@@ -4,8 +4,10 @@ import { ClipboardList, Copy, Download } from 'lucide-react'
 import { toast } from 'sonner'
 import { BulkActionBar } from '@/components/dashboard/bulk-action-bar'
 import { BulkSelectCheckbox } from '@/components/dashboard/bulk-select-checkbox'
+import { TablePagination } from '@/components/dashboard/table-pagination'
 import { downloadCsv } from '@/lib/export/download-csv'
 import { copyToClipboard, logRef } from '@/lib/export/entity-refs'
+import { usePagination } from '@/lib/hooks/use-pagination'
 import { useRowSelection } from '@/lib/hooks/use-row-selection'
 import type { AuditLogEntry } from '@/lib/data/audit-log'
 
@@ -48,6 +50,7 @@ interface AuditLogPanelProps {
 
 export function AuditLogPanel({ entries, compact = false }: AuditLogPanelProps) {
   const selection = useRowSelection(entries, entries)
+  const pagination = usePagination(entries)
 
   function copyRefs() {
     void copyToClipboard(
@@ -111,55 +114,65 @@ export function AuditLogPanel({ entries, compact = false }: AuditLogPanelProps) 
             No activity recorded yet. Check-ins, reservations, room changes, and settings updates appear here.
           </p>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          <div className="data-table-wrap overflow-x-auto px-4 sm:px-6">
             <table className="data-table w-full text-sm">
               <thead>
                 <tr>
-                  <th className="w-10 px-4 py-3">
+                  <th className="w-10">
                     <BulkSelectCheckbox
                       checked={selection.allFilteredSelected}
                       onChange={selection.toggleAllFiltered}
                       aria-label="Select all visible log entries"
                     />
                   </th>
-                  <th className="px-4 py-3 text-left font-semibold text-foreground">When</th>
-                  <th className="px-4 py-3 text-left font-semibold text-foreground">Who</th>
+                  <th className="text-left font-semibold text-foreground">When</th>
+                  <th className="text-left font-semibold text-foreground">Who</th>
                   {!compact && (
-                    <th className="px-4 py-3 text-left font-semibold text-foreground">Type</th>
+                    <th className="text-left font-semibold text-foreground">Type</th>
                   )}
-                  <th className="px-4 py-3 text-left font-semibold text-foreground">Summary</th>
+                  <th className="text-left font-semibold text-foreground">Summary</th>
                 </tr>
               </thead>
               <tbody>
-                {entries.map((entry) => (
+                {pagination.paginatedItems.map((entry) => (
                   <tr
                     key={entry.id}
-                    className={`hover:bg-[#FAFDFF] ${selection.isSelected(entry.id) ? 'bg-primary/[0.03]' : ''}`}
+                    className={selection.isSelected(entry.id) ? 'is-selected' : ''}
                   >
-                    <td className="px-4 py-3">
+                    <td>
                       <BulkSelectCheckbox
                         checked={selection.isSelected(entry.id)}
                         onChange={() => selection.toggle(entry.id)}
                         aria-label={`Select log entry ${logRef(entry.id, 'AUD')}`}
                       />
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
+                    <td className="whitespace-nowrap text-muted-foreground">
                       {formatWhen(entry.createdAt)}
                     </td>
-                    <td className="px-4 py-3 text-foreground">
+                    <td className="text-foreground">
                       {entry.actorName?.trim() || 'Staff'}
                     </td>
                     {!compact && (
-                      <td className="px-4 py-3 text-muted-foreground">
+                      <td className="text-muted-foreground">
                         {entityLabel(entry.entityType)}
                       </td>
                     )}
-                    <td className="px-4 py-3 text-foreground">{entry.summary}</td>
+                    <td className="text-foreground">{entry.summary}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+          <TablePagination
+            page={pagination.page}
+            totalPages={pagination.totalPages}
+            totalItems={pagination.totalItems}
+            rangeStart={pagination.rangeStart}
+            rangeEnd={pagination.rangeEnd}
+            onPageChange={pagination.setPage}
+          />
+          </>
         )}
       </div>
     </>
