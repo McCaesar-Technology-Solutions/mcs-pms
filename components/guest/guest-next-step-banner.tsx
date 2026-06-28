@@ -29,14 +29,18 @@ export function GuestNextStepBanner({
   return (
     <div
       className={`guest-portal-card guest-portal-card--spotlight ${
-        isConfirm ? 'border-[var(--brand-orange)]/30' : ''
+        isConfirm ? 'border-[var(--guest-gold-border)]' : ''
       } ${isHome ? '' : '!p-3.5'}`}
     >
       <div className="flex items-start gap-3">
         <div
-          className={`flex shrink-0 items-center justify-center rounded-lg bg-[var(--guest-accent-soft)] text-[var(--brand-purple)] ${
+          className={`flex shrink-0 items-center justify-center rounded-lg ${
             isHome ? 'h-10 w-10' : 'h-9 w-9'
-          } ${isConfirm ? 'bg-[var(--brand-orange)]/15 text-[var(--brand-orange)]' : ''}`}
+          } ${
+            isConfirm
+              ? 'bg-gradient-to-br from-[var(--brand-gold-light)] to-[var(--brand-gold)] text-[var(--brand-purple-ink)]'
+              : 'bg-[var(--guest-accent-soft)] text-[var(--brand-purple)]'
+          }`}
         >
           <Icon className={isHome ? 'h-5 w-5' : 'h-4 w-4'} />
         </div>

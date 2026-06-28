@@ -388,14 +388,14 @@ export function GuestPortal({
               <Image src={property.imageUrl} alt={`${property.name} property photo`} fill className="object-cover" sizes="48px" />
             </div>
           ) : (
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[var(--brand-gold)]/15 text-base font-bold text-[var(--brand-gold)]">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--brand-gold-light)] to-[var(--brand-gold)] text-base font-bold text-[var(--brand-purple-ink)] shadow-sm ring-1 ring-[var(--guest-gold-border)]">
               {property.name.charAt(0)}
             </div>
           )}
           <div className="min-w-0 flex-1">
-            <p className="truncate text-lg font-semibold">{property.name}</p>
-            <p className="mt-0.5 text-sm guest-text-muted">
-              Hi {guest.name.split(' ')[0]}
+            <p className="guest-portal-header__title truncate text-lg font-semibold">{property.name}</p>
+            <p className="guest-portal-header__greeting mt-0.5 text-sm">
+              Hi <strong>{guest.name.split(' ')[0]}</strong>
               {roomNumber ? ` · Room ${roomNumber}` : ''}
             </p>
           </div>

@@ -46,7 +46,7 @@ export function GuestStayTimeline({
           </p>
         </div>
         {portalActive && (
-          <span className="rounded-md bg-emerald-500/12 px-2 py-1 text-[10px] font-semibold text-emerald-700">
+          <span className="guest-status-pill guest-status-pill--active">
             Active
           </span>
         )}
