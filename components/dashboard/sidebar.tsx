@@ -81,7 +81,7 @@ export default function Sidebar({
       )}
 
       <aside
-        className={`sidebar-elevated sidebar-floating flex shrink-0 flex-col overflow-hidden transition-[transform,width,box-shadow] duration-300 ease-in-out max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-50 max-md:h-dvh max-md:w-64 max-md:rounded-none max-md:overflow-x-hidden ${
+        className={`sidebar-elevated sidebar-floating flex min-h-0 shrink-0 flex-col overflow-hidden transition-[transform,width,box-shadow] duration-300 ease-in-out max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-50 max-md:h-dvh max-md:w-64 max-md:rounded-none max-md:overflow-x-hidden ${
           mobileOpen ? 'max-md:translate-x-0' : 'max-md:-translate-x-full'
         } ${collapsed ? 'md:w-[4.5rem]' : 'md:w-64 md:translate-x-0'}`}
       >
@@ -120,7 +120,7 @@ export default function Sidebar({
 
         <div className="sidebar-soft-divider mt-1" />
 
-        <nav className="sidebar-nav relative z-10 flex flex-1 flex-col gap-0.5 overflow-x-hidden overflow-y-auto p-3">
+        <nav className="sidebar-nav relative z-10 flex min-h-0 flex-1 flex-col gap-0.5 overflow-x-hidden overflow-y-auto p-3">
           {groupedNav ? (
             groups!.map((group, index) => (
               <div key={group.label} className={index > 0 ? 'mt-4' : ''}>

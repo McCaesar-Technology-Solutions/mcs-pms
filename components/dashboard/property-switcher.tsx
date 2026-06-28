@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, useTransition } from 'react'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { Building2, Check, ChevronDown, Plus } from 'lucide-react'
 import { useProperty } from '@/lib/property-context'
 import { AddPropertyDialog } from '@/components/dashboard/add-property-dialog'
@@ -13,6 +13,7 @@ interface PropertySwitcherProps {
 }
 
 export function PropertySwitcher({ collapsed = false }: PropertySwitcherProps) {
+  const pathname = usePathname()
   const router = useRouter()
   const {
     properties,
@@ -27,6 +28,10 @@ export function PropertySwitcher({ collapsed = false }: PropertySwitcherProps) {
   const [addOpen, setAddOpen] = useState(false)
   const [pending, startTransition] = useTransition()
   const containerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    setOpen(false)
+  }, [pathname])
 
   useEffect(() => {
     if (!open) return
@@ -122,8 +127,8 @@ export function PropertySwitcher({ collapsed = false }: PropertySwitcherProps) {
           <div
             role="listbox"
             aria-label="Select property"
-            className={`sidebar-property-menu absolute z-50 overflow-hidden rounded-xl border border-[rgba(212,166,46,0.22)] bg-[#2D215B] shadow-elevation-3 ${
-              collapsed ? 'left-full top-0 ml-2 w-64' : 'left-0 right-0 top-[calc(100%+0.5rem)]'
+            className={`sidebar-property-menu absolute z-50 w-64 overflow-hidden rounded-xl border border-[rgba(212,166,46,0.22)] bg-[#2D215B] shadow-elevation-3 ${
+              collapsed ? 'left-full top-0 ml-2' : 'left-0 top-[calc(100%+0.5rem)] md:left-full md:top-0 md:ml-2'
             }`}
           >
             <div className="max-h-64 overflow-y-auto p-1.5">

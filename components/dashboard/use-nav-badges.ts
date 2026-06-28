@@ -32,14 +32,19 @@ export function useNavBadges(
 
   const refreshBadges = useCallback(async () => {
     const badges = await loadNavBadgeMap()
-    setNavItems((prev) => applyBadgeMap(prev, badges))
-    setNavGroups((prev) =>
-      prev?.map((group) => ({
+    setNavItems((prev) => {
+      const base = prev.length > 0 ? prev : (initialNavigation ?? [])
+      return applyBadgeMap(base, badges)
+    })
+    setNavGroups((prev) => {
+      const base = prev ?? initialNavGroups
+      if (!base) return prev
+      return base.map((group) => ({
         ...group,
         items: applyBadgeMap(group.items, badges),
-      })),
-    )
-  }, [])
+      }))
+    })
+  }, [initialNavigation, initialNavGroups])
 
   useRealtimeRefresh('layout', refreshBadges)
   useRealtimeRefresh('complaints', refreshBadges)
