@@ -68,7 +68,7 @@ export default function Topbar({ onMenuOpen, profile }: TopbarProps) {
             type="button"
             onClick={onMenuOpen}
             aria-label="Open navigation menu"
-            className="topbar-icon-btn shrink-0 md:hidden"
+            className="topbar-icon-btn topbar-mobile-menu-btn shrink-0"
           >
             <Menu className="h-5 w-5" />
           </button>

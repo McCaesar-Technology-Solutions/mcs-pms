@@ -35,7 +35,7 @@ export function TopbarSearch({ profile }: TopbarSearchProps) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="topbar-search hidden min-w-0 flex-1 md:block md:max-w-md lg:max-w-lg"
+      className="topbar-search min-w-0 flex-1 md:max-w-md lg:max-w-lg"
     >
       <Search className="topbar-search__icon h-4 w-4" strokeWidth={2} aria-hidden />
       <input

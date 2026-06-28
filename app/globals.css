@@ -1029,7 +1029,7 @@
 
   .topbar-search {
     position: relative;
-    display: flex;
+    display: none;
     align-items: center;
     min-height: 2.5rem;
     border-radius: 0.5rem;
@@ -1040,6 +1040,12 @@
     transition:
       background 0.2s ease,
       box-shadow 0.2s ease;
+  }
+
+  @media (min-width: 768px) {
+    .topbar-search {
+      display: flex;
+    }
   }
 
   .topbar-search:hover {
@@ -1102,6 +1108,17 @@
   .topbar-icon-btn:hover {
     background: rgba(var(--glow-purple), 0.06);
     color: var(--foreground);
+  }
+
+  /* Must beat .topbar-icon-btn display — Tailwind md:hidden loses in the utilities layer */
+  .topbar-mobile-menu-btn {
+    display: inline-flex;
+  }
+
+  @media (min-width: 768px) {
+    .topbar-mobile-menu-btn {
+      display: none;
+    }
   }
 
   .topbar-primary-action {
