@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Skeleton } from '@/components/ui/skeleton'
 import { signIn } from '@/app/actions/auth'
 import { isMfaPath } from '@/lib/auth/mfa'
 
@@ -150,16 +151,16 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-    <div className="flex min-h-dvh items-center justify-center bg-[var(--brand-purple-ink)] px-4 py-12">
-      <div className="w-full max-w-md animate-pulse rounded-2xl border border-white/10 bg-white/5 p-8">
-        <div className="mx-auto mb-6 h-8 w-48 rounded-lg bg-white/10" />
-        <div className="space-y-4">
-          <div className="h-10 rounded-lg bg-white/10" />
-          <div className="h-10 rounded-lg bg-white/10" />
-          <div className="h-11 rounded-lg bg-white/10" />
+        <div className="flex min-h-dvh items-center justify-center bg-[var(--brand-purple-ink)] px-4 py-12">
+          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-white/5 p-8">
+            <Skeleton tone="dark" className="mx-auto mb-6 h-8 w-48" />
+            <div className="space-y-4">
+              <Skeleton tone="dark" className="h-10 w-full rounded-lg" />
+              <Skeleton tone="dark" className="h-10 w-full rounded-lg" />
+              <Skeleton tone="dark" className="h-11 w-full rounded-lg" />
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
       }
     >
       <LoginForm />

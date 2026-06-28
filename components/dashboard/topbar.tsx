@@ -27,6 +27,12 @@ function roleLabel(role?: Profile['role']): string {
   return 'team member'
 }
 
+function shortPrimaryLabel(label: string): string {
+  if (label === 'Check in guest') return 'Check in'
+  if (label === 'New reservation') return 'New booking'
+  return label
+}
+
 export default function Topbar({ onMenuOpen, profile }: TopbarProps) {
   const user = profile
     ? { name: profile.name, email: profile.email }
@@ -62,7 +68,7 @@ export default function Topbar({ onMenuOpen, profile }: TopbarProps) {
             type="button"
             onClick={onMenuOpen}
             aria-label="Open navigation menu"
-            className="main-header-icon shrink-0 rounded-xl p-2.5 transition-colors hover:bg-[rgba(var(--glow-purple),0.06)] md:hidden"
+            className="topbar-icon-btn shrink-0 md:hidden"
           >
             <Menu className="h-5 w-5" />
           </button>
@@ -71,9 +77,15 @@ export default function Topbar({ onMenuOpen, profile }: TopbarProps) {
 
           <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2 md:gap-3">
             {primaryAction && (
-              <Link href={primaryAction.href} className="topbar-primary-action hidden sm:inline-flex">
-                <Plus className="h-4 w-4" strokeWidth={2.25} />
-                {primaryAction.label}
+              <Link
+                href={primaryAction.href}
+                title={primaryAction.label}
+                aria-label={primaryAction.label}
+                className="topbar-primary-action topbar-primary-action--icon-only hidden sm:inline-flex"
+              >
+                <Plus className="h-4 w-4 shrink-0" strokeWidth={2.25} aria-hidden />
+                <span className="hidden lg:inline xl:hidden">{shortPrimaryLabel(primaryAction.label)}</span>
+                <span className="hidden xl:inline">{primaryAction.label}</span>
               </Link>
             )}
             {canManagePhone && !hasPhoneNumber(profile?.phone) && (
@@ -96,7 +108,7 @@ export default function Topbar({ onMenuOpen, profile }: TopbarProps) {
                 onClick={() => setShowUserMenu(!showUserMenu)}
                 aria-expanded={showUserMenu}
                 aria-haspopup="menu"
-                className="main-header-user flex items-center gap-2 rounded-xl bg-[rgba(var(--glow-purple),0.04)] px-2 py-1.5 transition-all hover:bg-[rgba(var(--glow-purple),0.08)] sm:px-2.5 md:px-3 md:py-2"
+                className="main-header-user flex items-center gap-2 rounded-xl px-2 py-1 transition-colors sm:px-2.5 md:px-3"
               >
                 <div className="gradient-primary flex h-7 w-7 items-center justify-center rounded-lg text-xs font-bold text-white">
                   {user.name.charAt(0)}

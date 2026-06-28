@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { loadNotifications } from '@/app/actions/notifications'
 import { HeaderDropdownPanel } from '@/components/dashboard/header-dropdown-panel'
+import { Skeleton } from '@/components/ui/skeleton'
 import { useRealtimeRefresh } from '@/components/realtime/realtime-refresh-context'
 import type { AppNotification } from '@/lib/data/notifications'
 import type { Profile } from '@/types'
@@ -80,7 +81,7 @@ export function NotificationsMenu({ profile }: NotificationsMenuProps) {
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-label={totalCount > 0 ? `Notifications, ${totalCount} items` : 'Notifications'}
-        className="main-header-icon relative rounded-xl p-2.5 transition-colors hover:bg-[rgba(var(--glow-purple),0.06)]"
+        className="topbar-icon-btn relative"
       >
         <Bell className="h-5 w-5" />
         {totalCount > 0 && (
@@ -110,7 +111,17 @@ export function NotificationsMenu({ profile }: NotificationsMenuProps) {
           </p>
         </div>
         {pending && items.length === 0 ? (
-          <p className="px-4 py-6 text-sm text-muted-foreground">Loading…</p>
+          <div className="space-y-2 px-4 py-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="flex items-start gap-3 py-1">
+                <Skeleton className="h-4 w-4 shrink-0 rounded-md" />
+                <div className="min-w-0 flex-1 space-y-2">
+                  <Skeleton className="h-3.5 w-4/5 max-w-[12rem]" />
+                  <Skeleton className="h-3 w-full max-w-[16rem]" />
+                </div>
+              </div>
+            ))}
+          </div>
         ) : items.length === 0 ? (
           <div className="flex flex-col items-center gap-2 px-4 py-8 text-center">
             <CheckCircle className="h-8 w-8 text-emerald-500" />

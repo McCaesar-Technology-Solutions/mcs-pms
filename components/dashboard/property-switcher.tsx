@@ -6,6 +6,7 @@ import { Building2, Check, ChevronDown, Plus } from 'lucide-react'
 import { useProperty } from '@/lib/property-context'
 import { AddPropertyDialog } from '@/components/dashboard/add-property-dialog'
 import { PropertyThumb } from '@/components/dashboard/property-thumb'
+import { Skeleton } from '@/components/ui/skeleton'
 
 interface PropertySwitcherProps {
   collapsed?: boolean
@@ -44,12 +45,14 @@ export function PropertySwitcher({ collapsed = false }: PropertySwitcherProps) {
         className={`flex w-full items-center gap-3 rounded-xl bg-white/10 p-3 ${
           collapsed ? 'justify-center' : ''
         }`}
+        aria-busy
+        aria-label="Loading properties"
       >
-        <div className="h-9 w-9 shrink-0 animate-pulse rounded-lg bg-white/10" />
+        <Skeleton tone="sidebar" className="h-9 w-9 shrink-0 rounded-lg" />
         {!collapsed && (
           <div className="min-w-0 flex-1 space-y-2">
-            <div className="h-3 w-24 animate-pulse rounded bg-white/10" />
-            <div className="h-2 w-32 animate-pulse rounded bg-white/10" />
+            <Skeleton tone="sidebar" className="h-3 w-24 rounded-md" />
+            <Skeleton tone="sidebar" className="h-2.5 w-32 rounded-md" />
           </div>
         )}
       </div>
