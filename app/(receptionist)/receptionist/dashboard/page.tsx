@@ -56,7 +56,6 @@ export default async function ReceptionistDashboardPage({
           occupancy={occupancyToday}
           today={todayOps}
           opsDate={opsDate}
-          showOpsDateSelector
         />
         <DashboardAttention
           today={todayOps}

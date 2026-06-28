@@ -1,5 +1,4 @@
 import { LogIn, LogOut, Percent, Users } from 'lucide-react'
-import { OpsDateSelector } from '@/components/dashboard/ops-date-selector'
 import { formatOpsDateLabel, isOpsDateToday } from '@/lib/dates/ops-date'
 import type { OccupancyToday } from '@/lib/data/occupancy'
 import type { TodayOperations } from '@/lib/data/overview'
@@ -10,7 +9,6 @@ interface DashboardToolbarProps {
   title?: string
   eyebrow?: string
   opsDate?: string
-  showOpsDateSelector?: boolean
 }
 
 function StatChip({
@@ -62,7 +60,6 @@ export function DashboardToolbar({
   title = 'Dashboard',
   eyebrow = 'Today',
   opsDate,
-  showOpsDateSelector = false,
 }: DashboardToolbarProps) {
   const activeDate = opsDate ?? new Date().toISOString().slice(0, 10)
   const dateLabel = formatOpsDateLabel(activeDate)
@@ -78,10 +75,6 @@ export function DashboardToolbar({
           </h1>
           <p className="mt-0.5 text-sm text-muted-foreground">{dateLabel}</p>
         </div>
-
-        {showOpsDateSelector && (
-          <OpsDateSelector opsDate={activeDate} className="lg:max-w-sm lg:flex-1" />
-        )}
 
         <div className="grid w-full grid-cols-2 gap-2.5 sm:grid-cols-4 lg:max-w-[40rem] lg:flex-1">
           <StatChip
