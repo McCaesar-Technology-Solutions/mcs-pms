@@ -555,31 +555,54 @@
     display: none;
   }
 
-  .glass-header {
+  .app-topbar-slot {
     position: sticky;
     top: 0;
     z-index: 50;
-    background: transparent;
-    backdrop-filter: blur(0);
-    -webkit-backdrop-filter: blur(0);
-    border-bottom: 1px solid transparent;
-    box-shadow: none;
-    transition:
-      background 0.35s cubic-bezier(0.4, 0, 0.2, 1),
-      backdrop-filter 0.35s cubic-bezier(0.4, 0, 0.2, 1),
-      -webkit-backdrop-filter 0.35s cubic-bezier(0.4, 0, 0.2, 1),
-      border-color 0.35s cubic-bezier(0.4, 0, 0.2, 1),
-      box-shadow 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    padding: 0.75rem 0.75rem 0 0;
   }
 
-  .glass-header--scrolled {
-    background: rgba(255, 255, 255, 0.92);
-    backdrop-filter: blur(22px) saturate(1.8);
-    -webkit-backdrop-filter: blur(22px) saturate(1.8);
-    border-bottom-color: rgba(var(--glow-purple), 0.08);
+  @media (max-width: 767px) {
+    .app-topbar-slot {
+      padding: 0.5rem 0.5rem 0;
+    }
+  }
+
+  .topbar-floating {
+    position: relative;
+    isolation: isolate;
+    border-radius: 1rem;
+    border: 1px solid rgba(var(--glow-purple), 0.18);
+    background: rgba(255, 255, 255, 0.78);
+    backdrop-filter: blur(20px) saturate(1.65);
+    -webkit-backdrop-filter: blur(20px) saturate(1.65);
+    color: var(--foreground);
     box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.65) inset,
-      0 4px 30px rgba(var(--shadow-tint), 0.08);
+      0 1px 0 rgba(255, 255, 255, 0.92) inset,
+      0 0 0 1px rgba(var(--glow-purple), 0.04),
+      0 1px 2px rgba(var(--shadow-tint), 0.04),
+      0 14px 36px -12px rgba(var(--glow-purple), 0.14);
+    transition:
+      border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+      background 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+      box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+      transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  @media (min-width: 768px) {
+    .topbar-floating {
+      border-radius: 1.25rem;
+    }
+  }
+
+  .topbar-floating--scrolled {
+    border-color: rgba(var(--glow-purple), 0.26);
+    background: rgba(255, 255, 255, 0.9);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.95) inset,
+      0 0 0 1px rgba(var(--glow-purple), 0.08),
+      0 4px 12px rgba(var(--shadow-tint), 0.05),
+      0 18px 44px -12px rgba(var(--glow-purple), 0.18);
   }
 
   .main-header {

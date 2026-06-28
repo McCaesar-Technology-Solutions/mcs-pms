@@ -53,13 +53,16 @@ export default function Topbar({ onMenuOpen, profile }: TopbarProps) {
 
   return (
     <>
-      <header className={`main-header glass-header ${scrolled ? 'glass-header--scrolled' : ''}`}>
-        <div className="relative flex h-14 items-center gap-2 px-3 sm:h-16 sm:gap-3 sm:px-4 md:px-6">
+      <div className="app-topbar-slot">
+        <header
+          className={`main-header topbar-floating ${scrolled ? 'topbar-floating--scrolled' : ''}`}
+        >
+          <div className="relative flex h-14 items-center gap-2 px-3 sm:h-16 sm:gap-3 sm:px-4 md:px-5">
           <button
             type="button"
             onClick={onMenuOpen}
             aria-label="Open navigation menu"
-            className="main-header-icon shrink-0 rounded-xl p-2.5 transition-colors hover:bg-white/50 md:hidden"
+            className="main-header-icon shrink-0 rounded-xl p-2.5 transition-colors hover:bg-[rgba(var(--glow-purple),0.06)] md:hidden"
           >
             <Menu className="h-5 w-5" />
           </button>
@@ -93,7 +96,7 @@ export default function Topbar({ onMenuOpen, profile }: TopbarProps) {
                 onClick={() => setShowUserMenu(!showUserMenu)}
                 aria-expanded={showUserMenu}
                 aria-haspopup="menu"
-                className="main-header-user flex items-center gap-2 rounded-xl bg-white/50 px-2 py-1.5 shadow-elevation-1 backdrop-blur-sm transition-all hover:bg-white/70 hover:shadow-elevation-2 sm:px-2.5 md:px-3 md:py-2"
+                className="main-header-user flex items-center gap-2 rounded-xl border border-[rgba(var(--glow-purple),0.08)] bg-white/60 px-2 py-1.5 shadow-none backdrop-blur-sm transition-all hover:border-[rgba(var(--glow-purple),0.14)] hover:bg-white/80 sm:px-2.5 md:px-3 md:py-2"
               >
                 <div className="gradient-primary flex h-7 w-7 items-center justify-center rounded-lg text-xs font-bold text-white">
                   {user.name.charAt(0)}
@@ -154,8 +157,9 @@ export default function Topbar({ onMenuOpen, profile }: TopbarProps) {
               </HeaderDropdownPanel>
             </div>
           </div>
-        </div>
-      </header>
+          </div>
+        </header>
+      </div>
 
       {canManagePhone && (
         <AccountPhoneDialog

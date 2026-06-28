@@ -80,7 +80,7 @@ export function NotificationsMenu({ profile }: NotificationsMenuProps) {
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-label={totalCount > 0 ? `Notifications, ${totalCount} items` : 'Notifications'}
-        className="main-header-icon relative rounded-xl p-2.5 transition-colors hover:bg-white/50"
+        className="main-header-icon relative rounded-xl p-2.5 transition-colors hover:bg-[rgba(var(--glow-purple),0.06)]"
       >
         <Bell className="h-5 w-5" />
         {totalCount > 0 && (
