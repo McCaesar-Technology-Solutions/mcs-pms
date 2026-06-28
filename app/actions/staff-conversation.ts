@@ -6,6 +6,8 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import {
   loadStaffConversationMessages,
+  loadStaffConversationDetails,
+  type StaffConversationDetails,
   type StaffConversationMessage,
 } from '@/lib/data/staff-conversations'
 
@@ -84,6 +86,18 @@ export async function getStaffTeamMessages(
     .eq('profile_id', profile.id)
 
   return { success: true, data: messages }
+}
+
+export async function getStaffTeamConversationDetails(
+  conversationId: string,
+): Promise<StaffConversationActionResult<StaffConversationDetails>> {
+  const profile = await requireStaffMessenger()
+  if (!profile) return { success: false, error: 'Not authorized.' }
+
+  const details = await loadStaffConversationDetails(conversationId, profile.id)
+  if (!details) return { success: false, error: 'Conversation not found.' }
+
+  return { success: true, data: details }
 }
 
 export async function postStaffTeamMessage(input: {

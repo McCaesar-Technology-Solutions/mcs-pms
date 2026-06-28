@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, Loader2, RefreshCw, Send } from 'lucide-react'
+import { ArrowLeft, ChevronRight, Loader2, RefreshCw, Send } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { getStaffTeamMessages, postStaffTeamMessage } from '@/app/actions/staff-conversation'
 import { prepopulateMessageComposer } from '@/lib/messaging/prepopulate-composer'
@@ -10,6 +10,7 @@ import {
   groupMessagesByDay,
 } from '@/components/guest-messages/messaging-format'
 import { MessengerAvatar } from '@/components/messaging/messenger-avatar'
+import { StaffTeamConversationDetails } from '@/components/staff-messages/staff-team-conversation-details'
 import type { StaffConversationMessage } from '@/lib/data/staff-conversations'
 
 interface StaffTeamThreadProps {
@@ -42,6 +43,7 @@ export function StaffTeamThread({
   const [initialLoading, setInitialLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [detailsOpen, setDetailsOpen] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -68,6 +70,10 @@ export function StaffTeamThread({
     setInitialLoading(true)
     void load()
   }, [load])
+
+  useEffect(() => {
+    setDetailsOpen(false)
+  }, [conversationId])
 
   useEffect(() => {
     if (!initialLoading) scrollToBottom(initialLoading ? 'auto' : 'smooth')
@@ -148,16 +154,28 @@ export function StaffTeamThread({
             <ArrowLeft className="h-5 w-5" />
           </button>
         )}
-        <MessengerAvatar
-          name={title}
-          imageUrl={avatarUrl}
-          size="lg"
-          variant={conversationType === 'group' ? 'group' : 'person'}
-        />
-        <div className="min-w-0 flex-1">
-          <p className="truncate font-semibold text-foreground">{title}</p>
-          {subtitle && <p className="truncate text-xs text-muted-foreground">{subtitle}</p>}
-        </div>
+        <button
+          type="button"
+          onClick={() => setDetailsOpen(true)}
+          className="staff-messenger__thread-profile-btn"
+          aria-label={
+            conversationType === 'group'
+              ? 'View group details and members'
+              : 'View conversation details'
+          }
+        >
+          <MessengerAvatar
+            name={title}
+            imageUrl={avatarUrl}
+            size="lg"
+            variant={conversationType === 'group' ? 'group' : 'person'}
+          />
+          <div className="min-w-0 flex-1 text-left">
+            <p className="truncate font-semibold text-foreground">{title}</p>
+            {subtitle && <p className="truncate text-xs text-muted-foreground">{subtitle}</p>}
+          </div>
+          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+        </button>
         <button
           type="button"
           onClick={() => load()}
@@ -168,6 +186,12 @@ export function StaffTeamThread({
           <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
         </button>
       </header>
+
+      <StaffTeamConversationDetails
+        conversationId={conversationId}
+        open={detailsOpen}
+        onClose={() => setDetailsOpen(false)}
+      />
 
       <div ref={scrollRef} className="staff-messenger__messages" aria-live="polite">
         {initialLoading ? (

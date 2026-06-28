@@ -23,6 +23,23 @@ export interface StaffConversationMessage {
   isOwn: boolean
 }
 
+export interface StaffConversationMember {
+  id: string
+  name: string
+  role: string
+  avatarUrl: string | null
+  isSelf: boolean
+}
+
+export interface StaffConversationDetails {
+  id: string
+  conversationType: 'dm' | 'group'
+  name: string
+  memberCount: number
+  members: StaffConversationMember[]
+  createdAt: string | null
+}
+
 function dmDisplayName(
   conversation: { conversation_type: string; name: string | null },
   memberNames: string[],
@@ -136,6 +153,75 @@ export async function loadStaffConversations(
       unread,
     }
   })
+}
+
+export async function loadStaffConversationDetails(
+  conversationId: string,
+  currentUserId: string,
+): Promise<StaffConversationDetails | null> {
+  const admin = createAdminClient()
+
+  const { data: membership } = await admin
+    .from('staff_conversation_members')
+    .select('conversation_id')
+    .eq('conversation_id', conversationId)
+    .eq('profile_id', currentUserId)
+    .maybeSingle()
+
+  if (!membership) return null
+
+  const { data: conversation } = await admin
+    .from('staff_conversations')
+    .select('id, conversation_type, name, created_at')
+    .eq('id', conversationId)
+    .maybeSingle()
+
+  if (!conversation) return null
+
+  const { data: memberRows } = await admin
+    .from('staff_conversation_members')
+    .select('profile_id')
+    .eq('conversation_id', conversationId)
+
+  const profileIds = (memberRows ?? []).map((m) => m.profile_id)
+  const { data: profiles } = profileIds.length
+    ? await admin
+        .from('profiles')
+        .select('id, name, role, profile_image_path')
+        .in('id', profileIds)
+    : { data: [] as { id: string; name: string; role: string; profile_image_path: string | null }[] }
+
+  const profileById = new Map((profiles ?? []).map((p) => [p.id, p]))
+
+  const members: StaffConversationMember[] = profileIds
+    .map((id) => {
+      const profile = profileById.get(id)
+      if (!profile) return null
+      return {
+        id: profile.id,
+        name: profile.name,
+        role: profile.role,
+        avatarUrl: profilePhotoPublicUrl(profile.profile_image_path),
+        isSelf: profile.id === currentUserId,
+      }
+    })
+    .filter((m): m is StaffConversationMember => m != null)
+    .sort((a, b) => {
+      if (a.isSelf !== b.isSelf) return a.isSelf ? -1 : 1
+      return a.name.localeCompare(b.name)
+    })
+
+  const memberNames = members.map((m) => m.name)
+  const memberIds = members.map((m) => m.id)
+
+  return {
+    id: conversation.id,
+    conversationType: conversation.conversation_type as 'dm' | 'group',
+    name: dmDisplayName(conversation, memberNames, memberIds, currentUserId),
+    memberCount: members.length,
+    members,
+    createdAt: conversation.created_at ?? null,
+  }
 }
 
 export async function loadStaffConversationMessages(
