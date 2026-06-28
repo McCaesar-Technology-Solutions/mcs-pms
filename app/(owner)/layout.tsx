@@ -5,15 +5,16 @@ import { ownerNavGroups } from '@/lib/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { requiresOnboarding } from '@/lib/onboarding/state'
 import { getOccupancyToday, type OccupancyToday } from '@/lib/data/occupancy'
+import { getNavBadgeMap } from '@/lib/data/staff-alerts'
 
-async function getPendingApprovalsCount(hotelId: string) {
-  const supabase = await createClient()
-  const { count } = await supabase
-    .from('complaints')
-    .select('*', { count: 'exact', head: true })
-    .eq('hotel_id', hotelId)
-    .eq('status', 'pending_approval')
-  return count ?? 0
+function applyBadges<T extends { href: string; badge?: number }>(
+  items: T[],
+  badges: Record<string, number>,
+): T[] {
+  return items.map((item) => ({
+    ...item,
+    badge: badges[item.href] && badges[item.href] > 0 ? badges[item.href] : undefined,
+  }))
 }
 
 export default async function OwnerLayout({
@@ -28,21 +29,22 @@ export default async function OwnerLayout({
     redirect('/get-started')
   }
 
-  const navGroups = ownerNavGroups.map((group) => ({
+  let navGroups = ownerNavGroups.map((group) => ({
     ...group,
     items: group.items.map((item) => ({ ...item })),
   }))
   let occupancyToday: OccupancyToday | undefined
+
   if (profile.hotel_id) {
     const supabase = await createClient()
-    const [pending, occupancy] = await Promise.all([
-      getPendingApprovalsCount(profile.hotel_id),
+    const [badges, occupancy] = await Promise.all([
+      getNavBadgeMap(),
       getOccupancyToday(supabase, profile.hotel_id),
     ])
-    for (const group of navGroups) {
-      const complaintsNav = group.items.find((n) => n.href.includes('complaints'))
-      if (complaintsNav && pending > 0) complaintsNav.badge = pending
-    }
+    navGroups = navGroups.map((group) => ({
+      ...group,
+      items: applyBadges(group.items, badges),
+    }))
     occupancyToday = occupancy
   }
 

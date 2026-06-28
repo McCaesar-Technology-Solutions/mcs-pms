@@ -36,6 +36,8 @@ function HotelRealtimeChannel({ hotelId, children }: HotelRealtimeProviderProps)
     const refreshLayout = () => publish('layout')
     const refreshComplaints = () => publish(['complaints', 'layout'])
     const refreshHousekeeping = () => publish(['housekeeping', 'layout'])
+    const refreshMessages = () => publish(['messages', 'layout'])
+    const refreshGuestPortal = () => publish(['guest_portal', 'layout'])
 
     const channel = supabase.channel(`hotel-live-${hotelId}-${retryKey}`)
 
@@ -140,6 +142,74 @@ function HotelRealtimeChannel({ hotelId, children }: HotelRealtimeProviderProps)
             })
           }
           refreshHousekeeping()
+        },
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'guest_requests',
+          filter: hotelFilter(hotelId),
+        },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            import('sonner').then(({ toast }) => {
+              toast.info('New guest request')
+            })
+          }
+          refreshGuestPortal()
+        },
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'complaint_messages',
+        },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            const row = payload.new as { author_role?: string }
+            if (row.author_role === 'guest') {
+              import('sonner').then(({ toast }) => {
+                toast.info('New guest message on a complaint')
+              })
+            }
+          }
+          refreshMessages()
+          refreshComplaints()
+        },
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'guest_conversation_messages',
+        },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            const row = payload.new as { author_role?: string }
+            if (row.author_role === 'guest') {
+              import('sonner').then(({ toast }) => {
+                toast.info('New guest message')
+              })
+            }
+          }
+          refreshMessages()
+        },
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'guest_conversations',
+          filter: hotelFilter(hotelId),
+        },
+        () => {
+          refreshMessages()
         },
       )
       .subscribe((status) => {

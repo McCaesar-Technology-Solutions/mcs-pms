@@ -4,7 +4,17 @@ import { AppShell } from '@/components/dashboard/app-shell'
 import { receptionistNavigation } from '@/lib/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getOccupancyToday, type OccupancyToday } from '@/lib/data/occupancy'
-import { countUnreadGuestConversations } from '@/lib/data/guest-conversations'
+import { getNavBadgeMap } from '@/lib/data/staff-alerts'
+
+function applyBadges<T extends { href: string; badge?: number }>(
+  items: T[],
+  badges: Record<string, number>,
+): T[] {
+  return items.map((item) => ({
+    ...item,
+    badge: badges[item.href] && badges[item.href] > 0 ? badges[item.href] : undefined,
+  }))
+}
 
 export default async function ReceptionistLayout({
   children,
@@ -14,17 +24,17 @@ export default async function ReceptionistLayout({
     redirect('/login')
   }
 
-  const navigation = receptionistNavigation.map((item) => ({ ...item }))
+  let navigation = receptionistNavigation.map((item) => ({ ...item }))
   let occupancyToday: OccupancyToday | undefined
+
   if (profile.hotel_id) {
     const supabase = await createClient()
-    const [occupancy, unreadMessages] = await Promise.all([
+    const [badges, occupancy] = await Promise.all([
+      getNavBadgeMap(),
       getOccupancyToday(supabase, profile.hotel_id),
-      countUnreadGuestConversations(profile.hotel_id),
     ])
+    navigation = applyBadges(navigation, badges)
     occupancyToday = occupancy
-    const messagesNav = navigation.find((n) => n.name === 'Messages')
-    if (messagesNav && unreadMessages > 0) messagesNav.badge = unreadMessages
   }
 
   return (

@@ -4,16 +4,16 @@ import { AppShell } from '@/components/dashboard/app-shell'
 import { managerNavigation } from '@/lib/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getOccupancyToday, type OccupancyToday } from '@/lib/data/occupancy'
-import { countUnreadGuestConversations } from '@/lib/data/guest-conversations'
+import { getNavBadgeMap } from '@/lib/data/staff-alerts'
 
-async function getPendingApprovalsCount(hotelId: string) {
-  const supabase = await createClient()
-  const { count } = await supabase
-    .from('complaints')
-    .select('*', { count: 'exact', head: true })
-    .eq('hotel_id', hotelId)
-    .eq('status', 'pending_approval')
-  return count ?? 0
+function applyBadges<T extends { href: string; badge?: number }>(
+  items: T[],
+  badges: Record<string, number>,
+): T[] {
+  return items.map((item) => ({
+    ...item,
+    badge: badges[item.href] && badges[item.href] > 0 ? badges[item.href] : undefined,
+  }))
 }
 
 export default async function ManagerLayout({
@@ -24,19 +24,16 @@ export default async function ManagerLayout({
     redirect('/login')
   }
 
-  const navigation = managerNavigation.map((item) => ({ ...item }))
+  let navigation = managerNavigation.map((item) => ({ ...item }))
   let occupancyToday: OccupancyToday | undefined
+
   if (profile.hotel_id) {
     const supabase = await createClient()
-    const [pending, unreadMessages, occupancy] = await Promise.all([
-      getPendingApprovalsCount(profile.hotel_id),
-      countUnreadGuestConversations(profile.hotel_id),
+    const [badges, occupancy] = await Promise.all([
+      getNavBadgeMap(),
       getOccupancyToday(supabase, profile.hotel_id),
     ])
-    const complaintsNav = navigation.find((n) => n.name === 'Complaints')
-    if (complaintsNav && pending > 0) complaintsNav.badge = pending
-    const messagesNav = navigation.find((n) => n.name === 'Messages')
-    if (messagesNav && unreadMessages > 0) messagesNav.badge = unreadMessages
+    navigation = applyBadges(navigation, badges)
     occupancyToday = occupancy
   }
 

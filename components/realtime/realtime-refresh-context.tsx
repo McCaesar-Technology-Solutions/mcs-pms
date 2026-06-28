@@ -10,7 +10,12 @@ import {
   type ReactNode,
 } from 'react'
 
-export type RealtimeTopic = 'complaints' | 'housekeeping' | 'layout'
+export type RealtimeTopic =
+  | 'complaints'
+  | 'housekeeping'
+  | 'layout'
+  | 'messages'
+  | 'guest_portal'
 
 type Listener = () => void
 

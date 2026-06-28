@@ -12,7 +12,7 @@ import { GuestRequestsPanel } from '@/components/dashboard/guest-requests-panel'
 import { GuestFeedbackPanel } from '@/components/dashboard/guest-feedback-panel'
 import { ManagerNotificationSummary } from '@/components/dashboard/manager-notification-summary'
 import { OpsInboxPanel } from '@/components/dashboard/ops-inbox-panel'
-import { PageTabShell } from '@/components/dashboard/page-tab-shell'
+import { LivePageTabShell } from '@/components/dashboard/live-page-tab-shell'
 import { loadHotelGuestRequests } from '@/lib/data/guest-portal'
 import { loadHotelGuestFeedback } from '@/lib/data/guest-feedback'
 import { loadOpsInbox } from '@/lib/data/ops-inbox'
@@ -28,6 +28,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { getRecentNightAudits } from '@/app/actions/night-audit'
 import { NightAuditPanel } from '@/components/dashboard/night-audit-panel'
+import { getManagerTabBadges } from '@/lib/data/staff-alerts'
 import { todayISO } from '@/lib/stays/helpers'
 
 const MANAGER_HASH_TO_TAB: Record<string, string> = {
@@ -81,9 +82,7 @@ export default async function ManagerDashboardPage() {
     emailPrefs = (hotelPrefs.data?.notification_email_prefs as Record<string, boolean>) ?? null
   }
 
-  const pendingGuestRequests = guestRequests.filter((r) => r.status === 'pending').length
-  const overviewBadge = opsInbox.length
-  const guestPortalBadge = pendingGuestRequests
+  const tabBadges = await getManagerTabBadges()
   const businessDate = todayISO()
   const todayClosed = nightAudits.some((a) => a.business_date === businessDate)
 
@@ -105,12 +104,12 @@ export default async function ManagerDashboardPage() {
       </DashboardHero>
 
       <div className="page-content-stack page-shell--after-hero">
-      <PageTabShell
+      <LivePageTabShell
           hashToTab={MANAGER_HASH_TO_TAB}
           defaultTab="overview"
           tabs={[
-            { id: 'overview', label: 'Overview', badge: overviewBadge },
-            { id: 'guest-portal', label: 'Guest portal', badge: guestPortalBadge },
+            { id: 'overview', label: 'Overview', badge: tabBadges.overview },
+            { id: 'guest-portal', label: 'Guest portal', badge: tabBadges.guestPortal },
             { id: 'activity', label: 'Activity' },
           ]}
           panels={{

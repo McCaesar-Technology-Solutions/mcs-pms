@@ -3,11 +3,10 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { PanelLeftClose, PanelLeft, X } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
-import { getPendingComplaintApprovalsCount } from '@/app/actions/complaints'
+import { useState } from 'react'
 import { SidebarLogo } from '@/components/brand/sidebar-logo'
 import { PropertySwitcher } from '@/components/dashboard/property-switcher'
-import { useRealtimeRefresh } from '@/components/realtime/realtime-refresh-context'
+import { useNavBadges } from '@/components/dashboard/use-nav-badges'
 import type { NavItem, NavGroup } from '@/lib/navigation'
 import { getNavIcon } from '@/components/dashboard/nav-icons'
 import type { OccupancyToday } from '@/lib/data/occupancy'
@@ -29,56 +28,39 @@ export default function Sidebar({
 }: SidebarProps) {
   const pathname = usePathname()
   const [collapsed, setCollapsed] = useState(false)
-  const [navItems, setNavItems] = useState(navigation)
-  const [groups, setGroups] = useState(navGroups)
-
-  useEffect(() => {
-    setNavItems(navigation)
-  }, [navigation])
-
-  useEffect(() => {
-    setGroups(navGroups)
-  }, [navGroups])
-
-  const refreshComplaintBadge = useCallback(async () => {
-    const count = await getPendingComplaintApprovalsCount()
-    const applyBadge = (item: NavItem) =>
-      item.href.includes('complaints') ? { ...item, badge: count > 0 ? count : undefined } : item
-
-    setNavItems((prev) => prev.map(applyBadge))
-    setGroups((prev) =>
-      prev?.map((group) => ({
-        ...group,
-        items: group.items.map(applyBadge),
-      })),
-    )
-  }, [])
-
-  useRealtimeRefresh('complaints', refreshComplaintBadge)
-  useRealtimeRefresh('layout', refreshComplaintBadge)
+  const { navItems, navGroups: groups } = useNavBadges(navigation, navGroups)
 
   const isDrawer = mobileOpen
 
   function renderNavLink(item: NavItem) {
     const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
     const Icon = getNavIcon(item.icon)
+    const showBadge = item.badge != null && item.badge > 0
+
     return (
       <Link
         key={item.href}
         href={item.href}
         title={collapsed && !isDrawer ? item.name : undefined}
         onClick={onMobileClose}
-        className={`group flex items-center rounded-xl py-2.5 text-sm font-medium transition-all ${
+        className={`group relative flex items-center rounded-xl py-2.5 text-sm font-medium transition-all ${
           collapsed && !isDrawer ? 'justify-center px-0' : 'gap-3 px-3'
         } ${isActive ? 'sidebar-nav-link--active' : 'sidebar-nav-link'}`}
       >
-        <Icon className="h-5 w-5 shrink-0" />
+        <span className="relative shrink-0">
+          <Icon className="h-5 w-5" />
+          {showBadge && collapsed && !isDrawer && (
+            <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--brand-orange)] px-0.5 text-[9px] font-bold text-white">
+              {item.badge! > 9 ? '9+' : item.badge}
+            </span>
+          )}
+        </span>
         {(!collapsed || isDrawer) && (
           <span className="flex flex-1 items-center justify-between truncate">
             <span className="truncate">{item.name}</span>
-            {item.badge != null && item.badge > 0 && (
-              <span className="ml-2 rounded-md bg-[var(--brand-orange)]/90 px-2 py-0.5 text-[10px] font-bold text-white">
-                {item.badge}
+            {showBadge && (
+              <span className="ml-2 rounded-md bg-[var(--brand-orange)]/90 px-2 py-0.5 text-[10px] font-bold text-white tabular-nums">
+                {item.badge! > 99 ? '99+' : item.badge}
               </span>
             )}
           </span>

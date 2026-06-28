@@ -2,7 +2,19 @@
 
 import { useCallback, useEffect, useRef, useState, useTransition } from 'react'
 import Link from 'next/link'
-import { Bell, CheckCircle, Clock, FileText, LogIn, MessageSquare } from 'lucide-react'
+import {
+  Bell,
+  Briefcase,
+  CheckCircle,
+  Clock,
+  FileText,
+  LogIn,
+  MessageCircle,
+  MessageSquare,
+  Sparkles,
+  UserPlus,
+  Wrench,
+} from 'lucide-react'
 import { loadNotifications } from '@/app/actions/notifications'
 import { HeaderDropdownPanel } from '@/components/dashboard/header-dropdown-panel'
 import { useRealtimeRefresh } from '@/components/realtime/realtime-refresh-context'
@@ -15,9 +27,17 @@ interface NotificationsMenuProps {
 
 const KIND_ICONS: Record<AppNotification['kind'], typeof FileText> = {
   overdue_invoice: FileText,
+  pending_invoice: FileText,
   checkin_today: LogIn,
   checkout_today: Clock,
-  pending_complaint: Bell,
+  pending_complaint: Wrench,
+  complaint_approval: Bell,
+  unassigned_complaint: UserPlus,
+  guest_request: Bell,
+  guest_stay_chat: MessageCircle,
+  guest_message: MessageSquare,
+  housekeeping_inspect: Sparkles,
+  housekeeping_overdue: Briefcase,
 }
 
 export function NotificationsMenu({ profile }: NotificationsMenuProps) {
@@ -39,12 +59,17 @@ export function NotificationsMenu({ profile }: NotificationsMenuProps) {
   }, [fetchNotifications])
 
   useRealtimeRefresh('layout', fetchNotifications)
+  useRealtimeRefresh('complaints', fetchNotifications)
+  useRealtimeRefresh('housekeeping', fetchNotifications)
+  useRealtimeRefresh('messages', fetchNotifications)
+  useRealtimeRefresh('guest_portal', fetchNotifications)
 
   useEffect(() => {
     if (!open) return
     fetchNotifications()
   }, [open, fetchNotifications])
 
+  const totalCount = items.length
   const urgentCount = items.filter((i) => i.urgent).length
 
   return (
@@ -54,12 +79,18 @@ export function NotificationsMenu({ profile }: NotificationsMenuProps) {
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        aria-label="Notifications"
+        aria-label={totalCount > 0 ? `Notifications, ${totalCount} items` : 'Notifications'}
         className="main-header-icon relative rounded-xl p-2.5 transition-colors hover:bg-white/50"
       >
         <Bell className="h-5 w-5" />
-        {urgentCount > 0 && (
-          <span className="absolute right-2 top-2 h-2 w-2 rounded-full border-2 border-white bg-destructive" />
+        {totalCount > 0 && (
+          <span
+            className={`absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-white px-1 text-[10px] font-bold tabular-nums text-white ${
+              urgentCount > 0 ? 'bg-[var(--brand-orange)]' : 'bg-primary'
+            }`}
+          >
+            {totalCount > 9 ? '9+' : totalCount}
+          </span>
         )}
       </button>
 
@@ -67,12 +98,16 @@ export function NotificationsMenu({ profile }: NotificationsMenuProps) {
         open={open}
         anchorRef={triggerRef}
         onClose={() => setOpen(false)}
-        width={320}
+        width={340}
         className="modal-panel surface-card overflow-y-auto overscroll-contain rounded-xl border border-[rgba(var(--glow-purple),0.1)] bg-white py-1 shadow-elevation-3"
       >
         <div className="surface-card-header px-4 py-3">
           <p className="text-sm font-semibold">Notifications</p>
-          <p className="text-xs text-muted-foreground">Operational alerts for your property</p>
+          <p className="text-xs text-muted-foreground">
+            {totalCount === 0
+              ? 'Operational alerts for your property'
+              : `${totalCount} item${totalCount === 1 ? '' : 's'}${urgentCount > 0 ? ` · ${urgentCount} urgent` : ''}`}
+          </p>
         </div>
         {pending && items.length === 0 ? (
           <p className="px-4 py-6 text-sm text-muted-foreground">Loading…</p>
@@ -92,7 +127,11 @@ export function NotificationsMenu({ profile }: NotificationsMenuProps) {
                   onClick={() => setOpen(false)}
                   className="flex items-start gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-secondary/60"
                 >
-                  <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${item.urgent ? 'text-destructive' : 'text-muted-foreground'}`} />
+                  <Icon
+                    className={`mt-0.5 h-4 w-4 shrink-0 ${
+                      item.urgent ? 'text-[var(--brand-gold-dark)]' : 'text-muted-foreground'
+                    }`}
+                  />
                   <span className="min-w-0">
                     <span className="block font-medium text-foreground">{item.title}</span>
                     <span className="block truncate text-xs text-muted-foreground">{item.subtitle}</span>
