@@ -13,6 +13,7 @@ interface ProfilePhotoUploadProps {
   onClear: () => Promise<{ success: boolean; error?: string }>
   hint?: string
   compact?: boolean
+  className?: string
 }
 
 export function ProfilePhotoUpload({
@@ -22,6 +23,7 @@ export function ProfilePhotoUpload({
   onClear,
   hint = 'Shown in messages so the team knows who they are chatting with.',
   compact = false,
+  className = '',
 }: ProfilePhotoUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(profilePhotoPublicUrl(imagePath))
@@ -55,7 +57,7 @@ export function ProfilePhotoUpload({
   }
 
   return (
-    <div className={`profile-photo-upload ${compact ? 'profile-photo-upload--compact' : ''}`}>
+    <div className={`profile-photo-upload ${compact ? 'profile-photo-upload--compact' : ''} ${className}`.trim()}>
       <div className="profile-photo-upload__frame">
         {previewUrl ? (
           <Image
@@ -80,6 +82,7 @@ export function ProfilePhotoUpload({
       <div className="profile-photo-upload__body">
         {!compact && <p className="text-sm font-semibold text-foreground">Profile photo</p>}
         {!compact && hint && <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p>}
+        {compact && hint && <p className="text-xs leading-relaxed guest-text-muted">{hint}</p>}
         <div className="profile-photo-upload__actions">
           <button
             type="button"

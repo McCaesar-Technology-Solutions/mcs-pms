@@ -308,7 +308,7 @@ function DbKanban({
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+      <div className="kanban-board grid grid-cols-1 gap-6 md:grid-cols-3">
         {COLUMNS.map((column) => {
           const ColumnIcon = column.icon
           const columnTasks = tasksByStatus[column.id]

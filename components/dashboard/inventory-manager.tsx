@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { AlertTriangle, Plus, Trash2 } from 'lucide-react'
+import { AlertTriangle, Package, Plus, Trash2 } from 'lucide-react'
+import { DataEmptyState } from '@/components/dashboard/data-empty-state'
 import { toast } from 'sonner'
 import { createInventoryItem, deleteInventoryItem, updateInventoryItem } from '@/app/actions/inventory'
 import type { InventoryRow } from '@/lib/data/inventory'
@@ -34,21 +35,36 @@ export function InventoryManager({ items, canDelete = false }: InventoryManagerP
       )}
 
       <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={() => setCreating(true)}
-          className="app-btn app-btn-primary inline-flex items-center gap-2"
-        >
-          <Plus className="h-4 w-4" />
-          Add item
-        </button>
+        {items.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setCreating(true)}
+            className="app-btn app-btn-primary inline-flex items-center gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            Add item
+          </button>
+        )}
       </div>
 
       <div className="surface-card overflow-hidden">
         {items.length === 0 ? (
-          <p className="px-6 py-12 text-center text-sm text-muted-foreground">
-            Track linens, amenities, and supplies with reorder alerts.
-          </p>
+          <DataEmptyState
+            borderless
+            icon={Package}
+            title="Start tracking inventory"
+            message="Track linens, amenities, and supplies with reorder alerts."
+            action={
+              <button
+                type="button"
+                onClick={() => setCreating(true)}
+                className="app-btn app-btn-primary inline-flex items-center gap-2"
+              >
+                <Plus className="h-4 w-4" />
+                Add first item
+              </button>
+            }
+          />
         ) : (
           <div className="overflow-x-auto">
             <div className="data-table-wrap px-4 pb-4 pt-2">

@@ -383,7 +383,7 @@ export function GuestPortal({
         />
       )}
 
-      <header className="guest-portal-header">
+      <header className={`guest-portal-header ${activeTab === 'messages' ? 'guest-portal-header--compact' : ''}`}>
         <div className="mx-auto flex max-w-md items-start gap-3.5">
           {property.imageUrl ? (
             <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl ring-1 ring-[var(--guest-border-strong)]">
@@ -825,12 +825,12 @@ export function GuestPortal({
             role="tabpanel"
             id="guest-panel-account"
             aria-labelledby="guest-tab-account"
-            className="guest-tab-panel"
+            className="guest-tab-panel guest-tab-panel--account"
           >
             <p className="guest-tab-intro">Your details, preferences, and property information.</p>
 
             <PortalCard>
-              <div className="flex items-center justify-between gap-3">
+              <div className="guest-account-dnd-row flex items-center justify-between gap-3">
                 <div>
                   <p className="guest-portal-card__title">Do not disturb</p>
                   <p className="guest-portal-card__hint">Housekeeping will skip your room while this is on.</p>
@@ -853,6 +853,7 @@ export function GuestPortal({
                 name={guest.name}
                 imagePath={guest.profile_image_path}
                 compact
+                className="guest-portal-profile-photo"
                 hint="Your photo appears in messages with the front desk and maintenance team."
                 onUpload={async (formData) => {
                   const result = await uploadGuestProfilePhoto(formData)

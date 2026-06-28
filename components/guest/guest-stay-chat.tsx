@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Loader2, RefreshCw, Send } from 'lucide-react'
+import { Loader2, MessageCircle, RefreshCw, Send } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { getGuestStayMessages, postGuestStayMessage } from '@/app/actions/guest-conversation'
@@ -191,6 +191,11 @@ export function GuestStayChat({ variant = 'embedded', propertyName }: GuestStayC
           <div
             className={`text-center ${isScreen ? 'flex flex-1 flex-col items-center justify-center px-6 py-16' : 'py-6'}`}
           >
+            {isScreen && (
+              <div className="guest-stay-chat__empty-icon" aria-hidden>
+                <MessageCircle className="h-8 w-8" />
+              </div>
+            )}
             <p className={`font-medium text-foreground ${isScreen ? 'text-base' : 'text-sm'}`}>
               {isScreen ? 'Say hello to the front desk' : 'Start a conversation'}
             </p>

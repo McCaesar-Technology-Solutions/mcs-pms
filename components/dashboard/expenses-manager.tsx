@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useTransition, type ReactNode } from 'react'
-import { Plus, Trash2 } from 'lucide-react'
+import { Plus, Receipt, Trash2 } from 'lucide-react'
+import { DataEmptyState } from '@/components/dashboard/data-empty-state'
 import { toast } from 'sonner'
 import { createExpense, deleteExpense } from '@/app/actions/expenses'
 import { expenseSummary, type ExpenseRow } from '@/lib/data/expenses'
@@ -39,21 +40,36 @@ export function ExpensesManager({ expenses }: ExpensesManagerProps) {
       </div>
 
       <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={() => setCreating(true)}
-          className="app-btn app-btn-primary inline-flex items-center gap-2"
-        >
-          <Plus className="h-4 w-4" />
-          Add expense
-        </button>
+        {expenses.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setCreating(true)}
+            className="app-btn app-btn-primary inline-flex items-center gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            Add expense
+          </button>
+        )}
       </div>
 
       <div className="surface-card overflow-hidden">
         {expenses.length === 0 ? (
-          <p className="px-6 py-12 text-center text-sm text-muted-foreground">
-            No expenses recorded yet. Log vendor payments and operating costs here.
-          </p>
+          <DataEmptyState
+            borderless
+            icon={Receipt}
+            title="No expenses yet"
+            message="Log vendor payments and operating costs to keep spending visible."
+            action={
+              <button
+                type="button"
+                onClick={() => setCreating(true)}
+                className="app-btn app-btn-primary inline-flex items-center gap-2"
+              >
+                <Plus className="h-4 w-4" />
+                Add first expense
+              </button>
+            }
+          />
         ) : (
           <div className="overflow-x-auto">
             <div className="data-table-wrap px-4 pb-4 pt-2">

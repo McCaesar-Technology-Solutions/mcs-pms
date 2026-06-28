@@ -3489,6 +3489,18 @@
   .guest-portal-main--fill {
     flex: 1;
     min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .guest-portal-header--compact {
+    padding-bottom: 0.625rem;
+  }
+
+  .guest-portal-header--compact .guest-portal-header__title {
+    font-size: 1rem;
   }
 
   .guest-tab-panel--fill {
@@ -3497,6 +3509,31 @@
     flex-direction: column;
     min-height: 0;
     gap: 0;
+  }
+
+  .guest-tab-panel--fill .guest-stay-chat--screen {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .guest-tab-panel--account {
+    padding-bottom: 0.5rem;
+  }
+
+  .guest-account-dnd-row {
+    flex-wrap: wrap;
+  }
+
+  .guest-stay-chat__empty-icon {
+    display: flex;
+    height: 3.5rem;
+    width: 3.5rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 1rem;
+    background: rgba(60, 33, 108, 0.1);
+    color: var(--brand-purple);
+    margin-bottom: 1rem;
   }
 
   .guest-stay-chat {
@@ -3513,6 +3550,58 @@
 
   .guest-stay-chat--screen {
     min-height: min(560px, calc(100dvh - 12.5rem));
+  }
+
+  @media (max-width: 639px) {
+    .guest-stay-chat--screen {
+      min-height: min(480px, calc(100dvh - 10.5rem));
+      border-radius: 0.75rem;
+    }
+
+    .guest-stay-chat__composer {
+      padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
+    }
+
+    .guest-stay-chat__header {
+      padding: 0.75rem 0.875rem;
+    }
+
+    .guest-stay-chat__header .guest-text-subtle {
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .guest-tab-panel--account .guest-portal-card {
+      padding: 1rem;
+    }
+
+    .guest-account-dnd-row {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .guest-account-dnd-row .guest-btn {
+      align-self: flex-start;
+    }
+
+    .guest-portal-profile-photo {
+      flex-direction: row;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .guest-portal-profile-photo .profile-photo-upload__frame {
+      height: 4.5rem;
+      width: 4.5rem;
+      flex-shrink: 0;
+    }
+
+    .guest-portal-profile-photo .profile-photo-upload__body {
+      flex: 1;
+      min-width: 0;
+    }
   }
 
   .guest-stay-chat__header {
@@ -3696,6 +3785,31 @@
     background: var(--secondary);
     padding: 0.75rem;
     box-shadow: inset 0 1px 3px rgba(var(--shadow-tint), 0.04);
+  }
+
+  @media (max-width: 767px) {
+    .kanban-board {
+      display: flex;
+      gap: 0.75rem;
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: 0.25rem;
+      scrollbar-width: none;
+    }
+
+    .kanban-board::-webkit-scrollbar {
+      display: none;
+    }
+
+    .kanban-board > * {
+      flex: 0 0 min(85vw, 18rem);
+      scroll-snap-align: start;
+    }
+
+    .kanban-column-body {
+      min-height: 14rem;
+    }
   }
 
   .kanban-task-meta {
@@ -4976,6 +5090,7 @@
     border-top: 1px solid var(--messenger-border);
     background: var(--messenger-surface);
     padding: 0.625rem 0.875rem 0.875rem;
+    padding-bottom: max(0.875rem, env(safe-area-inset-bottom, 0px));
   }
 
   .staff-messenger__quick-replies {
@@ -5075,11 +5190,17 @@
       grid-template-columns: 1fr;
       min-height: min(600px, calc(100dvh - 10rem));
       max-height: calc(100dvh - 10rem);
+      border-radius: 0.75rem;
     }
 
     .page-shell--messages .staff-messenger {
       min-height: 0;
       max-height: none;
+    }
+
+    .page-shell--messages {
+      padding-inline: 0.5rem;
+      padding-block: 0.375rem;
     }
 
     .staff-messenger--thread-open .staff-messenger__sidebar {
@@ -5088,6 +5209,42 @@
 
     .staff-messenger:not(.staff-messenger--thread-open) .staff-messenger__main {
       display: none;
+    }
+
+    .staff-messages-hub__tabs {
+      padding-inline: 0.5rem;
+    }
+  }
+
+  @media (max-width: 639px) {
+    .staff-messenger__details {
+      align-items: flex-end;
+    }
+
+    .staff-messenger__details-panel {
+      width: 100%;
+      max-height: min(88dvh, 100%);
+      border-top-left-radius: 1rem;
+      border-top-right-radius: 1rem;
+      box-shadow: 0 -8px 32px rgba(34, 18, 76, 0.15);
+    }
+
+    .staff-messenger__thread-profile-btn {
+      min-width: 0;
+    }
+
+    .staff-messenger__thread-profile-btn p:first-child {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .staff-messenger__bubble {
+      max-width: 88%;
+    }
+
+    .staff-messenger__thread-header {
+      padding-inline: 0.75rem;
     }
   }
 

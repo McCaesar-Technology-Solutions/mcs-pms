@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, ChevronRight, Loader2, RefreshCw, Send } from 'lucide-react'
+import { ArrowLeft, ChevronRight, Loader2, MessageCircle, RefreshCw, Send } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { getStaffTeamMessages, postStaffTeamMessage } from '@/app/actions/staff-conversation'
 import { prepopulateMessageComposer } from '@/lib/messaging/prepopulate-composer'
@@ -201,6 +201,9 @@ export function StaffTeamThread({
           </div>
         ) : messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
+            <div className="staff-messenger__placeholder-icon">
+              <MessageCircle className="h-8 w-8" />
+            </div>
             <p className="text-sm font-medium text-foreground">Start the conversation</p>
             <p className="max-w-xs text-xs leading-relaxed text-muted-foreground">
               Pick a quick reply below or type your own message.

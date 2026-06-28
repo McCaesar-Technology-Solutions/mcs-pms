@@ -99,8 +99,9 @@ export function StaffTeamInbox({
               <button
                 type="button"
                 onClick={() => setComposeOpen(true)}
-                className="mt-4 rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground"
+                className="app-btn app-btn-primary mt-4 inline-flex items-center gap-2"
               >
+                <Plus className="h-4 w-4" />
                 New conversation
               </button>
             </div>

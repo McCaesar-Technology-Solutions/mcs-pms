@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { CalendarDays, Plus, Trash2 } from 'lucide-react'
+import { DataEmptyState } from '@/components/dashboard/data-empty-state'
 import { toast } from 'sonner'
 import { createOpsCalendarEvent, deleteOpsCalendarEvent } from '@/app/actions/ops-calendar'
 import { OPS_EVENT_LABELS, type OpsCalendarEventRow } from '@/lib/data/ops-calendar'
@@ -58,7 +59,24 @@ export function OpsCalendarPanel({ events, canManage = false }: OpsCalendarPanel
       </div>
 
       {events.length === 0 ? (
-        <p className="py-6 text-center text-sm text-muted-foreground">No events scheduled this week.</p>
+        <DataEmptyState
+          borderless
+          icon={CalendarDays}
+          title="Nothing on the calendar"
+          message="Schedule maintenance, inspections, and team events for the week ahead."
+          action={
+            canManage ? (
+              <button
+                type="button"
+                onClick={() => setCreating(true)}
+                className="app-btn app-btn-primary inline-flex items-center gap-2"
+              >
+                <Plus className="h-4 w-4" />
+                Add first event
+              </button>
+            ) : undefined
+          }
+        />
       ) : (
         <ul className="space-y-2">
           {events.map((event) => (

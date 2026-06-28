@@ -15,7 +15,9 @@ interface HousekeepingBoardProps {
 }
 
 export function HousekeepingBoard(props: HousekeepingBoardProps) {
-  const [view, setView] = useState<'kanban' | 'list'>('kanban')
+  const [view, setView] = useState<'kanban' | 'list'>(() =>
+    typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches ? 'list' : 'kanban',
+  )
 
   return (
     <div className="space-y-4">
