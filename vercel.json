@@ -5,24 +5,8 @@
       "schedule": "0 3 * * *"
     },
     {
-      "path": "/api/cron/reservation-holds",
-      "schedule": "*/5 * * * *"
-    },
-    {
-      "path": "/api/cron/reservation-pre-arrival",
-      "schedule": "0 * * * *"
-    },
-    {
       "path": "/api/cron/reservation-no-show",
       "schedule": "5 0 * * *"
-    },
-    {
-      "path": "/api/cron/reservation-overstay",
-      "schedule": "15 * * * *"
-    },
-    {
-      "path": "/api/cron/reservation-auto-checkout-prompt",
-      "schedule": "30 * * * *"
     },
     {
       "path": "/api/cron/reservation-archive",

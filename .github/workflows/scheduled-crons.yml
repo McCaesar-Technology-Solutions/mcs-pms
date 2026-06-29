@@ -1,17 +1,21 @@
 name: Scheduled crons
 
-# Vercel Hobby only allows daily cron jobs in vercel.json. These endpoints need
-# sub-daily schedules, so GitHub Actions calls them with CRON_SECRET instead.
+# Vercel Hobby only allows daily cron jobs in vercel.json. Sub-daily reservation
+# jobs run here via CRON_SECRET instead.
 #
-# Required repo secrets: CRON_SECRET, PRODUCTION_APP_URL (e.g. https://your-app.vercel.app)
+# Required repo secrets: CRON_SECRET, PRODUCTION_APP_URL (e.g. https://mcs-pms.vercel.app)
 
 on:
   schedule:
     - cron: '*/5 * * * *'
+    - cron: '0 * * * *'
+    - cron: '15 * * * *'
+    - cron: '30 * * * *'
   workflow_dispatch:
 
 jobs:
-  notifications:
+  every-five-minutes:
+    if: github.event.schedule == '*/5 * * * *' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: Drain notification outbox
@@ -19,3 +23,38 @@ jobs:
           curl -sfS \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             "${{ secrets.PRODUCTION_APP_URL }}/api/cron/notifications"
+      - name: Expire reservation holds
+        run: |
+          curl -sfS \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.PRODUCTION_APP_URL }}/api/cron/reservation-holds"
+
+  hourly-pre-arrival:
+    if: github.event.schedule == '0 * * * *' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Reservation pre-arrival reminders
+        run: |
+          curl -sfS \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.PRODUCTION_APP_URL }}/api/cron/reservation-pre-arrival"
+
+  hourly-overstay:
+    if: github.event.schedule == '15 * * * *' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Reservation overstay check
+        run: |
+          curl -sfS \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.PRODUCTION_APP_URL }}/api/cron/reservation-overstay"
+
+  hourly-auto-checkout-prompt:
+    if: github.event.schedule == '30 * * * *' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Auto checkout prompt
+        run: |
+          curl -sfS \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.PRODUCTION_APP_URL }}/api/cron/reservation-auto-checkout-prompt"
