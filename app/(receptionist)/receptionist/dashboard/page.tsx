@@ -4,6 +4,7 @@ import { DashboardToolbar } from '@/components/dashboard/dashboard-toolbar'
 import { SectionHeading } from '@/components/dashboard/section-heading'
 import { TodayGuestStrip } from '@/components/dashboard/today-guest-strip'
 import { ComplaintsOverviewLive } from '@/components/complaints/complaints-overview-live'
+import { PageTabShell } from '@/components/dashboard/page-tab-shell'
 import { fetchHotelComplaints } from '@/lib/data/complaints'
 import { getDashboardData } from '@/lib/data/dashboard'
 import { FrontDeskOpsSection } from '@/components/dashboard/front-desk-ops-section'
@@ -19,6 +20,10 @@ import {
 } from '@/lib/data/overview'
 import { getOccupancyToday } from '@/lib/data/occupancy'
 import { createClient } from '@/lib/supabase/server'
+
+const RECEPTIONIST_HASH_TO_TAB: Record<string, string> = {
+  'guest-requests': 'requests',
+}
 
 export default async function ReceptionistDashboardPage({
   searchParams,
@@ -50,9 +55,11 @@ export default async function ReceptionistDashboardPage({
   const arrivals = getTodayArrivals(reservations, opsDate)
   const departures = getTodayDepartures(reservations, opsDate)
   const guestRequests = hotelId ? await loadHotelGuestRequests(hotelId) : []
+  const pendingRequests = guestRequests.filter((r) => r.status === 'pending').length
+  const openComplaints = complaints.filter((c) => c.status !== 'resolved').length
 
   return (
-    <div className="page-shell pb-10">
+    <div className="page-shell page-shell--dashboard pb-10">
       <DashboardHero>
         <DashboardToolbar
           title="Reception dashboard"
@@ -74,29 +81,46 @@ export default async function ReceptionistDashboardPage({
         <section className="dashboard-section dashboard-section--compact">
           <FrontDeskOpsSection routePrefix="/receptionist" opsDateParam={opsDateParam} />
         </section>
-        <section className="dashboard-section space-y-4">
-          <SectionHeading title="Today on the desk" description="Arrivals and departures" />
-          <TodayGuestStrip
-            arrivals={arrivals}
-            departures={departures}
-            reservationsHref="/receptionist/reservations"
-          />
-        </section>
 
-        {hotelId && (
-          <section id="guest-requests" className="dashboard-section scroll-mt-24">
-            <GuestRequestsPanel hotelId={hotelId} initialRequests={guestRequests} />
-          </section>
-        )}
-
-        <section className="dashboard-section space-y-4">
-          <SectionHeading title="Guest issues" description="Recent complaints needing follow-up" />
-          <ComplaintsOverviewLive
-            initialComplaints={complaints}
-            limit={5}
-            complaintsHref="/receptionist/complaints"
-          />
-        </section>
+        <PageTabShell
+          hashToTab={RECEPTIONIST_HASH_TO_TAB}
+          defaultTab="today"
+          tabs={[
+            { id: 'today', label: 'Today' },
+            { id: 'requests', label: 'Requests', badge: pendingRequests || undefined },
+            { id: 'issues', label: 'Issues', badge: openComplaints || undefined },
+          ]}
+          panels={{
+            today: (
+              <section className="dashboard-section space-y-4">
+                <SectionHeading title="Today on the desk" description="Arrivals and departures" />
+                <TodayGuestStrip
+                  arrivals={arrivals}
+                  departures={departures}
+                  reservationsHref="/receptionist/reservations"
+                />
+              </section>
+            ),
+            requests:
+              hotelId ? (
+                <section id="guest-requests" className="dashboard-section scroll-mt-24">
+                  <GuestRequestsPanel hotelId={hotelId} initialRequests={guestRequests} />
+                </section>
+              ) : (
+                <p className="text-sm text-muted-foreground">No property linked.</p>
+              ),
+            issues: (
+              <section className="dashboard-section space-y-4">
+                <SectionHeading title="Guest issues" description="Recent complaints needing follow-up" />
+                <ComplaintsOverviewLive
+                  initialComplaints={complaints}
+                  limit={8}
+                  complaintsHref="/receptionist/complaints"
+                />
+              </section>
+            ),
+          }}
+        />
       </div>
     </div>
   )

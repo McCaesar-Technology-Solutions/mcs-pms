@@ -25,7 +25,7 @@ import {
 } from 'lucide-react'
 import { getNavIcon } from '@/components/dashboard/nav-icons'
 
-export type CommandItemKind = 'nav' | 'action' | 'search'
+export type CommandItemKind = 'nav' | 'action' | 'search' | 'record'
 
 export interface CommandItem {
   id: string
@@ -35,6 +35,8 @@ export interface CommandItem {
   kind: CommandItemKind
   keywords?: string[]
   icon: LucideIcon
+  /** Short type label shown in palette (e.g. Guest, Room) */
+  meta?: string
 }
 
 function navToCommand(item: NavItem): CommandItem {

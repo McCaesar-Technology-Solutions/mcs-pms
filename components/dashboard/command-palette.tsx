@@ -10,7 +10,8 @@ import {
   useState,
 } from 'react'
 import { useRouter } from 'next/navigation'
-import { Search } from 'lucide-react'
+import { Loader2, Search } from 'lucide-react'
+import { searchGlobalAction } from '@/app/actions/global-search'
 import { CenteredModal } from '@/components/ui/centered-modal'
 import {
   buildCommandItems,
@@ -18,6 +19,7 @@ import {
   filterCommandItems,
   type CommandItem,
 } from '@/lib/dashboard/command-items'
+import { globalResultsToCommandItems } from '@/lib/dashboard/global-search-items'
 import type { Profile } from '@/types'
 
 interface CommandPaletteContextValue {
@@ -83,11 +85,36 @@ function CommandPaletteDialog({
   const inputRef = useRef<HTMLInputElement>(null)
   const [query, setQuery] = useState('')
   const [activeIndex, setActiveIndex] = useState(0)
+  const [recordItems, setRecordItems] = useState<CommandItem[]>([])
+  const [searching, setSearching] = useState(false)
+  const searchGen = useRef(0)
 
   const allItems = useMemo(() => buildCommandItems(profile?.role), [profile?.role])
+
+  useEffect(() => {
+    const trimmed = query.trim()
+    if (!open || trimmed.length < 2) {
+      setRecordItems([])
+      setSearching(false)
+      return
+    }
+
+    const gen = ++searchGen.current
+    setSearching(true)
+    const timer = window.setTimeout(() => {
+      void searchGlobalAction(trimmed).then((results) => {
+        if (gen !== searchGen.current) return
+        setRecordItems(globalResultsToCommandItems(results))
+        setSearching(false)
+      })
+    }, 220)
+
+    return () => window.clearTimeout(timer)
+  }, [open, query])
+
   const items = useMemo(() => {
     const trimmed = query.trim()
-    const dynamic = buildDynamicSearchItems(profile?.role, query)
+    const fallback = buildDynamicSearchItems(profile?.role, query)
     const base = filterCommandItems(allItems, query)
 
     if (!trimmed) return base
@@ -99,13 +126,21 @@ function CommandPaletteDialog({
       'action-search-complaints',
     ])
 
-    return [...dynamic, ...base.filter((item) => !staticSearchIds.has(item.id))]
-  }, [allItems, query, profile?.role])
+    const pages = base.filter((item) => !staticSearchIds.has(item.id))
+
+    if (recordItems.length > 0) {
+      return [...recordItems, ...fallback.slice(0, 2), ...pages.slice(0, 6)]
+    }
+
+    return [...fallback, ...pages]
+  }, [allItems, query, profile?.role, recordItems])
 
   useEffect(() => {
     if (!open) {
       setQuery('')
       setActiveIndex(0)
+      setRecordItems([])
+      setSearching(false)
       return
     }
     const t = window.setTimeout(() => inputRef.current?.focus(), 0)
@@ -114,7 +149,7 @@ function CommandPaletteDialog({
 
   useEffect(() => {
     setActiveIndex(0)
-  }, [query])
+  }, [query, recordItems.length])
 
   const runItem = useCallback(
     (item: CommandItem) => {
@@ -137,11 +172,13 @@ function CommandPaletteDialog({
     }
   }
 
+  const trimmed = query.trim()
+
   return (
     <CenteredModal
       open={open}
       onClose={onClose}
-      className="max-w-xl"
+      className="command-palette-modal max-w-xl"
       panelClassName="command-palette"
       aria-label="Command palette"
     >
@@ -153,23 +190,34 @@ function CommandPaletteDialog({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={onInputKeyDown}
-          placeholder="Search pages, guests, rooms, reservations…"
+          placeholder="Search guests, rooms, bookings, invoices…"
           className="command-palette__input"
           aria-label="Command palette search"
           autoComplete="off"
           autoCorrect="off"
           spellCheck={false}
         />
-        <kbd className="command-palette__kbd">esc</kbd>
+        {searching ? (
+          <Loader2 className="command-palette__spinner h-4 w-4 animate-spin" aria-hidden />
+        ) : (
+          <kbd className="command-palette__kbd">esc</kbd>
+        )}
       </div>
 
       <div className="command-palette__results" role="listbox" aria-label="Commands">
         {items.length === 0 ? (
-          <p className="command-palette__empty">No matching commands.</p>
+          <p className="command-palette__empty">
+            {trimmed.length >= 2 && searching
+              ? 'Searching…'
+              : trimmed.length >= 2
+                ? 'No matches — try a guest name, room number, or booking ref.'
+                : 'Type to search your property data, or pick a page below.'}
+          </p>
         ) : (
           items.map((item, index) => {
             const Icon = item.icon
             const active = index === activeIndex
+            const kindLabel = item.meta ?? item.kind
             return (
               <button
                 key={item.id}
@@ -194,7 +242,7 @@ function CommandPaletteDialog({
                   )}
                 </span>
                 <span className={`command-palette__item-kind command-palette__item-kind--${item.kind}`}>
-                  {item.kind}
+                  {kindLabel}
                 </span>
               </button>
             )

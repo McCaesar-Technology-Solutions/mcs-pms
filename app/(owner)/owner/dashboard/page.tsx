@@ -7,6 +7,7 @@ import { DashboardMoreLinks } from '@/components/dashboard/dashboard-more-links'
 import { DashboardToolbar } from '@/components/dashboard/dashboard-toolbar'
 import { OperationsSummary } from '@/components/dashboard/operations-summary'
 import { SectionHeading } from '@/components/dashboard/section-heading'
+import { PageTabShell } from '@/components/dashboard/page-tab-shell'
 import { getDashboardData } from '@/lib/data/dashboard'
 import { loadHotelGuestFeedback } from '@/lib/data/guest-feedback'
 import { getHousekeepingTasks } from '@/lib/data/housekeeping'
@@ -27,6 +28,12 @@ import { getRecentNightAudits } from '@/app/actions/night-audit'
 import { NightAuditPanel } from '@/components/dashboard/night-audit-panel'
 import { createClient } from '@/lib/supabase/server'
 import { todayISO } from '@/lib/stays/helpers'
+
+const OWNER_HASH_TO_TAB: Record<string, string> = {
+  'guest-feedback': 'guest-reviews',
+  'guest-reviews': 'guest-reviews',
+  'night-audit': 'night-audit',
+}
 
 export default async function DashboardPage({
   searchParams,
@@ -70,7 +77,7 @@ export default async function DashboardPage({
   const todayClosed = nightAudits.some((a) => a.business_date === businessDate)
 
   return (
-    <div className="page-shell dashboard-launchpad pb-8">
+    <div className="page-shell dashboard-launchpad page-shell--dashboard pb-8">
       <DashboardHero>
         <DashboardToolbar
           occupancy={occupancyToday}
@@ -89,49 +96,69 @@ export default async function DashboardPage({
         <section className="dashboard-section dashboard-section--compact">
           <FrontDeskOpsSection routePrefix="/owner" opsDateParam={opsDateParam} title="Property operations" />
         </section>
-        <section className="dashboard-section dashboard-section--featured">
-          <SectionHeading prominent title="Business overview" />
-          <KPICards
-            metrics={metrics}
-            revenueTrend={revenueTrend}
-            revenueSparkline={revenueSparkline}
-            bookingsSparkline={bookingsSparkline}
-            occupancyToday={occupancyToday}
-            occupancySparkline={occupancySparkline}
-            compactMetrics
-            aside={
-              <BookingsList
-                reservations={reservations}
-                viewAllHref="/owner/reservations"
-                compact
-              />
-            }
-          />
-        </section>
 
-        <section className="dashboard-section dashboard-section--compact">
-          <OperationsSummary tasks={tasks} />
-        </section>
-
-        <DashboardMoreLinks
-          showGuestReviews={Boolean(guestFeedback)}
-          showNightAudit
-          todayClosed={todayClosed}
+        <PageTabShell
+          hashToTab={OWNER_HASH_TO_TAB}
+          defaultTab="overview"
+          tabs={[
+            { id: 'overview', label: 'Overview' },
+            { id: 'guest-reviews', label: 'Guest reviews' },
+            {
+              id: 'night-audit',
+              label: 'Night audit',
+              badge: todayClosed ? undefined : 1,
+            },
+          ]}
+          panels={{
+            overview: (
+              <>
+                <section className="dashboard-section dashboard-section--featured">
+                  <SectionHeading prominent title="Business overview" />
+                  <KPICards
+                    metrics={metrics}
+                    revenueTrend={revenueTrend}
+                    revenueSparkline={revenueSparkline}
+                    bookingsSparkline={bookingsSparkline}
+                    occupancyToday={occupancyToday}
+                    occupancySparkline={occupancySparkline}
+                    compactMetrics
+                    aside={
+                      <BookingsList
+                        reservations={reservations}
+                        viewAllHref="/owner/reservations"
+                        compact
+                      />
+                    }
+                  />
+                </section>
+                <section className="dashboard-section dashboard-section--compact">
+                  <OperationsSummary tasks={tasks} />
+                </section>
+                <DashboardMoreLinks />
+              </>
+            ),
+            'guest-reviews': guestFeedback ? (
+              <section id="guest-reviews" className="dashboard-section scroll-mt-24">
+                <SectionHeading
+                  title="Guest reviews"
+                  description="Feedback submitted from the guest portal"
+                />
+                <GuestFeedbackPanel summary={guestFeedback} />
+              </section>
+            ) : (
+              <p className="text-sm text-muted-foreground">No guest feedback yet.</p>
+            ),
+            'night-audit': (
+              <section id="night-audit" className="dashboard-section scroll-mt-24">
+                <SectionHeading
+                  title="End of day"
+                  description="Night audit and business date close"
+                />
+                <NightAuditPanel audits={nightAudits} todayClosed={todayClosed} />
+              </section>
+            ),
+          }}
         />
-
-        <div className="dashboard-below-fold">
-          {guestFeedback && (
-            <section id="guest-feedback" className="dashboard-section dashboard-section--compact scroll-mt-24">
-              <SectionHeading title="Guest reviews" />
-              <GuestFeedbackPanel summary={guestFeedback} />
-            </section>
-          )}
-
-          <section id="night-audit" className="dashboard-section dashboard-section--compact scroll-mt-24">
-            <SectionHeading title="End of day" />
-            <NightAuditPanel audits={nightAudits} todayClosed={todayClosed} />
-          </section>
-        </div>
       </div>
     </div>
   )

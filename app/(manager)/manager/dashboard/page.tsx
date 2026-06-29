@@ -39,8 +39,10 @@ import { todayISO } from '@/lib/stays/helpers'
 
 const MANAGER_HASH_TO_TAB: Record<string, string> = {
   'ops-inbox': 'overview',
-  'guest-feedback': 'guest-portal',
+  'guest-feedback': 'guest-reviews',
+  'guest-reviews': 'guest-reviews',
   'guest-requests': 'guest-portal',
+  'night-audit': 'night-audit',
   'audit-log': 'activity',
   'sms-log': 'activity',
 }
@@ -118,7 +120,7 @@ export default async function ManagerDashboardPage({
   const todayClosed = nightAudits.some((a) => a.business_date === businessDate)
 
   return (
-    <div className="page-shell pb-10">
+    <div className="page-shell page-shell--dashboard pb-10">
       <DashboardHero>
         <DashboardToolbar
           title="Manager dashboard"
@@ -146,6 +148,12 @@ export default async function ManagerDashboardPage({
           tabs={[
             { id: 'overview', label: 'Overview', badge: tabBadges.overview },
             { id: 'guest-portal', label: 'Guest portal', badge: tabBadges.guestPortal },
+            { id: 'guest-reviews', label: 'Guest reviews' },
+            {
+              id: 'night-audit',
+              label: 'Night audit',
+              badge: todayClosed ? undefined : 1,
+            },
             { id: 'activity', label: 'Activity' },
           ]}
           panels={{
@@ -160,7 +168,7 @@ export default async function ManagerDashboardPage({
 
                 <OpsCalendarPanel events={opsCalendarEvents} canManage />
 
-                <div className="grid gap-6 xl:grid-cols-2">
+                <div className="dashboard-split-grid">
                   <section className="dashboard-section space-y-4">
                     <SectionHeading title="Complaints" description="Open and in-progress issues" />
                     <ComplaintsOverviewLive initialComplaints={complaints} limit={5} />
@@ -171,17 +179,11 @@ export default async function ManagerDashboardPage({
                     <TasksList tasks={tasks} />
                   </section>
                 </div>
-
-                <section className="dashboard-section space-y-4">
-                  <SectionHeading title="End of day" description="Night audit and business date close" />
-                  <NightAuditPanel audits={nightAudits} todayClosed={todayClosed} />
-                </section>
               </>
             ),
             'guest-portal': hotelId ? (
               <>
                 <GuestRequestsPanel hotelId={hotelId} initialRequests={guestRequests} />
-                {guestFeedback && <GuestFeedbackPanel summary={guestFeedback} />}
                 <ManagerNotificationSummary smsPrefs={smsPrefs} emailPrefs={emailPrefs} />
                 <GuestPortalSettingsPanel
                   hotelId={hotelId}
@@ -192,8 +194,25 @@ export default async function ManagerDashboardPage({
             ) : (
               <p className="text-sm text-muted-foreground">No property linked to this account.</p>
             ),
+            'guest-reviews': guestFeedback ? (
+              <section id="guest-reviews" className="dashboard-section scroll-mt-24">
+                <SectionHeading title="Guest reviews" description="Feedback from the guest portal" />
+                <GuestFeedbackPanel summary={guestFeedback} />
+              </section>
+            ) : (
+              <p className="text-sm text-muted-foreground">No guest feedback yet.</p>
+            ),
+            'night-audit': (
+              <section id="night-audit" className="dashboard-section scroll-mt-24">
+                <SectionHeading
+                  title="End of day"
+                  description="Night audit and business date close"
+                />
+                <NightAuditPanel audits={nightAudits} todayClosed={todayClosed} />
+              </section>
+            ),
             activity: (
-              <div className="grid gap-6 xl:grid-cols-2">
+              <div className="dashboard-split-grid">
                 <AuditLogPanel entries={auditLog} />
                 <NotificationLogPanel entries={notificationLog} />
               </div>

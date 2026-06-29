@@ -31,7 +31,7 @@ export function DashboardMoreLinks({
 
   if (showGuestReviews) {
     items.push({
-      href: '/owner/dashboard#guest-feedback',
+      href: '/owner/dashboard#guest-reviews',
       icon: Star,
       label: 'Guest reviews',
       description: 'Portal feedback',

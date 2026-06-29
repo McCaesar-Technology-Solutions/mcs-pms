@@ -14,6 +14,7 @@ interface PageTabShellProps {
   /** Map hash fragment (without #) to tab id — for deep links like #guest-feedback */
   hashToTab?: Record<string, string>
   panels: Record<string, ReactNode>
+  scrollable?: boolean
   className?: string
 }
 
@@ -22,6 +23,7 @@ export function PageTabShell({
   defaultTab,
   hashToTab = {},
   panels,
+  scrollable = true,
   className,
 }: PageTabShellProps) {
   const fallback = defaultTab ?? tabs[0]?.id ?? 'overview'
@@ -65,7 +67,11 @@ export function PageTabShell({
 
   return (
     <div className={className}>
-      <nav className="page-tab-nav" role="tablist" aria-label="Page sections">
+      <nav
+        className={`page-tab-nav ${scrollable ? 'page-tab-nav--scroll' : ''}`}
+        role="tablist"
+        aria-label="Page sections"
+      >
         {tabs.map((tab) => {
           const selected = active === tab.id
           return (
@@ -93,7 +99,7 @@ export function PageTabShell({
         role="tabpanel"
         id={`tabpanel-${active}`}
         aria-labelledby={`tab-${active}`}
-        className="mt-6 space-y-6"
+        className="mt-4 space-y-4 sm:mt-6 sm:space-y-6 dashboard-tab-panel"
       >
         {panels[active]}
       </div>

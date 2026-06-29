@@ -11,9 +11,9 @@ export function RoleWayfindingPanel({ role }: RoleWayfindingPanelProps) {
       return (
         <WayfindingTip id="nav-basics" role={role} title="Find anything quickly">
           Press <kbd className="rounded bg-muted px-1.5 py-0.5 text-[11px] font-semibold">⌘K</kbd> (or{' '}
-          <kbd className="rounded bg-muted px-1.5 py-0.5 text-[11px] font-semibold">Ctrl+K</kbd>) to jump to pages,
-          search guests, reservations, rooms, and complaints. Finance tools live under{' '}
-          <strong className="font-semibold text-foreground">Finance &amp; admin</strong> in the sidebar.
+          <kbd className="rounded bg-muted px-1.5 py-0.5 text-[11px] font-semibold">Ctrl+K</kbd>) to search live
+          data — guests, rooms, bookings, complaints, and more. Dashboard sections use tabs below so you
+          don&apos;t have to scroll the whole page.
         </WayfindingTip>
       )
     case 'manager':

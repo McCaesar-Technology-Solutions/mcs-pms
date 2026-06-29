@@ -45,7 +45,7 @@ export function TopbarSearch({ profile }: TopbarSearchProps) {
         onFocus={openPalette}
         onClick={openPalette}
         readOnly={Boolean(palette)}
-        placeholder="Search guests, rooms, reservations…"
+          placeholder="Search guests, rooms, bookings, invoices…"
         className="topbar-search__input"
         aria-label="Open command palette"
       />
