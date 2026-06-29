@@ -1,16 +1,44 @@
 /**
- * One-time backfill: seed reservation_events from existing reservations + audit_log.
+ * One-time backfill: seed reservation_events from existing reservations.
  * Idempotent — skips reservations that already have events.
  *
  * Usage: npx tsx scripts/backfill-reservation-events.ts
+ * Requires NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in .env.local
  */
+import { readFileSync } from 'fs'
+import { dirname, join } from 'path'
+import { fileURLToPath } from 'url'
 import { createClient } from '@supabase/supabase-js'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const root = join(__dirname, '..')
+
+function loadEnv() {
+  try {
+    const envFile = readFileSync(join(root, '.env.local'), 'utf8')
+    for (const line of envFile.split('\n')) {
+      const trimmed = line.trim()
+      if (!trimmed || trimmed.startsWith('#')) continue
+      const eq = trimmed.indexOf('=')
+      if (eq === -1) continue
+      const key = trimmed.slice(0, eq)
+      const value = trimmed.slice(eq + 1).replace(/^["']|["']$/g, '')
+      if (!process.env[key]) process.env[key] = value
+    }
+  } catch {
+    // .env.local optional if vars are exported in the shell
+  }
+}
+
+loadEnv()
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 if (!url || !serviceKey) {
-  console.error('Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY')
+  console.error(
+    'Missing Supabase credentials. Add NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY to .env.local (same as npm run dev), or export them in your shell.',
+  )
   process.exit(1)
 }
 
