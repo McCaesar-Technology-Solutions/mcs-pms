@@ -81,13 +81,51 @@ export interface Room {
 }
 
 // Reservations & Bookings
-export type BookingStatus =
-  | 'pending'
+export type ReservationStatus =
+  | 'inquiry'
+  | 'provisional'
   | 'confirmed'
+  | 'pre_arrival'
   | 'checked_in'
+  | 'checkout_in_progress'
   | 'checked_out'
-  | 'cancelled'
+  | 'post_stay'
+  | 'archived'
   | 'no_show'
+  | 'cancelled'
+  | 'released'
+  | 'dispute_hold'
+  | 'overstay'
+  | 'walkout'
+
+export type ReservationActorRole = 'guest' | 'staff' | 'manager' | 'system'
+
+export type HoldSource = 'online' | 'phone' | 'agent'
+
+export type NoShowChargePolicy = 'none' | 'one_night' | 'full_stay'
+
+export interface ReservationEvent {
+  id: string
+  reservationId: string
+  hotelId: string
+  eventType: string
+  fromStatus: ReservationStatus | null
+  toStatus: ReservationStatus | null
+  actorId: string | null
+  actorRole: ReservationActorRole | null
+  payload: Record<string, unknown> | null
+  createdAt: string
+}
+
+export interface ReservationHold {
+  reservationId: string
+  expiresAt: string
+  holdSource: HoldSource
+  releasedAt: string | null
+}
+
+/** UI booking status — aligned with stay lifecycle (legacy `pending` = provisional). */
+export type BookingStatus = ReservationStatus | 'pending'
 
 export interface Reservation {
   id: string
@@ -231,13 +269,6 @@ export interface RoomCategory {
   default_monthly_rate: number | null
   created_at: string | null
 }
-
-export type ReservationStatus =
-  | 'confirmed'
-  | 'checked_in'
-  | 'checked_out'
-  | 'cancelled'
-  | 'no_show'
 
 export type ReservationChannel = 'airbnb' | 'booking_com' | 'direct' | 'walk_in' | 'other'
 

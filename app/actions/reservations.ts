@@ -13,6 +13,13 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { writeAuditLog, moneyDelta } from '@/lib/audit/log'
 import { validateReservationCancellation } from '@/lib/reservations/cancel-eligibility'
 import {
+  applyCancellationRules,
+  loadHotelCancellationDefaults,
+} from '@/lib/reservations/cancellation-rules'
+import { canUpdateReservationFields } from '@/lib/reservations/lifecycle'
+import { transitionReservation } from '@/lib/reservations/state-machine'
+import { normalizeActorRole } from '@/lib/reservations/transitions'
+import {
   applyDepositDisposition,
   type DepositDisposition,
   requiresDepositDisposition,
@@ -150,7 +157,7 @@ export async function createReservation(input: unknown): Promise<CreateReservati
       guest_name: data.guestName.trim(),
       check_in: data.checkIn,
       check_out: data.checkOut,
-      status: 'confirmed',
+      status: 'inquiry',
       channel: data.channel,
       rate_type: rateType,
       nightly_rate: nightlyRate,
@@ -166,6 +173,34 @@ export async function createReservation(input: unknown): Promise<CreateReservati
 
   if (error || !row) {
     return { success: false, error: error?.message ?? 'Could not create reservation.' }
+  }
+
+  const { data: room } = await admin.from('rooms').select('number').eq('id', data.roomId).maybeSingle()
+  let guestPhone: string | undefined
+  if (data.guestId) {
+    const { data: guest } = await admin
+      .from('guests')
+      .select('phone')
+      .eq('id', data.guestId)
+      .maybeSingle()
+    guestPhone = guest?.phone?.trim() || undefined
+  }
+
+  const confirmed = await transitionReservation({
+    reservationId: row.id,
+    hotelId: profile.hotel_id,
+    toStatus: 'confirmed',
+    actorId: profile.id,
+    actorRole: normalizeActorRole(profile.role),
+    payload: {
+      guestPhone,
+      roomNumber: room?.number ?? null,
+      channel: data.channel,
+    },
+  })
+  if (!confirmed.success) {
+    await admin.from('reservations').delete().eq('id', row.id)
+    return { success: false, error: confirmed.error ?? 'Could not confirm reservation.' }
   }
 
   void (async () => {
@@ -194,28 +229,6 @@ export async function createReservation(input: unknown): Promise<CreateReservati
       channel: data.channel,
     })
   }).catch(() => undefined)
-
-  if (data.guestId) {
-    void import('@/lib/notifications/stays').then(async ({ notifyGuestReservationConfirmed }) => {
-      const admin = createAdminClient()
-      const { data: guest } = await admin
-        .from('guests')
-        .select('phone')
-        .eq('id', data.guestId!)
-        .maybeSingle()
-      const { data: room } = await admin.from('rooms').select('number').eq('id', data.roomId).maybeSingle()
-      const phone = guest?.phone?.trim()
-      if (!phone) return
-      await notifyGuestReservationConfirmed({
-        hotelId: profile.hotel_id!,
-        phone,
-        guestName: data.guestName,
-        roomNumber: room?.number ?? null,
-        checkIn: data.checkIn,
-        checkOut: data.checkOut,
-      })
-    }).catch(() => undefined)
-  }
 
   revalidateReservationViews()
   return { success: true, id: row.id }
@@ -276,8 +289,8 @@ export async function updateReservation(id: string, input: unknown): Promise<Cre
     .maybeSingle()
 
   if (!existing) return { success: false, error: 'Reservation not found.' }
-  if (existing.status !== 'confirmed') {
-    return { success: false, error: 'Only confirmed reservations can be edited.' }
+  if (!canUpdateReservationFields(existing.status)) {
+    return { success: false, error: 'This reservation cannot be edited in its current state.' }
   }
 
   const checkIn = parsed.data.checkIn ?? existing.check_in
@@ -398,30 +411,23 @@ export async function updateReservation(id: string, input: unknown): Promise<Cre
 
 async function setReservationStatus(
   id: string,
+  hotelId: string,
   status: ReservationStatus,
-  roomStatus?: 'occupied' | 'cleaning' | 'available',
+  actorId: string,
+  actorRole: string,
+  payload?: Record<string, unknown>,
+  eventType?: string,
 ): Promise<ReservationActionResult> {
-  const { supabase, profile } = await requireManager()
-  if (!profile || !['owner', 'manager', 'receptionist'].includes(profile.role)) {
-    return { success: false, error: 'Not authorized.' }
-  }
-
-  const { data: reservation } = await supabase
-    .from('reservations')
-    .select('room_id')
-    .eq('id', id)
-    .maybeSingle()
-
-  const { error } = await supabase.from('reservations').update({ status }).eq('id', id)
-  if (error) return { success: false, error: error.message }
-
-  if (roomStatus && reservation?.room_id) {
-    await supabase
-      .from('rooms')
-      .update({ status: roomStatus, updated_by: profile.id, updated_at: new Date().toISOString() })
-      .eq('id', reservation.room_id)
-  }
-
+  const result = await transitionReservation({
+    reservationId: id,
+    hotelId,
+    toStatus: status,
+    actorId,
+    actorRole: normalizeActorRole(actorRole),
+    payload,
+    eventType,
+  })
+  if (!result.success) return { success: false, error: result.error ?? 'Status update failed.' }
   revalidateReservationViews()
   return { success: true }
 }
@@ -450,7 +456,12 @@ export async function checkOutReservation(
 
 export async function cancelReservation(
   id: string,
-  options?: { depositDisposition?: DepositDisposition },
+  options?: {
+    depositDisposition?: DepositDisposition
+    forceMajeure?: boolean
+    forceMajeureDocUrl?: string
+    hotelInitiated?: boolean
+  },
 ): Promise<ReservationActionResult> {
   const { supabase, profile } = await requireManager()
   if (!profile || !['owner', 'manager', 'receptionist'].includes(profile.role)) {
@@ -460,7 +471,7 @@ export async function cancelReservation(
   const { data: reservation } = await supabase
     .from('reservations')
     .select(
-      'hotel_id, guest_name, check_in, check_out, status, guest_id, room_id, amount_paid, guests(phone)',
+      'hotel_id, guest_name, check_in, check_out, status, guest_id, room_id, amount_paid, nightly_rate, total_amount, guests(phone)',
     )
     .eq('id', id)
     .maybeSingle()
@@ -475,6 +486,36 @@ export async function cancelReservation(
     hotel_id: reservation.hotel_id,
   })
   if (!eligibility.ok) return { success: false, error: eligibility.error }
+
+  const hotelSettings = await loadHotelCancellationDefaults(admin, reservation.hotel_id)
+  const cancellation = await applyCancellationRules(admin, {
+    reservation: {
+      id,
+      hotel_id: reservation.hotel_id,
+      check_in: reservation.check_in,
+      amount_paid: reservation.amount_paid,
+      total_amount: reservation.total_amount,
+      nightly_rate: reservation.nightly_rate,
+    },
+    hotelSettings,
+    cancelledAt: new Date(),
+    forceMajeure: options?.forceMajeure,
+    forceMajeureDocUrl: options?.forceMajeureDocUrl,
+    hotelInitiated: options?.hotelInitiated,
+    actorId: profile.id,
+    actorRole: profile.role,
+  })
+
+  if (!cancellation.canCancel) {
+    return { success: false, error: cancellation.reason ?? 'Cancellation not allowed.' }
+  }
+
+  if (
+    cancellation.requiresManagerApproval &&
+    !['owner', 'manager'].includes(profile.role)
+  ) {
+    return { success: false, error: 'Manager approval required for this cancellation.' }
+  }
 
   const amountPaid = Number(reservation.amount_paid ?? 0)
   const depositCheck = validateDepositDispositionInput(
@@ -499,7 +540,23 @@ export async function cancelReservation(
     if (!applied.ok) return { success: false, error: applied.error }
   }
 
-  const result = await setReservationStatus(id, 'cancelled')
+  const guestRow = reservation.guests as { phone?: string | null } | null
+  const guestPhone = guestRow?.phone?.trim()
+
+  const result = await setReservationStatus(
+    id,
+    reservation.hotel_id,
+    'cancelled',
+    profile.id,
+    profile.role,
+    {
+      refundAmount: cancellation.refundAmount,
+      penaltyAmount: cancellation.penaltyAmount,
+      policyApplied: cancellation.policyApplied,
+      guestPhone,
+    },
+    reservation.status === 'provisional' ? 'hold_cancelled' : undefined,
+  )
   if (!result.success) return result
 
   const today = todayISO()
@@ -585,7 +642,11 @@ export async function recordReservationDeposit(input: unknown): Promise<Reservat
     .maybeSingle()
 
   if (!reservation) return { success: false, error: 'Reservation not found.' }
-  if (reservation.status !== 'confirmed' && reservation.status !== 'checked_in') {
+  if (
+    reservation.status !== 'confirmed' &&
+    reservation.status !== 'checked_in' &&
+    reservation.status !== 'provisional'
+  ) {
     return { success: false, error: 'Deposits can only be recorded before check-out.' }
   }
 
@@ -634,6 +695,22 @@ export async function recordReservationDeposit(input: unknown): Promise<Reservat
       payment_status: derivePreCheckoutPaymentStatus(total, newPaid),
     })
     .eq('id', reservation.id)
+
+  if (reservation.status === 'provisional') {
+    const { transitionReservation } = await import('@/lib/reservations/state-machine')
+    const { normalizeActorRole } = await import('@/lib/reservations/transitions')
+    const confirmed = await transitionReservation({
+      reservationId: reservation.id,
+      hotelId: profile.hotel_id,
+      toStatus: 'confirmed',
+      actorId: profile.id,
+      actorRole: normalizeActorRole(profile.role),
+      payload: { depositAmount: parsed.data.amount },
+    })
+    if (!confirmed.success) {
+      return { success: false, error: confirmed.error ?? 'Could not confirm reservation after deposit.' }
+    }
+  }
 
   void writeAuditLog({
     hotelId: profile.hotel_id,

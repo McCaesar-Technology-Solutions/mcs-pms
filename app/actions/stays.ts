@@ -22,6 +22,9 @@ import {
   prepareCheckoutTaxesWithFolio,
 } from '@/lib/folio/rollup'
 import { writeAuditLog, logRoomStatusChange } from '@/lib/audit/log'
+import { canCheckIn, canCheckOut } from '@/lib/reservations/lifecycle'
+import { appendReservationEvent, transitionReservation } from '@/lib/reservations/state-machine'
+import { normalizeActorRole } from '@/lib/reservations/transitions'
 import {
   buildCheckoutInvoicePaymentState,
   finalizeReservationCheckoutPayment,
@@ -195,8 +198,8 @@ export async function checkInStay(
     .maybeSingle()
 
   if (!reservation) return { success: false, error: 'Reservation not found.' }
-  if (reservation.status !== 'confirmed') {
-    return { success: false, error: 'Only confirmed reservations can be checked in.' }
+  if (!canCheckIn(reservation.status)) {
+    return { success: false, error: 'Only confirmed or pre-arrival reservations can be checked in.' }
   }
   if (!reservation.room_id) return { success: false, error: 'Reservation has no room assigned.' }
 
@@ -270,7 +273,6 @@ export async function checkInStay(
     .update({
       guest_id: guestId,
       guest_name: guestName,
-      status: 'checked_in',
     })
     .eq('id', reservationId)
 
@@ -282,14 +284,21 @@ export async function checkInStay(
     .eq('id', reservation.room_id)
     .maybeSingle()
 
-  await admin
-    .from('rooms')
-    .update({
-      status: 'occupied',
-      updated_by: userId,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', reservation.room_id)
+  const transition = await transitionReservation({
+    reservationId,
+    hotelId: profile.hotel_id,
+    toStatus: 'checked_in',
+    actorId: userId,
+    actorRole: normalizeActorRole(profile.role),
+    payload: {
+      guestPhone: parsed.data.phone.trim(),
+      roomNumber: roomBeforeCheckIn?.number ?? null,
+      portalToken: token,
+    },
+  })
+  if (!transition.success) {
+    return { success: false, error: transition.error ?? 'Check-in failed.' }
+  }
 
   const loginUrl = await buildGuestLoginUrl(token)
 
@@ -307,17 +316,6 @@ export async function checkInStay(
       reason: 'check-in',
     })
   }
-
-  void import('@/lib/notifications/stays').then(({ notifyGuestCheckedIn }) =>
-    notifyGuestCheckedIn({
-      hotelId: profile.hotel_id!,
-      phone: parsed.data.phone.trim(),
-      guestName,
-      roomNumber: roomRow?.number ?? null,
-      checkOut: reservation.check_out,
-      portalToken: token,
-    }).catch(() => undefined),
-  )
 
   revalidateStayViews()
 
@@ -383,7 +381,7 @@ export async function walkInCheckIn(input: {
       guest_name: input.name.trim(),
       check_in: checkIn,
       check_out: input.checkOut,
-      status: 'confirmed',
+      status: 'inquiry',
       channel: 'walk_in' as ReservationChannel,
       rate_type: rateType,
       nightly_rate: nightlyRate,
@@ -396,6 +394,19 @@ export async function walkInCheckIn(input: {
 
   if (resError || !reservation) {
     return { success: false, error: resError?.message ?? 'Could not create stay.' }
+  }
+
+  const confirmed = await transitionReservation({
+    reservationId: reservation.id,
+    hotelId: profile.hotel_id,
+    toStatus: 'confirmed',
+    actorId: userId,
+    actorRole: normalizeActorRole(profile.role),
+    payload: { walkIn: true },
+  })
+  if (!confirmed.success) {
+    await admin.from('reservations').delete().eq('id', reservation.id)
+    return { success: false, error: confirmed.error ?? 'Could not confirm walk-in stay.' }
   }
 
   const { data: walkInRoom } = await admin
@@ -677,8 +688,23 @@ export async function checkOutStay(input: {
   }
 
   if (!reservation) return { success: false, error: 'Reservation not found.' }
-  if (reservation.status !== 'checked_in') {
+  if (!canCheckOut(reservation.status) && reservation.status !== 'checkout_in_progress') {
     return { success: false, error: 'Only checked-in stays can be checked out.' }
+  }
+
+  const actorRole = normalizeActorRole(profile.role)
+
+  if (reservation.status === 'checked_in' || reservation.status === 'overstay') {
+    const checkoutStart = await transitionReservation({
+      reservationId: reservation.id,
+      hotelId: reservation.hotel_id,
+      toStatus: 'checkout_in_progress',
+      actorId: userId,
+      actorRole,
+    })
+    if (!checkoutStart.success) {
+      return { success: false, error: checkoutStart.error ?? 'Could not start checkout.' }
+    }
   }
 
   let guestPhone: string | null = null
@@ -792,7 +818,6 @@ export async function checkOutStay(input: {
   await admin
     .from('reservations')
     .update({
-      status: 'checked_out',
       check_out: effectiveCheckOut,
       total_amount: taxes.total,
       ...(existingInvoice
@@ -804,6 +829,27 @@ export async function checkOutStay(input: {
           }),
     })
     .eq('id', reservation.id)
+
+  const checkedOut = await transitionReservation({
+    reservationId: reservation.id,
+    hotelId: reservation.hotel_id,
+    toStatus: 'checked_out',
+    actorId: userId,
+    actorRole,
+    payload: { paymentMethod: input.paymentMethod, folioSubtotal },
+  })
+  if (!checkedOut.success) {
+    return { success: false, error: checkedOut.error ?? 'Could not complete checkout.' }
+  }
+
+  await transitionReservation({
+    reservationId: reservation.id,
+    hotelId: reservation.hotel_id,
+    toStatus: 'post_stay',
+    actorId: userId,
+    actorRole: 'system',
+    bypassRoleCheck: true,
+  })
 
   if (reservation.guest_id) {
     await admin
@@ -823,11 +869,6 @@ export async function checkOutStay(input: {
       .select('number, status')
       .eq('id', reservation.room_id)
       .maybeSingle()
-
-    await admin
-      .from('rooms')
-      .update({ status: 'cleaning', updated_by: userId, updated_at: now })
-      .eq('id', reservation.room_id)
 
     if (roomBeforeCheckout && roomBeforeCheckout.status !== 'cleaning') {
       void logRoomStatusChange({
@@ -959,6 +1000,18 @@ export async function extendStay(
       .eq('id', reservation.guest_id)
   }
 
+  await appendReservationEvent({
+    reservationId,
+    hotelId: profile.hotel_id,
+    eventType: 'stay_extended',
+    actorId: profile.id,
+    actorRole: normalizeActorRole(profile.role),
+    payload: {
+      old_check_out: reservation.check_out,
+      new_check_out: newCheckOut,
+    },
+  })
+
   revalidateStayViews()
 
   void writeAuditLog({
@@ -1079,6 +1132,19 @@ export async function moveStayRoom(
 
   revalidateStayViews()
 
+  await appendReservationEvent({
+    reservationId,
+    hotelId: profile.hotel_id,
+    eventType: 'room_moved',
+    actorId: userId,
+    actorRole: normalizeActorRole(profile.role),
+    payload: {
+      old_room_id: oldRoomId,
+      new_room_id: newRoomId,
+      moved_at: now,
+    },
+  })
+
   void writeAuditLog({
     hotelId: profile.hotel_id,
     actorId: userId,
@@ -1108,8 +1174,8 @@ export async function markNoShow(
     .maybeSingle()
 
   if (!reservation) return { success: false, error: 'Reservation not found.' }
-  if (reservation.status !== 'confirmed') {
-    return { success: false, error: 'Only confirmed reservations can be marked as no-show.' }
+  if (reservation.status !== 'confirmed' && reservation.status !== 'pre_arrival') {
+    return { success: false, error: 'Only confirmed or pre-arrival reservations can be marked as no-show.' }
   }
 
   const admin = createAdminClient()
@@ -1151,15 +1217,19 @@ export async function markNoShow(
     if (!applied.ok) return { success: false, error: applied.error }
   }
 
-  const { error } = await supabase
-    .from('reservations')
-    .update({ status: 'no_show' })
-    .eq('id', reservationId)
-
-  if (error) return { success: false, error: error.message }
+  const noShow = await transitionReservation({
+    reservationId,
+    hotelId: reservation.hotel_id,
+    toStatus: 'no_show',
+    actorId: profile.id,
+    actorRole: normalizeActorRole(profile.role),
+    payload: { amountPaid },
+  })
+  if (!noShow.success) {
+    return { success: false, error: noShow.error ?? 'Could not mark no-show.' }
+  }
 
   if (reservation.guest_id) {
-    const admin = createAdminClient()
     await admin
       .from('guests')
       .update({

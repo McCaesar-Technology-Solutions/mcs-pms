@@ -37,6 +37,17 @@ export type Database = {
           guest_portal_emergency_phone: string | null
           guest_portal_check_out_time: string | null
           guest_portal_welcome: string | null
+          hold_duration_online_minutes: number
+          hold_duration_phone_minutes: number
+          hold_duration_agent_minutes: number
+          no_show_time: string
+          post_stay_archive_delay_days: number
+          no_show_charge_policy: 'none' | 'one_night' | 'full_stay'
+          no_show_hold_room: boolean
+          default_free_cancel_days: number
+          default_refundable: boolean
+          default_penalty_nights: number
+          use_lifecycle_v2: boolean
           created_at: string | null
         }
         Insert: {
@@ -607,7 +618,23 @@ export type Database = {
           guest_name: string
           check_in: string
           check_out: string
-          status: 'confirmed' | 'checked_in' | 'checked_out' | 'cancelled' | 'no_show' | null
+          status:
+            | 'inquiry'
+            | 'provisional'
+            | 'confirmed'
+            | 'pre_arrival'
+            | 'checked_in'
+            | 'checkout_in_progress'
+            | 'checked_out'
+            | 'post_stay'
+            | 'archived'
+            | 'no_show'
+            | 'cancelled'
+            | 'released'
+            | 'dispute_hold'
+            | 'overstay'
+            | 'walkout'
+            | null
           channel: 'airbnb' | 'booking_com' | 'direct' | 'walk_in' | 'other' | null
           rate_type: 'nightly' | 'monthly' | null
           nightly_rate: number | null
@@ -636,6 +663,9 @@ export type Database = {
             | null
           ical_uid: string | null
           ical_feed_id: string | null
+          checked_in_at: string | null
+          checked_out_at: string | null
+          folio_locked: boolean
           created_by: string | null
           created_at: string | null
         }
@@ -647,7 +677,23 @@ export type Database = {
           guest_name: string
           check_in: string
           check_out: string
-          status?: 'confirmed' | 'checked_in' | 'checked_out' | 'cancelled' | 'no_show' | null
+          status?:
+            | 'inquiry'
+            | 'provisional'
+            | 'confirmed'
+            | 'pre_arrival'
+            | 'checked_in'
+            | 'checkout_in_progress'
+            | 'checked_out'
+            | 'post_stay'
+            | 'archived'
+            | 'no_show'
+            | 'cancelled'
+            | 'released'
+            | 'dispute_hold'
+            | 'overstay'
+            | 'walkout'
+            | null
           channel?: 'airbnb' | 'booking_com' | 'direct' | 'walk_in' | 'other' | null
           rate_type?: 'nightly' | 'monthly' | null
           nightly_rate?: number | null
@@ -676,6 +722,9 @@ export type Database = {
             | null
           ical_uid?: string | null
           ical_feed_id?: string | null
+          checked_in_at?: string | null
+          checked_out_at?: string | null
+          folio_locked?: boolean
           created_by?: string | null
           created_at?: string | null
         }
@@ -687,7 +736,23 @@ export type Database = {
           guest_name?: string
           check_in?: string
           check_out?: string
-          status?: 'confirmed' | 'checked_in' | 'checked_out' | 'cancelled' | 'no_show' | null
+          status?:
+            | 'inquiry'
+            | 'provisional'
+            | 'confirmed'
+            | 'pre_arrival'
+            | 'checked_in'
+            | 'checkout_in_progress'
+            | 'checked_out'
+            | 'post_stay'
+            | 'archived'
+            | 'no_show'
+            | 'cancelled'
+            | 'released'
+            | 'dispute_hold'
+            | 'overstay'
+            | 'walkout'
+            | null
           channel?: 'airbnb' | 'booking_com' | 'direct' | 'walk_in' | 'other' | null
           rate_type?: 'nightly' | 'monthly' | null
           nightly_rate?: number | null
@@ -716,6 +781,9 @@ export type Database = {
             | null
           ical_uid?: string | null
           ical_feed_id?: string | null
+          checked_in_at?: string | null
+          checked_out_at?: string | null
+          folio_locked?: boolean
           created_by?: string | null
           created_at?: string | null
         }
@@ -1960,12 +2028,89 @@ export type Database = {
         }
         Relationships: []
       }
+      reservation_events: {
+        Row: {
+          id: string
+          reservation_id: string
+          hotel_id: string
+          event_type: string
+          from_status: string | null
+          to_status: string | null
+          actor_id: string | null
+          actor_role: string | null
+          payload: Json | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          reservation_id: string
+          hotel_id: string
+          event_type: string
+          from_status?: string | null
+          to_status?: string | null
+          actor_id?: string | null
+          actor_role?: string | null
+          payload?: Json | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          reservation_id?: string
+          hotel_id?: string
+          event_type?: string
+          from_status?: string | null
+          to_status?: string | null
+          actor_id?: string | null
+          actor_role?: string | null
+          payload?: Json | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      reservation_holds: {
+        Row: {
+          reservation_id: string
+          expires_at: string
+          hold_source: 'online' | 'phone' | 'agent'
+          released_at: string | null
+        }
+        Insert: {
+          reservation_id: string
+          expires_at: string
+          hold_source: 'online' | 'phone' | 'agent'
+          released_at?: string | null
+        }
+        Update: {
+          reservation_id?: string
+          expires_at?: string
+          hold_source?: 'online' | 'phone' | 'agent'
+          released_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: Record<string, never>
     Functions: {
       allocate_invoice_number: { Args: { p_hotel_id: string }; Returns: string }
       auth_hotel_id: { Args: Record<string, never>; Returns: string }
       auth_role: { Args: Record<string, never>; Returns: string }
+      transition_reservation_status: {
+        Args: {
+          p_reservation_id: string
+          p_hotel_id: string
+          p_to_status: string
+          p_event_type: string
+          p_actor_id?: string | null
+          p_actor_role?: string | null
+          p_payload?: Json
+          p_room_status?: string | null
+          p_room_updated_by?: string | null
+          p_hold_source?: string | null
+          p_hold_minutes?: number | null
+          p_expected_from?: string | null
+        }
+        Returns: Json
+      }
     }
     Enums: Record<string, never>
     CompositeTypes: Record<string, never>
