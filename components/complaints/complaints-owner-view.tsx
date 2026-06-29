@@ -183,6 +183,20 @@ function ComplaintsOwnerViewContent({ canLog = false, canMessage = false }: Comp
     load()
   }, [load])
 
+  const lastDeepLinkId = useRef<string | null>(null)
+
+  useEffect(() => {
+    const complaintId = searchParams.get('complaint')
+    if (!complaintId || complaints.length === 0) return
+    if (lastDeepLinkId.current === complaintId && selected?.id === complaintId) return
+
+    const match = complaints.find((c) => c.id === complaintId)
+    if (match) {
+      lastDeepLinkId.current = complaintId
+      void openDetail(match)
+    }
+  }, [complaints, searchParams, selected?.id])
+
   useRealtimeRefresh('complaints', refreshFromRealtime)
   useRealtimeRefresh('layout', refreshFromRealtime)
 

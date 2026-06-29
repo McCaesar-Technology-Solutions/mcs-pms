@@ -35,6 +35,7 @@ import type { ReservationChannel } from '@/types'
 interface GuestsTableProps {
   guests: GuestRow[]
   initialSearch?: string
+  openGuestId?: string
   readOnly?: boolean
 }
 
@@ -90,11 +91,26 @@ function getSourceColor(source: ReservationChannel) {
   }
 }
 
-export function GuestsTable({ guests, initialSearch = '', readOnly = false }: GuestsTableProps) {
+export function GuestsTable({
+  guests,
+  initialSearch = '',
+  openGuestId,
+  readOnly = false,
+}: GuestsTableProps) {
   const router = useRouter()
   const [searchQuery, setSearchQuery] = useState(initialSearch)
   const [selectedStatus, setSelectedStatus] = useState<GuestStatus | null>(null)
   const [selectedGuest, setSelectedGuest] = useState<GuestRow | null>(null)
+
+  useEffect(() => {
+    setSearchQuery(initialSearch)
+  }, [initialSearch])
+
+  useEffect(() => {
+    if (!openGuestId) return
+    const guest = guests.find((g) => g.id === openGuestId)
+    if (guest) setSelectedGuest(guest)
+  }, [openGuestId, guests])
   const [editingGuest, setEditingGuest] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
 

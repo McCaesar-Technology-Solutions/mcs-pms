@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState, useTransition } from 'react'
+import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Copy, Download, Plus, TrendingUp } from 'lucide-react'
 import { toast } from 'sonner'
@@ -104,6 +104,7 @@ interface BillingOverviewProps {
   invoices: InvoiceWithRoom[]
   hotel: ExportHotelInfo | null
   initialQuery?: string
+  openInvoiceId?: string
   vatMode?: VatMode
 }
 
@@ -111,6 +112,7 @@ export function BillingOverview({
   invoices,
   hotel,
   initialQuery = '',
+  openInvoiceId,
   vatMode = 'exclusive',
 }: BillingOverviewProps) {
   const router = useRouter()
@@ -127,6 +129,16 @@ export function BillingOverview({
   const [partialAmount, setPartialAmount] = useState('')
   const [partialMethod, setPartialMethod] = useState<PaymentMethod>('cash')
   const [pending, startTransition] = useTransition()
+
+  useEffect(() => {
+    setTextFilter(initialQuery)
+  }, [initialQuery])
+
+  useEffect(() => {
+    if (!openInvoiceId) return
+    const inv = invoices.find((i) => i.id === openInvoiceId)
+    if (inv) setDetail(inv)
+  }, [openInvoiceId, invoices])
 
   const rows: BillingRow[] = useMemo(() => mapInvoices(invoices), [invoices])
 

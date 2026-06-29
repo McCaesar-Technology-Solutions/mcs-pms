@@ -70,7 +70,7 @@ export async function searchGlobal(query: string, limit = 8): Promise<GlobalSear
             subtitle: [room?.number ? `Room ${room.number}` : null, row.phone, row.email]
               .filter(Boolean)
               .join(' · ') || 'Guest',
-            href: `${prefix}/guests?q=${encodeURIComponent(q)}`,
+            href: `${prefix}/guests?open=${row.id}`,
           })
         }
       })(),
@@ -123,7 +123,7 @@ export async function searchGlobal(query: string, limit = 8): Promise<GlobalSear
             subtitle: [row.status?.replace(/_/g, ' '), row.floor != null ? `Floor ${row.floor}` : null]
               .filter(Boolean)
               .join(' · '),
-            href: `${prefix}/rooms?q=${encodeURIComponent(row.number)}`,
+            href: `${prefix}/rooms?open=${row.id}`,
           })
         }
       })(),
@@ -176,7 +176,7 @@ export async function searchGlobal(query: string, limit = 8): Promise<GlobalSear
             kind: 'invoice',
             label: invNum,
             subtitle: `${row.guest_name} · GHS ${(row.total_amount ?? 0).toLocaleString()} · ${row.payment_status ?? 'pending'}`,
-            href: `${prefix}/billing?q=${encodeURIComponent(invNum)}`,
+            href: `${prefix}/billing?open=${row.id}`,
           })
         }
       })(),
@@ -205,7 +205,7 @@ export async function searchGlobal(query: string, limit = 8): Promise<GlobalSear
             kind: 'housekeeping',
             label: roomNum ? `Room ${roomNum}` : 'Housekeeping task',
             subtitle: `${row.task_type.replace(/_/g, ' ')} · ${row.status?.replace(/_/g, ' ')}`,
-            href: `${prefix}/housekeeping?q=${encodeURIComponent(q)}`,
+            href: `${prefix}/housekeeping?task=${row.id}`,
           })
         }
       })(),
@@ -230,7 +230,7 @@ export async function searchGlobal(query: string, limit = 8): Promise<GlobalSear
             kind: 'complaint',
             label: `${row.category}${room?.number ? ` · Room ${room.number}` : ''}`,
             subtitle: row.description?.slice(0, 80) ?? row.status ?? 'Job',
-            href: `/technician/tasks?q=${encodeURIComponent(q)}`,
+            href: `/technician/tasks?open=${row.id}`,
           })
         }
       })(),

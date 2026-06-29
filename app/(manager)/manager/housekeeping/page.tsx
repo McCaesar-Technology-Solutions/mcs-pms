@@ -7,7 +7,12 @@ import { getDashboardData } from '@/lib/data/dashboard'
 import { getStaffData } from '@/lib/data/staff'
 import { getHousekeepingTasks, groupOpenTasksByRoom } from '@/lib/data/housekeeping'
 
-export default async function HousekeepingPage() {
+export default async function HousekeepingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ task?: string }>
+}) {
+  const { task: highlightTaskId } = await searchParams
   const [profile, { rooms, roomOptions }, { staff }, tasks] = await Promise.all([
     getProfile(),
     getDashboardData(),
@@ -35,6 +40,7 @@ export default async function HousekeepingPage() {
         staff={assignableStaff}
         canManage
         currentUserId={profile?.id}
+        highlightTaskId={highlightTaskId}
       />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">

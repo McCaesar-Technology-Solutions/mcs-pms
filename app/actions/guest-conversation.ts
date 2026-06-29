@@ -15,6 +15,7 @@ import {
 import type { Guest } from '@/types'
 import { guestFacingAuthorName } from '@/lib/contacts/display'
 import { profilePhotoPublicUrl } from '@/lib/profile-photos/storage'
+import { canEditOwnMessage } from '@/lib/messaging/can-edit-message'
 
 export type GuestConversationActionResult<T = void> =
   | { success: true; data?: T }
@@ -26,6 +27,11 @@ const stayMessageSchema = z.object({
 
 const staffMessageSchema = z.object({
   conversationId: z.string().uuid(),
+  body: z.string().min(1).max(2000),
+})
+
+const editMessageSchema = z.object({
+  messageId: z.string().uuid(),
   body: z.string().min(1).max(2000),
 })
 
@@ -115,6 +121,8 @@ export async function getGuestStayMessages(): Promise<
       createdAt: string
       authorName: string | null
       authorAvatarUrl: string | null
+      editedAt?: string | null
+      canEdit?: boolean
     }[]
   }>
 > {
@@ -130,9 +138,22 @@ export async function getGuestStayMessages(): Promise<
 
   const guestAvatarUrl = profilePhotoPublicUrl(auth.guest.profile_image_path)
 
+  const { data: conversationRow } = await admin
+    .from('guest_conversations')
+    .select('staff_last_read_at')
+    .eq('id', conversationId)
+    .maybeSingle()
+
+  const staffLastRead = conversationRow?.staff_last_read_at
+
+  await admin
+    .from('guest_conversations')
+    .update({ guest_last_read_at: new Date().toISOString() })
+    .eq('id', conversationId)
+
   const { data } = await admin
     .from('guest_conversation_messages')
-    .select('id, author_role, body, created_at, author_id')
+    .select('id, author_role, body, created_at, edited_at, author_id')
     .eq('conversation_id', conversationId)
     .order('created_at', { ascending: true })
 
@@ -163,6 +184,7 @@ export async function getGuestStayMessages(): Promise<
           authorRole: m.author_role,
           body: m.body,
           createdAt: m.created_at ?? new Date(0).toISOString(),
+          editedAt: m.edited_at ?? null,
           authorName: isGuest
             ? auth.guest.name
             : guestFacingAuthorName(staff?.name, staff?.role),
@@ -171,6 +193,9 @@ export async function getGuestStayMessages(): Promise<
             : staff?.role === 'owner'
               ? null
               : profilePhotoPublicUrl(staff?.profile_image_path),
+          canEdit:
+            isGuest &&
+            canEditOwnMessage(m.created_at ?? new Date(0).toISOString(), [staffLastRead]),
         }
       }),
     },
@@ -241,6 +266,8 @@ export async function getStaffGuestStayMessages(
       createdAt: string
       authorName: string | null
       authorAvatarUrl: string | null
+      editedAt?: string | null
+      canEdit?: boolean
     }[]
   >
 > {
@@ -254,7 +281,7 @@ export async function getStaffGuestStayMessages(
 
   const { data: conversation } = await admin
     .from('guest_conversations')
-    .select('guest_id, guests(name, profile_image_path)')
+    .select('guest_id, guest_last_read_at, guests(name, profile_image_path)')
     .eq('id', conversationId)
     .maybeSingle()
 
@@ -263,10 +290,11 @@ export async function getStaffGuestStayMessages(
     profile_image_path?: string | null
   } | null
   const guestAvatarUrl = profilePhotoPublicUrl(guestRow?.profile_image_path)
+  const guestLastRead = conversation?.guest_last_read_at
 
   const { data } = await admin
     .from('guest_conversation_messages')
-    .select('id, author_role, body, created_at, author_id, profiles(name, profile_image_path)')
+    .select('id, author_role, body, created_at, edited_at, author_id, profiles(name, profile_image_path)')
     .eq('conversation_id', conversationId)
     .order('created_at', { ascending: true })
 
@@ -288,10 +316,15 @@ export async function getStaffGuestStayMessages(
         authorRole: m.author_role,
         body: m.body,
         createdAt: m.created_at ?? new Date(0).toISOString(),
+        editedAt: m.edited_at ?? null,
         authorName: isGuest ? (guestRow?.name ?? 'Guest') : (authorProfile?.name ?? null),
         authorAvatarUrl: isGuest
           ? guestAvatarUrl
           : profilePhotoPublicUrl(authorProfile?.profile_image_path),
+        canEdit:
+          !isGuest &&
+          m.author_id === profile.id &&
+          canEditOwnMessage(m.created_at ?? new Date(0).toISOString(), [guestLastRead]),
       }
     }),
   }
@@ -351,6 +384,116 @@ export async function postStaffGuestStayMessage(
       messagePreview: body,
     }).catch(() => undefined),
   )
+
+  revalidateStayChatPaths()
+  return { success: true }
+}
+
+export async function editGuestStayMessage(input: unknown): Promise<GuestConversationActionResult> {
+  const auth = await requireGuestWithRules()
+  if (!auth.ok) return { success: false, error: auth.error }
+
+  const parsed = editMessageSchema.safeParse(input)
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid message.' }
+  }
+
+  const admin = createAdminClient()
+  const { id: conversationId } = await ensureGuestConversation(
+    admin,
+    auth.guest.hotel_id,
+    auth.guest.id,
+  )
+
+  const { data: conversation } = await admin
+    .from('guest_conversations')
+    .select('staff_last_read_at')
+    .eq('id', conversationId)
+    .maybeSingle()
+
+  const { data: message } = await admin
+    .from('guest_conversation_messages')
+    .select('id, conversation_id, author_role, created_at')
+    .eq('id', parsed.data.messageId)
+    .eq('conversation_id', conversationId)
+    .maybeSingle()
+
+  if (!message || message.author_role !== 'guest') {
+    return { success: false, error: 'Message not found.' }
+  }
+
+  if (
+    !canEditOwnMessage(message.created_at ?? new Date(0).toISOString(), [
+      conversation?.staff_last_read_at,
+    ])
+  ) {
+    return { success: false, error: 'This message can no longer be edited.' }
+  }
+
+  const now = new Date().toISOString()
+  const { error } = await admin
+    .from('guest_conversation_messages')
+    .update({ body: parsed.data.body.trim(), edited_at: now })
+    .eq('id', message.id)
+
+  if (error) return { success: false, error: 'Could not update message.' }
+
+  await admin.from('guest_conversations').update({ updated_at: now }).eq('id', conversationId)
+  revalidateStayChatPaths()
+  return { success: true }
+}
+
+export async function editStaffGuestStayMessage(
+  input: unknown,
+): Promise<GuestConversationActionResult> {
+  const profile = await requireFrontDeskProfile()
+  if (!profile) return { success: false, error: 'Not authorized.' }
+
+  const parsed = editMessageSchema.safeParse(input)
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid message.' }
+  }
+
+  const admin = createAdminClient()
+  const { data: message } = await admin
+    .from('guest_conversation_messages')
+    .select('id, conversation_id, author_id, author_role, created_at')
+    .eq('id', parsed.data.messageId)
+    .maybeSingle()
+
+  if (!message || message.author_role !== 'staff' || message.author_id !== profile.id) {
+    return { success: false, error: 'Message not found.' }
+  }
+
+  const access = await assertConversationAccess(message.conversation_id, profile.hotel_id!)
+  if (!access.ok) return { success: false, error: access.error }
+
+  const { data: conversation } = await admin
+    .from('guest_conversations')
+    .select('guest_last_read_at')
+    .eq('id', message.conversation_id)
+    .maybeSingle()
+
+  if (
+    !canEditOwnMessage(message.created_at ?? new Date(0).toISOString(), [
+      conversation?.guest_last_read_at,
+    ])
+  ) {
+    return { success: false, error: 'This message can no longer be edited.' }
+  }
+
+  const now = new Date().toISOString()
+  const { error } = await admin
+    .from('guest_conversation_messages')
+    .update({ body: parsed.data.body.trim(), edited_at: now })
+    .eq('id', message.id)
+
+  if (error) return { success: false, error: 'Could not update message.' }
+
+  await admin
+    .from('guest_conversations')
+    .update({ updated_at: now })
+    .eq('id', message.conversation_id)
 
   revalidateStayChatPaths()
   return { success: true }

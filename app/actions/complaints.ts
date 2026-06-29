@@ -11,6 +11,7 @@ import { canManagerApproveCompletion, canTechnicianScheduleVisit } from '@/lib/c
 import { scheduleComplaintVisitSchema } from '@/lib/validations'
 import type { Complaint, ComplaintEvent, ComplaintPriority, DbRoomStatus } from '@/types'
 import { profilePhotoPublicUrl } from '@/lib/profile-photos/storage'
+import { canEditOwnMessage } from '@/lib/messaging/can-edit-message'
 
 export type ComplaintActionResult<T = void> =
   | { success: true; data?: T }
@@ -707,6 +708,11 @@ const complaintMessageSchema = z.object({
   body: z.string().min(1).max(2000),
 })
 
+const editComplaintMessageSchema = z.object({
+  messageId: z.string().uuid(),
+  body: z.string().min(1).max(2000),
+})
+
 export async function getStaffComplaintMessages(
   complaintId: string,
 ): Promise<
@@ -718,6 +724,8 @@ export async function getStaffComplaintMessages(
       createdAt: string
       authorName: string | null
       authorAvatarUrl: string | null
+      editedAt?: string | null
+      canEdit?: boolean
     }[]
   >
 > {
@@ -731,7 +739,7 @@ export async function getStaffComplaintMessages(
 
   const { data: complaint } = await admin
     .from('complaints')
-    .select('guest_id, guests(name, profile_image_path)')
+    .select('guest_id, guest_last_read_at, guests(name, profile_image_path)')
     .eq('id', complaintId)
     .maybeSingle()
 
@@ -740,10 +748,16 @@ export async function getStaffComplaintMessages(
     profile_image_path?: string | null
   } | null
   const guestAvatarUrl = profilePhotoPublicUrl(guestRow?.profile_image_path)
+  const guestLastRead = complaint?.guest_last_read_at
+
+  await admin
+    .from('complaints')
+    .update({ staff_last_read_at: new Date().toISOString() })
+    .eq('id', complaintId)
 
   const { data } = await admin
     .from('complaint_messages')
-    .select('id, author_role, body, created_at, author_id, profiles(name, profile_image_path)')
+    .select('id, author_role, body, created_at, edited_at, author_id, profiles(name, profile_image_path)')
     .eq('complaint_id', complaintId)
     .order('created_at', { ascending: true })
 
@@ -760,10 +774,15 @@ export async function getStaffComplaintMessages(
         authorRole: m.author_role,
         body: m.body,
         createdAt: m.created_at ?? new Date(0).toISOString(),
+        editedAt: m.edited_at ?? null,
         authorName: isGuestRole ? (guestRow?.name ?? 'Guest') : (authorProfile?.name ?? null),
         authorAvatarUrl: isGuestRole
           ? guestAvatarUrl
           : profilePhotoPublicUrl(authorProfile?.profile_image_path),
+        canEdit:
+          !isGuestRole &&
+          m.author_id === profile.id &&
+          canEditOwnMessage(m.created_at ?? new Date(0).toISOString(), [guestLastRead]),
       }
     }),
   }
@@ -798,6 +817,59 @@ export async function postStaffComplaintMessage(
       () => undefined,
     ),
   )
+
+  revalidatePath('/manager/complaints')
+  revalidatePath('/receptionist/complaints')
+  revalidatePath('/technician/tasks')
+  revalidatePath('/guest')
+  return { success: true }
+}
+
+export async function editStaffComplaintMessage(
+  input: unknown,
+): Promise<ComplaintActionResult> {
+  const profile = await requireStaffProfile()
+  if (!profile?.hotel_id) return { success: false, error: 'Not authorized.' }
+
+  const parsed = editComplaintMessageSchema.safeParse(input)
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid message.' }
+  }
+
+  const admin = createAdminClient()
+  const { data: message } = await admin
+    .from('complaint_messages')
+    .select('id, complaint_id, author_id, author_role, created_at')
+    .eq('id', parsed.data.messageId)
+    .maybeSingle()
+
+  if (!message || message.author_role !== 'staff' || message.author_id !== profile.id) {
+    return { success: false, error: 'Message not found.' }
+  }
+
+  const access = await assertComplaintStaffAccess(message.complaint_id, profile)
+  if (!access.ok) return { success: false, error: access.error }
+
+  const { data: complaint } = await admin
+    .from('complaints')
+    .select('guest_last_read_at')
+    .eq('id', message.complaint_id)
+    .maybeSingle()
+
+  if (
+    !canEditOwnMessage(message.created_at ?? new Date(0).toISOString(), [
+      complaint?.guest_last_read_at,
+    ])
+  ) {
+    return { success: false, error: 'This message can no longer be edited.' }
+  }
+
+  const { error } = await admin
+    .from('complaint_messages')
+    .update({ body: parsed.data.body.trim(), edited_at: new Date().toISOString() })
+    .eq('id', message.id)
+
+  if (error) return { success: false, error: 'Could not update message.' }
 
   revalidatePath('/manager/complaints')
   revalidatePath('/receptionist/complaints')

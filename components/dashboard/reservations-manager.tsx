@@ -151,6 +151,10 @@ export function ReservationsManager({
   const router = useRouter()
   const [selectedId, setSelectedId] = useState<string | null>(openReservationId ?? null)
   const [search, setSearch] = useState(initialSearch)
+
+  useEffect(() => {
+    if (openReservationId) setSelectedId(openReservationId)
+  }, [openReservationId])
   const [statusFilter, setStatusFilter] = useState<(typeof STATUS_FILTERS)[number]>(
     initialStatus ?? 'all',
   )

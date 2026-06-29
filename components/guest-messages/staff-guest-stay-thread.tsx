@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import {
   getStaffGuestStayMessages,
   postStaffGuestStayMessage,
+  editStaffGuestStayMessage,
 } from '@/app/actions/guest-conversation'
 import { prepopulateMessageComposer } from '@/lib/messaging/prepopulate-composer'
 import {
@@ -13,6 +14,7 @@ import {
   groupMessagesByDay,
 } from '@/components/guest-messages/messaging-format'
 import { MessengerAvatar } from '@/components/messaging/messenger-avatar'
+import { EditableMessageContent } from '@/components/messaging/editable-message-content'
 import { GuestDndBadge } from '@/components/ui/guest-dnd-badge'
 
 interface ChatMessage {
@@ -22,6 +24,8 @@ interface ChatMessage {
   createdAt: string
   authorName: string | null
   authorAvatarUrl: string | null
+  editedAt?: string | null
+  canEdit?: boolean
 }
 
 interface StaffGuestStayThreadProps {
@@ -101,6 +105,18 @@ export function StaffGuestStayThread({
           void load({ silent: true })
         },
       )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'guest_conversation_messages',
+          filter: `conversation_id=eq.${conversationId}`,
+        },
+        () => {
+          void load({ silent: true })
+        },
+      )
       .subscribe()
 
     return () => {
@@ -141,6 +157,12 @@ export function StaffGuestStayThread({
 
     await load({ silent: true })
     textareaRef.current?.focus()
+  }
+
+  async function handleEditMessage(messageId: string, nextBody: string) {
+    const result = await editStaffGuestStayMessage({ messageId, body: nextBody })
+    if (result.success) await load({ silent: true })
+    return { success: result.success, error: result.success ? undefined : result.error }
   }
 
   return (
@@ -236,7 +258,14 @@ export function StaffGuestStayThread({
                             : 'staff-messenger__bubble--guest'
                         }`}
                       >
-                        <p className="whitespace-pre-wrap break-words">{m.body}</p>
+                        <EditableMessageContent
+                          messageId={m.id}
+                          body={m.body}
+                          editedAt={messages.find((row) => row.id === m.id)?.editedAt}
+                          canEdit={messages.find((row) => row.id === m.id)?.canEdit}
+                          onSave={handleEditMessage}
+                          bodyClassName="whitespace-pre-wrap break-words"
+                        />
                         <span className="staff-messenger__bubble-time">
                           {formatMessageTime(m.createdAt)}
                         </span>

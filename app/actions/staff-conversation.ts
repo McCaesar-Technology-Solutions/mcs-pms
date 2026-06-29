@@ -10,6 +10,7 @@ import {
   type StaffConversationDetails,
   type StaffConversationMessage,
 } from '@/lib/data/staff-conversations'
+import { canEditOwnMessage } from '@/lib/messaging/can-edit-message'
 
 export type StaffConversationActionResult<T = void> =
   | { success: true; data?: T }
@@ -19,6 +20,11 @@ const STAFF_MESSAGING_ROLES = new Set(['owner', 'manager', 'receptionist', 'tech
 
 const messageSchema = z.object({
   conversationId: z.string().uuid(),
+  body: z.string().min(1).max(2000),
+})
+
+const editMessageSchema = z.object({
+  messageId: z.string().uuid(),
   body: z.string().min(1).max(2000),
 })
 
@@ -131,6 +137,64 @@ export async function postStaffTeamMessage(input: {
     .from('staff_conversations')
     .update({ updated_at: now })
     .eq('id', parsed.data.conversationId)
+
+  revalidateStaffMessagePaths()
+  return { success: true }
+}
+
+export async function editStaffTeamMessage(input: {
+  messageId: string
+  body: string
+}): Promise<StaffConversationActionResult> {
+  const parsed = editMessageSchema.safeParse(input)
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid message.' }
+  }
+
+  const profile = await requireStaffMessenger()
+  if (!profile) return { success: false, error: 'Not authorized.' }
+
+  const admin = createAdminClient()
+  const { data: message } = await admin
+    .from('staff_conversation_messages')
+    .select('id, conversation_id, author_id, created_at')
+    .eq('id', parsed.data.messageId)
+    .maybeSingle()
+
+  if (!message || message.author_id !== profile.id) {
+    return { success: false, error: 'Message not found.' }
+  }
+
+  if (!(await assertMember(message.conversation_id, profile.id))) {
+    return { success: false, error: 'Conversation not found.' }
+  }
+
+  const { data: members } = await admin
+    .from('staff_conversation_members')
+    .select('profile_id, last_read_at')
+    .eq('conversation_id', message.conversation_id)
+
+  const otherReadAts = (members ?? [])
+    .filter((m) => m.profile_id !== profile.id)
+    .map((m) => m.last_read_at)
+
+  const createdAt = message.created_at ?? new Date().toISOString()
+  if (!canEditOwnMessage(createdAt, otherReadAts)) {
+    return { success: false, error: 'This message can no longer be edited.' }
+  }
+
+  const now = new Date().toISOString()
+  const { error } = await admin
+    .from('staff_conversation_messages')
+    .update({ body: parsed.data.body.trim(), edited_at: now })
+    .eq('id', message.id)
+
+  if (error) return { success: false, error: error.message }
+
+  await admin
+    .from('staff_conversations')
+    .update({ updated_at: now })
+    .eq('id', message.conversation_id)
 
   revalidateStaffMessagePaths()
   return { success: true }

@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { LayoutGrid, List, Smartphone } from 'lucide-react'
 import { HousekeepingKanban } from '@/components/dashboard/housekeeping-kanban'
 import { HousekeepingTableView } from '@/components/dashboard/housekeeping-table-view'
@@ -14,13 +14,24 @@ interface HousekeepingBoardProps {
   canManage?: boolean
   currentUserId?: string
   mobileHref?: string
+  highlightTaskId?: string
 }
 
 export function HousekeepingBoard(props: HousekeepingBoardProps) {
-  const { mobileHref = '/mobile/housekeeping', ...boardProps } = props
+  const { mobileHref = '/mobile/housekeeping', highlightTaskId, ...boardProps } = props
   const [view, setView] = useState<'kanban' | 'list'>(() =>
     typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches ? 'list' : 'kanban',
   )
+
+  useEffect(() => {
+    if (!highlightTaskId) return
+    const el = document.getElementById(`hk-task-${highlightTaskId}`)
+    if (!el) return
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    el.classList.add('hk-task--highlight')
+    const timer = window.setTimeout(() => el.classList.remove('hk-task--highlight'), 3000)
+    return () => window.clearTimeout(timer)
+  }, [highlightTaskId, view])
 
   return (
     <div className="space-y-4">

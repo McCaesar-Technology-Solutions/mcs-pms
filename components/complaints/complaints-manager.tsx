@@ -168,7 +168,7 @@ export function ComplaintsManager() {
 function ComplaintsManagerContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const deepLinkHandled = useRef(false)
+  const deepLinkHandled = useRef<string | null>(null)
   const [complaints, setComplaints] = useState<Complaint[]>([])
   const [technicians, setTechnicians] = useState<
     { id: string; name: string; specialty: string | null; phone: string | null }[]
@@ -222,14 +222,15 @@ function ComplaintsManagerContent() {
 
   useEffect(() => {
     const complaintId = searchParams.get('complaint')
-    if (!complaintId || deepLinkHandled.current || complaints.length === 0) return
+    if (!complaintId || complaints.length === 0) return
+    if (deepLinkHandled.current === complaintId && selected?.id === complaintId) return
 
     const match = complaints.find((c) => c.id === complaintId)
     if (match) {
-      deepLinkHandled.current = true
+      deepLinkHandled.current = complaintId
       void openDetail(match, { scrollToChat: true })
     }
-  }, [complaints, searchParams])
+  }, [complaints, searchParams, selected?.id])
 
   useRealtimeRefresh('complaints', refreshFromRealtime)
 
@@ -287,7 +288,7 @@ function ComplaintsManagerContent() {
     setRejectNote('')
     setEstimate(null)
     setGuestPhotoUrl(null)
-    deepLinkHandled.current = false
+    deepLinkHandled.current = null
     router.replace('/manager/complaints', { scroll: false })
   }
 

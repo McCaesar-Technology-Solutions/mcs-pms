@@ -4008,6 +4008,23 @@
     color: #3c216c;
   }
 
+  .hk-task--highlight {
+    box-shadow:
+      0 0 0 2px rgb(60 33 108 / 0.55),
+      0 0 0 5px rgb(60 33 108 / 0.2);
+    animation: hk-task-pulse 1.5s ease-in-out 2;
+  }
+
+  @keyframes hk-task-pulse {
+    0%,
+    100% {
+      box-shadow: 0 0 0 3px rgb(60 33 108 / 0.2);
+    }
+    50% {
+      box-shadow: 0 0 0 6px rgb(60 33 108 / 0.35);
+    }
+  }
+
   .guest-dnd-badge {
     display: inline-flex;
     align-items: center;

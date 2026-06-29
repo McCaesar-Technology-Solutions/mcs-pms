@@ -67,6 +67,7 @@ interface RoomsManagerProps {
   initialView?: 'grid' | 'floor'
   filter?: 'dirty' | 'maintenance' | 'all'
   roomSignals?: Record<string, RoomBoardSignal>
+  openRoomId?: string
 }
 
 export function RoomsManager({
@@ -80,6 +81,7 @@ export function RoomsManager({
   initialView = 'grid',
   filter = 'all',
   roomSignals = {},
+  openRoomId,
 }: RoomsManagerProps) {
   const router = useRouter()
   const pathname = usePathname()
@@ -90,6 +92,16 @@ export function RoomsManager({
   const [editing, setEditing] = useState<DbRoom | null>(null)
   const [creating, setCreating] = useState(false)
   const [searchQuery, setSearchQuery] = useState(initialSearch)
+
+  useEffect(() => {
+    setSearchQuery(initialSearch)
+  }, [initialSearch])
+
+  useEffect(() => {
+    if (!openRoomId) return
+    const room = rooms.find((r) => r.id === openRoomId)
+    if (room) setEditing(room)
+  }, [openRoomId, rooms])
 
   const filteredRooms = useMemo(() => {
     const q = searchQuery.trim().toLowerCase()

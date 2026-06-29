@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { profilePhotoPublicUrl } from '@/lib/profile-photos/storage'
+import { canEditOwnMessage } from '@/lib/messaging/can-edit-message'
 
 export interface StaffConversationListItem {
   id: string
@@ -20,7 +21,9 @@ export interface StaffConversationMessage {
   authorAvatarUrl: string | null
   body: string
   createdAt: string
+  editedAt: string | null
   isOwn: boolean
+  canEdit: boolean
 }
 
 export interface StaffConversationMember {
@@ -229,9 +232,18 @@ export async function loadStaffConversationMessages(
   currentUserId: string,
 ): Promise<StaffConversationMessage[]> {
   const admin = createAdminClient()
+  const { data: members } = await admin
+    .from('staff_conversation_members')
+    .select('profile_id, last_read_at')
+    .eq('conversation_id', conversationId)
+
+  const otherReadAts = (members ?? [])
+    .filter((m) => m.profile_id !== currentUserId)
+    .map((m) => m.last_read_at)
+
   const { data } = await admin
     .from('staff_conversation_messages')
-    .select('id, author_id, body, created_at')
+    .select('id, author_id, body, created_at, edited_at')
     .eq('conversation_id', conversationId)
     .order('created_at', { ascending: true })
     .limit(200)
@@ -245,15 +257,21 @@ export async function loadStaffConversationMessages(
     (profiles ?? []).map((p) => [p.id, profilePhotoPublicUrl(p.profile_image_path)]),
   )
 
-  return (data ?? []).map((m) => ({
-    id: m.id,
-    authorId: m.author_id,
-    authorName: nameById.get(m.author_id) ?? 'Staff',
-    authorAvatarUrl: avatarById.get(m.author_id) ?? null,
-    body: m.body,
-    createdAt: m.created_at ?? new Date().toISOString(),
-    isOwn: m.author_id === currentUserId,
-  }))
+  return (data ?? []).map((m) => {
+    const createdAt = m.created_at ?? new Date().toISOString()
+    const isOwn = m.author_id === currentUserId
+    return {
+      id: m.id,
+      authorId: m.author_id,
+      authorName: nameById.get(m.author_id) ?? 'Staff',
+      authorAvatarUrl: avatarById.get(m.author_id) ?? null,
+      body: m.body,
+      createdAt,
+      editedAt: m.edited_at ?? null,
+      isOwn,
+      canEdit: isOwn && canEditOwnMessage(createdAt, otherReadAts),
+    }
+  })
 }
 
 export async function countUnreadStaffConversations(

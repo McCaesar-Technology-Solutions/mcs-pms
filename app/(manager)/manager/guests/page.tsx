@@ -7,9 +7,9 @@ import { getGuestsData } from '@/lib/data/guests'
 export default async function ManagerGuestsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>
+  searchParams: Promise<{ q?: string; open?: string }>
 }) {
-  const { q } = await searchParams
+  const { q, open } = await searchParams
   const guests = await getGuestsData()
 
   return (
@@ -21,7 +21,7 @@ export default async function ManagerGuestsPage({
       />
       <PropertyPortalQrPanel />
       <WalkInCheckInCta reservationsHref="/manager/reservations" />
-      <GuestsTable guests={guests} initialSearch={q} />
+      <GuestsTable guests={guests} initialSearch={q} openGuestId={open} />
     </div>
   )
 }

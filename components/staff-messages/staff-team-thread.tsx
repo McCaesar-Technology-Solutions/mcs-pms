@@ -3,13 +3,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, ChevronRight, Loader2, MessageCircle, RefreshCw, Send } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { getStaffTeamMessages, postStaffTeamMessage } from '@/app/actions/staff-conversation'
+import { getStaffTeamMessages, postStaffTeamMessage, editStaffTeamMessage } from '@/app/actions/staff-conversation'
 import { prepopulateMessageComposer } from '@/lib/messaging/prepopulate-composer'
 import {
   formatMessageTime,
   groupMessagesByDay,
 } from '@/components/guest-messages/messaging-format'
 import { MessengerAvatar } from '@/components/messaging/messenger-avatar'
+import { EditableMessageContent } from '@/components/messaging/editable-message-content'
 import { StaffTeamConversationDetails } from '@/components/staff-messages/staff-team-conversation-details'
 import type { StaffConversationMessage } from '@/lib/data/staff-conversations'
 
@@ -95,6 +96,18 @@ export function StaffTeamThread({
           void load({ silent: true })
         },
       )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'staff_conversation_messages',
+          filter: `conversation_id=eq.${conversationId}`,
+        },
+        () => {
+          void load({ silent: true })
+        },
+      )
       .subscribe()
 
     return () => {
@@ -139,6 +152,12 @@ export function StaffTeamThread({
 
     await load({ silent: true })
     textareaRef.current?.focus()
+  }
+
+  async function handleEditMessage(messageId: string, nextBody: string) {
+    const result = await editStaffTeamMessage({ messageId, body: nextBody })
+    if (result.success) await load({ silent: true })
+    return { success: result.success, error: result.success ? undefined : result.error }
   }
 
   return (
@@ -246,7 +265,13 @@ export function StaffTeamThread({
                           {msg.authorName}
                         </p>
                       )}
-                      <p className="whitespace-pre-wrap break-words text-sm">{msg.body}</p>
+                      <EditableMessageContent
+                        messageId={msg.id}
+                        body={msg.body}
+                        editedAt={messages.find((m) => m.id === msg.id)?.editedAt}
+                        canEdit={messages.find((m) => m.id === msg.id)?.canEdit}
+                        onSave={handleEditMessage}
+                      />
                       <time className="staff-messenger__bubble-time" dateTime={msg.createdAt}>
                         {formatMessageTime(msg.createdAt)}
                       </time>

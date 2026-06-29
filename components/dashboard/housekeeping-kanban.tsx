@@ -84,6 +84,7 @@ interface HousekeepingKanbanProps {
   staff: { id: string; name: string }[]
   canManage?: boolean
   currentUserId?: string
+  highlightTaskId?: string
 }
 
 export function HousekeepingKanban({
@@ -92,6 +93,7 @@ export function HousekeepingKanban({
   staff,
   canManage,
   currentUserId,
+  highlightTaskId,
 }: HousekeepingKanbanProps) {
   if (tasks.length === 0 && !canManage) {
     return <DataEmptyState message="No housekeeping tasks assigned yet." />
@@ -104,6 +106,7 @@ export function HousekeepingKanban({
       staff={staff}
       canManage={canManage}
       currentUserId={currentUserId}
+      highlightTaskId={highlightTaskId}
     />
   )
 }
@@ -187,12 +190,14 @@ function DbKanban({
   staff,
   canManage,
   currentUserId,
+  highlightTaskId,
 }: {
   tasks: HousekeepingTaskView[]
   rooms: { id: string; number: string }[]
   staff: { id: string; name: string }[]
   canManage?: boolean
   currentUserId?: string
+  highlightTaskId?: string
 }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -334,7 +339,8 @@ function DbKanban({
                     return (
                       <div
                         key={task.id}
-                        className={`elevated-list-item p-4 ${!task.assignedTo && task.status !== 'done' ? 'ring-2 ring-amber-200/80' : ''} ${task.isOverdue ? 'ring-2 ring-red-200' : ''} ${
+                        id={`hk-task-${task.id}`}
+                        className={`elevated-list-item p-4 ${highlightTaskId === task.id ? 'hk-task--highlight' : ''} ${!task.assignedTo && task.status !== 'done' ? 'ring-2 ring-amber-200/80' : ''} ${task.isOverdue ? 'ring-2 ring-red-200' : ''} ${
                           selection.isSelected(task.id) ? 'ring-2 ring-primary/30' : ''
                         }`}
                       >

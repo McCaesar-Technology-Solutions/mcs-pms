@@ -30,6 +30,7 @@ import { notifyGuestRequestCreated } from '@/lib/notifications/guest-requests'
 import { guestFacingAuthorName } from '@/lib/contacts/display'
 import { loadGuestPortalContext } from '@/lib/data/guest-portal'
 import { profilePhotoPublicUrl } from '@/lib/profile-photos/storage'
+import { canEditOwnMessage } from '@/lib/messaging/can-edit-message'
 import { getClientIp } from '@/lib/auth/client-ip'
 import {
   assertRateLimit,
@@ -329,6 +330,8 @@ export async function getComplaintMessages(
       createdAt: string
       authorName: string | null
       authorAvatarUrl: string | null
+      editedAt?: string | null
+      canEdit?: boolean
     }[]
   }>
 > {
@@ -338,7 +341,7 @@ export async function getComplaintMessages(
   const admin = createAdminClient()
   const { data: complaint } = await admin
     .from('complaints')
-    .select('id')
+    .select('id, staff_last_read_at')
     .eq('id', complaintId)
     .eq('guest_id', auth.guest.id)
     .maybeSingle()
@@ -346,10 +349,16 @@ export async function getComplaintMessages(
   if (!complaint) return { success: false, error: 'Issue not found.' }
 
   const guestAvatarUrl = profilePhotoPublicUrl(auth.guest.profile_image_path)
+  const staffLastRead = complaint.staff_last_read_at
+
+  await admin
+    .from('complaints')
+    .update({ guest_last_read_at: new Date().toISOString() })
+    .eq('id', complaintId)
 
   const { data } = await admin
     .from('complaint_messages')
-    .select('id, author_role, body, created_at, author_id')
+    .select('id, author_role, body, created_at, edited_at, author_id')
     .eq('complaint_id', complaintId)
     .order('created_at', { ascending: true })
 
@@ -379,12 +388,16 @@ export async function getComplaintMessages(
           authorRole: m.author_role,
           body: m.body,
           createdAt: m.created_at ?? new Date(0).toISOString(),
+          editedAt: m.edited_at ?? null,
           authorName: isGuest ? 'You' : guestFacingAuthorName(staff?.name, staff?.role),
           authorAvatarUrl: isGuest
             ? guestAvatarUrl
             : staff?.role === 'owner'
               ? null
               : profilePhotoPublicUrl(staff?.profile_image_path),
+          canEdit:
+            isGuest &&
+            canEditOwnMessage(m.created_at ?? new Date(0).toISOString(), [staffLastRead]),
         }
       }),
     },
@@ -431,6 +444,59 @@ export async function postGuestComplaintMessage(input: unknown): Promise<GuestPo
     ),
   )
 
+  return { success: true }
+}
+
+const editComplaintMessageSchema = z.object({
+  messageId: z.string().uuid(),
+  body: z.string().min(1).max(2000),
+})
+
+export async function editGuestComplaintMessage(
+  input: unknown,
+): Promise<GuestPortalActionResult> {
+  const auth = await requireGuestWithRules()
+  if (!auth.ok) return { success: false, error: auth.error }
+
+  const parsed = editComplaintMessageSchema.safeParse(input)
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid message.' }
+  }
+
+  const admin = createAdminClient()
+  const { data: message } = await admin
+    .from('complaint_messages')
+    .select('id, complaint_id, author_role, created_at')
+    .eq('id', parsed.data.messageId)
+    .maybeSingle()
+
+  if (!message || message.author_role !== 'guest') {
+    return { success: false, error: 'Message not found.' }
+  }
+
+  const { data: complaint } = await admin
+    .from('complaints')
+    .select('id, staff_last_read_at')
+    .eq('id', message.complaint_id)
+    .eq('guest_id', auth.guest.id)
+    .maybeSingle()
+
+  if (!complaint) return { success: false, error: 'Issue not found.' }
+
+  if (
+    !canEditOwnMessage(message.created_at ?? new Date(0).toISOString(), [complaint.staff_last_read_at])
+  ) {
+    return { success: false, error: 'This message can no longer be edited.' }
+  }
+
+  const { error } = await admin
+    .from('complaint_messages')
+    .update({ body: parsed.data.body.trim(), edited_at: new Date().toISOString() })
+    .eq('id', message.id)
+
+  if (error) return { success: false, error: 'Could not update message.' }
+
+  revalidatePath('/guest')
   return { success: true }
 }
 

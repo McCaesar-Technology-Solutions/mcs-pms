@@ -9,9 +9,9 @@ import { getHotelExportInfo } from '@/lib/data/settings'
 export default async function BillingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>
+  searchParams: Promise<{ q?: string; open?: string }>
 }) {
-  const { q } = await searchParams
+  const { q, open } = await searchParams
   const [invoices, hotel, paymentSummary, paymentRecords] = await Promise.all([
     getInvoicesData(),
     getHotelExportInfo(),
@@ -39,6 +39,7 @@ export default async function BillingPage({
               invoices={invoices}
               hotel={hotel}
               initialQuery={q}
+              openInvoiceId={open}
               vatMode={hotel?.vatMode ?? 'exclusive'}
             />
           ),

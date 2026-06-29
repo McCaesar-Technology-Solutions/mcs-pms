@@ -20,6 +20,7 @@ interface HousekeepingTableViewProps {
   staff: { id: string; name: string }[]
   canManage?: boolean
   currentUserId?: string
+  highlightTaskId?: string
 }
 
 function formatDueDate(dateStr: string) {
@@ -32,6 +33,7 @@ export function HousekeepingTableView({
   staff,
   canManage,
   currentUserId,
+  highlightTaskId,
 }: HousekeepingTableViewProps) {
   const [pending, startTransition] = useTransition()
 
@@ -84,7 +86,11 @@ export function HousekeepingTableView({
           </thead>
           <tbody>
             {sorted.map((task) => (
-              <tr key={task.id}>
+              <tr
+                key={task.id}
+                id={`hk-task-${task.id}`}
+                className={highlightTaskId === task.id ? 'hk-task--highlight' : undefined}
+              >
                 <td className="font-medium text-foreground">
                   <span className="inline-flex flex-wrap items-center gap-2">
                     {task.roomId ? (roomMap.get(task.roomId) ?? task.roomId.slice(0, 6)) : '-'}

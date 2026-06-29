@@ -430,6 +430,7 @@ export type Database = {
           author_id: string | null
           body: string
           created_at: string | null
+          edited_at: string | null
         }
         Insert: {
           id?: string
@@ -438,6 +439,7 @@ export type Database = {
           author_id?: string | null
           body: string
           created_at?: string | null
+          edited_at?: string | null
         }
         Update: {
           id?: string
@@ -446,6 +448,7 @@ export type Database = {
           author_id?: string | null
           body?: string
           created_at?: string | null
+          edited_at?: string | null
         }
         Relationships: []
       }
@@ -457,6 +460,7 @@ export type Database = {
           author_id: string | null
           body: string
           created_at: string | null
+          edited_at: string | null
         }
         Insert: {
           id?: string
@@ -465,6 +469,7 @@ export type Database = {
           author_id?: string | null
           body: string
           created_at?: string | null
+          edited_at?: string | null
         }
         Update: {
           id?: string
@@ -473,6 +478,7 @@ export type Database = {
           author_id?: string | null
           body?: string
           created_at?: string | null
+          edited_at?: string | null
         }
         Relationships: []
       }
@@ -482,6 +488,7 @@ export type Database = {
           hotel_id: string
           guest_id: string
           staff_last_read_at: string | null
+          guest_last_read_at: string | null
           created_at: string | null
           updated_at: string | null
         }
@@ -490,6 +497,7 @@ export type Database = {
           hotel_id: string
           guest_id: string
           staff_last_read_at?: string | null
+          guest_last_read_at?: string | null
           created_at?: string | null
           updated_at?: string | null
         }
@@ -498,6 +506,7 @@ export type Database = {
           hotel_id?: string
           guest_id?: string
           staff_last_read_at?: string | null
+          guest_last_read_at?: string | null
           created_at?: string | null
           updated_at?: string | null
         }
@@ -756,6 +765,8 @@ export type Database = {
           sla_due_at: string | null
           guest_photo_path: string | null
           guest_photo_mime: string | null
+          guest_last_read_at: string | null
+          staff_last_read_at: string | null
         }
         Insert: {
           id?: string
@@ -792,6 +803,8 @@ export type Database = {
           sla_due_at?: string | null
           guest_photo_path?: string | null
           guest_photo_mime?: string | null
+          guest_last_read_at?: string | null
+          staff_last_read_at?: string | null
         }
         Update: {
           id?: string
@@ -828,6 +841,8 @@ export type Database = {
           sla_due_at?: string | null
           guest_photo_path?: string | null
           guest_photo_mime?: string | null
+          guest_last_read_at?: string | null
+          staff_last_read_at?: string | null
         }
         Relationships: [
           {
@@ -1880,6 +1895,7 @@ export type Database = {
           author_id: string
           body: string
           created_at: string
+          edited_at: string | null
         }
         Insert: {
           id?: string
@@ -1887,6 +1903,7 @@ export type Database = {
           author_id: string
           body: string
           created_at?: string
+          edited_at?: string | null
         }
         Update: {
           id?: string
@@ -1894,6 +1911,7 @@ export type Database = {
           author_id?: string
           body?: string
           created_at?: string
+          edited_at?: string | null
         }
         Relationships: []
       }

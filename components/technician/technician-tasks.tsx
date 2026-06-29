@@ -85,9 +85,10 @@ function roomLabelFor(c: Complaint) {
 interface TechnicianTasksProps {
   onJobDetailOpen?: (open: boolean) => void
   searchQuery?: string
+  openJobId?: string
 }
 
-export function TechnicianTasks({ onJobDetailOpen, searchQuery = '' }: TechnicianTasksProps) {
+export function TechnicianTasks({ onJobDetailOpen, searchQuery = '', openJobId }: TechnicianTasksProps) {
   const [tab, setTab] = useState<'active' | 'completed'>('active')
   const [complaints, setComplaints] = useState<Complaint[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -157,6 +158,18 @@ export function TechnicianTasks({ onJobDetailOpen, searchQuery = '' }: Technicia
     setFocusTarget(null)
     onJobDetailOpen?.(false)
   }
+
+  const lastOpenJobId = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (!openJobId || complaints.length === 0) return
+    if (lastOpenJobId.current === openJobId && selectedId === openJobId) return
+    const match = complaints.find((c) => c.id === openJobId)
+    if (match) {
+      lastOpenJobId.current = openJobId
+      openJob(match)
+    }
+  }, [openJobId, complaints, selectedId])
 
   async function handleStart(id: string) {
     setLoading(id)

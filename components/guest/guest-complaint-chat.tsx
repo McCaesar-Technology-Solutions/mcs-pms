@@ -4,10 +4,11 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Loader2, RefreshCw, Send } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
-import { getComplaintMessages, postGuestComplaintMessage } from '@/app/actions/guest-portal'
+import { getComplaintMessages, postGuestComplaintMessage, editGuestComplaintMessage } from '@/app/actions/guest-portal'
 import { prepopulateMessageComposer } from '@/lib/messaging/prepopulate-composer'
 import { FormError } from '@/components/ui/form-error'
 import { MessengerAvatar } from '@/components/messaging/messenger-avatar'
+import { EditableMessageContent } from '@/components/messaging/editable-message-content'
 
 interface GuestComplaintChatProps {
   complaintId: string
@@ -29,6 +30,8 @@ export function GuestComplaintChat({ complaintId }: GuestComplaintChatProps) {
       createdAt: string
       authorName: string | null
       authorAvatarUrl: string | null
+      editedAt?: string | null
+      canEdit?: boolean
     }[]
   >([])
   const [guestAvatarUrl, setGuestAvatarUrl] = useState<string | null>(null)
@@ -127,6 +130,12 @@ export function GuestComplaintChat({ complaintId }: GuestComplaintChatProps) {
     scrollToBottom()
   }
 
+  async function handleEditMessage(messageId: string, nextBody: string) {
+    const result = await editGuestComplaintMessage({ messageId, body: nextBody })
+    if (result.success) await load({ silent: true })
+    return { success: result.success, error: result.success ? undefined : result.error }
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     void handleSend()
@@ -180,7 +189,15 @@ export function GuestComplaintChat({ complaintId }: GuestComplaintChatProps) {
                   <p className="text-[10px] font-bold uppercase tracking-wide opacity-70">
                     {isGuest ? 'You' : (m.authorName ?? 'Staff')}
                   </p>
-                  <p className="mt-0.5 whitespace-pre-wrap">{m.body}</p>
+                  <EditableMessageContent
+                    messageId={m.id}
+                    body={m.body}
+                    editedAt={messages.find((row) => row.id === m.id)?.editedAt}
+                    canEdit={messages.find((row) => row.id === m.id)?.canEdit}
+                    onSave={handleEditMessage}
+                    bodyClassName="mt-0.5 whitespace-pre-wrap"
+                    editedClassName="text-[10px] opacity-60 italic"
+                  />
                   <p className="mt-1 text-[10px] opacity-60">
                     {new Date(m.createdAt).toLocaleString('en-GB', {
                       month: 'short',

@@ -4,10 +4,11 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Loader2, MessageCircle, RefreshCw, Send } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
-import { getGuestStayMessages, postGuestStayMessage } from '@/app/actions/guest-conversation'
+import { getGuestStayMessages, postGuestStayMessage, editGuestStayMessage } from '@/app/actions/guest-conversation'
 import { prepopulateMessageComposer } from '@/lib/messaging/prepopulate-composer'
 import { FormError } from '@/components/ui/form-error'
 import { MessengerAvatar } from '@/components/messaging/messenger-avatar'
+import { EditableMessageContent } from '@/components/messaging/editable-message-content'
 
 const GUEST_QUICK_REPLIES = [
   'What time is checkout?',
@@ -39,6 +40,8 @@ export function GuestStayChat({
       createdAt: string
       authorName: string | null
       authorAvatarUrl: string | null
+      editedAt?: string | null
+      canEdit?: boolean
     }[]
   >([])
   const [guestAvatarUrl, setGuestAvatarUrl] = useState<string | null>(null)
@@ -111,6 +114,18 @@ export function GuestStayChat({
           void load({ silent: true })
         },
       )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'guest_conversation_messages',
+          filter: `conversation_id=eq.${conversationId}`,
+        },
+        () => {
+          void load({ silent: true })
+        },
+      )
       .subscribe()
 
     return () => {
@@ -149,6 +164,12 @@ export function GuestStayChat({
 
     await load({ silent: true })
     textareaRef.current?.focus()
+  }
+
+  async function handleEditMessage(messageId: string, nextBody: string) {
+    const result = await editGuestStayMessage({ messageId, body: nextBody })
+    if (result.success) await load({ silent: true })
+    return { success: result.success, error: result.success ? undefined : result.error }
   }
 
   return (
@@ -237,7 +258,15 @@ export function GuestStayChat({
                         {m.authorName ?? 'Front desk'}
                       </p>
                     )}
-                    <p className="whitespace-pre-wrap break-words">{m.body}</p>
+                    <EditableMessageContent
+                      messageId={m.id}
+                      body={m.body}
+                      editedAt={messages.find((row) => row.id === m.id)?.editedAt}
+                      canEdit={messages.find((row) => row.id === m.id)?.canEdit}
+                      onSave={handleEditMessage}
+                      bodyClassName="whitespace-pre-wrap break-words"
+                      editedClassName="text-[10px] opacity-60 italic"
+                    />
                   </div>
                   {isGuest && (
                     <MessengerAvatar

@@ -3,7 +3,7 @@ import { StaffRoomsPage } from '@/components/dashboard/staff-rooms-page'
 export default async function OwnerRoomsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; view?: string; filter?: string; opsDate?: string }>
+  searchParams: Promise<{ q?: string; view?: string; filter?: string; opsDate?: string; open?: string }>
 }) {
   return (
     <StaffRoomsPage

@@ -13,7 +13,7 @@ interface StaffRoomsPageProps {
   statusOnly?: boolean
   canDelete?: boolean
   defaultView?: 'grid' | 'floor'
-  searchParams: Promise<{ q?: string; view?: string; filter?: string; opsDate?: string }>
+  searchParams: Promise<{ q?: string; view?: string; filter?: string; opsDate?: string; open?: string }>
 }
 
 export async function StaffRoomsPage({
@@ -55,6 +55,7 @@ export async function StaffRoomsPage({
           initialView={pageData.initialView ?? defaultView}
           filter={pageData.filter}
           roomSignals={pageData.roomSignals}
+          openRoomId={params.open}
         />
       </Suspense>
     </div>

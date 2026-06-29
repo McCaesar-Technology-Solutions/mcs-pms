@@ -6,9 +6,11 @@ import { createClient } from '@/lib/supabase/client'
 import {
   getStaffComplaintMessages,
   postStaffComplaintMessage,
+  editStaffComplaintMessage,
 } from '@/app/actions/complaints'
 import { prepopulateMessageComposer } from '@/lib/messaging/prepopulate-composer'
 import { MessengerAvatar } from '@/components/messaging/messenger-avatar'
+import { EditableMessageContent } from '@/components/messaging/editable-message-content'
 import { GuestDndBadge } from '@/components/ui/guest-dnd-badge'
 
 interface ChatMessage {
@@ -18,6 +20,8 @@ interface ChatMessage {
   createdAt: string
   authorName: string | null
   authorAvatarUrl: string | null
+  editedAt?: string | null
+  canEdit?: boolean
 }
 
 interface StaffComplaintMessageThreadProps {
@@ -176,6 +180,12 @@ export function StaffComplaintMessageThread({
     await load({ silent: true })
   }
 
+  async function handleEditMessage(messageId: string, nextBody: string) {
+    const result = await editStaffComplaintMessage({ messageId, body: nextBody })
+    if (result.success) await load({ silent: true })
+    return { success: result.success, error: result.success ? undefined : result.error }
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     void handleSend()
@@ -291,7 +301,15 @@ export function StaffComplaintMessageThread({
                     >
                       {isStaff ? (m.authorName ?? 'You') : (guestName ?? 'Guest')}
                     </p>
-                    <p className="mt-0.5 whitespace-pre-wrap leading-relaxed">{m.body}</p>
+                    <EditableMessageContent
+                      messageId={m.id}
+                      body={m.body}
+                      editedAt={messages.find((row) => row.id === m.id)?.editedAt}
+                      canEdit={messages.find((row) => row.id === m.id)?.canEdit}
+                      onSave={handleEditMessage}
+                      bodyClassName="mt-0.5 whitespace-pre-wrap leading-relaxed"
+                      editedClassName={`text-[10px] italic ${isStaff ? 'text-white/50' : 'text-muted-foreground/80'}`}
+                    />
                     <p
                       className={`mt-1.5 text-[10px] ${
                         isStaff ? 'text-white/45' : 'text-muted-foreground/80'

@@ -23,6 +23,7 @@ export function TechnicianWorkspace({
   const [jobDetailOpen, setJobDetailOpen] = useState(false)
   const searchParams = useSearchParams()
   const taskSearch = searchParams.get('q') ?? ''
+  const openJobId = searchParams.get('open') ?? undefined
 
   const housekeepingOpenCount = useMemo(() => {
     const assignedOpen = assignedTasks.filter((t) => t.status !== 'done').length
@@ -85,7 +86,7 @@ export function TechnicianWorkspace({
           id="technician-work-panel-maintenance"
           aria-labelledby="technician-work-tab-maintenance"
         >
-          <TechnicianTasks onJobDetailOpen={setJobDetailOpen} searchQuery={taskSearch} />
+          <TechnicianTasks onJobDetailOpen={setJobDetailOpen} searchQuery={taskSearch} openJobId={openJobId} />
         </div>
       )}
 

@@ -2,8 +2,9 @@
 
 import { Suspense, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Check, Copy, Download, Mail, Phone, Plus, ShieldCheck, UserX, X } from 'lucide-react'
+import { Check, Copy, Download, Loader2, Mail, MessageCircle, Phone, Plus, Search, ShieldCheck, UserX, X } from 'lucide-react'
 import { inviteStaff, revokeInvite, setStaffActive, updateStaffPhone } from '@/app/actions/staff'
+import { startStaffDm } from '@/app/actions/staff-conversation'
 import { ProfilePhoneEditor } from '@/components/dashboard/profile-phone-editor'
 import { MfaSettingsCard } from '@/components/dashboard/mfa-settings-card'
 import { BulkActionBar } from '@/components/dashboard/bulk-action-bar'
@@ -91,11 +92,38 @@ export function StaffManager({ currentProfile, staff, invites }: StaffManagerPro
   const [editingPhoneId, setEditingPhoneId] = useState<string | null>(null)
   const [phoneDraft, setPhoneDraft] = useState('')
   const [phoneError, setPhoneError] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [chattingId, setChattingId] = useState<string | null>(null)
+
+  const messagesPath =
+    currentProfile.role === 'owner' ? '/owner/messages' : '/manager/messages'
 
   const activeStaff = useMemo(() => staff.filter((s) => s.is_active !== false), [staff])
   const inactiveStaff = useMemo(() => staff.filter((s) => s.is_active === false), [staff])
   const allStaff = useMemo(() => [...activeStaff, ...inactiveStaff], [activeStaff, inactiveStaff])
   const selection = useRowSelection(allStaff, allStaff)
+
+  const filteredStaff = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase()
+    if (!q) return allStaff
+    return allStaff.filter(
+      (m) =>
+        m.name.toLowerCase().includes(q) ||
+        (m.email ?? '').toLowerCase().includes(q) ||
+        (m.phone ?? '').includes(q) ||
+        (m.specialty ?? '').toLowerCase().includes(q) ||
+        ROLE_BADGE[m.role].label.toLowerCase().includes(q),
+    )
+  }, [allStaff, searchQuery])
+
+  const filteredActiveStaff = useMemo(
+    () => filteredStaff.filter((s) => s.is_active !== false),
+    [filteredStaff],
+  )
+  const filteredInactiveStaff = useMemo(
+    () => filteredStaff.filter((s) => s.is_active === false),
+    [filteredStaff],
+  )
 
   function copyStaffRefs() {
     void copyToClipboard(
@@ -211,6 +239,20 @@ export function StaffManager({ currentProfile, staff, invites }: StaffManagerPro
     })
   }
 
+  async function handleChat(member: Profile) {
+    if (member.id === currentProfile.id) return
+    setChattingId(member.id)
+    const result = await startStaffDm(member.id)
+    setChattingId(null)
+    if (result.success && result.data) {
+      router.push(`${messagesPath}?tab=team&team=${result.data.conversationId}`)
+      return
+    }
+    if (!result.success) {
+      toast.error(result.error ?? 'Could not open chat.')
+    }
+  }
+
   function renderStaffRow(member: Profile) {
     const badge = ROLE_BADGE[member.role]
     const manageable = canManageMember(currentProfile, member)
@@ -290,6 +332,22 @@ export function StaffManager({ currentProfile, staff, invites }: StaffManagerPro
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
+          {!isSelf && (
+            <button
+              type="button"
+              onClick={() => void handleChat(member)}
+              disabled={chattingId === member.id}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[#3C216C]/10 px-2.5 py-1.5 text-xs font-semibold text-[#3C216C] transition-colors hover:bg-[#3C216C]/20 disabled:opacity-50"
+              aria-label={`Message ${member.name}`}
+            >
+              {chattingId === member.id ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <MessageCircle className="h-3.5 w-3.5" />
+              )}
+              Chat
+            </button>
+          )}
           <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${badge.chip}`}>
             {badge.label}
           </span>
@@ -366,8 +424,9 @@ export function StaffManager({ currentProfile, staff, invites }: StaffManagerPro
           <div>
             <h3 className="text-lg font-semibold text-[#111827]">Team</h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              {activeStaff.length} active {activeStaff.length === 1 ? 'member' : 'members'}
-              {inactiveStaff.length > 0 ? ` · ${inactiveStaff.length} disabled` : ''}
+              {filteredActiveStaff.length} active {filteredActiveStaff.length === 1 ? 'member' : 'members'}
+              {filteredInactiveStaff.length > 0 ? ` · ${filteredInactiveStaff.length} disabled` : ''}
+              {searchQuery.trim() ? ` · ${filteredStaff.length} shown` : ''}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -388,6 +447,20 @@ export function StaffManager({ currentProfile, staff, invites }: StaffManagerPro
           </div>
         </div>
 
+        <div className="surface-card-header space-y-4">
+          <div className="app-search-field">
+            <Search className="h-5 w-5 text-muted-foreground" />
+            <input
+              type="search"
+              aria-label="Search staff"
+              placeholder="Search by name, email, phone, or role..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="flex-1 bg-transparent outline-none text-foreground placeholder:text-muted-foreground"
+            />
+          </div>
+        </div>
+
         <div className="p-4">
           <div className="card-list-tray space-y-3">
             {staff.length === 0 && (
@@ -395,8 +468,13 @@ export function StaffManager({ currentProfile, staff, invites }: StaffManagerPro
                 No team members yet.
               </p>
             )}
-            {activeStaff.map(renderStaffRow)}
-            {inactiveStaff.map(renderStaffRow)}
+            {staff.length > 0 && filteredStaff.length === 0 && (
+              <p className="px-2 py-6 text-center text-sm text-muted-foreground">
+                No staff match your search.
+              </p>
+            )}
+            {filteredActiveStaff.map(renderStaffRow)}
+            {filteredInactiveStaff.map(renderStaffRow)}
           </div>
         </div>
       </div>
