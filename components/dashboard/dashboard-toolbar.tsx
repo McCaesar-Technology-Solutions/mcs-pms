@@ -67,16 +67,16 @@ export function DashboardToolbar({
 
   return (
     <header className="flex flex-col gap-4">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <div className="flex flex-col gap-5 lg:grid lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end lg:gap-8">
         <div className="min-w-0">
           <p className="label-eyebrow label-eyebrow-accent">{eyebrowLabel}</p>
-          <h1 className="font-display mt-1 text-[1.625rem] font-semibold tracking-tight text-foreground text-balance sm:text-[1.875rem]">
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight text-foreground text-balance sm:text-4xl lg:text-[2.75rem] lg:leading-[1.08]">
             {title}
           </h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">{dateLabel}</p>
+          <p className="mt-1.5 text-base text-muted-foreground">{dateLabel}</p>
         </div>
 
-        <div className="grid w-full grid-cols-2 gap-2.5 sm:grid-cols-4 lg:max-w-[40rem] lg:flex-1">
+        <div className="grid w-full grid-cols-2 gap-2.5 sm:grid-cols-4 lg:w-[42rem] lg:max-w-full lg:shrink-0">
           <StatChip
             icon={Percent}
             label="Occupancy"

@@ -10,6 +10,12 @@ interface ReservationLifecycleSettingsPanelProps {
   hotelSettings: HotelSettings
 }
 
+const NO_SHOW_POLICIES: { value: NoShowChargePolicy; label: string; hint: string }[] = [
+  { value: 'none', label: 'No charge', hint: 'Mark no-show without posting a fee' },
+  { value: 'one_night', label: 'One night', hint: 'Charge the first night of the stay' },
+  { value: 'full_stay', label: 'Full stay', hint: 'Charge the entire booked stay' },
+]
+
 export function ReservationLifecycleSettingsPanel({
   hotelSettings,
 }: ReservationLifecycleSettingsPanelProps) {
@@ -64,127 +70,185 @@ export function ReservationLifecycleSettingsPanel({
   }
 
   return (
-    <section className="rounded-2xl border border-border bg-white p-6 shadow-elevation-1">
-      <div className="mb-5 flex items-start gap-3">
-        <div className="rounded-xl bg-[var(--comp-sky-soft)] p-2 text-[var(--comp-sky-ink)]">
-          <CalendarClock className="h-5 w-5" />
-        </div>
-        <div>
-          <h2 className="text-lg font-semibold text-foreground">Reservation lifecycle</h2>
-          <p className="text-sm text-muted-foreground">
-            Hold timers, no-show rules, and automated cron jobs for this property.
-          </p>
+    <div className="surface-card mt-6 overflow-hidden">
+      <div className="surface-card-accent" />
+      <div className="surface-card-header">
+        <div className="flex items-center gap-3">
+          <CalendarClock className="h-6 w-6 shrink-0 text-primary" />
+          <div>
+            <h3 className="text-lg font-semibold text-foreground">Reservation lifecycle</h3>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              Hold timers, no-show rules, and automated jobs for {hotelSettings.name}.
+            </p>
+          </div>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <label className="flex items-center gap-3 text-sm">
-          <input
-            type="checkbox"
-            checked={lifecycleV2}
-            onChange={(e) => setLifecycleV2(e.target.checked)}
-            className="h-4 w-4 rounded border-border"
-          />
-          <span>
-            Enable lifecycle v2 cron jobs{' '}
-            <span className="text-muted-foreground">(hold expiry, pre-arrival, no-show, overstay)</span>
-          </span>
-        </label>
+      <form onSubmit={handleSubmit} className="surface-card-body space-y-8">
+        <section className="space-y-3">
+          <div>
+            <p className="text-sm font-semibold text-foreground">Automation</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Staff workflows always use the lifecycle state machine. Cron jobs run only when enabled.
+            </p>
+          </div>
+          <label className="surface-inset flex cursor-pointer items-start gap-3 rounded-xl p-4 transition-colors hover:bg-muted/40">
+            <input
+              type="checkbox"
+              checked={lifecycleV2}
+              onChange={(e) => setLifecycleV2(e.target.checked)}
+              className="mt-0.5 h-4 w-4 shrink-0 rounded border-border text-primary focus:ring-primary"
+            />
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold text-foreground">
+                Enable lifecycle v2 cron jobs
+              </span>
+              <span className="mt-0.5 block text-xs text-muted-foreground">
+                Hold expiry, pre-arrival reminders, no-show detection, overstay alerts, auto-checkout
+                prompts, and post-stay archive.
+              </span>
+            </span>
+          </label>
+        </section>
 
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Field label="Online hold (minutes)">
-            <input
-              type="number"
-              min={5}
-              value={holdOnline}
-              onChange={(e) => setHoldOnline(e.target.value)}
-              className="w-full rounded-xl border border-border px-3 py-2 text-sm"
-            />
-          </Field>
-          <Field label="Phone hold (minutes)">
-            <input
-              type="number"
-              min={15}
-              value={holdPhone}
-              onChange={(e) => setHoldPhone(e.target.value)}
-              className="w-full rounded-xl border border-border px-3 py-2 text-sm"
-            />
-          </Field>
-          <Field label="Agent hold (minutes)">
-            <input
-              type="number"
-              min={60}
-              value={holdAgent}
-              onChange={(e) => setHoldAgent(e.target.value)}
-              className="w-full rounded-xl border border-border px-3 py-2 text-sm"
-            />
-          </Field>
-        </div>
+        <section className="space-y-4">
+          <div>
+            <p className="text-sm font-semibold text-foreground">Hold durations</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              How long unpaid reservations stay on hold before expiring.
+            </p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Field label="Online booking" hint="Minutes">
+              <input
+                type="number"
+                min={5}
+                value={holdOnline}
+                onChange={(e) => setHoldOnline(e.target.value)}
+                className="input-soft"
+              />
+            </Field>
+            <Field label="Phone booking" hint="Minutes">
+              <input
+                type="number"
+                min={15}
+                value={holdPhone}
+                onChange={(e) => setHoldPhone(e.target.value)}
+                className="input-soft"
+              />
+            </Field>
+            <Field label="Agent / walk-in" hint="Minutes">
+              <input
+                type="number"
+                min={60}
+                value={holdAgent}
+                onChange={(e) => setHoldAgent(e.target.value)}
+                className="input-soft"
+              />
+            </Field>
+          </div>
+        </section>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="No-show cutoff time">
-            <input
-              type="text"
-              value={noShowTime}
-              onChange={(e) => setNoShowTime(e.target.value)}
-              placeholder="23:59 or 11:00 PM"
-              className="w-full rounded-xl border border-border px-3 py-2 text-sm"
-            />
-          </Field>
-          <Field label="Archive delay (days after checkout)">
-            <input
-              type="number"
-              min={1}
-              value={archiveDays}
-              onChange={(e) => setArchiveDays(e.target.value)}
-              className="w-full rounded-xl border border-border px-3 py-2 text-sm"
-            />
-          </Field>
-        </div>
+        <section className="space-y-4">
+          <div>
+            <p className="text-sm font-semibold text-foreground">No-show & archive</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Cutoff time and billing when guests do not arrive.
+            </p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="No-show cutoff time" hint="e.g. 23:59 or 11:00 PM">
+              <input
+                type="text"
+                value={noShowTime}
+                onChange={(e) => setNoShowTime(e.target.value)}
+                placeholder="23:59"
+                className="input-soft"
+              />
+            </Field>
+            <Field label="Archive delay" hint="Days after checkout before archiving">
+              <input
+                type="number"
+                min={1}
+                value={archiveDays}
+                onChange={(e) => setArchiveDays(e.target.value)}
+                className="input-soft"
+              />
+            </Field>
+          </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="No-show charge policy">
-            <select
-              value={noShowPolicy}
-              onChange={(e) => setNoShowPolicy(e.target.value as NoShowChargePolicy)}
-              className="w-full rounded-xl border border-border px-3 py-2 text-sm"
-            >
-              <option value="none">None</option>
-              <option value="one_night">One night</option>
-              <option value="full_stay">Full stay</option>
-            </select>
-          </Field>
-          <label className="flex items-end gap-3 pb-2 text-sm">
+          <div>
+            <p className="text-sm font-semibold text-foreground">No-show charge policy</p>
+            <div className="mt-2 grid gap-2 sm:grid-cols-3">
+              {NO_SHOW_POLICIES.map((policy) => (
+                <button
+                  key={policy.value}
+                  type="button"
+                  onClick={() => setNoShowPolicy(policy.value)}
+                  className={`rounded-xl border px-3 py-2.5 text-left text-sm transition-colors ${
+                    noShowPolicy === policy.value
+                      ? 'border-primary bg-primary/5 font-semibold text-foreground'
+                      : 'border-[#E9ECEF] text-muted-foreground hover:bg-[#FAFDFF]'
+                  }`}
+                >
+                  {policy.label}
+                  <span className="mt-0.5 block text-xs font-normal">{policy.hint}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <label className="surface-inset flex cursor-pointer items-center gap-3 rounded-xl p-4">
             <input
               type="checkbox"
               checked={holdRoomAfterNoShow}
               onChange={(e) => setHoldRoomAfterNoShow(e.target.checked)}
-              className="h-4 w-4 rounded border-border"
+              className="h-4 w-4 shrink-0 rounded border-border text-primary focus:ring-primary"
             />
-            Hold room after no-show
+            <span className="text-sm text-foreground">
+              Keep the room blocked after a no-show{' '}
+              <span className="text-muted-foreground">(do not release for resale same night)</span>
+            </span>
           </label>
+        </section>
+
+        {error && (
+          <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+        )}
+        {saved && (
+          <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+            Reservation settings saved.
+          </p>
+        )}
+
+        <div className="surface-card-footer !px-0 !pb-0 !pt-2">
+          <button
+            type="submit"
+            disabled={pending}
+            className="w-full rounded-lg bg-primary py-2.5 font-semibold text-primary-foreground transition-all hover:-translate-y-0.5 hover:shadow-elevation-2 disabled:opacity-50 sm:w-auto sm:px-8"
+          >
+            {pending ? 'Saving…' : 'Save reservation settings'}
+          </button>
         </div>
-
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        {saved && <p className="text-sm text-emerald-700">Reservation settings saved.</p>}
-
-        <button
-          type="submit"
-          disabled={pending}
-          className="rounded-xl bg-[#3C216C] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-        >
-          {pending ? 'Saving…' : 'Save reservation settings'}
-        </button>
       </form>
-    </section>
+    </div>
   )
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({
+  label,
+  hint,
+  children,
+}: {
+  label: string
+  hint?: string
+  children: React.ReactNode
+}) {
   return (
-    <label className="block space-y-1.5 text-sm">
-      <span className="font-medium text-foreground">{label}</span>
-      {children}
+    <label className="block">
+      <span className="text-sm font-semibold text-foreground">{label}</span>
+      {hint && <span className="mt-0.5 block text-xs text-muted-foreground">{hint}</span>}
+      <div className="mt-2">{children}</div>
     </label>
   )
 }
