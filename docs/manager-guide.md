@@ -69,6 +69,12 @@ You have the same booking tools as the owner **except deposit refunds** (owner o
 
 Reservations show **Unpaid**, **Deposit paid**, **Partial**, **Paid**, **Overdue**, etc. Use payment filters to find open balances.
 
+### Stay status badges
+
+Filters and badges include **Provisional**, **Pre-arrival**, **Checkout in progress**, **Overstay**, and **Post stay** in addition to the classic Confirmed / Checked in / Checked out. Actions on the detail panel match the status (check-in, complete checkout, mark no-show, cancel).
+
+Owners configure hold timers, no-show time, and automated jobs under **Settings → Property → Reservation lifecycle**.
+
 ### Typical front-desk flow
 
 ```

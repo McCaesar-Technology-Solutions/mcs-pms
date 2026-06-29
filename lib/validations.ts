@@ -156,6 +156,18 @@ export const updateHotelSettingsSchema = z.object({
     .or(z.literal('')),
 })
 
+export const updateReservationLifecycleSettingsSchema = z.object({
+  hotelId: z.string().uuid(),
+  holdDurationOnlineMinutes: z.coerce.number().int().min(5).max(1440),
+  holdDurationPhoneMinutes: z.coerce.number().int().min(15).max(10080),
+  holdDurationAgentMinutes: z.coerce.number().int().min(60).max(20160),
+  noShowTime: z.string().min(4).max(12),
+  postStayArchiveDelayDays: z.coerce.number().int().min(1).max(365),
+  noShowChargePolicy: z.enum(['none', 'one_night', 'full_stay']),
+  noShowHoldRoom: z.boolean(),
+  useLifecycleV2: z.boolean(),
+})
+
 export const updateNotificationPrefsSchema = z.object({
   hotelId: z.string().uuid(),
   prefs: z.record(z.string(), z.boolean()),

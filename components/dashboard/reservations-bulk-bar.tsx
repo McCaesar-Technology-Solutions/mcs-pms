@@ -3,6 +3,7 @@
 import { useTransition } from 'react'
 import { toast } from 'sonner'
 import { cancelReservation } from '@/app/actions/reservations'
+import { canCancelReservationStatus } from '@/lib/reservations/lifecycle'
 import { Copy, Download, Trash2, X } from 'lucide-react'
 import type { Reservation } from '@/types'
 
@@ -19,7 +20,7 @@ export function ReservationsBulkBar({ selected, onClear, onMutated }: Reservatio
 
   if (selected.length === 0) return null
 
-  const cancellable = selected.filter((r) => r.status === 'confirmed')
+  const cancellable = selected.filter((r) => canCancelReservationStatus(r.status))
 
   function copyRefs() {
     const text = selected.map((r) => r.bookingRef).join(', ')
@@ -45,7 +46,7 @@ export function ReservationsBulkBar({ selected, onClear, onMutated }: Reservatio
 
   function bulkCancel() {
     if (cancellable.length === 0) {
-      toast.error('Only confirmed reservations can be cancelled in bulk.')
+      toast.error('No selected reservations can be cancelled in bulk.')
       return
     }
     const label =

@@ -65,6 +65,19 @@ One property only — no property switcher.
 
 Use **payment filters** (Unpaid, Deposit paid, Paid, etc.) to find guests who still owe money.
 
+### Stay status badges
+
+| Status | Meaning |
+|--------|---------|
+| **Confirmed** / **Pre-arrival** | Expected arrival — use **Check in** |
+| **Provisional** | Hold on the room — collect deposit or cancel hold |
+| **Checked in** | In house — extend, move room, or **Check out** |
+| **Checkout in progress** | Folio locked — **Complete checkout** |
+| **Overstay** | Past departure time — begin checkout urgently |
+| **Checked out** / **Post stay** | Departed — read-only history |
+
+Use the **status filter** pills at the top of the list to narrow the board.
+
 ### Record a deposit
 
 When guest pays part of the stay **before** arrival or at booking:
@@ -78,7 +91,7 @@ If guest paid via Airbnb/Booking and you have confirmation: **Channel prepaid** 
 
 ### Check in a guest
 
-1. Open **Confirmed** booking.
+1. Open **Confirmed** or **Pre-arrival** booking.
 2. **Check in guest** — phone **required**.
 3. Give guest the **portal link** or **QR** (complaints and contact managers).
 4. Room should show **Occupied**.

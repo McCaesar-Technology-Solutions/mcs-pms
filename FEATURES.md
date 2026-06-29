@@ -16,7 +16,7 @@ Production features shipped beyond the original UI prototype.
 
 ### Operations
 
-- **Reservations** — create, check-in, check-out, extend, move room, cancel, no-show; GRA invoice on checkout.
+- **Reservations** — create, check-in, check-out, extend, move room, cancel, no-show; GRA invoice on checkout. **Lifecycle v2** (migration `051`): event-sourced status machine (`inquiry` → `provisional` → `confirmed` → `pre_arrival` → `checked_in` → `checkout_in_progress` → `checked_out` → `post_stay` → `archived`), append-only `reservation_events`, provisional holds, cancellation rules engine, and scheduled jobs (hold expiry, pre-arrival, no-show, overstay, auto-checkout prompt, archive). Enable crons per property via **Settings → Reservation lifecycle → Enable lifecycle v2**.
 - **Guests** — directory, walk-in check-in (manager), portal link + QR, phone editing.
 - **Rooms** — inventory, categories/rates, status grid; owner can delete rooms.
 - **Housekeeping** — kanban (desktop + `/mobile/housekeeping`); auto clean task on checkout.
@@ -24,7 +24,7 @@ Production features shipped beyond the original UI prototype.
 - **Staff** — invite managers and receptionists by **email**, technicians by **phone**; phone numbers editable on profiles.
 - **Billing / GRA / Analytics** — owner only; invoice numbering, PDF export, tax reports, manual payments (cash/MoMo/card), partial payments and refunds, payment ledger reconciliation, guest folio posting with checkout rollup, night audit. Managers' dashboard hides revenue metrics.
 - **Guest privacy** — owner export/erase PII from the staff dashboard.
-- **Production ops** — health/ready endpoints, Vercel cron (cleanup, notifications), notification outbox with retries.
+- **Production ops** — health/ready endpoints, Vercel cron (cleanup, notifications, reservation lifecycle jobs when v2 enabled), notification outbox with retries.
 
 ### Notifications and live updates
 

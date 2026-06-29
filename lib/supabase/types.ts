@@ -77,6 +77,17 @@ export type Database = {
           guest_portal_emergency_phone?: string | null
           guest_portal_check_out_time?: string | null
           guest_portal_welcome?: string | null
+          hold_duration_online_minutes?: number
+          hold_duration_phone_minutes?: number
+          hold_duration_agent_minutes?: number
+          no_show_time?: string
+          post_stay_archive_delay_days?: number
+          no_show_charge_policy?: 'none' | 'one_night' | 'full_stay'
+          no_show_hold_room?: boolean
+          default_free_cancel_days?: number
+          default_refundable?: boolean
+          default_penalty_nights?: number
+          use_lifecycle_v2?: boolean
           created_at?: string | null
         }
         Update: {
@@ -106,6 +117,17 @@ export type Database = {
           guest_portal_emergency_phone?: string | null
           guest_portal_check_out_time?: string | null
           guest_portal_welcome?: string | null
+          hold_duration_online_minutes?: number
+          hold_duration_phone_minutes?: number
+          hold_duration_agent_minutes?: number
+          no_show_time?: string
+          post_stay_archive_delay_days?: number
+          no_show_charge_policy?: 'none' | 'one_night' | 'full_stay'
+          no_show_hold_room?: boolean
+          default_free_cancel_days?: number
+          default_refundable?: boolean
+          default_penalty_nights?: number
+          use_lifecycle_v2?: boolean
           created_at?: string | null
         }
         Relationships: [

@@ -3,6 +3,7 @@ import {
   getTodayDepartures,
   type TodayOperations,
 } from '@/lib/data/overview'
+import { OPEN_BOOKING_STATUSES } from '@/lib/reservations/lifecycle'
 import type { DbRoom, DbRoomStatus, Reservation, ReservationPaymentStatus } from '@/types'
 
 export interface ExtendedTodayOperations extends TodayOperations {
@@ -54,7 +55,7 @@ function isSecuredPayment(status: ReservationPaymentStatus, depositAmount: numbe
 }
 
 function activeStayStatus(status: string): boolean {
-  return status === 'confirmed' || status === 'checked_in'
+  return (OPEN_BOOKING_STATUSES as readonly string[]).includes(status)
 }
 
 /** Guests in house on a given business date. */

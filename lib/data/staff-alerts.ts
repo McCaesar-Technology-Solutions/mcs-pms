@@ -3,6 +3,7 @@ import { isPendingCompletion, needsGuestCompletionApproval } from '@/lib/complai
 import { loadGuestConversations } from '@/lib/data/guest-conversations'
 import { formatInvoiceNumber } from '@/lib/invoices/numbering'
 import { createClient } from '@/lib/supabase/server'
+import { ARRIVING_STATUSES, DEPARTING_STATUSES } from '@/lib/reservations/lifecycle'
 import type { Complaint, UserRole } from '@/types'
 
 export type StaffAlertKind =
@@ -108,13 +109,13 @@ export async function fetchStaffAlerts(limit = 30): Promise<StaffAlert[]> {
       .from('reservations')
       .select('id, guest_name, check_out, status, rooms(number)')
       .eq('hotel_id', hotelId)
-      .eq('status', 'checked_in')
+      .in('status', [...DEPARTING_STATUSES])
       .eq('check_out', today),
     supabase
       .from('reservations')
       .select('id, guest_name, check_in, status, rooms(number)')
       .eq('hotel_id', hotelId)
-      .in('status', ['confirmed', 'checked_in'])
+      .in('status', [...ARRIVING_STATUSES])
       .eq('check_in', today),
     supabase
       .from('complaints')

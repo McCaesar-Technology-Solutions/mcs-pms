@@ -1,5 +1,11 @@
 import type { Availability, DbInvoice, Reservation } from '@/types'
-import { filterMetricsEligible, isOpenBookingStatus } from '@/lib/reservations/lifecycle'
+import {
+  ARRIVING_STATUSES,
+  DEPARTING_STATUSES,
+  filterMetricsEligible,
+  isOpenBookingStatus,
+  OPEN_BOOKING_STATUSES,
+} from '@/lib/reservations/lifecycle'
 
 export interface ChannelPerf {
   channel: Reservation['source']
@@ -97,7 +103,10 @@ export function getTodayArrivals(
   today = new Date().toISOString().split('T')[0],
 ): Reservation[] {
   return reservations
-    .filter((r) => r.status === 'confirmed' && r.checkInDate === today)
+    .filter(
+      (r) =>
+        (ARRIVING_STATUSES as readonly string[]).includes(r.status) && r.checkInDate === today,
+    )
     .sort((a, b) => a.guestName.localeCompare(b.guestName))
 }
 
@@ -106,7 +115,10 @@ export function getTodayDepartures(
   today = new Date().toISOString().split('T')[0],
 ): Reservation[] {
   return reservations
-    .filter((r) => r.status === 'checked_in' && r.checkOutDate === today)
+    .filter(
+      (r) =>
+        (DEPARTING_STATUSES as readonly string[]).includes(r.status) && r.checkOutDate === today,
+    )
     .sort((a, b) => a.guestName.localeCompare(b.guestName))
 }
 
@@ -131,13 +143,23 @@ export function computeTodayOperations(
   reservations: Reservation[],
   today = new Date().toISOString().split('T')[0],
 ): TodayOperations {
-  const active = (status: string) => status === 'confirmed' || status === 'checked_in'
+  const active = (status: string) =>
+    (OPEN_BOOKING_STATUSES as readonly string[]).includes(status)
 
   return {
-    guestsInHouse: reservations.filter((r) => r.status === 'checked_in').length,
-    arrivalsToday: reservations.filter((r) => r.checkInDate === today && active(r.status)).length,
+    guestsInHouse: reservations.filter(
+      (r) =>
+        r.status === 'checked_in' ||
+        r.status === 'overstay' ||
+        r.status === 'checkout_in_progress',
+    ).length,
+    arrivalsToday: reservations.filter(
+      (r) =>
+        (ARRIVING_STATUSES as readonly string[]).includes(r.status) && r.checkInDate === today,
+    ).length,
     departuresToday: reservations.filter(
-      (r) => r.checkOutDate === today && (r.status === 'checked_in' || r.status === 'confirmed'),
+      (r) =>
+        (DEPARTING_STATUSES as readonly string[]).includes(r.status) && r.checkOutDate === today,
     ).length,
   }
 }

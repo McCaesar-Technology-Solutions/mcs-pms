@@ -2,7 +2,7 @@ import { getProfile } from '@/lib/auth/get-profile'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { ownerOwnsHotel } from '@/lib/data/properties'
 import { propertyImagePublicUrl } from '@/lib/properties/image-storage'
-import type { Hotel, VatMode } from '@/types'
+import type { Hotel, NoShowChargePolicy, VatMode } from '@/types'
 import type { ExportHotelInfo } from '@/lib/export/types'
 import {
   mergeNotificationPrefs,
@@ -29,6 +29,14 @@ export interface HotelSettings {
   notificationSmsPrefs: NotificationSmsPrefs
   notificationEmailPrefs: NotificationEmailPrefs
   notificationFromEmail: string | null
+  holdDurationOnlineMinutes: number
+  holdDurationPhoneMinutes: number
+  holdDurationAgentMinutes: number
+  noShowTime: string
+  postStayArchiveDelayDays: number
+  noShowChargePolicy: NoShowChargePolicy
+  noShowHoldRoom: boolean
+  useLifecycleV2: boolean
 }
 
 export async function getActiveHotelSettings(): Promise<HotelSettings | null> {
@@ -50,6 +58,14 @@ export async function getActiveHotelSettings(): Promise<HotelSettings | null> {
   const h = hotel as Hotel & {
     notification_sms_prefs?: NotificationSmsPrefs | null
     notification_email_prefs?: NotificationEmailPrefs | null
+    hold_duration_online_minutes?: number
+    hold_duration_phone_minutes?: number
+    hold_duration_agent_minutes?: number
+    no_show_time?: string
+    post_stay_archive_delay_days?: number
+    no_show_charge_policy?: string
+    no_show_hold_room?: boolean
+    use_lifecycle_v2?: boolean
   }
   const storedPrefs = h.notification_sms_prefs ?? null
   const storedEmailPrefs = h.notification_email_prefs ?? null
@@ -74,6 +90,14 @@ export async function getActiveHotelSettings(): Promise<HotelSettings | null> {
     notificationSmsPrefs,
     notificationEmailPrefs,
     notificationFromEmail: h.notification_from_email ?? null,
+    holdDurationOnlineMinutes: h.hold_duration_online_minutes ?? 15,
+    holdDurationPhoneMinutes: h.hold_duration_phone_minutes ?? 240,
+    holdDurationAgentMinutes: h.hold_duration_agent_minutes ?? 1440,
+    noShowTime: h.no_show_time ?? '23:59',
+    postStayArchiveDelayDays: h.post_stay_archive_delay_days ?? 30,
+    noShowChargePolicy: (h.no_show_charge_policy ?? 'one_night') as NoShowChargePolicy,
+    noShowHoldRoom: h.no_show_hold_room ?? false,
+    useLifecycleV2: h.use_lifecycle_v2 ?? false,
   }
 }
 

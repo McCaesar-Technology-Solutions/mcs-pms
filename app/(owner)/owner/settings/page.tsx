@@ -6,6 +6,7 @@ import { NotificationLogPanel } from '@/components/dashboard/notification-log-pa
 import { AuditLogPanel } from '@/components/dashboard/audit-log-panel'
 import { GuestRulesPanel } from '@/components/dashboard/guest-rules-panel'
 import { GuestPortalSettingsPanel } from '@/components/dashboard/guest-portal-settings-panel'
+import { ReservationLifecycleSettingsPanel } from '@/components/dashboard/reservation-lifecycle-settings-panel'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { PageTabShell } from '@/components/dashboard/page-tab-shell'
 import { getActiveHotelSettings } from '@/lib/data/settings'
@@ -48,7 +49,14 @@ export default async function SettingsPage() {
           { id: 'activity', label: 'Activity' },
         ]}
         panels={{
-          property: <SettingsPanel hotelSettings={hotelSettings} profile={profile} />,
+          property: (
+            <>
+              <SettingsPanel hotelSettings={hotelSettings} profile={profile} />
+              {hotelSettings != null && (
+                <ReservationLifecycleSettingsPanel hotelSettings={hotelSettings} />
+              )}
+            </>
+          ),
           'guest-portal':
             hotelSettings != null ? (
               <>

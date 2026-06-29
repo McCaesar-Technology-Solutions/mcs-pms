@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { ownerOwnsHotel } from '@/lib/data/properties'
-import { updateHotelSettingsSchema, updateNotificationPrefsSchema } from '@/lib/validations'
+import { updateHotelSettingsSchema, updateNotificationPrefsSchema, updateReservationLifecycleSettingsSchema } from '@/lib/validations'
 import type { NotificationSmsPrefs } from '@/lib/notifications/preferences'
 import { NOTIFICATION_TEMPLATE_KEYS } from '@/lib/notifications/preferences'
 import type { NotificationEmailPrefs } from '@/lib/notifications/email-preferences'
@@ -101,6 +101,82 @@ export async function updateHotelSettings(input: {
       changes.length > 0
         ? `Property settings: ${changes.join('; ')}`
         : 'Property settings saved',
+  })
+
+  revalidateSettingsViews()
+  return { success: true }
+}
+
+export async function updateReservationLifecycleSettings(input: {
+  hotelId: string
+  holdDurationOnlineMinutes: number
+  holdDurationPhoneMinutes: number
+  holdDurationAgentMinutes: number
+  noShowTime: string
+  postStayArchiveDelayDays: number
+  noShowChargePolicy: 'none' | 'one_night' | 'full_stay'
+  noShowHoldRoom: boolean
+  useLifecycleV2: boolean
+}): Promise<SettingsActionResult> {
+  const parsed = updateReservationLifecycleSettingsSchema.safeParse(input)
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid input.' }
+  }
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Not authorized.' }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role, name')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  if (profile?.role !== 'owner' && profile?.role !== 'manager') {
+    return { success: false, error: 'Not authorized.' }
+  }
+
+  const { data: managerProfile } =
+    profile.role === 'manager'
+      ? await supabase.from('profiles').select('hotel_id').eq('id', user.id).maybeSingle()
+      : { data: null }
+
+  if (profile.role === 'owner' && !(await ownerOwnsHotel(user.id, parsed.data.hotelId))) {
+    return { success: false, error: 'You do not have access to this property.' }
+  }
+
+  if (profile.role === 'manager' && managerProfile?.hotel_id !== parsed.data.hotelId) {
+    return { success: false, error: 'You do not have access to this property.' }
+  }
+
+  const admin = createAdminClient()
+  const { error } = await admin
+    .from('hotels')
+    .update({
+      hold_duration_online_minutes: parsed.data.holdDurationOnlineMinutes,
+      hold_duration_phone_minutes: parsed.data.holdDurationPhoneMinutes,
+      hold_duration_agent_minutes: parsed.data.holdDurationAgentMinutes,
+      no_show_time: parsed.data.noShowTime,
+      post_stay_archive_delay_days: parsed.data.postStayArchiveDelayDays,
+      no_show_charge_policy: parsed.data.noShowChargePolicy,
+      no_show_hold_room: parsed.data.noShowHoldRoom,
+      use_lifecycle_v2: parsed.data.useLifecycleV2,
+    })
+    .eq('id', parsed.data.hotelId)
+
+  if (error) return { success: false, error: error.message }
+
+  void writeAuditLog({
+    hotelId: parsed.data.hotelId,
+    actorId: user.id,
+    actorName: profile?.name,
+    entityType: 'hotel',
+    entityId: parsed.data.hotelId,
+    action: 'reservation_lifecycle_settings',
+    summary: `Reservation lifecycle settings updated (v2 ${parsed.data.useLifecycleV2 ? 'on' : 'off'})`,
   })
 
   revalidateSettingsViews()

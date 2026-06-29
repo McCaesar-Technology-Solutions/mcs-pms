@@ -32,13 +32,31 @@ import {
 } from '@/components/ui/centered-modal'
 import type { PaymentMethod, Reservation, ReservationChannel, ReservationPaymentStatus, RateType, UserRole } from '@/types'
 import type { DepositDisposition } from '@/lib/billing/deposit-disposition'
+import {
+  canCheckIn,
+  canCancelReservationStatus,
+  canUpdateReservationFields,
+} from '@/lib/reservations/lifecycle'
 import type { RoomOption } from '@/lib/data/dashboard'
 import type { OccupancySpan } from '@/lib/data/occupancy'
 import { PAYMENT_METHOD_LABELS } from '@/lib/tax'
 import { calculateStayTotal, rateTypeLabel } from '@/lib/pricing/stay-totals'
 import { usePagination } from '@/lib/hooks/use-pagination'
 
-const STATUS_FILTERS = ['all', 'checked_in', 'confirmed', 'checked_out', 'cancelled', 'no_show'] as const
+const STATUS_FILTERS = [
+  'all',
+  'checked_in',
+  'confirmed',
+  'pre_arrival',
+  'provisional',
+  'checkout_in_progress',
+  'overstay',
+  'checked_out',
+  'post_stay',
+  'cancelled',
+  'no_show',
+  'released',
+] as const
 
 const PAYMENT_FILTERS = [
   'all',
@@ -63,16 +81,31 @@ function formatStatus(status: string) {
 
 function statusBadge(status: string) {
   switch (status) {
-    case 'checked_in':
-      return 'bg-[var(--comp-sand-soft)] text-[var(--comp-sand-ink)]'
+    case 'inquiry':
+      return 'bg-gray-100 text-gray-700'
+    case 'provisional':
+      return 'bg-blue-100 text-blue-800'
     case 'confirmed':
-      return 'bg-[var(--comp-sky-soft)] text-[var(--comp-sky-ink)]'
+      return 'bg-teal-100 text-teal-800'
+    case 'pre_arrival':
+      return 'bg-teal-200 text-teal-900'
+    case 'checked_in':
+      return 'bg-emerald-100 text-emerald-800'
+    case 'checkout_in_progress':
+      return 'bg-amber-100 text-amber-900'
     case 'checked_out':
+    case 'post_stay':
+    case 'archived':
+    case 'released':
       return 'bg-[var(--comp-slate-soft)] text-[var(--comp-slate-ink)]'
     case 'cancelled':
-      return 'bg-red-100 text-red-700'
     case 'no_show':
-      return 'bg-[var(--comp-coral-soft)] text-[var(--comp-coral-ink)]'
+    case 'walkout':
+      return 'bg-red-100 text-red-700'
+    case 'overstay':
+      return 'bg-red-100 text-red-800 ring-1 ring-red-300'
+    case 'dispute_hold':
+      return 'bg-amber-100 text-amber-800'
     default:
       return 'bg-gray-100 text-gray-700'
   }
@@ -589,14 +622,20 @@ function ReservationDrawer({ reservation, roomOptions, staffRole, onClose, onMut
   const hasCollectedDeposit = reservation.paidAmount > 0.009
   const canRefundDeposit = staffRole === 'owner'
   const canRecordDeposit =
-    (reservation.status === 'confirmed' || reservation.status === 'checked_in') && balance > 0
+    (reservation.status === 'confirmed' ||
+      reservation.status === 'checked_in' ||
+      reservation.status === 'provisional') &&
+    balance > 0
   const canMarkChannelPrepaid =
     canRecordDeposit &&
     (reservation.channel === 'airbnb' || reservation.channel === 'booking_com')
   const today = new Date().toISOString().slice(0, 10)
   const canNoShow =
-    reservation.status === 'confirmed' && reservation.checkInDate <= today
-  const canCancel = reservation.status === 'confirmed'
+    (reservation.status === 'confirmed' || reservation.status === 'pre_arrival') &&
+    reservation.checkInDate <= today
+  const canCancel = canCancelReservationStatus(reservation.status)
+  const canEdit = canUpdateReservationFields(reservation.status)
+  const canCheckInNow = canCheckIn(reservation.status)
   const editDatesValid = editCheckOut > editCheckIn
   const editNights = Math.max(
     1,
@@ -828,10 +867,13 @@ function ReservationDrawer({ reservation, roomOptions, staffRole, onClose, onMut
           )}
 
           {reservation.status !== 'checked_out' &&
+            reservation.status !== 'post_stay' &&
+            reservation.status !== 'archived' &&
             reservation.status !== 'cancelled' &&
-            reservation.status !== 'no_show' && (
+            reservation.status !== 'no_show' &&
+            reservation.status !== 'released' && (
             <div className="space-y-2">
-              {reservation.status === 'confirmed' && !checkingIn && !editing && (
+              {canEdit && !checkingIn && !editing && (
                 <button
                   type="button"
                   disabled={pending}
@@ -843,7 +885,7 @@ function ReservationDrawer({ reservation, roomOptions, staffRole, onClose, onMut
                 </button>
               )}
 
-              {reservation.status === 'confirmed' && editing && (
+              {canEdit && editing && (
                 <div className="space-y-3 rounded-xl surface-inset p-4">
                   <p className="text-sm font-semibold text-foreground">Edit reservation</p>
                   <Field label="Guest name">
@@ -980,7 +1022,7 @@ function ReservationDrawer({ reservation, roomOptions, staffRole, onClose, onMut
                 </div>
               )}
 
-              {reservation.status === 'confirmed' && !checkingIn && !editing && (
+              {canCheckInNow && !checkingIn && !editing && (
                 <button
                   type="button"
                   disabled={pending}
@@ -992,7 +1034,7 @@ function ReservationDrawer({ reservation, roomOptions, staffRole, onClose, onMut
                 </button>
               )}
 
-              {reservation.status === 'confirmed' && checkingIn && (
+              {canCheckInNow && checkingIn && (
                 <div className="space-y-3 rounded-xl surface-inset p-4">
                   <p className="text-sm font-semibold text-foreground">Guest check-in</p>
                   <Field label="Guest name">
@@ -1070,7 +1112,10 @@ function ReservationDrawer({ reservation, roomOptions, staffRole, onClose, onMut
                 </div>
               )}
 
-              {reservation.status === 'checked_in' && !checkingOut && !extending && !moving && (
+              {(reservation.status === 'checked_in' || reservation.status === 'overstay') &&
+                !checkingOut &&
+                !extending &&
+                !moving && (
                 <>
                   <button
                     type="button"
@@ -1158,7 +1203,21 @@ function ReservationDrawer({ reservation, roomOptions, staffRole, onClose, onMut
                 </div>
               )}
 
-              {reservation.status === 'checked_in' && checkingOut && (
+              {reservation.status === 'checkout_in_progress' && !checkingOut && (
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() => setCheckingOut(true)}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#3C216C] py-3 text-sm font-semibold text-white shadow-elevation-1"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Complete checkout
+                </button>
+              )}
+
+              {(reservation.status === 'checked_in' ||
+                reservation.status === 'checkout_in_progress') &&
+                checkingOut && (
                 <div className="space-y-3 rounded-xl surface-inset p-4">
                   <div>
                     <p className="text-sm font-semibold text-foreground">Collect payment</p>
