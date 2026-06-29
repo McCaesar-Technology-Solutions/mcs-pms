@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { TechnicianWorkspace } from '@/components/technician/technician-workspace'
 import {
   getAssignedHousekeepingTasks,
@@ -11,9 +12,11 @@ export default async function TechnicianTasksPage() {
   ])
 
   return (
-    <TechnicianWorkspace
-      assignedTasks={assignedTasks}
-      unassignedTasks={unassignedTasks}
-    />
+    <Suspense fallback={<p className="p-4 text-sm text-muted-foreground">Loading tasks…</p>}>
+      <TechnicianWorkspace
+        assignedTasks={assignedTasks}
+        unassignedTasks={unassignedTasks}
+      />
+    </Suspense>
   )
 }

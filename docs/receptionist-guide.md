@@ -20,7 +20,8 @@ One property only — no property switcher.
 
 | Menu | Path | Your job |
 |------|------|----------|
-| Dashboard | `/receptionist/dashboard` | Today’s picture |
+| Dashboard | `/receptionist/dashboard` | Today’s picture, guest requests, arrivals |
+| Messages | `/receptionist/messages` | Guest stay chat |
 | Reservations | `/receptionist/reservations` | Bookings, payments at desk |
 | Guests | `/receptionist/guests` | Walk-ins, portal links, folio |
 | Rooms | `/receptionist/rooms` | Update room status |
@@ -28,9 +29,11 @@ One property only — no property switcher.
 
 ### Top bar
 
-- **Search** — guests, reservations, rooms.
-- **Notifications** — check-outs today, open complaints.
-- **Phone** — keep yours updated for SMS.
+- **Search / ⌘K** — jump to pages or search reservations, guests, rooms, and complaints.
+- **Notifications** — check-outs today, open complaints, guest requests, messages.
+- **Profile menu** — phone, profile photo, sign out (no separate settings page).
+
+**Guest requests** from the portal appear on your dashboard under **Guest requests** (also linked from notifications).
 
 **Revenue is hidden** on your dashboard. You still see **Outstanding** balances so you know who owes money before they leave.
 

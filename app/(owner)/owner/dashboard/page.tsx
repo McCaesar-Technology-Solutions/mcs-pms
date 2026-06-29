@@ -12,6 +12,7 @@ import { loadHotelGuestFeedback } from '@/lib/data/guest-feedback'
 import { getHousekeepingTasks } from '@/lib/data/housekeeping'
 import { countOverdueTasks } from '@/lib/housekeeping/task-view'
 import { FrontDeskOpsSection } from '@/components/dashboard/front-desk-ops-section'
+import { RoleWayfindingPanel } from '@/components/dashboard/role-wayfinding-panel'
 import { parseOpsDate } from '@/lib/dates/ops-date'
 import { loadFrontDeskOpsContext } from '@/lib/data/load-front-desk-ops'
 import {
@@ -84,6 +85,7 @@ export default async function DashboardPage({
       </DashboardHero>
 
       <div className="page-content-stack page-shell--after-hero">
+        <RoleWayfindingPanel role="owner" />
         <section className="dashboard-section dashboard-section--compact">
           <FrontDeskOpsSection routePrefix="/owner" opsDateParam={opsDateParam} title="Property operations" />
         </section>

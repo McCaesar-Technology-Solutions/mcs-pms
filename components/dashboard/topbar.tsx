@@ -47,7 +47,11 @@ export default function Topbar({ onMenuOpen, profile }: TopbarProps) {
   const [photoDialogOpen, setPhotoDialogOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
   const userTriggerRef = useRef<HTMLButtonElement>(null)
-  const canManagePhone = profile?.role === 'owner' || profile?.role === 'manager'
+  const canManageAccount =
+    profile?.role === 'owner' ||
+    profile?.role === 'manager' ||
+    profile?.role === 'receptionist'
+  const settingsLink = settingsHref(profile?.role)
   const primaryAction = getDashboardPrimaryAction(profile?.role)
   const avatarUrl = profileAvatarUrl(profile)
 
@@ -95,7 +99,7 @@ export default function Topbar({ onMenuOpen, profile }: TopbarProps) {
                 <span className="hidden xl:inline">{primaryAction.label}</span>
               </Link>
             )}
-            {canManagePhone && !hasPhoneNumber(profile?.phone) && (
+            {canManageAccount && !hasPhoneNumber(profile?.phone) && (
               <button
                 type="button"
                 onClick={() => setPhoneDialogOpen(true)}
@@ -142,7 +146,7 @@ export default function Topbar({ onMenuOpen, profile }: TopbarProps) {
                 <div className="surface-card-header px-4 py-3">
                   <p className="text-sm font-semibold">{user.name}</p>
                   <p className="modal-panel-subtle text-xs">{user.email}</p>
-                  {canManagePhone && (
+                  {canManageAccount && (
                     <p className="mt-2 text-xs text-muted-foreground">
                       Phone:{' '}
                       <span className="font-medium text-foreground">
@@ -151,7 +155,7 @@ export default function Topbar({ onMenuOpen, profile }: TopbarProps) {
                     </p>
                   )}
                 </div>
-                {canManagePhone && (
+                {canManageAccount && (
                   <button
                     type="button"
                     onClick={() => {
@@ -177,13 +181,15 @@ export default function Topbar({ onMenuOpen, profile }: TopbarProps) {
                     Profile photo
                   </button>
                 )}
+                {settingsLink && (
                 <Link
-                  href={settingsHref(profile?.role)}
+                  href={settingsLink}
                   onClick={() => setShowUserMenu(false)}
                   className="flex w-full items-center gap-2 px-4 py-2.5 text-sm transition-colors hover:bg-secondary/60"
                 >
                   {settingsMenuLabel(profile?.role)}
                 </Link>
+                )}
                 <button
                   type="button"
                   onClick={() => signOut()}
@@ -199,7 +205,7 @@ export default function Topbar({ onMenuOpen, profile }: TopbarProps) {
         </header>
       </div>
 
-      {canManagePhone && (
+      {canManageAccount && (
         <AccountPhoneDialog
           open={phoneDialogOpen}
           onClose={() => setPhoneDialogOpen(false)}

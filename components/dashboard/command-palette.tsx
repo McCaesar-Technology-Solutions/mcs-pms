@@ -14,7 +14,7 @@ import { Search } from 'lucide-react'
 import { CenteredModal } from '@/components/ui/centered-modal'
 import {
   buildCommandItems,
-  commandSearchHref,
+  buildDynamicSearchItems,
   filterCommandItems,
   type CommandItem,
 } from '@/lib/dashboard/command-items'
@@ -86,20 +86,20 @@ function CommandPaletteDialog({
 
   const allItems = useMemo(() => buildCommandItems(profile?.role), [profile?.role])
   const items = useMemo(() => {
-    const base = filterCommandItems(allItems, query)
     const trimmed = query.trim()
+    const dynamic = buildDynamicSearchItems(profile?.role, query)
+    const base = filterCommandItems(allItems, query)
+
     if (!trimmed) return base
 
-    const searchJump: CommandItem = {
-      id: 'dynamic-search',
-      label: `Search reservations for “${trimmed}”`,
-      description: 'Open reservations with this query',
-      href: commandSearchHref(profile?.role, trimmed),
-      kind: 'search',
-      icon: Search,
-    }
+    const staticSearchIds = new Set([
+      'action-search-reservations',
+      'action-search-guests',
+      'action-search-rooms',
+      'action-search-complaints',
+    ])
 
-    return [searchJump, ...base.filter((item) => item.id !== 'action-search-reservations')]
+    return [...dynamic, ...base.filter((item) => !staticSearchIds.has(item.id))]
   }, [allItems, query, profile?.role])
 
   useEffect(() => {
@@ -153,7 +153,7 @@ function CommandPaletteDialog({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={onInputKeyDown}
-          placeholder="Search pages, actions, or reservations…"
+          placeholder="Search pages, guests, rooms, reservations…"
           className="command-palette__input"
           aria-label="Command palette search"
           autoComplete="off"

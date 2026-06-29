@@ -1,7 +1,9 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Sparkles, Wrench } from 'lucide-react'
+import { WayfindingTip } from '@/components/dashboard/wayfinding-tip'
 import { TechnicianTasks } from '@/components/technician/technician-tasks'
 import { TechnicianHousekeeping } from '@/components/technician/technician-housekeeping'
 import type { HousekeepingTaskView } from '@/lib/housekeeping/task-view'
@@ -19,6 +21,8 @@ export function TechnicianWorkspace({
 }: TechnicianWorkspaceProps) {
   const [tab, setTab] = useState<WorkTab>('maintenance')
   const [jobDetailOpen, setJobDetailOpen] = useState(false)
+  const searchParams = useSearchParams()
+  const taskSearch = searchParams.get('q') ?? ''
 
   const housekeepingOpenCount = useMemo(() => {
     const assignedOpen = assignedTasks.filter((t) => t.status !== 'done').length
@@ -29,6 +33,14 @@ export function TechnicianWorkspace({
 
   return (
     <div className={`technician-workspace ${jobDetailOpen ? 'technician-workspace--job-open' : ''}`}>
+      {!jobDetailOpen && (
+        <WayfindingTip id="nav-basics" role="technician" title="Getting around">
+          Use the bottom bar to switch between <strong className="font-semibold text-foreground">Tasks</strong> and{' '}
+          <strong className="font-semibold text-foreground">Messages</strong>. Press{' '}
+          <kbd className="rounded bg-muted px-1.5 py-0.5 text-[11px] font-semibold">⌘K</kbd> to search jobs by room
+          or category.
+        </WayfindingTip>
+      )}
       {!jobDetailOpen && (
       <div className="technician-workspace__tabs" role="tablist" aria-label="Work type">
         <button
@@ -73,7 +85,7 @@ export function TechnicianWorkspace({
           id="technician-work-panel-maintenance"
           aria-labelledby="technician-work-tab-maintenance"
         >
-          <TechnicianTasks onJobDetailOpen={setJobDetailOpen} />
+          <TechnicianTasks onJobDetailOpen={setJobDetailOpen} searchQuery={taskSearch} />
         </div>
       )}
 

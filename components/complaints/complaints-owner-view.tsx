@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import {
   Droplets,
   Zap,
@@ -26,6 +27,7 @@ import { DataEmptyState } from '@/components/dashboard/data-empty-state'
 import { useRowSelection } from '@/lib/hooks/use-row-selection'
 import { PhoneContact } from '@/components/ui/phone-contact'
 import { useRealtimeRefresh } from '@/components/realtime/realtime-refresh-context'
+import { complaintMatchesQuery } from '@/lib/complaints/search-filter'
 import { managerPendingLabel } from '@/lib/complaints/workflow'
 import { profilePhotoPublicUrl } from '@/lib/profile-photos/storage'
 import { GuestDndBadge, guestDoNotDisturb } from '@/components/ui/guest-dnd-badge'
@@ -133,7 +135,17 @@ interface ComplaintsOwnerViewProps {
 }
 
 /** Read-only complaints view: full lifecycle visibility, no assign/approve actions. */
-export function ComplaintsOwnerView({ canLog = false, canMessage = false }: ComplaintsOwnerViewProps) {
+export function ComplaintsOwnerView(props: ComplaintsOwnerViewProps) {
+  return (
+    <Suspense fallback={<p className="text-sm text-muted-foreground">Loading complaints…</p>}>
+      <ComplaintsOwnerViewContent {...props} />
+    </Suspense>
+  )
+}
+
+function ComplaintsOwnerViewContent({ canLog = false, canMessage = false }: ComplaintsOwnerViewProps) {
+  const searchParams = useSearchParams()
+  const searchQuery = searchParams.get('q') ?? ''
   const [complaints, setComplaints] = useState<Complaint[]>([])
   const [selected, setSelected] = useState<Complaint | null>(null)
   const [events, setEvents] = useState<ComplaintEvent[]>([])
@@ -175,9 +187,12 @@ export function ComplaintsOwnerView({ canLog = false, canMessage = false }: Comp
   useRealtimeRefresh('layout', refreshFromRealtime)
 
   const filtered = useMemo(() => {
-    if (statusFilter === 'all') return complaints
-    return complaints.filter((c) => c.status === statusFilter)
-  }, [complaints, statusFilter])
+    let list = statusFilter === 'all' ? complaints : complaints.filter((c) => c.status === statusFilter)
+    if (searchQuery.trim()) {
+      list = list.filter((c) => complaintMatchesQuery(c, searchQuery))
+    }
+    return list
+  }, [complaints, statusFilter, searchQuery])
 
   const selection = useRowSelection(complaints, filtered)
 

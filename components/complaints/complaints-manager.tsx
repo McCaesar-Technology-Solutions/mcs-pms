@@ -48,6 +48,7 @@ import {
   needsGuestCompletionApproval,
   canManagerApproveCompletion,
 } from '@/lib/complaints/workflow'
+import { complaintMatchesQuery } from '@/lib/complaints/search-filter'
 import { profilePhotoPublicUrl } from '@/lib/profile-photos/storage'
 import { GuestDndBadge, guestDoNotDisturb } from '@/components/ui/guest-dnd-badge'
 import type {
@@ -238,9 +239,13 @@ function ComplaintsManagerContent() {
   )
 
   const filtered = useMemo(() => {
-    if (statusFilter === 'all') return complaints
-    return complaints.filter((c) => c.status === statusFilter)
-  }, [complaints, statusFilter])
+    let list = statusFilter === 'all' ? complaints : complaints.filter((c) => c.status === statusFilter)
+    const q = searchParams.get('q') ?? ''
+    if (q.trim()) {
+      list = list.filter((c) => complaintMatchesQuery(c, q))
+    }
+    return list
+  }, [complaints, statusFilter, searchParams])
 
   const selection = useRowSelection(complaints, filtered)
 

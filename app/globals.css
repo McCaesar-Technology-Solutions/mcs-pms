@@ -4639,6 +4639,24 @@
     background: rgba(var(--glow-purple), 0.06);
   }
 
+  .guest-tab-badge {
+    position: absolute;
+    top: -0.25rem;
+    right: -0.45rem;
+    min-width: 1rem;
+    height: 1rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    background: var(--brand-orange);
+    color: #fff;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 0 0.25rem;
+    line-height: 1;
+  }
+
   .guest-notice-card {
     border-radius: 1rem;
     border: 1px solid var(--guest-border);
@@ -5579,6 +5597,58 @@
       radial-gradient(ellipse 70% 45% at 0% 0%, rgba(var(--glow-gold), 0.08), transparent 48%),
       var(--tech-bg);
     color: var(--tech-fg);
+  }
+
+  .technician-portal-shell--with-nav .technician-portal-main {
+    padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .technician-bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 40;
+    display: flex;
+    border-top: 1px solid var(--tech-border);
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(10px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .technician-bottom-nav__item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2rem;
+    padding: 0.65rem 0.5rem 0.75rem;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--tech-fg-muted);
+    text-decoration: none;
+  }
+
+  .technician-bottom-nav__item--active {
+    color: var(--brand-purple);
+    background: rgba(var(--glow-purple), 0.06);
+  }
+
+  .technician-portal-icon-btn--active {
+    background: rgba(var(--glow-purple), 0.12);
+    color: var(--brand-purple);
+  }
+
+  .page-context-bar {
+    min-width: 0;
+  }
+
+  .wayfinding-tip {
+    margin-bottom: 0.25rem;
+  }
+
+  .staff-messenger__thread-context {
+    background: rgba(var(--glow-purple), 0.03);
   }
 
   .technician-portal-header {

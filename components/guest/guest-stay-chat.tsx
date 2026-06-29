@@ -19,9 +19,16 @@ const GUEST_QUICK_REPLIES = [
 interface GuestStayChatProps {
   variant?: 'embedded' | 'screen'
   propertyName?: string
+  isActive?: boolean
+  onStaffMessages?: (staffCount: number, isActive: boolean) => void
 }
 
-export function GuestStayChat({ variant = 'embedded', propertyName }: GuestStayChatProps) {
+export function GuestStayChat({
+  variant = 'embedded',
+  propertyName,
+  isActive = false,
+  onStaffMessages,
+}: GuestStayChatProps) {
   const isScreen = variant === 'screen'
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [messages, setMessages] = useState<
@@ -64,13 +71,14 @@ export function GuestStayChat({ variant = 'embedded', propertyName }: GuestStayC
         toast.info('New message from the team')
       }
       staffMessageCountRef.current = staffCount
+      onStaffMessages?.(staffCount, isActive)
       setConversationId(result.data.conversationId)
       setGuestAvatarUrl(result.data.guestAvatarUrl)
       setMessages(next)
     }
     setInitialLoading(false)
     setRefreshing(false)
-  }, [])
+  }, [isActive, onStaffMessages])
 
   useEffect(() => {
     setInitialLoading(true)

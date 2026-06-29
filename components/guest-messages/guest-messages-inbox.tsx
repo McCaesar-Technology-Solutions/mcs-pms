@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { MessageCircle, Search } from 'lucide-react'
 import { getGuestConversationContextAction } from '@/app/actions/guest-conversation'
+import { PageContextBar } from '@/components/ui/page-context-bar'
 import { GuestContextRail } from '@/components/guest-messages/guest-context-rail'
 import { StaffGuestStayThread } from '@/components/guest-messages/staff-guest-stay-thread'
 import { formatConversationTime } from '@/components/guest-messages/messaging-format'
@@ -162,7 +163,17 @@ export function GuestMessagesInbox({
 
       <main className="staff-messenger__main">
         {selected ? (
-          <StaffGuestStayThread
+          <>
+            <div className="staff-messenger__thread-context hidden border-b border-border px-4 py-2 lg:flex">
+              <PageContextBar
+                segments={[
+                  { label: 'Messages' },
+                  { label: selected.guestName },
+                  ...(selected.roomNumber ? [{ label: `Room ${selected.roomNumber}` }] : []),
+                ]}
+              />
+            </div>
+            <StaffGuestStayThread
             conversationId={selected.id}
             guestName={selected.guestName}
             guestAvatarUrl={selected.guestAvatarUrl}
@@ -170,6 +181,7 @@ export function GuestMessagesInbox({
             guestDoNotDisturb={selected.doNotDisturb}
             onBack={onBack}
           />
+          </>
         ) : (
           <div className="staff-messenger__placeholder">
             <div className="staff-messenger__placeholder-icon">

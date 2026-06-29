@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { getProfile } from '@/lib/auth/get-profile'
 import { AppShell } from '@/components/dashboard/app-shell'
-import { ownerNavigation } from '@/lib/navigation'
+import { ownerNavigation, ownerNavGroups, type NavGroup } from '@/lib/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { requiresOnboarding } from '@/lib/onboarding/state'
 import { getOccupancyToday, type OccupancyToday } from '@/lib/data/occupancy'
@@ -14,6 +14,13 @@ function applyBadges<T extends { href: string; badge?: number }>(
   return items.map((item) => ({
     ...item,
     badge: badges[item.href] && badges[item.href] > 0 ? badges[item.href] : undefined,
+  }))
+}
+
+function applyBadgesToGroups(groups: NavGroup[], badges: Record<string, number>): NavGroup[] {
+  return groups.map((group) => ({
+    ...group,
+    items: applyBadges(group.items, badges),
   }))
 }
 
@@ -30,6 +37,7 @@ export default async function OwnerLayout({
   }
 
   let navigation = ownerNavigation.map((item) => ({ ...item }))
+  let navGroups = ownerNavGroups.map((g) => ({ ...g, items: g.items.map((i) => ({ ...i })) }))
   let occupancyToday: OccupancyToday | undefined
 
   if (profile.hotel_id) {
@@ -39,11 +47,12 @@ export default async function OwnerLayout({
       getOccupancyToday(supabase, profile.hotel_id),
     ])
     navigation = applyBadges(navigation, badges)
+    navGroups = applyBadgesToGroups(navGroups, badges)
     occupancyToday = occupancy
   }
 
   return (
-    <AppShell navigation={navigation} profile={profile} enableRealtime occupancyToday={occupancyToday}>
+    <AppShell navigation={navigation} navGroups={navGroups} profile={profile} enableRealtime occupancyToday={occupancyToday}>
       {children}
     </AppShell>
   )

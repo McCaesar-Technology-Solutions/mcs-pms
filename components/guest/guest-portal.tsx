@@ -73,7 +73,7 @@ const tabs: { id: TabId; label: string; icon: typeof Home }[] = [
   { id: 'home', label: 'Home', icon: Home },
   { id: 'messages', label: 'Messages', icon: MessageCircle },
   { id: 'stay', label: 'My stay', icon: BedDouble },
-  { id: 'help', label: 'Help', icon: LifeBuoy },
+  { id: 'help', label: 'Issues', icon: LifeBuoy },
   { id: 'account', label: 'Account', icon: User },
 ]
 
@@ -156,6 +156,14 @@ interface GuestPortalProps {
   roomNumber: string | null
   propertyContacts: StaffContact[]
   context: GuestPortalContext
+  initialTab?: string | null
+}
+
+function parseInitialTab(value?: string | null): TabId {
+  if (value === 'home' || value === 'stay' || value === 'messages' || value === 'help' || value === 'account') {
+    return value
+  }
+  return 'home'
 }
 
 function formatShortDate(dateStr: string) {
@@ -174,8 +182,10 @@ export function GuestPortal({
   roomNumber,
   propertyContacts,
   context,
+  initialTab,
 }: GuestPortalProps) {
-  const [activeTab, setActiveTab] = useState<TabId>('home')
+  const [activeTab, setActiveTabState] = useState<TabId>(() => parseInitialTab(initialTab))
+  const [staffMessageUnread, setStaffMessageUnread] = useState(false)
   const [dnd, setDnd] = useState(Boolean((guest as Guest & { do_not_disturb?: boolean }).do_not_disturb))
   const [complaints, setComplaints] = useState<Complaint[]>([])
   const [disconnected, setDisconnected] = useState(false)
@@ -213,6 +223,30 @@ export function GuestPortal({
 
   const { property, rules, localGuide, invoices } = context
   const roomImageUrl = property.roomImageUrl
+
+  const setActiveTab = useCallback((tab: TabId) => {
+    setActiveTabState(tab)
+    if (tab === 'messages') setStaffMessageUnread(false)
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href)
+      url.searchParams.set('tab', tab)
+      window.history.replaceState({}, '', url.toString())
+    }
+  }, [])
+
+  const tabBadges = useMemo(() => {
+    const pendingRequests = portalRequests.filter((r) => r.status === 'pending').length
+    const openIssues = complaints.filter((c) => c.status !== 'resolved').length
+    return {
+      messages: staffMessageUnread ? 1 : 0,
+      stay: pendingRequests,
+      help: openIssues,
+    } satisfies Partial<Record<TabId, number>>
+  }, [portalRequests, complaints, staffMessageUnread])
+
+  useEffect(() => {
+    setActiveTabState(parseInitialTab(initialTab))
+  }, [initialTab])
 
   useEffect(() => {
     setPortalRequests(context.requests)
@@ -776,7 +810,14 @@ export function GuestPortal({
             aria-labelledby="guest-tab-messages"
             className="guest-tab-panel guest-tab-panel--fill"
           >
-            <GuestStayChat variant="screen" propertyName={property.name} />
+            <GuestStayChat
+              variant="screen"
+              propertyName={property.name}
+              isActive={activeTab === 'messages'}
+              onStaffMessages={(count, isActive) => {
+                if (!isActive && count > 0) setStaffMessageUnread(true)
+              }}
+            />
           </div>
         )}
 
@@ -787,7 +828,7 @@ export function GuestPortal({
             aria-labelledby="guest-tab-help"
             className="guest-tab-panel"
           >
-            <p className="guest-tab-intro">Check open issues or report something new.</p>
+            <p className="guest-tab-intro">Track open maintenance issues or report something new.</p>
 
             {complaints.length > 0 && (
               <section className="mb-4 flex flex-col gap-3">
@@ -1033,6 +1074,7 @@ export function GuestPortal({
         <div className="mx-auto flex max-w-md justify-around gap-0.5">
           {tabs.map(({ id, label, icon: Icon }) => {
             const active = activeTab === id
+            const badge = (tabBadges as Partial<Record<TabId, number>>)[id] ?? 0
             return (
               <button
                 key={id}
@@ -1043,11 +1085,18 @@ export function GuestPortal({
                 aria-controls={`guest-panel-${id}`}
                 tabIndex={active ? 0 : -1}
                 onClick={() => setActiveTab(id)}
-                className={`guest-tab-btn flex flex-1 flex-col items-center gap-1 rounded-lg py-2 text-[10px] font-semibold ${
+                className={`guest-tab-btn relative flex flex-1 flex-col items-center gap-1 rounded-lg py-2 text-[10px] font-semibold ${
                   active ? '' : 'guest-text-subtle'
                 }`}
               >
-                <Icon className="h-5 w-5" />
+                <span className="relative">
+                  <Icon className="h-5 w-5" />
+                  {badge > 0 && (
+                    <span className="guest-tab-badge" aria-label={`${badge} update${badge === 1 ? '' : 's'}`}>
+                      {badge > 9 ? '9+' : badge}
+                    </span>
+                  )}
+                </span>
                 {label}
               </button>
             )

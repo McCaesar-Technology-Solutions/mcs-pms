@@ -55,7 +55,9 @@ function messagesHref(prefix: string, conversationId?: string): string {
       : '/receptionist/messages'
   }
   if (prefix === '/owner') {
-    return conversationId ? `/owner/dashboard#guest-portal` : '/owner/dashboard'
+    return conversationId
+      ? `/owner/messages?conversation=${conversationId}`
+      : '/owner/messages'
   }
   return conversationId
     ? `/manager/messages?conversation=${conversationId}`

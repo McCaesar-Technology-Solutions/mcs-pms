@@ -256,11 +256,9 @@ export function frontDeskOpsLinks(prefix: StaffRoutePrefix, date: string) {
         ? `${prefix}/settings#guest-requests`
         : `${prefix}/dashboard#guest-requests`,
     messages:
-      prefix === '/manager'
+      prefix === '/owner'
         ? `${prefix}/messages`
-        : prefix === '/receptionist'
-          ? `${prefix}/messages`
-          : `${prefix}/guests`,
+        : `${prefix}/messages`,
     prepaid: `${prefix}/reservations?checkIn=${q}&payment=secured`,
     rooms: `${prefix}/rooms?view=floor&opsDate=${q}`,
   }

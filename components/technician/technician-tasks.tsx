@@ -32,6 +32,7 @@ import {
   isPendingEstimate,
   technicianStatusLabel,
 } from '@/lib/complaints/workflow'
+import { complaintMatchesQuery } from '@/lib/complaints/search-filter'
 import type { Complaint, ComplaintCategory, ComplaintEstimate } from '@/types'
 
 const priorityOrder: Record<string, number> = {
@@ -83,9 +84,10 @@ function roomLabelFor(c: Complaint) {
 
 interface TechnicianTasksProps {
   onJobDetailOpen?: (open: boolean) => void
+  searchQuery?: string
 }
 
-export function TechnicianTasks({ onJobDetailOpen }: TechnicianTasksProps) {
+export function TechnicianTasks({ onJobDetailOpen, searchQuery = '' }: TechnicianTasksProps) {
   const [tab, setTab] = useState<'active' | 'completed'>('active')
   const [complaints, setComplaints] = useState<Complaint[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -127,6 +129,10 @@ export function TechnicianTasks({ onJobDetailOpen }: TechnicianTasksProps) {
   useRealtimeRefresh('complaints', refreshFromRealtime)
 
   const selected = complaints.find((c) => c.id === selectedId) ?? null
+
+  const visibleComplaints = searchQuery.trim()
+    ? complaints.filter((c) => complaintMatchesQuery(c, searchQuery))
+    : complaints
 
   async function loadEstimate(complaintId: string) {
     const result = await fetchComplaintEstimate(complaintId)
@@ -249,7 +255,7 @@ export function TechnicianTasks({ onJobDetailOpen }: TechnicianTasksProps) {
           id={tab === 'active' ? 'technician-panel-active' : 'technician-panel-completed'}
           aria-labelledby={tab === 'active' ? 'technician-tab-active' : 'technician-tab-completed'}
         >
-          {complaints.map((c) => {
+          {visibleComplaints.map((c) => {
             const Icon = categoryIcons[c.category]
             const roomsJoin = roomLabelFor(c)
             const isRejected = c.status === 'rejected'

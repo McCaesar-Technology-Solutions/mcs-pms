@@ -26,18 +26,24 @@ You are locked to **one property** (no property switcher).
 | Menu | Path |
 |------|------|
 | Dashboard | `/manager/dashboard` |
-| Rooms | `/manager/rooms` |
-| Guests | `/manager/guests` |
+| Messages | `/manager/messages` |
 | Reservations | `/manager/reservations` |
-| Complaints | `/manager/complaints` |
+| Guests | `/manager/guests` |
+| Rooms | `/manager/rooms` |
 | Housekeeping | `/manager/housekeeping` |
+| Complaints | `/manager/complaints` |
+| Guest portal | `/manager/dashboard#guest-portal` |
+| Inventory | `/manager/inventory` |
 | Staff | `/manager/staff` |
 
 ### Top bar
 
-- **Search** — guests, reservations, rooms (no invoices).
-- **Notifications** — check-outs today, complaints needing approval.
+- **Search / ⌘K** — jump to pages; search reservations, guests, rooms, complaints, housekeeping.
+- **Notifications** — check-outs, complaints, guest requests, messages.
+- **Account & team** — profile phone/photo and staff management (`/manager/staff`).
 - **Live updates** — pages refresh automatically; toast on new complaints.
+
+**Guest portal settings** (requests, feedback, Wi‑Fi copy, rules) live under **Guest portal** in the sidebar or the **Guest portal** tab on the dashboard.
 
 ---
 

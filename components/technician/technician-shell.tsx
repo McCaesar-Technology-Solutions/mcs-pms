@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { ChevronDown, Camera, LogOut, MessageCircle, Phone } from 'lucide-react'
 import { useState } from 'react'
 import { signOut } from '@/app/actions/auth'
@@ -14,6 +15,8 @@ import { MessengerAvatar } from '@/components/messaging/messenger-avatar'
 import { ProfilePhoneBanner } from '@/components/dashboard/profile-phone-banner'
 import { PhoneContactList } from '@/components/ui/phone-contact'
 import { PortalBrand } from '@/components/brand/portal-brand'
+import { CommandPaletteProvider } from '@/components/dashboard/command-palette'
+import { TechnicianBottomNav, TechnicianSearchButton } from '@/components/technician/technician-wayfinding'
 import Image from 'next/image'
 import { hasPhoneNumber } from '@/lib/phone'
 import type { StaffContact } from '@/lib/data/contacts'
@@ -39,9 +42,12 @@ export function TechnicianShell({
   const [photoDialogOpen, setPhotoDialogOpen] = useState(false)
   const [supportOpen, setSupportOpen] = useState(false)
   const avatarUrl = profileAvatarUrl(profile)
+  const pathname = usePathname()
+  const onMessages = pathname.startsWith('/technician/messages')
 
   return (
-    <div className="technician-portal-shell">
+    <CommandPaletteProvider profile={profile}>
+    <div className="technician-portal-shell technician-portal-shell--with-nav">
       {!hasPhoneNumber(profile.phone) && <ProfilePhoneBanner roleLabel="technician" />}
       <header className="technician-portal-header">
         <div className="technician-portal-header__inner">
@@ -70,9 +76,10 @@ export function TechnicianShell({
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
+            <TechnicianSearchButton />
             <Link
               href="/technician/messages"
-              className="technician-portal-icon-btn"
+              className={`technician-portal-icon-btn hidden md:inline-flex ${onMessages ? 'technician-portal-icon-btn--active' : ''}`}
               aria-label="Team messages"
             >
               <MessageCircle className="h-4 w-4" />
@@ -135,6 +142,8 @@ export function TechnicianShell({
         <TechnicianRealtime userId={profile.id}>{children}</TechnicianRealtime>
       </main>
 
+      <TechnicianBottomNav />
+
       <AccountPhoneDialog
         open={phoneDialogOpen}
         onClose={() => setPhoneDialogOpen(false)}
@@ -147,5 +156,6 @@ export function TechnicianShell({
         profile={profile}
       />
     </div>
+    </CommandPaletteProvider>
   )
 }

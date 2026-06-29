@@ -10,7 +10,7 @@ import { loadGuestPortalContext } from '@/lib/data/guest-portal'
 export default async function GuestPage({
   searchParams,
 }: {
-  searchParams: Promise<{ token?: string; error?: string }>
+  searchParams: Promise<{ token?: string; error?: string; tab?: string }>
 }) {
   const params = await searchParams
 
@@ -53,6 +53,7 @@ export default async function GuestPage({
       roomNumber={session.data.roomNumber}
       propertyContacts={propertyContacts}
       context={context}
+      initialTab={params.tab}
     />
   )
 }

@@ -23,6 +23,7 @@ import { getHousekeepingTasks } from '@/lib/data/housekeeping'
 import { getNotificationLog } from '@/lib/data/notification-log'
 import { getAuditLog } from '@/lib/data/audit-log'
 import { FrontDeskOpsSection } from '@/components/dashboard/front-desk-ops-section'
+import { RoleWayfindingPanel } from '@/components/dashboard/role-wayfinding-panel'
 import { parseOpsDate } from '@/lib/dates/ops-date'
 import { loadFrontDeskOpsContext } from '@/lib/data/load-front-desk-ops'
 import { computeBookingsSparkline, computeTodayOperations } from '@/lib/data/overview'
@@ -135,6 +136,7 @@ export default async function ManagerDashboardPage({
       </DashboardHero>
 
       <div className="page-content-stack page-shell--after-hero">
+        <RoleWayfindingPanel role="manager" />
         <section className="dashboard-section dashboard-section--compact">
           <FrontDeskOpsSection routePrefix="/manager" opsDateParam={opsDateParam} />
         </section>

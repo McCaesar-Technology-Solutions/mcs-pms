@@ -173,10 +173,10 @@ export function NotificationsMenu({ profile }: NotificationsMenuProps) {
   )
 }
 
-export function settingsHref(role?: Profile['role']): string {
+export function settingsHref(role?: Profile['role']): string | null {
   if (role === 'owner') return '/owner/settings'
   if (role === 'manager') return '/manager/staff'
-  return '/login'
+  return null
 }
 
 export function settingsMenuLabel(role?: Profile['role']): string {

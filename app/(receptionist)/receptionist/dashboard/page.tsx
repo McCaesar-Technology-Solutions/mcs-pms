@@ -7,6 +7,9 @@ import { ComplaintsOverviewLive } from '@/components/complaints/complaints-overv
 import { fetchHotelComplaints } from '@/lib/data/complaints'
 import { getDashboardData } from '@/lib/data/dashboard'
 import { FrontDeskOpsSection } from '@/components/dashboard/front-desk-ops-section'
+import { GuestRequestsPanel } from '@/components/dashboard/guest-requests-panel'
+import { RoleWayfindingPanel } from '@/components/dashboard/role-wayfinding-panel'
+import { loadHotelGuestRequests } from '@/lib/data/guest-portal'
 import { parseOpsDate } from '@/lib/dates/ops-date'
 import { loadFrontDeskOpsContext } from '@/lib/data/load-front-desk-ops'
 import {
@@ -46,6 +49,7 @@ export default async function ReceptionistDashboardPage({
     } as const)
   const arrivals = getTodayArrivals(reservations, opsDate)
   const departures = getTodayDepartures(reservations, opsDate)
+  const guestRequests = hotelId ? await loadHotelGuestRequests(hotelId) : []
 
   return (
     <div className="page-shell pb-10">
@@ -66,6 +70,7 @@ export default async function ReceptionistDashboardPage({
       </DashboardHero>
 
       <div className="page-content-stack page-shell--after-hero">
+        <RoleWayfindingPanel role="receptionist" />
         <section className="dashboard-section dashboard-section--compact">
           <FrontDeskOpsSection routePrefix="/receptionist" opsDateParam={opsDateParam} />
         </section>
@@ -77,6 +82,12 @@ export default async function ReceptionistDashboardPage({
             reservationsHref="/receptionist/reservations"
           />
         </section>
+
+        {hotelId && (
+          <section id="guest-requests" className="dashboard-section scroll-mt-24">
+            <GuestRequestsPanel hotelId={hotelId} initialRequests={guestRequests} />
+          </section>
+        )}
 
         <section className="dashboard-section space-y-4">
           <SectionHeading title="Guest issues" description="Recent complaints needing follow-up" />

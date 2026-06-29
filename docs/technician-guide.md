@@ -27,9 +27,13 @@ Add or verify **phone** (header button or amber banner). SMS alerts for new jobs
 | Element | Purpose |
 |---------|---------|
 | Your name + specialty | Your profile |
+| **Search (⌘K)** | Find tasks by room or category |
 | **Phone** / **Add phone** | Contact for SMS |
 | **Call manager** | Tap to call/WhatsApp managers (not owner) |
 | **Sign out** | Log out |
+| **Bottom bar (mobile)** | Switch between **Tasks** and **Messages** |
+
+Use **Messages** for team chat with managers. Guest-facing chat happens inside each job when you message the guest about a repair.
 
 ### Live updates
 

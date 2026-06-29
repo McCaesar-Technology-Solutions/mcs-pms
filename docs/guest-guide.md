@@ -9,9 +9,10 @@ Welcome. You use a **simple mobile portal** — no password. Front desk gives yo
 ### How access works
 
 1. Staff checks you in (reservation or walk-in).
-2. You receive a **link** or **QR code**.
-3. Link looks like: `{website}/guest/enter?token=...`
-4. Opens **Guest portal** (`/guest`).
+2. You receive a **link** or **QR code** (personal link or property lobby QR).
+3. Personal link looks like: `{website}/guest/enter?token=...`
+4. Lobby QR opens `{website}/guest/join/{property}` — enter your room and last name.
+5. Opens **Guest portal** (`/guest`).
 
 ### No account
 
@@ -30,116 +31,74 @@ Welcome. You use a **simple mobile portal** — no password. Front desk gives yo
 
 ---
 
-## 2. Portal home
+## 2. Portal navigation (5 tabs)
 
-- **MOJO APARTMENTS** branding.
-- **Room number** (when assigned).
-- **Hi {your name}**.
+Use the **bottom tab bar** to move around:
 
-### Your phone number
+| Tab | What it’s for |
+|-----|----------------|
+| **Home** | Wi‑Fi, checkout info, quick actions, contact property |
+| **Messages** | Chat with the front desk (general stay questions) |
+| **My stay** | Room, dates, housekeeping/late checkout requests, invoices |
+| **Issues** | Report maintenance problems and track open issues |
+| **Account** | Phone, Do Not Disturb, feedback, property rules, local guide |
 
-Tap **Add** or **Edit** — Ghana format e.g. `+233 24 123 4567`. Helps staff call you back.
+**Badges** on tabs show pending requests, open issues, or new team messages.
 
-### Contact managers
+**Deep links:** Staff links may open a specific tab, e.g. `/guest?tab=messages`.
 
-**Call** and **WhatsApp** buttons for **managers only** (not the property owner).
+### Two ways to message staff
 
----
-
-## 3. Report a problem (complaint)
-
-### Step 1 — Category
-
-| Category | Examples |
-|----------|----------|
-| Plumbing | Leaks, no water |
-| Electrical | Power, lights |
-| HVAC | AC not cooling |
-| Furniture | Broken bed, chair |
-| Cleaning | Room not clean |
-| Noise | Disturbance |
-| Other | Anything else |
-
-### Step 2 — Description
-
-- At least **10 characters**.
-- Be specific: where, when it started, how bad.
-
-### Step 3 — Priority
-
-| Button | Use when |
-|--------|----------|
-| **Normal** | Standard issues |
-| **Urgent** | Safety, flooding, no power, security |
-
-### Submit
-
-- **Submit complaint** (bottom button).
-- You get a **reference number** — save it.
-- Team is notified by SMS/WhatsApp.
-
-### Limits
-
-- Max 3 complaints per 15 minutes.
-- Max 10 per stay.
-- Cannot edit or delete after submit.
+- **Messages tab** — general front-desk chat (towels, checkout time, etc.).
+- **Issues tab → open an issue → Message staff** — chat about a specific repair.
 
 ---
 
-## 4. Track your complaints
+## 3. Home tab
 
-**My complaints** shows simple status (not internal costs or technician names):
-
-| Status | Meaning |
-|--------|---------|
-| Being handled | Team working on it |
-| Quote under review | Cost approval in progress |
-| Almost done | Waiting final sign-off |
-| Resolved ✓ | Fixed |
-| Being reviewed again | More work needed |
-
-Updates appear automatically when staff progress your case.
+- **MOJO APARTMENTS** branding and optional welcome message.
+- **Room number** and photo when assigned.
+- **Quick actions:** request housekeeping, report an issue, message the team.
+- **Essentials:** Wi‑Fi, parking, emergency phone.
+- **Contact property** — call managers and reception.
 
 ---
 
-## 5. Paying your bill
+## 4. My stay tab
 
-**Payment is not done in this portal.**
-
-- Pay at the **front desk** (cash, MoMo, card).
-- Ask reception for your **balance** before checkout.
-- Receipts come from the property after payment.
+- Stay dates and timeline.
+- **Requests:** housekeeping, late checkout, stay extension.
+- **Billing:** invoices for your stay (pay at front desk if shown).
 
 ---
 
-## 6. What guests cannot do
+## 5. Issues tab (maintenance)
 
-- See other guests or staff screens.
-- Pay bills online here.
-- Contact the owner directly (managers only).
-- Use portal after checkout or if link expired.
-- Choose low/medium/high priority (only Normal/Urgent).
+### Report a problem
 
----
+1. Choose a **category** (plumbing, electrical, HVAC, furniture, cleaning, noise, other).
+2. Describe the issue (at least 10 characters).
+3. Set **Normal** or **Urgent** priority.
+4. Optionally attach a photo.
+5. Submit — you get a **reference number**.
 
-## 7. Tips for a smooth stay
-
-- Save or bookmark your portal link.
-- Add your phone number early.
-- Use **Urgent** only for real emergencies.
-- Quote your **reference number** at the desk when following up.
-- Check out at reception so your room and bill are closed properly.
+Track progress under **Issues**. Use **Message staff** on an open issue for updates about that repair.
 
 ---
 
-## 8. What happens after you complain (behind the scenes)
+## 6. Account tab
 
-You only see status updates, but this is the flow:
+- **Do Not Disturb** — staff see a flag on your profile; they should call before entering.
+- **Phone number** — Ghana format e.g. `+233 24 123 4567`.
+- **Profile photo** — optional; shown in messages.
+- **Feedback** — rate your stay after checkout.
+- **Property rules** and **local guide**.
+- **Privacy** and **Terms** links.
 
-1. Front desk / manager receives complaint.
-2. Technician assigned.
-3. Technician sends cost estimate → manager approves.
-4. Work is done.
-5. Manager signs off → you see **Resolved ✓**.
+---
 
-**Urgent:** often same day. **Normal:** same day or next day depending on workload.
+## 7. Tips
+
+- Tap a tab badge to see what needs attention.
+- For urgent safety issues (flooding, no power), mark **Urgent** when reporting.
+- Checkout flow improvements are coming — ask front desk for checkout time until then.

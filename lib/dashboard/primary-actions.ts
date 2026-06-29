@@ -26,6 +26,8 @@ export function getDashboardSearchBase(role?: Profile['role']): string {
       return '/manager/reservations'
     case 'receptionist':
       return '/receptionist/reservations'
+    case 'technician':
+      return '/technician/tasks'
     default:
       return '/owner/reservations'
   }
