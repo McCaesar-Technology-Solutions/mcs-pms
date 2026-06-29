@@ -3,9 +3,11 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { getProfile } from '@/lib/auth/get-profile'
 import { writeAuditLog } from '@/lib/audit/log'
 import { clampLimit } from '@/lib/data/pagination'
+import { isFolioPostingBlocked } from '@/lib/folio/lock'
 
 const postChargeSchema = z.object({
   guestId: z.string().uuid(),
@@ -39,6 +41,21 @@ export async function postGuestCharge(input: unknown): Promise<FolioActionResult
     .maybeSingle()
 
   if (!guest) return { success: false, error: 'Guest not found.' }
+
+  const admin = createAdminClient()
+  const folioLock = await isFolioPostingBlocked(
+    admin,
+    profile.hotel_id,
+    parsed.data.guestId,
+    parsed.data.reservationId,
+  )
+  if (folioLock.blocked) {
+    return {
+      success: false,
+      error:
+        'Folio is locked while checkout is in progress. Complete or cancel checkout before posting new charges.',
+    }
+  }
 
   const { data, error } = await supabase
     .from('guest_charges')

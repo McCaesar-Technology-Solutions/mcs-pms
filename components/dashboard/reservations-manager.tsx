@@ -7,7 +7,10 @@ import { ChevronRight, LogIn, LogOut, Plus, Search, X, XCircle, CalendarPlus, Ar
 import {
   bookAndCheckIn,
   cancelReservation,
-  checkOutReservation,
+  beginCheckoutReservation,
+  completeCheckoutReservation,
+  recordWalkoutReservation,
+  approveLateCheckoutReservation,
   createReservation,
   markChannelPrepaid,
   recordReservationDeposit,
@@ -1120,12 +1123,32 @@ function ReservationDrawer({ reservation, roomOptions, staffRole, onClose, onMut
                   <button
                     type="button"
                     disabled={pending}
-                    onClick={() => setCheckingOut(true)}
+                    onClick={() =>
+                      run(
+                        () => beginCheckoutReservation(reservation.id),
+                        () => {
+                          onMutated()
+                          setCheckingOut(true)
+                        },
+                      )
+                    }
                     className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#3C216C] py-3 text-sm font-semibold text-white shadow-elevation-1 transition-all hover:shadow-elevation-2 disabled:opacity-50"
                   >
                     <LogOut className="h-4 w-4" />
-                    Check out
+                    Begin checkout
                   </button>
+                  {reservation.status === 'overstay' && (
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() =>
+                        run(() => approveLateCheckoutReservation(reservation.id))
+                      }
+                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-amber-50 py-3 text-sm font-semibold text-amber-950 ring-1 ring-amber-200"
+                    >
+                      Approve late checkout
+                    </button>
+                  )}
                   <button
                     type="button"
                     disabled={pending}
@@ -1143,6 +1166,59 @@ function ReservationDrawer({ reservation, roomOptions, staffRole, onClose, onMut
                   >
                     <ArrowRightLeft className="h-4 w-4" />
                     Move room
+                  </button>
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() => {
+                      if (
+                        !window.confirm(
+                          'Record walkout? Guest left without paying. An invoice with balance due will be created and the room released.',
+                        )
+                      ) {
+                        return
+                      }
+                      run(() => recordWalkoutReservation(reservation.id, paymentMethod, earlyCheckout, includeTax))
+                    }}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 py-3 text-sm font-semibold text-red-800"
+                  >
+                    <UserX className="h-4 w-4" />
+                    Record walkout
+                  </button>
+                </>
+              )}
+
+              {reservation.status === 'checkout_in_progress' && !checkingOut && !extending && !moving && (
+                <>
+                  <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-950">
+                    Checkout in progress — folio is locked. Post any final charges before completing, or record a walkout if the guest left without paying.
+                  </p>
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() => setCheckingOut(true)}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#3C216C] py-3 text-sm font-semibold text-white shadow-elevation-1"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Complete checkout
+                  </button>
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() => {
+                      if (
+                        !window.confirm(
+                          'Record walkout? Guest left without paying. An invoice with balance due will be created and the room released.',
+                        )
+                      ) {
+                        return
+                      }
+                      run(() => recordWalkoutReservation(reservation.id, paymentMethod, earlyCheckout, includeTax))
+                    }}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 py-3 text-sm font-semibold text-red-800"
+                  >
+                    <UserX className="h-4 w-4" />
+                    Record walkout
                   </button>
                 </>
               )}
@@ -1203,21 +1279,7 @@ function ReservationDrawer({ reservation, roomOptions, staffRole, onClose, onMut
                 </div>
               )}
 
-              {reservation.status === 'checkout_in_progress' && !checkingOut && (
-                <button
-                  type="button"
-                  disabled={pending}
-                  onClick={() => setCheckingOut(true)}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#3C216C] py-3 text-sm font-semibold text-white shadow-elevation-1"
-                >
-                  <LogOut className="h-4 w-4" />
-                  Complete checkout
-                </button>
-              )}
-
-              {(reservation.status === 'checked_in' ||
-                reservation.status === 'checkout_in_progress') &&
-                checkingOut && (
+              {reservation.status === 'checkout_in_progress' && checkingOut && (
                 <div className="space-y-3 rounded-xl surface-inset p-4">
                   <div>
                     <p className="text-sm font-semibold text-foreground">Collect payment</p>
@@ -1276,7 +1338,7 @@ function ReservationDrawer({ reservation, roomOptions, staffRole, onClose, onMut
                       disabled={pending}
                       onClick={() =>
                         run(() =>
-                          checkOutReservation(
+                          completeCheckoutReservation(
                             reservation.id,
                             paymentMethod,
                             earlyCheckout,

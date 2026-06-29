@@ -83,6 +83,8 @@ describe('reservation transition table', () => {
     expect(getTransitionDef('confirmed', 'checked_in')?.eventType).toBe('checked_in')
     expect(getTransitionDef('checked_out', 'post_stay')?.eventType).toBe('post_stay_started')
     expect(getTransitionDef('checked_in', 'checkout_in_progress')?.eventType).toBe('checkout_initiated')
+    expect(getTransitionDef('checked_in', 'walkout')?.eventType).toBe('walkout_detected')
+    expect(getTransitionDef('overstay', 'walkout')?.requiredRole).toBe('staff')
   })
 
   it('rejects undefined transitions', () => {

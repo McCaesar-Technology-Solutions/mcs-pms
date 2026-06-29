@@ -53,6 +53,7 @@ export type ReservationAction =
   | 'change_room'
   | 'approve_late_checkout'
   | 'complete_checkout'
+  | 'record_walkout'
 
 const EDITABLE_STATUSES: ReservationStatus[] = [
   'inquiry',
@@ -126,13 +127,13 @@ export function getAvailableActions(
       if (role !== 'guest') actions.push('check_in', 'mark_no_show', 'cancel')
       break
     case 'checked_in':
-      actions.push('begin_checkout', 'extend_stay', 'change_room')
+      actions.push('begin_checkout', 'extend_stay', 'change_room', 'record_walkout')
       break
     case 'overstay':
-      actions.push('begin_checkout', 'approve_late_checkout')
+      actions.push('begin_checkout', 'approve_late_checkout', 'record_walkout')
       break
     case 'checkout_in_progress':
-      actions.push('complete_checkout')
+      actions.push('complete_checkout', 'record_walkout')
       break
     default:
       break

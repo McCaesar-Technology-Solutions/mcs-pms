@@ -39,7 +39,7 @@ async function loadReservation(
   const { data } = await admin
     .from('reservations')
     .select(
-      'id, hotel_id, room_id, guest_id, guest_name, status, check_in, check_out, channel, amount_paid, total_amount',
+      'id, hotel_id, room_id, guest_id, guest_name, status, check_in, check_out, channel, amount_paid, total_amount, nightly_rate, monthly_rate, rate_type, folio_locked',
     )
     .eq('id', reservationId)
     .eq('hotel_id', hotelId)

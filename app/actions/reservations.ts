@@ -432,6 +432,37 @@ async function setReservationStatus(
   return { success: true }
 }
 
+export async function beginCheckoutReservation(id: string): Promise<ReservationActionResult> {
+  const { beginCheckoutStay } = await import('@/app/actions/stays')
+  const result = await beginCheckoutStay(id)
+  if (!result.success) return { success: false, error: result.error }
+  revalidateReservationViews()
+  return { success: true }
+}
+
+export async function completeCheckoutReservation(
+  id: string,
+  paymentMethod: PaymentMethod = 'cash',
+  earlyCheckout = false,
+  markAsPaid = true,
+  includeTax = true,
+): Promise<ReservationActionResult> {
+  if (!VALID_PAYMENT_METHODS.includes(paymentMethod)) {
+    return { success: false, error: 'Invalid payment method.' }
+  }
+  const { completeCheckoutStay } = await import('@/app/actions/stays')
+  const result = await completeCheckoutStay({
+    reservationId: id,
+    paymentMethod,
+    earlyCheckout,
+    markAsPaid,
+    includeTax,
+  })
+  if (!result.success) return { success: false, error: result.error }
+  revalidateReservationViews()
+  return { success: true }
+}
+
 export async function checkOutReservation(
   id: string,
   paymentMethod: PaymentMethod = 'cash',
@@ -451,6 +482,35 @@ export async function checkOutReservation(
     includeTax,
   })
   if (!result.success) return { success: false, error: result.error }
+  revalidateReservationViews()
+  return { success: true }
+}
+
+export async function recordWalkoutReservation(
+  id: string,
+  paymentMethod: PaymentMethod = 'cash',
+  earlyCheckout = false,
+  includeTax = true,
+): Promise<ReservationActionResult> {
+  if (!VALID_PAYMENT_METHODS.includes(paymentMethod)) {
+    return { success: false, error: 'Invalid payment method.' }
+  }
+  const { recordWalkoutStay } = await import('@/app/actions/stays')
+  const result = await recordWalkoutStay(id, { paymentMethod, earlyCheckout, includeTax })
+  if (!result.success) return { success: false, error: result.error }
+  revalidateReservationViews()
+  return { success: true }
+}
+
+export async function approveLateCheckoutReservation(
+  id: string,
+  approvedUntil?: string,
+  note?: string,
+): Promise<ReservationActionResult> {
+  const { approveLateCheckout } = await import('@/app/actions/stays')
+  const result = await approveLateCheckout(id, { approvedUntil, note })
+  if (!result.success) return { success: false, error: result.error }
+  revalidateReservationViews()
   return { success: true }
 }
 

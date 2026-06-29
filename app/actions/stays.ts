@@ -23,6 +23,7 @@ import {
 } from '@/lib/folio/rollup'
 import { writeAuditLog, logRoomStatusChange } from '@/lib/audit/log'
 import { canCheckIn, canCheckOut } from '@/lib/reservations/lifecycle'
+import { validateCheckoutBalance } from '@/lib/reservations/checkout-validation'
 import { appendReservationEvent, transitionReservation } from '@/lib/reservations/state-machine'
 import { normalizeActorRole } from '@/lib/reservations/transitions'
 import {
@@ -448,6 +449,359 @@ export async function walkInCheckIn(input: {
   }
 }
 
+type StayDepartureStatus = 'checked_out' | 'walkout'
+
+async function executeStayCheckout(
+  admin: ReturnType<typeof createAdminClient>,
+  input: {
+    reservation: {
+      id: string
+      hotel_id: string
+      room_id: string | null
+      guest_id: string | null
+      guest_name: string
+      nightly_rate: number | null
+      monthly_rate: number | null
+      rate_type: string | null
+      total_amount: number | null
+      amount_paid: number | null
+      check_in: string
+      check_out: string
+      status: string | null
+    }
+    profile: { hotel_id: string; id: string; name: string | null; role: string }
+    userId: string
+    paymentMethod: PaymentMethod
+    earlyCheckout?: boolean
+    markAsPaid?: boolean
+    includeTax: boolean
+    departureStatus: StayDepartureStatus
+  },
+): Promise<StayActionResult> {
+  const { reservation, profile, userId } = input
+  const today = todayISO()
+  const actorRole = normalizeActorRole(profile.role)
+  const isWalkout = input.departureStatus === 'walkout'
+  const paidNow = !isWalkout && input.markAsPaid !== false
+
+  let guestPhone: string | null = null
+  if (reservation.guest_id) {
+    const { data: guestRow } = await admin
+      .from('guests')
+      .select('phone')
+      .eq('id', reservation.guest_id)
+      .maybeSingle()
+    guestPhone = guestRow?.phone?.trim() ?? null
+  }
+
+  const effectiveCheckOut = input.earlyCheckout ? today : reservation.check_out
+  if (effectiveCheckOut <= reservation.check_in) {
+    return { success: false, error: 'Check-out must be after check-in.' }
+  }
+
+  const { taxes: roomTaxes } = await computeCheckoutTaxes(
+    admin,
+    reservation.hotel_id,
+    reservation.check_in,
+    effectiveCheckOut,
+    reservation.room_id,
+    reservation.rate_type,
+    reservation.nightly_rate,
+    reservation.monthly_rate,
+    reservation.total_amount,
+    reservation.check_out,
+    input.includeTax,
+  )
+
+  const guestIdForFolio = reservation.guest_id
+  const { taxes, folioCharges, folioSubtotal } = guestIdForFolio
+    ? await prepareCheckoutTaxesWithFolio(
+        admin,
+        reservation.hotel_id,
+        guestIdForFolio,
+        reservation.id,
+        roomTaxes,
+        input.includeTax,
+      )
+    : { taxes: roomTaxes, folioCharges: [], folioSubtotal: 0 }
+
+  const priorDeposit = Number(reservation.amount_paid ?? 0)
+  const balanceCheck = validateCheckoutBalance({
+    invoiceTotal: taxes.total,
+    priorDeposit,
+    markAsPaid: paidNow,
+  })
+  if (!balanceCheck.ok) {
+    return { success: false, error: balanceCheck.error }
+  }
+
+  const now = new Date().toISOString()
+  const dueAt = paidNow
+    ? now
+    : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+  const checkoutPayment = buildCheckoutInvoicePaymentState({
+    invoiceTotal: taxes.total,
+    priorDeposit,
+    paidNow,
+  })
+
+  const { data: existingInvoice } = await admin
+    .from('invoices')
+    .select('id')
+    .eq('reservation_id', reservation.id)
+    .maybeSingle()
+
+  if (!existingInvoice) {
+    const invoiceNumber = await allocateInvoiceNumber(reservation.hotel_id)
+    const { data: invoiceRow } = await admin
+      .from('invoices')
+      .insert({
+        hotel_id: reservation.hotel_id,
+        reservation_id: reservation.id,
+        guest_id: reservation.guest_id,
+        guest_name: reservation.guest_name,
+        invoice_number: invoiceNumber,
+        subtotal: taxes.subtotal,
+        nhil_amount: taxes.nhil,
+        getfund_amount: taxes.getfund,
+        covid_levy_amount: taxes.covid,
+        vat_amount: taxes.vat,
+        elevy_amount: taxes.elevy,
+        total_amount: taxes.total,
+        payment_method: input.paymentMethod,
+        payment_status: checkoutPayment.paymentStatus,
+        amount_paid: checkoutPayment.amountPaid,
+        issued_at: now,
+        due_at: dueAt,
+        paid_at: checkoutPayment.paymentStatus === 'paid' ? now : null,
+      })
+      .select('id')
+      .single()
+
+    if (invoiceRow?.id && folioCharges.length) {
+      await linkFolioChargesToInvoice(
+        admin,
+        folioCharges.map((c) => c.id),
+        invoiceRow.id,
+      )
+    }
+
+    if (invoiceRow?.id) {
+      await finalizeReservationCheckoutPayment(admin, {
+        reservationId: reservation.id,
+        invoiceId: invoiceRow.id,
+        hotelId: reservation.hotel_id,
+        guestId: reservation.guest_id,
+        invoiceTotal: taxes.total,
+        priorDeposit,
+        paidNow,
+        paymentMethod: input.paymentMethod,
+        now,
+      })
+    }
+  }
+
+  await admin
+    .from('reservations')
+    .update({
+      check_out: effectiveCheckOut,
+      total_amount: taxes.total,
+      ...(existingInvoice
+        ? {}
+        : {
+            amount_paid: checkoutPayment.amountPaid,
+            payment_status: checkoutPayment.paymentStatus,
+            payment_method: input.paymentMethod,
+          }),
+    })
+    .eq('id', reservation.id)
+
+  const departed = await transitionReservation({
+    reservationId: reservation.id,
+    hotelId: reservation.hotel_id,
+    toStatus: input.departureStatus,
+    actorId: userId,
+    actorRole,
+    payload: {
+      paymentMethod: input.paymentMethod,
+      folioSubtotal,
+      walkout: isWalkout,
+    },
+  })
+  if (!departed.success) {
+    return {
+      success: false,
+      error: departed.error ?? `Could not complete ${isWalkout ? 'walkout' : 'checkout'}.`,
+    }
+  }
+
+  await transitionReservation({
+    reservationId: reservation.id,
+    hotelId: reservation.hotel_id,
+    toStatus: 'post_stay',
+    actorId: userId,
+    actorRole: 'system',
+    bypassRoleCheck: true,
+  })
+
+  if (reservation.guest_id) {
+    await admin
+      .from('guests')
+      .update({
+        check_out: effectiveCheckOut,
+        room_id: null,
+        token: null,
+        token_expires_at: new Date().toISOString(),
+      })
+      .eq('id', reservation.guest_id)
+  }
+
+  if (reservation.room_id) {
+    const { data: roomBeforeCheckout } = await admin
+      .from('rooms')
+      .select('number, status')
+      .eq('id', reservation.room_id)
+      .maybeSingle()
+
+    if (roomBeforeCheckout && roomBeforeCheckout.status !== 'cleaning') {
+      void logRoomStatusChange({
+        hotelId: profile.hotel_id,
+        actorId: userId,
+        actorName: profile.name,
+        roomId: reservation.room_id,
+        roomNumber: roomBeforeCheckout.number,
+        from: roomBeforeCheckout.status ?? 'available',
+        to: 'cleaning',
+        reason: isWalkout ? 'walkout' : 'check-out',
+      })
+    }
+
+    await createPostCheckoutCleanTask(admin, {
+      hotelId: reservation.hotel_id,
+      roomId: reservation.room_id,
+      guestName: reservation.guest_name,
+      createdBy: userId,
+    })
+  }
+
+  if (guestPhone && !isWalkout) {
+    void import('@/lib/notifications/stays').then(({ notifyGuestCheckedOut }) =>
+      notifyGuestCheckedOut({
+        hotelId: reservation.hotel_id,
+        phone: guestPhone,
+        guestName: reservation.guest_name,
+        totalGhs: taxes.total,
+        paid: paidNow,
+      }).catch(() => undefined),
+    )
+  }
+
+  revalidateStayViews()
+
+  void writeAuditLog({
+    hotelId: profile.hotel_id,
+    actorId: userId,
+    actorName: profile.name,
+    entityType: 'reservation',
+    entityId: reservation.id,
+    action: isWalkout ? 'walkout' : 'checked_out',
+    summary: isWalkout
+      ? `${reservation.guest_name} walkout — ₵${taxes.total.toLocaleString()} balance due`
+      : `${reservation.guest_name} checked out — ₵${taxes.total.toLocaleString()} (${input.paymentMethod.replace(/_/g, ' ')}, ${paidNow ? 'paid' : 'pending'})${folioSubtotal > 0 ? ` incl. ₵${folioSubtotal} folio` : ''}`,
+  })
+
+  return { success: true }
+}
+
+export async function beginCheckoutStay(reservationId: string): Promise<StayActionResult> {
+  const { profile, userId } = await requireManager()
+  if (!profile?.hotel_id || !userId || !['owner', 'manager', 'receptionist'].includes(profile.role)) {
+    return { success: false, error: 'Not authorized.' }
+  }
+
+  const admin = createAdminClient()
+  const { data: reservation } = await admin
+    .from('reservations')
+    .select('id, hotel_id, status, guest_name')
+    .eq('id', reservationId)
+    .eq('hotel_id', profile.hotel_id)
+    .maybeSingle()
+
+  if (!reservation) return { success: false, error: 'Reservation not found.' }
+  if (!canCheckOut(reservation.status)) {
+    return { success: false, error: 'Only checked-in or overstay stays can begin checkout.' }
+  }
+
+  const result = await transitionReservation({
+    reservationId: reservation.id,
+    hotelId: reservation.hotel_id,
+    toStatus: 'checkout_in_progress',
+    actorId: userId,
+    actorRole: normalizeActorRole(profile.role),
+  })
+
+  if (!result.success) {
+    return { success: false, error: result.error ?? 'Could not begin checkout.' }
+  }
+
+  revalidateStayViews()
+  void writeAuditLog({
+    hotelId: profile.hotel_id,
+    actorId: userId,
+    actorName: profile.name,
+    entityType: 'reservation',
+    entityId: reservation.id,
+    action: 'checkout_initiated',
+    summary: `${reservation.guest_name}: checkout started (folio locked)`,
+  })
+
+  return { success: true }
+}
+
+export async function completeCheckoutStay(input: {
+  reservationId: string
+  paymentMethod: PaymentMethod
+  earlyCheckout?: boolean
+  markAsPaid?: boolean
+  includeTax?: boolean
+}): Promise<StayActionResult> {
+  const { profile, userId } = await requireManager()
+  if (!profile?.hotel_id || !userId || !['owner', 'manager', 'receptionist'].includes(profile.role)) {
+    return { success: false, error: 'Not authorized.' }
+  }
+  if (!VALID_PAYMENT_METHODS.includes(input.paymentMethod)) {
+    return { success: false, error: 'Invalid payment method.' }
+  }
+
+  const admin = createAdminClient()
+  const includeTax = input.includeTax !== false
+  const { data: reservation } = await admin
+    .from('reservations')
+    .select('*')
+    .eq('id', input.reservationId)
+    .eq('hotel_id', profile.hotel_id)
+    .maybeSingle()
+
+  if (!reservation) return { success: false, error: 'Reservation not found.' }
+  if (reservation.status !== 'checkout_in_progress') {
+    return {
+      success: false,
+      error: 'Begin checkout first, then complete payment and check-out.',
+    }
+  }
+
+  return executeStayCheckout(admin, {
+    reservation,
+    profile: { ...profile, hotel_id: profile.hotel_id },
+    userId,
+    paymentMethod: input.paymentMethod,
+    earlyCheckout: input.earlyCheckout,
+    markAsPaid: input.markAsPaid,
+    includeTax,
+    departureStatus: 'checked_out',
+  })
+}
+
 export async function checkOutStay(input: {
   reservationId?: string
   guestId?: string
@@ -688,231 +1042,110 @@ export async function checkOutStay(input: {
   }
 
   if (!reservation) return { success: false, error: 'Reservation not found.' }
-  if (!canCheckOut(reservation.status) && reservation.status !== 'checkout_in_progress') {
+  if (canCheckOut(reservation.status)) {
+    const begin = await beginCheckoutStay(reservation.id)
+    if (!begin.success) return begin
+  } else if (reservation.status !== 'checkout_in_progress') {
     return { success: false, error: 'Only checked-in stays can be checked out.' }
   }
 
-  const actorRole = normalizeActorRole(profile.role)
-
-  if (reservation.status === 'checked_in' || reservation.status === 'overstay') {
-    const checkoutStart = await transitionReservation({
-      reservationId: reservation.id,
-      hotelId: reservation.hotel_id,
-      toStatus: 'checkout_in_progress',
-      actorId: userId,
-      actorRole,
-    })
-    if (!checkoutStart.success) {
-      return { success: false, error: checkoutStart.error ?? 'Could not start checkout.' }
-    }
-  }
-
-  let guestPhone: string | null = null
-  if (reservation.guest_id) {
-    const { data: guestRow } = await admin
-      .from('guests')
-      .select('phone')
-      .eq('id', reservation.guest_id)
-      .maybeSingle()
-    guestPhone = guestRow?.phone?.trim() ?? null
-  }
-
-  const effectiveCheckOut = input.earlyCheckout ? today : reservation.check_out
-  if (effectiveCheckOut <= reservation.check_in) {
-    return { success: false, error: 'Check-out must be after check-in.' }
-  }
-
-  const { taxes: roomTaxes } = await computeCheckoutTaxes(
-    admin,
-    reservation.hotel_id,
-    reservation.check_in,
-    effectiveCheckOut,
-    reservation.room_id,
-    reservation.rate_type,
-    reservation.nightly_rate,
-    reservation.monthly_rate,
-    reservation.total_amount,
-    reservation.check_out,
+  return completeCheckoutStay({
+    reservationId: reservation.id,
+    paymentMethod: input.paymentMethod,
+    earlyCheckout: input.earlyCheckout,
+    markAsPaid: input.markAsPaid,
     includeTax,
-  )
-
-  const guestIdForFolio = reservation.guest_id
-  const { taxes, folioCharges, folioSubtotal } = guestIdForFolio
-    ? await prepareCheckoutTaxesWithFolio(
-        admin,
-        reservation.hotel_id,
-        guestIdForFolio,
-        reservation.id,
-        roomTaxes,
-        includeTax,
-      )
-    : { taxes: roomTaxes, folioCharges: [], folioSubtotal: 0 }
-  const now = new Date().toISOString()
-  const paidNow = input.markAsPaid !== false
-  const dueAt = paidNow
-    ? now
-    : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
-  const priorDeposit = Number(reservation.amount_paid ?? 0)
-  const checkoutPayment = buildCheckoutInvoicePaymentState({
-    invoiceTotal: taxes.total,
-    priorDeposit,
-    paidNow,
   })
+}
 
-  const { data: existingInvoice } = await admin
-    .from('invoices')
-    .select('id')
-    .eq('reservation_id', reservation.id)
+export async function recordWalkoutStay(
+  reservationId: string,
+  input?: { paymentMethod?: PaymentMethod; earlyCheckout?: boolean; includeTax?: boolean },
+): Promise<StayActionResult> {
+  const { profile, userId } = await requireManager()
+  if (!profile?.hotel_id || !userId || !['owner', 'manager', 'receptionist'].includes(profile.role)) {
+    return { success: false, error: 'Not authorized.' }
+  }
+
+  const paymentMethod = input?.paymentMethod ?? 'cash'
+  if (!VALID_PAYMENT_METHODS.includes(paymentMethod)) {
+    return { success: false, error: 'Invalid payment method.' }
+  }
+
+  const admin = createAdminClient()
+  const { data: reservation } = await admin
+    .from('reservations')
+    .select('*')
+    .eq('id', reservationId)
+    .eq('hotel_id', profile.hotel_id)
     .maybeSingle()
 
-  if (!existingInvoice) {
-    const invoiceNumber = await allocateInvoiceNumber(reservation.hotel_id)
-    const { data: invoiceRow } = await admin
-      .from('invoices')
-      .insert({
-        hotel_id: reservation.hotel_id,
-        reservation_id: reservation.id,
-        guest_id: reservation.guest_id,
-        guest_name: reservation.guest_name,
-        invoice_number: invoiceNumber,
-        subtotal: taxes.subtotal,
-        nhil_amount: taxes.nhil,
-        getfund_amount: taxes.getfund,
-        covid_levy_amount: taxes.covid,
-        vat_amount: taxes.vat,
-        elevy_amount: taxes.elevy,
-        total_amount: taxes.total,
-        payment_method: input.paymentMethod,
-        payment_status: checkoutPayment.paymentStatus,
-        amount_paid: checkoutPayment.amountPaid,
-        issued_at: now,
-        due_at: dueAt,
-        paid_at: checkoutPayment.paymentStatus === 'paid' ? now : null,
-      })
-      .select('id')
-      .single()
+  if (!reservation) return { success: false, error: 'Reservation not found.' }
 
-    if (invoiceRow?.id && folioCharges.length) {
-      await linkFolioChargesToInvoice(
-        admin,
-        folioCharges.map((c) => c.id),
-        invoiceRow.id,
-      )
-    }
-
-    if (invoiceRow?.id) {
-      await finalizeReservationCheckoutPayment(admin, {
-        reservationId: reservation.id,
-        invoiceId: invoiceRow.id,
-        hotelId: reservation.hotel_id,
-        guestId: reservation.guest_id,
-        invoiceTotal: taxes.total,
-        priorDeposit,
-        paidNow,
-        paymentMethod: input.paymentMethod,
-        now,
-      })
-    }
+  const walkoutAllowed = ['checked_in', 'overstay', 'checkout_in_progress']
+  if (!walkoutAllowed.includes(reservation.status ?? '')) {
+    return { success: false, error: 'Walkout is only available for in-house stays.' }
   }
 
-  await admin
+  return executeStayCheckout(admin, {
+    reservation,
+    profile: { ...profile, hotel_id: profile.hotel_id },
+    userId,
+    paymentMethod,
+    earlyCheckout: input?.earlyCheckout,
+    markAsPaid: false,
+    includeTax: input?.includeTax !== false,
+    departureStatus: 'walkout',
+  })
+}
+
+export async function approveLateCheckout(
+  reservationId: string,
+  input?: { approvedUntil?: string; note?: string },
+): Promise<StayActionResult> {
+  const { profile, userId } = await requireManager()
+  if (!profile?.hotel_id || !userId || !['owner', 'manager', 'receptionist'].includes(profile.role)) {
+    return { success: false, error: 'Not authorized.' }
+  }
+
+  const admin = createAdminClient()
+  const { data: reservation } = await admin
     .from('reservations')
-    .update({
-      check_out: effectiveCheckOut,
-      total_amount: taxes.total,
-      ...(existingInvoice
-        ? {}
-        : {
-            amount_paid: checkoutPayment.amountPaid,
-            payment_status: checkoutPayment.paymentStatus,
-            payment_method: input.paymentMethod,
-          }),
-    })
-    .eq('id', reservation.id)
+    .select('id, hotel_id, status, guest_name, check_out')
+    .eq('id', reservationId)
+    .eq('hotel_id', profile.hotel_id)
+    .maybeSingle()
 
-  const checkedOut = await transitionReservation({
+  if (!reservation) return { success: false, error: 'Reservation not found.' }
+  if (reservation.status !== 'overstay' && reservation.status !== 'checked_in') {
+    return { success: false, error: 'Late checkout approval applies to in-house stays only.' }
+  }
+
+  const result = await appendReservationEvent({
     reservationId: reservation.id,
     hotelId: reservation.hotel_id,
-    toStatus: 'checked_out',
+    eventType: 'late_checkout_approved',
     actorId: userId,
-    actorRole,
-    payload: { paymentMethod: input.paymentMethod, folioSubtotal },
-  })
-  if (!checkedOut.success) {
-    return { success: false, error: checkedOut.error ?? 'Could not complete checkout.' }
-  }
-
-  await transitionReservation({
-    reservationId: reservation.id,
-    hotelId: reservation.hotel_id,
-    toStatus: 'post_stay',
-    actorId: userId,
-    actorRole: 'system',
-    bypassRoleCheck: true,
+    actorRole: normalizeActorRole(profile.role),
+    payload: {
+      approvedUntil: input?.approvedUntil?.trim() || null,
+      note: input?.note?.trim() || null,
+    },
   })
 
-  if (reservation.guest_id) {
-    await admin
-      .from('guests')
-      .update({
-        check_out: effectiveCheckOut,
-        room_id: null,
-        token: null,
-        token_expires_at: new Date().toISOString(),
-      })
-      .eq('id', reservation.guest_id)
-  }
-
-  if (reservation.room_id) {
-    const { data: roomBeforeCheckout } = await admin
-      .from('rooms')
-      .select('number, status')
-      .eq('id', reservation.room_id)
-      .maybeSingle()
-
-    if (roomBeforeCheckout && roomBeforeCheckout.status !== 'cleaning') {
-      void logRoomStatusChange({
-        hotelId: profile.hotel_id,
-        actorId: userId,
-        actorName: profile.name,
-        roomId: reservation.room_id,
-        roomNumber: roomBeforeCheckout.number,
-        from: roomBeforeCheckout.status ?? 'available',
-        to: 'cleaning',
-        reason: 'check-out',
-      })
-    }
-
-    await createPostCheckoutCleanTask(admin, {
-      hotelId: reservation.hotel_id,
-      roomId: reservation.room_id,
-      guestName: reservation.guest_name,
-      createdBy: userId,
-    })
-  }
-
-  if (guestPhone) {
-    void import('@/lib/notifications/stays').then(({ notifyGuestCheckedOut }) =>
-      notifyGuestCheckedOut({
-        hotelId: reservation.hotel_id,
-        phone: guestPhone,
-        guestName: reservation.guest_name,
-        totalGhs: taxes.total,
-        paid: paidNow,
-      }).catch(() => undefined),
-    )
+  if (!result.success) {
+    return { success: false, error: result.error ?? 'Could not approve late checkout.' }
   }
 
   revalidateStayViews()
-
   void writeAuditLog({
     hotelId: profile.hotel_id,
     actorId: userId,
     actorName: profile.name,
     entityType: 'reservation',
     entityId: reservation.id,
-    action: 'checked_out',
-    summary: `${reservation.guest_name} checked out — ₵${taxes.total.toLocaleString()} (${input.paymentMethod.replace(/_/g, ' ')}, ${paidNow ? 'paid' : 'pending'})${folioSubtotal > 0 ? ` incl. ₵${folioSubtotal} folio` : ''}`,
+    action: 'late_checkout_approved',
+    summary: `${reservation.guest_name}: late checkout approved${input?.approvedUntil ? ` until ${input.approvedUntil}` : ''}`,
   })
 
   return { success: true }
@@ -1217,13 +1450,22 @@ export async function markNoShow(
     if (!applied.ok) return { success: false, error: applied.error }
   }
 
+  const { data: hotelPolicy } = await admin
+    .from('hotels')
+    .select('no_show_charge_policy')
+    .eq('id', reservation.hotel_id)
+    .maybeSingle()
+
   const noShow = await transitionReservation({
     reservationId,
     hotelId: reservation.hotel_id,
     toStatus: 'no_show',
     actorId: profile.id,
     actorRole: normalizeActorRole(profile.role),
-    payload: { amountPaid },
+    payload: {
+      amountPaid,
+      policy: hotelPolicy?.no_show_charge_policy ?? 'one_night',
+    },
   })
   if (!noShow.success) {
     return { success: false, error: noShow.error ?? 'Could not mark no-show.' }

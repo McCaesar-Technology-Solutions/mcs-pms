@@ -16,6 +16,10 @@ export interface ReservationRow {
   channel: string | null
   amount_paid: number | null
   total_amount: number | null
+  nightly_rate?: number | null
+  monthly_rate?: number | null
+  rate_type?: string | null
+  folio_locked?: boolean
 }
 
 export interface SideEffectContext {
@@ -113,8 +117,8 @@ export async function runFolioSideEffect(ctx: SideEffectContext): Promise<void> 
     return
   }
   if (ctx.toStatus === 'overstay') {
-    // TODO(phase-2): post overstay fee to folio — see checkout-logic spec
-    void ctx
+    const { applyOverstayCharge } = await import('@/lib/reservations/lifecycle-charges')
+    await applyOverstayCharge(ctx.admin, ctx.reservation, ctx.actorId)
   }
 }
 
@@ -138,8 +142,17 @@ export async function runPaymentSideEffect(ctx: SideEffectContext): Promise<void
     }
   }
   if (ctx.toStatus === 'no_show') {
-    // TODO(phase-2): post no-show charge per hotel policy — see checkout-logic spec
-    void ctx
+    const { applyNoShowCharge } = await import('@/lib/reservations/lifecycle-charges')
+    let policy = ctx.payload?.policy as import('@/types').NoShowChargePolicy | undefined
+    if (!policy) {
+      const { data: hotel } = await ctx.admin
+        .from('hotels')
+        .select('no_show_charge_policy')
+        .eq('id', ctx.reservation.hotel_id)
+        .maybeSingle()
+      policy = (hotel?.no_show_charge_policy ?? 'one_night') as import('@/types').NoShowChargePolicy
+    }
+    await applyNoShowCharge(ctx.admin, ctx.reservation, policy, ctx.actorId)
   }
 }
 
