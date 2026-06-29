@@ -22,6 +22,7 @@ import { StaffComplaintModal } from '@/components/complaints/staff-complaint-mod
 import { StaffComplaintMessageThread } from '@/components/complaints/staff-complaint-message-thread'
 import { ComplaintsBulkBar } from '@/components/complaints/complaints-bulk-bar'
 import { ComplaintsSelectableList } from '@/components/complaints/complaints-selectable-list'
+import { ComplaintSheetTabs } from '@/components/complaints/complaint-sheet-tabs'
 import { BulkSelectCheckbox } from '@/components/dashboard/bulk-select-checkbox'
 import { DataEmptyState } from '@/components/dashboard/data-empty-state'
 import { useRowSelection } from '@/lib/hooks/use-row-selection'
@@ -346,105 +347,124 @@ function ComplaintsOwnerViewContent({ canLog = false, canMessage = false }: Comp
               </div>
             </div>
 
-            <SheetContent className="space-y-4">
-              <div className={`${staffPanelInset} p-4`}>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                  Description
-                </p>
-                <p className="mt-2 text-sm leading-relaxed text-foreground">{selected.description}</p>
-              </div>
+            <SheetContent className="!px-4 !py-4">
+              <ComplaintSheetTabs
+                complaintId={selected.id}
+                defaultTab="details"
+                tabs={[
+                  { id: 'details', label: 'Details' },
+                  ...(canMessage && selected.guest_id && selected.status !== 'resolved'
+                    ? [{ id: 'messages', label: 'Messages' }]
+                    : []),
+                  { id: 'timeline', label: 'Timeline', badge: events.length || undefined },
+                ]}
+                panels={{
+                  details: (
+                    <div className="space-y-4">
+                      <div className={`${staffPanelInset} p-4`}>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                          Description
+                        </p>
+                        <p className="mt-2 text-sm leading-relaxed text-foreground">{selected.description}</p>
+                      </div>
 
-              {canMessage && selected.guest_id && selected.status !== 'resolved' && (
-                <StaffComplaintMessageThread
-                  complaintId={selected.id}
-                  guestName={guestNameOf(selected)}
-                  guestAvatarUrl={guestAvatarUrlOf(selected)}
-                  roomNumber={roomNumberOf(selected)}
-                  guestDoNotDisturb={guestDndOf(selected)}
-                  complaintCategory={selected.category}
-                />
-              )}
-
-              {!canLog && !canMessage && selected.status !== 'resolved' && (
-                <div className="rounded-2xl border border-[#3C216C]/10 bg-[#3C216C]/5 p-4 text-sm text-muted-foreground">
-                  Need something done on this issue? Contact your manager to assign a technician or
-                  message the guest.
-                </div>
-              )}
-
-              {(guestPhoneOf(selected) || selected.assignee?.phone) && (
-                <div className={`${staffPanelInset} space-y-3 p-4`}>
-                  <p className="flex items-center gap-2 text-sm font-semibold text-[#3C216C]">
-                    <Phone className="h-4 w-4" />
-                    Contact
-                  </p>
-                  {guestPhoneOf(selected) && guestNameOf(selected) && (
-                    <PhoneContact
-                      name={guestNameOf(selected)!}
-                      phone={guestPhoneOf(selected)!}
-                      label={`Guest · ${guestNameOf(selected)}`}
-                    />
-                  )}
-                  {selected.assignee?.phone && (
-                    <PhoneContact
-                      name={selected.assignee.name}
-                      phone={selected.assignee.phone}
-                      label={`Technician · ${selected.assignee.name}`}
-                    />
-                  )}
-                </div>
-              )}
-
-              {selected.rejection_note && (
-                <div className="rounded-2xl bg-red-500/8 p-4 shadow-elevation-1">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-red-600/90">
-                    Manager note
-                  </p>
-                  <p className="mt-2 text-sm leading-relaxed text-red-800/90">{selected.rejection_note}</p>
-                </div>
-              )}
-
-              {estimate && <ComplaintEstimateCard estimate={estimate} />}
-
-              <div>
-                <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                  Lifecycle
-                </p>
-                {events.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No events recorded yet.</p>
-                ) : (
-                  <ol className="space-y-3">
-                    {events.map((ev, index) => (
-                      <li key={ev.id} className="flex gap-3">
-                        <div className="flex flex-col items-center pt-1">
-                          <span className="h-2 w-2 shrink-0 rounded-full bg-[#D4A62E] shadow-elevation-1" />
-                          {index < events.length - 1 && (
-                            <span className="mt-1 w-px flex-1 min-h-6 bg-gradient-to-b from-[#D4A62E]/35 to-transparent" />
-                          )}
+                      {!canLog && !canMessage && selected.status !== 'resolved' && (
+                        <div className="rounded-2xl border border-[#3C216C]/10 bg-[#3C216C]/5 p-4 text-sm text-muted-foreground">
+                          Need something done on this issue? Contact your manager to assign a technician or
+                          message the guest.
                         </div>
-                        <div className={`${staffPanelInset} mb-1 flex-1 px-4 py-3`}>
-                          <p className="text-sm font-semibold text-foreground">
-                            {timelineLabels[ev.event_type] ?? formatLabel(ev.event_type)}
+                      )}
+
+                      {(guestPhoneOf(selected) || selected.assignee?.phone) && (
+                        <div className={`${staffPanelInset} space-y-3 p-4`}>
+                          <p className="flex items-center gap-2 text-sm font-semibold text-[#3C216C]">
+                            <Phone className="h-4 w-4" />
+                            Contact
                           </p>
-                          {ev.note && (
-                            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{ev.note}</p>
+                          {guestPhoneOf(selected) && guestNameOf(selected) && (
+                            <PhoneContact
+                              name={guestNameOf(selected)!}
+                              phone={guestPhoneOf(selected)!}
+                              label={`Guest · ${guestNameOf(selected)}`}
+                            />
                           )}
-                          {ev.created_at && (
-                            <p className="mt-2 text-[10px] font-medium text-muted-foreground/80">
-                              {new Date(ev.created_at).toLocaleString('en-GH', {
-                                month: 'short',
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              })}
-                            </p>
+                          {selected.assignee?.phone && (
+                            <PhoneContact
+                              name={selected.assignee.name}
+                              phone={selected.assignee.phone}
+                              label={`Technician · ${selected.assignee.name}`}
+                            />
                           )}
                         </div>
-                      </li>
-                    ))}
-                  </ol>
-                )}
-              </div>
+                      )}
+
+                      {selected.rejection_note && (
+                        <div className="rounded-2xl bg-red-500/8 p-4 shadow-elevation-1">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-red-600/90">
+                            Manager note
+                          </p>
+                          <p className="mt-2 text-sm leading-relaxed text-red-800/90">
+                            {selected.rejection_note}
+                          </p>
+                        </div>
+                      )}
+
+                      {estimate && <ComplaintEstimateCard estimate={estimate} />}
+                    </div>
+                  ),
+                  messages:
+                    canMessage && selected.guest_id && selected.status !== 'resolved' ? (
+                      <StaffComplaintMessageThread
+                        complaintId={selected.id}
+                        guestName={guestNameOf(selected)}
+                        guestAvatarUrl={guestAvatarUrlOf(selected)}
+                        roomNumber={roomNumberOf(selected)}
+                        guestDoNotDisturb={guestDndOf(selected)}
+                        complaintCategory={selected.category}
+                      />
+                    ) : null,
+                  timeline: (
+                    <div>
+                      {events.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">No events recorded yet.</p>
+                      ) : (
+                        <ol className="space-y-3">
+                          {events.map((ev, index) => (
+                            <li key={ev.id} className="flex gap-3">
+                              <div className="flex flex-col items-center pt-1">
+                                <span className="h-2 w-2 shrink-0 rounded-full bg-[#D4A62E] shadow-elevation-1" />
+                                {index < events.length - 1 && (
+                                  <span className="mt-1 w-px flex-1 min-h-6 bg-gradient-to-b from-[#D4A62E]/35 to-transparent" />
+                                )}
+                              </div>
+                              <div className={`${staffPanelInset} mb-1 flex-1 px-4 py-3`}>
+                                <p className="text-sm font-semibold text-foreground">
+                                  {timelineLabels[ev.event_type] ?? formatLabel(ev.event_type)}
+                                </p>
+                                {ev.note && (
+                                  <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                                    {ev.note}
+                                  </p>
+                                )}
+                                {ev.created_at && (
+                                  <p className="mt-2 text-[10px] font-medium text-muted-foreground/80">
+                                    {new Date(ev.created_at).toLocaleString('en-GH', {
+                                      month: 'short',
+                                      day: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                    })}
+                                  </p>
+                                )}
+                              </div>
+                            </li>
+                          ))}
+                        </ol>
+                      )}
+                    </div>
+                  ),
+                }}
+              />
             </SheetContent>
           </>
         )}

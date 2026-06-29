@@ -3028,6 +3028,15 @@
       0 8px 24px rgba(var(--glow-purple), 0.06);
   }
 
+  .complaint-sheet-tabs__nav {
+    margin: 0 -0.25rem 0.75rem;
+    padding-bottom: 0.25rem;
+  }
+
+  .complaint-sheet-tabs__panel {
+    min-height: 0;
+  }
+
   /* Guest portal — light, welcoming; brand purple + gold as accents */
   .guest-portal-shell,
   .guest-auth-shell {

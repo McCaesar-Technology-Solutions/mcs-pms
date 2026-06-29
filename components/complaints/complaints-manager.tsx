@@ -35,6 +35,7 @@ import { StaffComplaintModal } from '@/components/complaints/staff-complaint-mod
 import { StaffComplaintMessageThread } from '@/components/complaints/staff-complaint-message-thread'
 import { ComplaintsBulkBar } from '@/components/complaints/complaints-bulk-bar'
 import { ComplaintsSelectableList } from '@/components/complaints/complaints-selectable-list'
+import { ComplaintSheetTabs } from '@/components/complaints/complaint-sheet-tabs'
 import { BulkSelectCheckbox } from '@/components/dashboard/bulk-select-checkbox'
 import { DataEmptyState } from '@/components/dashboard/data-empty-state'
 import { useRowSelection } from '@/lib/hooks/use-row-selection'
@@ -182,6 +183,7 @@ function ComplaintsManagerContent() {
   const [loading, setLoading] = useState(false)
   const [showCreate, setShowCreate] = useState(false)
   const [guestPhotoUrl, setGuestPhotoUrl] = useState<string | null>(null)
+  const [detailDefaultTab, setDetailDefaultTab] = useState('details')
   const selectedRef = useRef<Complaint | null>(null)
   selectedRef.current = selected
 
@@ -252,6 +254,7 @@ function ComplaintsManagerContent() {
 
   async function openDetail(complaint: Complaint, opts?: { scrollToChat?: boolean }) {
     setSelected(complaint)
+    setDetailDefaultTab(opts?.scrollToChat && complaint.guest_id ? 'messages' : 'details')
     setRejectNote('')
     setEstimate(null)
     setGuestPhotoUrl(null)
@@ -272,15 +275,6 @@ function ComplaintsManagerContent() {
     if (evResult.success && evResult.data) setEvents(evResult.data)
     if (estResult.success) setEstimate(estResult.data ?? null)
     if (photoResult.success && photoResult.data) setGuestPhotoUrl(photoResult.data.url)
-
-    if (opts?.scrollToChat) {
-      requestAnimationFrame(() => {
-        document.getElementById('complaint-guest-chat')?.scrollIntoView({
-          behavior: 'smooth',
-          block: 'nearest',
-        })
-      })
-    }
   }
 
   function closeDetail() {
@@ -489,266 +483,300 @@ function ComplaintsManagerContent() {
               </div>
             </div>
 
-            <SheetContent className="space-y-4">
-              <div className={`${staffPanelInset} p-4`}>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                  Description
-                </p>
-                <p className="mt-2 text-sm leading-relaxed text-foreground">{selected.description}</p>
-              </div>
+            <SheetContent className="!px-4 !py-4">
+              <ComplaintSheetTabs
+                complaintId={selected.id}
+                defaultTab={detailDefaultTab}
+                tabs={[
+                  { id: 'details', label: 'Details' },
+                  ...(selected.guest_id ? [{ id: 'messages', label: 'Messages' }] : []),
+                  {
+                    id: 'actions',
+                    label: 'Actions',
+                    badge: selected.status === 'pending_approval' ? 1 : undefined,
+                  },
+                  { id: 'timeline', label: 'Timeline', badge: events.length || undefined },
+                ]}
+                panels={{
+                  details: (
+                    <div className="space-y-4">
+                      <div className={`${staffPanelInset} p-4`}>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                          Description
+                        </p>
+                        <p className="mt-2 text-sm leading-relaxed text-foreground">{selected.description}</p>
+                      </div>
 
-              {guestPhotoUrl && (
-                <div className={`${staffPanelInset} overflow-hidden p-4`}>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                    Guest photo
-                  </p>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={guestPhotoUrl}
-                    alt="Guest attachment"
-                    className="mt-3 max-h-64 w-full rounded-xl object-contain"
-                  />
-                </div>
-              )}
+                      {guestPhotoUrl && (
+                        <div className={`${staffPanelInset} overflow-hidden p-4`}>
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                            Guest photo
+                          </p>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={guestPhotoUrl}
+                            alt="Guest attachment"
+                            className="mt-3 max-h-64 w-full rounded-xl object-contain"
+                          />
+                        </div>
+                      )}
 
-              {selected.guest_id && (
-                <div id="complaint-guest-chat">
-                  <StaffComplaintMessageThread
-                    complaintId={selected.id}
-                    guestName={guestNameOf(selected)}
-                    guestAvatarUrl={guestAvatarUrlOf(selected)}
-                    roomNumber={roomNumberOf(selected)}
-                    guestDoNotDisturb={guestDndOf(selected)}
-                    complaintCategory={selected.category}
-                  />
-                </div>
-              )}
+                      {(guestPhoneOf(selected) || selected.assignee?.phone) && (
+                        <div className={`${staffPanelInset} space-y-3 p-4`}>
+                          <p className="flex items-center gap-2 text-sm font-semibold text-[#3C216C]">
+                            <Phone className="h-4 w-4" />
+                            Contact
+                          </p>
+                          {guestPhoneOf(selected) && guestNameOf(selected) && (
+                            <PhoneContact
+                              name={guestNameOf(selected)!}
+                              phone={guestPhoneOf(selected)!}
+                              label={`Guest · ${guestNameOf(selected)}`}
+                            />
+                          )}
+                          {selected.assignee?.phone && (
+                            <PhoneContact
+                              name={selected.assignee.name}
+                              phone={selected.assignee.phone}
+                              label={`Technician · ${selected.assignee.name}`}
+                            />
+                          )}
+                        </div>
+                      )}
 
-              {(guestPhoneOf(selected) || selected.assignee?.phone) && (
-                <div className={`${staffPanelInset} space-y-3 p-4`}>
-                  <p className="flex items-center gap-2 text-sm font-semibold text-[#3C216C]">
-                    <Phone className="h-4 w-4" />
-                    Contact
-                  </p>
-                  {guestPhoneOf(selected) && guestNameOf(selected) && (
-                    <PhoneContact
-                      name={guestNameOf(selected)!}
-                      phone={guestPhoneOf(selected)!}
-                      label={`Guest · ${guestNameOf(selected)}`}
-                    />
-                  )}
-                  {selected.assignee?.phone && (
-                    <PhoneContact
-                      name={selected.assignee.name}
-                      phone={selected.assignee.phone}
-                      label={`Technician · ${selected.assignee.name}`}
-                    />
-                  )}
-                </div>
-              )}
+                      {selected.rejection_note && (
+                        <div className="rounded-2xl bg-red-500/8 p-4 shadow-elevation-1">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-red-600/90">
+                            Manager note
+                          </p>
+                          <p className="mt-2 text-sm leading-relaxed text-red-800/90">
+                            {selected.rejection_note}
+                          </p>
+                        </div>
+                      )}
 
-              {selected.rejection_note && (
-                <div className="rounded-2xl bg-red-500/8 p-4 shadow-elevation-1">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-red-600/90">
-                    Manager note
-                  </p>
-                  <p className="mt-2 text-sm leading-relaxed text-red-800/90">{selected.rejection_note}</p>
-                </div>
-              )}
+                      {estimate && <ComplaintEstimateCard estimate={estimate} />}
 
-              {estimate && <ComplaintEstimateCard estimate={estimate} />}
-
-              {(selected.scheduled_visit_at ||
-                ['open', 'assigned', 'in_progress', 'rejected'].includes(selected.status ?? '')) && (
-                <div className={`${staffPanelInset} p-4`}>
-                  <ScheduledVisitDisplay
-                    scheduledVisitAt={selected.scheduled_visit_at}
-                    pendingMessage={
-                      !selected.scheduled_visit_at
-                        ? 'Technician will contact the guest to agree a visit time.'
-                        : undefined
-                    }
-                  />
-                </div>
-              )}
-
-              {selected.status === 'pending_approval' && isPendingEstimate(selected) && (
-                <div className="overflow-hidden rounded-2xl bg-amber-500/10 p-5 shadow-elevation-1">
-                  <p className="text-sm font-semibold text-amber-900">Legacy invoice queue</p>
-                  <p className="mt-2 text-sm text-amber-950/80">
-                    Invoices no longer require approval. Release this job so the technician can
-                    continue.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={handleApprove}
-                    disabled={loading}
-                    className="mt-4 w-full rounded-xl bg-[#3C216C] py-3 text-sm font-semibold text-white shadow-elevation-1 disabled:opacity-60"
-                  >
-                    {loading ? 'Releasing…' : 'Release to technician'}
-                  </button>
-                </div>
-              )}
-
-              {selected.status === 'pending_approval' && isPendingCompletion(selected) && (
-                <div className="overflow-hidden rounded-2xl bg-gradient-to-b from-[#D85A30]/10 via-white to-white p-5 shadow-elevation-2">
-                  <div className="mb-4 flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-[#D85A30]" />
-                    <h3 className="text-sm font-semibold text-[#D85A30]">
-                      {needsGuestCompletionApproval(selected)
-                        ? 'Awaiting guest sign-off'
-                        : 'Manager sign-off'}
-                    </h3>
-                  </div>
-                  {needsGuestCompletionApproval(selected) ? (
-                    <p className="text-sm leading-relaxed text-muted-foreground">
-                      The technician has finished. The guest will confirm in their portal. You will
-                      be notified once they approve.
-                    </p>
-                  ) : (
-                  <div className="space-y-4">
-                    <div>
-                      <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                        Room status after approval
-                      </label>
-                      <select
-                        value={roomStatus}
-                        onChange={(e) => setRoomStatus(e.target.value as DbRoomStatus)}
-                        className={softField}
-                      >
-                        <option value="available">Available</option>
-                        <option value="occupied">Occupied</option>
-                        <option value="maintenance">Maintenance</option>
-                        <option value="needs_inspection">Needs inspection</option>
-                        <option value="cleaning">Cleaning</option>
-                      </select>
+                      {(selected.scheduled_visit_at ||
+                        ['open', 'assigned', 'in_progress', 'rejected'].includes(
+                          selected.status ?? '',
+                        )) && (
+                        <div className={`${staffPanelInset} p-4`}>
+                          <ScheduledVisitDisplay
+                            scheduledVisitAt={selected.scheduled_visit_at}
+                            pendingMessage={
+                              !selected.scheduled_visit_at
+                                ? 'Technician will contact the guest to agree a visit time.'
+                                : undefined
+                            }
+                          />
+                        </div>
+                      )}
                     </div>
-                    <button
-                      type="button"
-                      onClick={handleApprove}
-                      disabled={loading || !canManagerApproveCompletion(selected)}
-                      className="gradient-primary w-full rounded-xl py-3.5 text-sm font-semibold text-white shadow-elevation-2 transition-all hover:-translate-y-0.5 hover:shadow-elevation-3 disabled:opacity-60"
-                    >
-                      {loading ? 'Approving…' : 'Approve & close job'}
-                    </button>
-                    <p className="text-center text-xs text-muted-foreground">or send back to technician</p>
-                    <div>
-                      <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                        Rejection note
-                      </label>
-                      <textarea
-                        value={rejectNote}
-                        onChange={(e) => setRejectNote(e.target.value)}
-                        placeholder="Explain what still needs to be fixed…"
-                        className={`${softField} min-h-24 resize-none`}
+                  ),
+                  messages: selected.guest_id ? (
+                    <div id="complaint-guest-chat">
+                      <StaffComplaintMessageThread
+                        complaintId={selected.id}
+                        guestName={guestNameOf(selected)}
+                        guestAvatarUrl={guestAvatarUrlOf(selected)}
+                        roomNumber={roomNumberOf(selected)}
+                        guestDoNotDisturb={guestDndOf(selected)}
+                        complaintCategory={selected.category}
                       />
                     </div>
-                    <button
-                      type="button"
-                      onClick={handleReject}
-                      disabled={loading || !rejectNote.trim()}
-                      className="w-full rounded-xl bg-red-500/10 py-3.5 text-sm font-semibold text-red-700 shadow-elevation-1 transition-all hover:bg-red-500/15 hover:shadow-elevation-2 disabled:opacity-50"
-                    >
-                      Send back to technician
-                    </button>
-                  </div>
-                  )}
-                  {needsGuestCompletionApproval(selected) && (
-                    <>
-                      <p className="mt-4 text-center text-xs text-muted-foreground">
-                        or send back to technician
-                      </p>
-                      <div className="mt-3">
-                        <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                          Rejection note
-                        </label>
-                        <textarea
-                          value={rejectNote}
-                          onChange={(e) => setRejectNote(e.target.value)}
-                          placeholder="Explain what still needs to be fixed…"
-                          className={`${softField} min-h-24 resize-none`}
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={handleReject}
-                        disabled={loading || !rejectNote.trim()}
-                        className="mt-3 w-full rounded-xl bg-red-500/10 py-3.5 text-sm font-semibold text-red-700 shadow-elevation-1 transition-all hover:bg-red-500/15 hover:shadow-elevation-2 disabled:opacity-50"
-                      >
-                        Send back to technician
-                      </button>
-                    </>
-                  )}
-                </div>
-              )}
-
-              {selected.status !== 'pending_approval' && selected.status !== 'resolved' && (
-                <div className={`${staffPanelInset} overflow-hidden`}>
-                  <div className="flex items-center gap-2 px-4 pb-3 pt-4">
-                    <UserPlus className="h-4 w-4 text-[#3C216C]" />
-                    <h3 className="text-sm font-semibold text-[#3C216C]">Assign technician</h3>
-                  </div>
-                  <div className="px-4 pb-4">
-                    <select
-                      className={softField}
-                      defaultValue=""
-                      onChange={(e) => e.target.value && handleAssign(e.target.value)}
-                      disabled={loading}
-                    >
-                      <option value="" disabled>
-                        Select a technician…
-                      </option>
-                      {technicians.map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {t.name}
-                          {t.specialty ? ` · ${t.specialty}` : ''}
-                          {t.phone ? ` · ${t.phone}` : ''}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                  Timeline
-                </p>
-                {events.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No events recorded yet.</p>
-                ) : (
-                  <ol className="space-y-3">
-                    {events.map((ev, index) => (
-                      <li key={ev.id} className="flex gap-3">
-                        <div className="flex flex-col items-center pt-1">
-                          <span className="h-2 w-2 shrink-0 rounded-full bg-[#D4A62E] shadow-elevation-1" />
-                          {index < events.length - 1 && (
-                            <span className="mt-1 w-px flex-1 min-h-6 bg-gradient-to-b from-[#D4A62E]/35 to-transparent" />
-                          )}
-                        </div>
-                        <div className={`${staffPanelInset} mb-1 flex-1 px-4 py-3`}>
-                          <p className="text-sm font-semibold text-foreground">
-                            {timelineLabels[ev.event_type] ?? formatLabel(ev.event_type)}
+                  ) : null,
+                  actions: (
+                    <div className="space-y-4">
+                      {selected.status === 'pending_approval' && isPendingEstimate(selected) && (
+                        <div className="overflow-hidden rounded-2xl bg-amber-500/10 p-5 shadow-elevation-1">
+                          <p className="text-sm font-semibold text-amber-900">Legacy invoice queue</p>
+                          <p className="mt-2 text-sm text-amber-950/80">
+                            Invoices no longer require approval. Release this job so the technician can
+                            continue.
                           </p>
-                          {ev.note && (
-                            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{ev.note}</p>
-                          )}
-                          {ev.created_at && (
-                            <p className="mt-2 text-[10px] font-medium text-muted-foreground/80">
-                              {new Date(ev.created_at).toLocaleString('en-GH', {
-                                month: 'short',
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              })}
+                          <button
+                            type="button"
+                            onClick={handleApprove}
+                            disabled={loading}
+                            className="mt-4 w-full rounded-xl bg-[#3C216C] py-3 text-sm font-semibold text-white shadow-elevation-1 disabled:opacity-60"
+                          >
+                            {loading ? 'Releasing…' : 'Release to technician'}
+                          </button>
+                        </div>
+                      )}
+
+                      {selected.status === 'pending_approval' && isPendingCompletion(selected) && (
+                        <div className="overflow-hidden rounded-2xl bg-gradient-to-b from-[#D85A30]/10 via-white to-white p-5 shadow-elevation-2">
+                          <div className="mb-4 flex items-center gap-2">
+                            <CheckCircle2 className="h-4 w-4 text-[#D85A30]" />
+                            <h3 className="text-sm font-semibold text-[#D85A30]">
+                              {needsGuestCompletionApproval(selected)
+                                ? 'Awaiting guest sign-off'
+                                : 'Manager sign-off'}
+                            </h3>
+                          </div>
+                          {needsGuestCompletionApproval(selected) ? (
+                            <p className="text-sm leading-relaxed text-muted-foreground">
+                              The technician has finished. The guest will confirm in their portal. You will
+                              be notified once they approve.
                             </p>
+                          ) : (
+                            <div className="space-y-4">
+                              <div>
+                                <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                  Room status after approval
+                                </label>
+                                <select
+                                  value={roomStatus}
+                                  onChange={(e) => setRoomStatus(e.target.value as DbRoomStatus)}
+                                  className={softField}
+                                >
+                                  <option value="available">Available</option>
+                                  <option value="occupied">Occupied</option>
+                                  <option value="maintenance">Maintenance</option>
+                                  <option value="needs_inspection">Needs inspection</option>
+                                  <option value="cleaning">Cleaning</option>
+                                </select>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={handleApprove}
+                                disabled={loading || !canManagerApproveCompletion(selected)}
+                                className="gradient-primary w-full rounded-xl py-3.5 text-sm font-semibold text-white shadow-elevation-2 transition-all hover:-translate-y-0.5 hover:shadow-elevation-3 disabled:opacity-60"
+                              >
+                                {loading ? 'Approving…' : 'Approve & close job'}
+                              </button>
+                              <p className="text-center text-xs text-muted-foreground">
+                                or send back to technician
+                              </p>
+                              <div>
+                                <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                  Rejection note
+                                </label>
+                                <textarea
+                                  value={rejectNote}
+                                  onChange={(e) => setRejectNote(e.target.value)}
+                                  placeholder="Explain what still needs to be fixed…"
+                                  className={`${softField} min-h-24 resize-none`}
+                                />
+                              </div>
+                              <button
+                                type="button"
+                                onClick={handleReject}
+                                disabled={loading || !rejectNote.trim()}
+                                className="w-full rounded-xl bg-red-500/10 py-3.5 text-sm font-semibold text-red-700 shadow-elevation-1 transition-all hover:bg-red-500/15 hover:shadow-elevation-2 disabled:opacity-50"
+                              >
+                                Send back to technician
+                              </button>
+                            </div>
+                          )}
+                          {needsGuestCompletionApproval(selected) && (
+                            <>
+                              <p className="mt-4 text-center text-xs text-muted-foreground">
+                                or send back to technician
+                              </p>
+                              <div className="mt-3">
+                                <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                  Rejection note
+                                </label>
+                                <textarea
+                                  value={rejectNote}
+                                  onChange={(e) => setRejectNote(e.target.value)}
+                                  placeholder="Explain what still needs to be fixed…"
+                                  className={`${softField} min-h-24 resize-none`}
+                                />
+                              </div>
+                              <button
+                                type="button"
+                                onClick={handleReject}
+                                disabled={loading || !rejectNote.trim()}
+                                className="mt-3 w-full rounded-xl bg-red-500/10 py-3.5 text-sm font-semibold text-red-700 shadow-elevation-1 transition-all hover:bg-red-500/15 hover:shadow-elevation-2 disabled:opacity-50"
+                              >
+                                Send back to technician
+                              </button>
+                            </>
                           )}
                         </div>
-                      </li>
-                    ))}
-                  </ol>
-                )}
-              </div>
+                      )}
+
+                      {selected.status !== 'pending_approval' && selected.status !== 'resolved' && (
+                        <div className={`${staffPanelInset} overflow-hidden`}>
+                          <div className="flex items-center gap-2 px-4 pb-3 pt-4">
+                            <UserPlus className="h-4 w-4 text-[#3C216C]" />
+                            <h3 className="text-sm font-semibold text-[#3C216C]">Assign technician</h3>
+                          </div>
+                          <div className="px-4 pb-4">
+                            <select
+                              className={softField}
+                              defaultValue=""
+                              onChange={(e) => e.target.value && handleAssign(e.target.value)}
+                              disabled={loading}
+                            >
+                              <option value="" disabled>
+                                Select a technician…
+                              </option>
+                              {technicians.map((t) => (
+                                <option key={t.id} value={t.id}>
+                                  {t.name}
+                                  {t.specialty ? ` · ${t.specialty}` : ''}
+                                  {t.phone ? ` · ${t.phone}` : ''}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                      )}
+
+                      {selected.status === 'resolved' && (
+                        <p className="text-sm text-muted-foreground">
+                          This complaint is resolved. No further actions are required.
+                        </p>
+                      )}
+                    </div>
+                  ),
+                  timeline: (
+                    <div>
+                      {events.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">No events recorded yet.</p>
+                      ) : (
+                        <ol className="space-y-3">
+                          {events.map((ev, index) => (
+                            <li key={ev.id} className="flex gap-3">
+                              <div className="flex flex-col items-center pt-1">
+                                <span className="h-2 w-2 shrink-0 rounded-full bg-[#D4A62E] shadow-elevation-1" />
+                                {index < events.length - 1 && (
+                                  <span className="mt-1 w-px flex-1 min-h-6 bg-gradient-to-b from-[#D4A62E]/35 to-transparent" />
+                                )}
+                              </div>
+                              <div className={`${staffPanelInset} mb-1 flex-1 px-4 py-3`}>
+                                <p className="text-sm font-semibold text-foreground">
+                                  {timelineLabels[ev.event_type] ?? formatLabel(ev.event_type)}
+                                </p>
+                                {ev.note && (
+                                  <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                                    {ev.note}
+                                  </p>
+                                )}
+                                {ev.created_at && (
+                                  <p className="mt-2 text-[10px] font-medium text-muted-foreground/80">
+                                    {new Date(ev.created_at).toLocaleString('en-GH', {
+                                      month: 'short',
+                                      day: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                    })}
+                                  </p>
+                                )}
+                              </div>
+                            </li>
+                          ))}
+                        </ol>
+                      )}
+                    </div>
+                  ),
+                }}
+              />
             </SheetContent>
           </>
         )}
