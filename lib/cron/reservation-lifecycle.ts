@@ -2,10 +2,10 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { findAvailableRooms } from '@/lib/data/occupancy'
 import { appendReservationEvent, transitionReservation } from '@/lib/reservations/state-machine'
 import {
-  addDaysISO,
   isPastHotelCheckoutTime,
   todayISO,
 } from '@/lib/reservations/check-out-time'
+import { preArrivalPromotionCheckInDates } from '@/lib/cron/reservation-pre-arrival'
 import {
   guestInHouseOnOtherReservation,
   hasRecentOtaCancellation,
@@ -93,7 +93,8 @@ export async function processExpiredReservationHolds(): Promise<{ processed: num
 
 export async function processPreArrivalReservations(): Promise<{ processed: number; skipped: number }> {
   const admin = createAdminClient()
-  const targetDate = addDaysISO(todayISO(), 2)
+  const today = todayISO()
+  const checkInDates = preArrivalPromotionCheckInDates(today)
   let processed = 0
   let skipped = 0
 
@@ -103,7 +104,7 @@ export async function processPreArrivalReservations(): Promise<{ processed: numb
       .select('id, hotel_id, room_id, check_in, check_out, guest_name')
       .eq('hotel_id', hotel.id)
       .eq('status', 'confirmed')
-      .eq('check_in', targetDate)
+      .in('check_in', checkInDates)
 
     for (const row of rows ?? []) {
       if (!row.room_id) {
@@ -119,7 +120,10 @@ export async function processPreArrivalReservations(): Promise<{ processed: numb
         hotelId: hotel.id,
         eventType: 'pre_arrival_skipped_preauth',
         actorRole: 'system',
-        payload: { reason: 'no_gateway' },
+        payload: {
+          reason: 'no_gateway',
+          trigger: row.check_in === today ? 'arrival_day_catchup' : 'two_days_before',
+        },
       }).catch(() => undefined)
 
       const result = await transitionReservation({

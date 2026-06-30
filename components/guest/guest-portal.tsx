@@ -63,6 +63,7 @@ import { FormError } from '@/components/ui/form-error'
 import { RealtimeReconnectBanner } from '@/components/realtime/reconnect-banner'
 import { PhoneContactList } from '@/components/ui/phone-contact'
 import { PortalBrand } from '@/components/brand/portal-brand'
+import { HelpAssistant } from '@/components/help/help-assistant'
 import type { GuestPortalContext } from '@/lib/data/guest-portal'
 import type { StaffContact } from '@/lib/data/contacts'
 import type { Complaint, ComplaintCategory, Guest } from '@/types'
@@ -1122,6 +1123,8 @@ export function GuestPortal({
           <GuestComplaintChat complaintId={chatComplaintId} />
         </div>
       )}
+
+      <HelpAssistant role="guest" bottomOffset="guest" />
     </div>
   )
 }

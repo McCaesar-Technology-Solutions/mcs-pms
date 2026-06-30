@@ -63,6 +63,11 @@ export const ALLOWED_TRANSITIONS: Partial<
       requiredRole: 'staff',
       sideEffects: ['folio', 'room-status', 'notifications'],
     },
+    no_show: {
+      eventType: 'marked_no_show',
+      requiredRole: 'staff',
+      sideEffects: ['inventory', 'payment', 'notifications'],
+    },
   },
   pre_arrival: {
     checked_in: {
@@ -72,7 +77,7 @@ export const ALLOWED_TRANSITIONS: Partial<
     },
     no_show: {
       eventType: 'marked_no_show',
-      requiredRole: 'manager',
+      requiredRole: 'staff',
       sideEffects: ['inventory', 'payment', 'notifications'],
     },
     cancelled: {

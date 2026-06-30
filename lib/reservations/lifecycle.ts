@@ -121,7 +121,7 @@ export function getAvailableActions(
       actions.push('confirm', 'cancel_hold')
       break
     case 'confirmed':
-      if (role !== 'guest') actions.push('check_in', 'cancel')
+      if (role !== 'guest') actions.push('check_in', 'cancel', 'mark_no_show')
       break
     case 'pre_arrival':
       if (role !== 'guest') actions.push('check_in', 'mark_no_show', 'cancel')

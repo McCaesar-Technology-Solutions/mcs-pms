@@ -9,6 +9,7 @@ import type { OccupancyToday } from '@/lib/data/occupancy'
 import { HotelRealtimeProvider } from '@/components/realtime/hotel-realtime'
 import { ProfilePhoneBanner } from '@/components/dashboard/profile-phone-banner'
 import { CommandPaletteProvider } from '@/components/dashboard/command-palette'
+import { HelpAssistant } from '@/components/help/help-assistant'
 import { hasPhoneNumber } from '@/lib/phone'
 
 interface AppShellProps {
@@ -77,6 +78,7 @@ export function AppShell({
         )}
         {children}
       </main>
+      {profile?.role && <HelpAssistant role={profile.role} />}
     </div>
     </>
     </CommandPaletteProvider>
