@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { ArrowLeft, ArrowRight, BookOpen, Search, Send, Sparkles, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, BookOpen, MessageCircle, Search, Send, X } from 'lucide-react'
 import { findHelpTopic, getHelpPack, getRoleLabel, rankHelpTopics } from '@/lib/help'
 import type { HelpRole, HelpTopic } from '@/lib/help/types'
 import type { UserRole } from '@/types'
@@ -202,7 +202,7 @@ export function HelpAssistant({ role, bottomOffset = 'default' }: HelpAssistantP
         aria-expanded={open}
         aria-label={open ? 'Close help assistant' : 'Open help assistant'}
       >
-        {open ? <X className="h-5 w-5" /> : <Sparkles className="h-5 w-5" />}
+        {open ? <X className="h-5 w-5" /> : <MessageCircle className="h-5 w-5" />}
       </button>
     </div>
   )
