@@ -3,10 +3,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { ArrowLeft, ArrowRight, Search, Sparkles, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, BookOpen, Search, Send, Sparkles, X } from 'lucide-react'
 import { findHelpTopic, getHelpPack, getRoleLabel, rankHelpTopics } from '@/lib/help'
 import type { HelpRole, HelpTopic } from '@/lib/help/types'
 import type { UserRole } from '@/types'
+
+const QUERY_MAX = 120
 
 interface HelpAssistantProps {
   role: UserRole | 'guest'
@@ -29,6 +31,7 @@ export function HelpAssistant({ role, bottomOffset = 'default' }: HelpAssistantP
   )
 
   const activeTopic = activeTopicId ? findHelpTopic(pack, activeTopicId) : null
+  const roleLabel = getRoleLabel(role as HelpRole)
 
   useEffect(() => {
     if (!open) return
@@ -51,41 +54,55 @@ export function HelpAssistant({ role, bottomOffset = 'default' }: HelpAssistantP
     setActiveTopicId(null)
   }, [open])
 
-  const fabBottom =
+  function openFirstResult() {
+    const first = ranked[0]
+    if (first) setActiveTopicId(first.id)
+  }
+
+  function handleSearchKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      openFirstResult()
+    }
+  }
+
+  const rootClass =
     bottomOffset === 'guest'
-      ? 'bottom-[calc(4.75rem+env(safe-area-inset-bottom))]'
-      : 'bottom-[calc(1.25rem+env(safe-area-inset-bottom))]'
+      ? 'help-assistant-root help-assistant-root--guest'
+      : 'help-assistant-root'
 
   return (
-    <div className={`fixed right-4 z-[9990] ${fabBottom}`}>
+    <div className={rootClass}>
       {open && (
         <div
           ref={panelRef}
-          className="help-assistant-panel mb-3 flex w-[min(100vw-2rem,22rem)] flex-col overflow-hidden rounded-2xl border border-border bg-white shadow-elevation-3"
+          className="help-assistant-panel"
           role="dialog"
           aria-label={pack.title}
         >
-          <header className="border-b border-border/70 bg-gradient-to-br from-primary/[0.06] to-[rgba(212,166,46,0.08)] px-4 py-3">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="inline-flex h-2 w-2 shrink-0 rounded-full bg-[var(--brand-gold)]" aria-hidden />
-                  <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-                    {getRoleLabel(role as HelpRole)} help
-                  </p>
+          <header className="help-assistant-header">
+            <div className="help-assistant-header__main">
+              <div className="flex items-center justify-between gap-2">
+                <span className="help-assistant-status">
+                  <span className="help-assistant-status__dot" aria-hidden />
+                  Help guide
+                </span>
+                <div className="help-assistant-badges">
+                  <span className="help-assistant-badge help-assistant-badge--muted">Guide</span>
+                  <span className="help-assistant-badge help-assistant-badge--accent">{roleLabel}</span>
                 </div>
-                <h2 className="mt-0.5 truncate text-base font-semibold text-foreground">{pack.title}</h2>
-                <p className="mt-0.5 text-xs text-muted-foreground">{pack.subtitle}</p>
               </div>
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                aria-label="Close help"
-              >
-                <X className="h-4 w-4" />
-              </button>
+              <h2 className="help-assistant-header__title">{pack.title}</h2>
+              <p className="help-assistant-header__subtitle">{pack.subtitle}</p>
             </div>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="help-assistant-close"
+              aria-label="Close help"
+            >
+              <X className="h-4 w-4" />
+            </button>
           </header>
 
           {activeTopic ? (
@@ -96,52 +113,82 @@ export function HelpAssistant({ role, bottomOffset = 'default' }: HelpAssistantP
             />
           ) : (
             <>
-              <div className="border-b border-border/60 px-3 py-2.5">
-                <label className="relative block">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <input
-                    ref={inputRef}
-                    type="search"
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Search help…"
-                    className="w-full rounded-xl border border-border bg-background py-2 pl-9 pr-3 text-sm outline-none ring-primary focus:ring-2"
-                  />
-                </label>
+              <div className="help-assistant-compose">
+                <input
+                  ref={inputRef}
+                  type="search"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value.slice(0, QUERY_MAX))}
+                  onKeyDown={handleSearchKeyDown}
+                  placeholder="Search checkout, folio, complaints…"
+                  className="help-assistant-compose__input"
+                  aria-label="Search help topics"
+                />
+                <div className="help-assistant-compose__bar">
+                  <div className="help-assistant-compose__tools">
+                    <span className="help-assistant-compose__tool" aria-hidden>
+                      <Search className="h-4 w-4" />
+                    </span>
+                    <span className="help-assistant-compose__tool" aria-hidden>
+                      <BookOpen className="h-4 w-4" />
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="help-assistant-compose__meta" aria-live="polite">
+                      {query.length}/{QUERY_MAX}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={openFirstResult}
+                      disabled={ranked.length === 0}
+                      className="help-assistant-send"
+                      aria-label="Open top result"
+                    >
+                      <Send className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
               </div>
 
-              <div className="max-h-[min(50dvh,20rem)] overflow-y-auto p-2">
+              <div className="help-assistant-topics">
                 {ranked.length === 0 ? (
-                  <p className="px-2 py-6 text-center text-sm text-muted-foreground">
-                    No topics match. Try “checkout”, “folio”, or “complaint”.
+                  <p className="help-assistant-empty">
+                    No topics match. Try &ldquo;checkout&rdquo;, &ldquo;folio&rdquo;, or &ldquo;complaint&rdquo;.
                   </p>
                 ) : (
-                  <ul className="space-y-1">
-                    {ranked.map((topic, index) => (
-                      <li key={topic.id}>
-                        <button
-                          type="button"
-                          onClick={() => setActiveTopicId(topic.id)}
-                          className="flex w-full items-start gap-2 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-muted/60"
-                        >
-                          <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-primary/10 text-[10px] font-bold text-primary">
-                            {index < 3 && topicMatchesPath(topic, pathname) ? '★' : '→'}
-                          </span>
-                          <span className="min-w-0">
-                            <span className="block text-sm font-semibold text-foreground">{topic.title}</span>
-                            <span className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
-                              {topic.summary}
+                  <ul>
+                    {ranked.map((topic, index) => {
+                      const featured = index < 3 && topicMatchesPath(topic, pathname)
+                      return (
+                        <li key={topic.id}>
+                          <button
+                            type="button"
+                            onClick={() => setActiveTopicId(topic.id)}
+                            className={`help-assistant-topic${featured ? ' help-assistant-topic--featured' : ''}`}
+                          >
+                            <span className="help-assistant-topic__icon" aria-hidden>
+                              {featured ? '★' : index + 1}
                             </span>
-                          </span>
-                        </button>
-                      </li>
-                    ))}
+                            <span className="help-assistant-topic__body">
+                              <span className="help-assistant-topic__title">{topic.title}</span>
+                              <span className="help-assistant-topic__summary">{topic.summary}</span>
+                            </span>
+                          </button>
+                        </li>
+                      )
+                    })}
                   </ul>
                 )}
               </div>
 
-              <footer className="border-t border-border/60 px-4 py-2 text-[11px] text-muted-foreground">
-                Tips are based on your role — not AI. Press Esc to close.
+              <footer className="help-assistant-footer">
+                <span>
+                  Press <kbd>Esc</kbd> to close
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="help-assistant-status__dot" aria-hidden />
+                  Role-based tips
+                </span>
               </footer>
             </>
           )}
@@ -151,11 +198,7 @@ export function HelpAssistant({ role, bottomOffset = 'default' }: HelpAssistantP
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className={`flex h-14 w-14 items-center justify-center rounded-full shadow-elevation-3 transition-all hover:-translate-y-0.5 hover:shadow-elevation-3 ${
-          open
-            ? 'bg-primary text-primary-foreground'
-            : 'bg-primary text-primary-foreground ring-4 ring-primary/15'
-        }`}
+        className={`help-assistant-fab${open ? ' help-assistant-fab--open' : ''}`}
         aria-expanded={open}
         aria-label={open ? 'Close help assistant' : 'Open help assistant'}
       >
@@ -180,38 +223,31 @@ function TopicDetail({
   onClose: () => void
 }) {
   return (
-    <div className="flex max-h-[min(58dvh,24rem)] flex-col">
-      <div className="flex-1 overflow-y-auto px-4 py-3">
-        <button
-          type="button"
-          onClick={onBack}
-          className="mb-3 inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
-        >
+    <>
+      <div className="help-assistant-detail">
+        <button type="button" onClick={onBack} className="help-assistant-back">
           <ArrowLeft className="h-3.5 w-3.5" />
           All topics
         </button>
-        <h3 className="text-base font-semibold text-foreground">{topic.title}</h3>
-        <p className="mt-1 text-sm text-muted-foreground">{topic.summary}</p>
-        <ol className="mt-4 list-decimal space-y-2 pl-4 text-sm text-foreground">
-          {topic.steps.map((step) => (
-            <li key={step} className="pl-1">
-              {step}
+        <h3 className="help-assistant-detail__title">{topic.title}</h3>
+        <p className="help-assistant-detail__summary">{topic.summary}</p>
+        <ol className="help-assistant-detail__steps">
+          {topic.steps.map((step, index) => (
+            <li key={step} className="help-assistant-detail__step">
+              <span className="help-assistant-detail__step-num">{index + 1}</span>
+              <span>{step}</span>
             </li>
           ))}
         </ol>
       </div>
-      <footer className="flex flex-col gap-2 border-t border-border/60 p-3">
-        {topic.href && (
-          <Link
-            href={topic.href}
-            onClick={onClose}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-all hover:-translate-y-0.5 hover:shadow-elevation-2"
-          >
+      {topic.href && (
+        <footer className="help-assistant-detail-footer">
+          <Link href={topic.href} onClick={onClose} className="help-assistant-cta">
             {topic.hrefLabel ?? 'Go there'}
             <ArrowRight className="h-4 w-4" />
           </Link>
-        )}
-      </footer>
-    </div>
+        </footer>
+      )}
+    </>
   )
 }
