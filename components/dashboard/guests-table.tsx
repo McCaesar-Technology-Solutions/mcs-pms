@@ -29,7 +29,7 @@ import { usePagination } from '@/lib/hooks/use-pagination'
 import { toast } from 'sonner'
 import { PAYMENT_METHOD_LABELS } from '@/lib/tax'
 import type { PaymentMethod } from '@/types'
-import type { GuestRow, GuestStatus } from '@/lib/data/guests'
+import { sortGuestDirectory, type GuestRow, type GuestStatus } from '@/lib/data/guests'
 import type { ReservationChannel } from '@/types'
 
 interface GuestsTableProps {
@@ -114,14 +114,17 @@ export function GuestsTable({
   const [editingGuest, setEditingGuest] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
 
-  const filteredGuests = guests.filter((guest) => {
-    const matchesSearch =
-      guest.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (guest.email ?? '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (guest.phone ?? '').includes(searchQuery)
-    const matchesStatus = !selectedStatus || guest.status === selectedStatus
-    return matchesSearch && matchesStatus
-  })
+  const filteredGuests = useMemo(() => {
+    const filtered = guests.filter((guest) => {
+      const matchesSearch =
+        guest.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (guest.email ?? '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (guest.phone ?? '').includes(searchQuery)
+      const matchesStatus = !selectedStatus || guest.status === selectedStatus
+      return matchesSearch && matchesStatus
+    })
+    return sortGuestDirectory(filtered)
+  }, [guests, searchQuery, selectedStatus])
 
   const bulkSelected = useMemo(
     () => guests.filter((g) => selectedIds.has(g.id)),
