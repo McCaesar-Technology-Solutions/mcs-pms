@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { sortGuestDirectory, type GuestRow } from '@/lib/data/guests'
+import { sortGuestDirectory, type GuestRow } from '@/lib/guests/guest-directory'
 
 function guest(overrides: Partial<GuestRow> & Pick<GuestRow, 'id' | 'name'>): GuestRow {
   return {

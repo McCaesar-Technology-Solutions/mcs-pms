@@ -6,7 +6,7 @@ import { BulkActionBar } from '@/components/dashboard/bulk-action-bar'
 import { downloadCsv } from '@/lib/export/download-csv'
 import { copyToClipboard } from '@/lib/export/entity-refs'
 import { guestRef } from '@/lib/guests/guest-ref'
-import type { GuestRow } from '@/lib/data/guests'
+import type { GuestRow } from '@/lib/guests/guest-directory'
 
 const STATUS_LABEL: Record<GuestRow['status'], string> = {
   active: 'Active',

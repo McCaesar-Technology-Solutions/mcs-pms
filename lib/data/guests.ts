@@ -1,30 +1,16 @@
 import { getProfile } from '@/lib/auth/get-profile'
 import { createClient } from '@/lib/supabase/server'
 import { isVoidedReservationStatus } from '@/lib/reservations/lifecycle'
-import type { DbReservation, ReservationChannel } from '@/types'
+import {
+  sortGuestDirectory,
+  type GuestRow,
+  type GuestStatus,
+} from '@/lib/guests/guest-directory'
+import { clampLimit } from '@/lib/data/pagination'
+import type { DbReservation } from '@/types'
 
-export type GuestStatus = 'active' | 'vip' | 'returning' | 'new'
-
-export interface GuestRow {
-  id: string
-  name: string
-  email: string | null
-  phone: string | null
-  roomNumber: string | null
-  roomId: string | null
-  checkIn: string | null
-  checkOut: string | null
-  totalStays: number
-  totalSpent: number
-  lastStay: string | null
-  status: GuestStatus
-  source: ReservationChannel | null
-  token: string | null
-  tokenExpiresAt: string | null
-  reservationId: string | null
-  isInHouse: boolean
-  doNotDisturb: boolean
-}
+export type { GuestRow, GuestStatus } from '@/lib/guests/guest-directory'
+export { sortGuestDirectory } from '@/lib/guests/guest-directory'
 
 interface GuestQueryRow {
   id: string
@@ -58,29 +44,6 @@ function deriveStatus(
   if (stays >= 2) return 'returning'
   return 'new'
 }
-
-/** In-house guests first; checked-out guests at the bottom of the directory. */
-export function sortGuestDirectory(guests: GuestRow[]): GuestRow[] {
-  return [...guests].sort((a, b) => {
-    if (a.isInHouse !== b.isInHouse) {
-      return a.isInHouse ? -1 : 1
-    }
-
-    if (a.isInHouse) {
-      const aOut = a.checkOut ?? '9999-12-31'
-      const bOut = b.checkOut ?? '9999-12-31'
-      if (aOut !== bOut) return aOut.localeCompare(bOut)
-    } else {
-      const aLast = a.lastStay ?? ''
-      const bLast = b.lastStay ?? ''
-      if (aLast !== bLast) return bLast.localeCompare(aLast)
-    }
-
-    return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
-  })
-}
-
-import { clampLimit } from '@/lib/data/pagination'
 
 export async function getGuestsData(limit?: number): Promise<GuestRow[]> {
   const profile = await getProfile()

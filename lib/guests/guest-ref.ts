@@ -1,4 +1,4 @@
-import type { GuestRow } from '@/lib/data/guests'
+import type { GuestRow } from '@/lib/guests/guest-directory'
 
 /** Stable guest reference for exports and clipboard (matches reservation ref style). */
 export function guestRef(guest: GuestRow): string {

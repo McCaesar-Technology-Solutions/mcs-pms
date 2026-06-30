@@ -29,7 +29,7 @@ import { usePagination } from '@/lib/hooks/use-pagination'
 import { toast } from 'sonner'
 import { PAYMENT_METHOD_LABELS } from '@/lib/tax'
 import type { PaymentMethod } from '@/types'
-import { sortGuestDirectory, type GuestRow, type GuestStatus } from '@/lib/data/guests'
+import { sortGuestDirectory, type GuestRow, type GuestStatus } from '@/lib/guests/guest-directory'
 import type { ReservationChannel } from '@/types'
 
 interface GuestsTableProps {
