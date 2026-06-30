@@ -27,6 +27,7 @@ export interface OccupancySpan {
 export interface RoomRef {
   id: string
   number: string
+  floor?: number | null
 }
 
 export interface ClashOptions {

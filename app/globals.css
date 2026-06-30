@@ -6823,6 +6823,16 @@
     }
   }
 
+  .occupancy-timeline__floor-body {
+    border-top: 1px solid rgba(var(--shadow-tint), 0.06);
+    background: var(--card);
+  }
+
+  .occupancy-timeline__floor .floor-board__floor-num {
+    font-size: 0.75rem;
+    font-weight: 700;
+  }
+
   .room-board-tile {
     display: flex;
     min-height: 5.5rem;

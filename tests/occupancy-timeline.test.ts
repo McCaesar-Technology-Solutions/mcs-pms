@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  groupTimelineRoomsByFloor,
   isFirstVisibleStayDate,
   nightsBetween,
   stayCoversDate,
@@ -27,6 +28,18 @@ describe('stayDates', () => {
 
   it('supports multi-week monthly stays', () => {
     expect(stayDates('2026-06-01', '2026-07-01')).toHaveLength(30)
+  })
+})
+
+describe('groupTimelineRoomsByFloor', () => {
+  it('groups rooms by floor and sorts floors descending', () => {
+    const grouped = groupTimelineRoomsByFloor([
+      { id: 'a', number: '101', floor: 1 },
+      { id: 'b', number: '201', floor: 2 },
+      { id: 'c', number: '102', floor: 1 },
+    ])
+    expect(grouped.map((g) => g.floor)).toEqual([2, 1])
+    expect(grouped[1]?.rooms.map((r) => r.number)).toEqual(['101', '102'])
   })
 })
 

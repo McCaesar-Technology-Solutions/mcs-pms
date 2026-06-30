@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/lib/supabase/types'
 import { datesOverlap, type RoomRef } from '@/lib/data/occupancy'
+import { floorLabel } from '@/lib/data/front-desk-ops'
 import { OCCUPANCY_BLOCKING_STATUSES } from '@/lib/reservations/lifecycle'
 import type { Reservation } from '@/types'
 
@@ -69,7 +70,7 @@ export async function getOccupancyTimelineBars(
   const today = todayISO()
 
   const [roomsRes, reservationsRes, guestsRes] = await Promise.all([
-    client.from('rooms').select('id, number').eq('hotel_id', hotelId).order('number'),
+    client.from('rooms').select('id, number, floor').eq('hotel_id', hotelId).order('number'),
     client
       .from('reservations')
       .select('id, room_id, check_in, check_out, guest_name, channel, guest_id, rooms(number)')
@@ -134,6 +135,45 @@ export async function getOccupancyTimelineBars(
   }
 
   return { rooms, bars }
+}
+
+export function groupTimelineRoomsByFloor(
+  rooms: RoomRef[],
+): { floor: number; rooms: RoomRef[] }[] {
+  const byFloor = new Map<number, RoomRef[]>()
+  for (const room of rooms) {
+    const floor = room.floor ?? 0
+    const list = byFloor.get(floor) ?? []
+    list.push(room)
+    byFloor.set(floor, list)
+  }
+
+  return [...byFloor.entries()]
+    .sort(([a], [b]) => b - a)
+    .map(([floor, floorRooms]) => ({
+      floor,
+      rooms: floorRooms.sort((a, b) =>
+        a.number.localeCompare(b.number, undefined, { numeric: true }),
+      ),
+    }))
+}
+
+export function summarizeTimelineFloor(
+  floor: number,
+  floorRooms: RoomRef[],
+  bars: OccupancyTimelineBar[],
+  today: string,
+): { floor: number; label: string; total: number; bookedToday: number } {
+  let bookedToday = 0
+  for (const room of floorRooms) {
+    if (barForRoomOnDate(bars, room.id, today)) bookedToday += 1
+  }
+  return {
+    floor,
+    label: floorLabel(floor),
+    total: floorRooms.length,
+    bookedToday,
+  }
 }
 
 export function barForRoomOnDate(

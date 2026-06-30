@@ -46,7 +46,7 @@ export interface DashboardData {
   availability: Availability[]
   roomOptions: RoomOption[]
   occupancySpans: OccupancySpan[]
-  timelineRooms: { id: string; number: string }[]
+  timelineRooms: { id: string; number: string; floor?: number | null }[]
   timelineBars: OccupancyTimelineBar[]
 }
 
