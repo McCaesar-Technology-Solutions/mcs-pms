@@ -14,10 +14,34 @@ export function formatEmailFrom(displayName: string, email: string): string {
   return `${safeName} <${email.trim().toLowerCase()}>`
 }
 
+/** Parse `Name <email@domain.com>` or a bare address; trims stray spaces in the address. */
+export function normalizeEmailFromHeader(raw: string): string {
+  const trimmed = raw.trim()
+  if (!trimmed) return 'MOJO Apartments <onboarding@resend.dev>'
+
+  const angleMatch = trimmed.match(/^(.+?)\s*<\s*([^>]+)\s*>$/)
+  if (angleMatch) {
+    const name = angleMatch[1].replace(/[<>]/g, '').trim() || 'MOJO Apartments'
+    const email = angleMatch[2].trim().toLowerCase()
+    if (isValidEmail(email)) return formatEmailFrom(name, email)
+  }
+
+  if (isValidEmail(trimmed)) return formatEmailFrom('MOJO Apartments', trimmed)
+
+  return trimmed
+}
+
+export function isResendSandboxFrom(from: string): boolean {
+  const normalized = normalizeEmailFromHeader(from)
+  const match = normalized.match(/<([^>]+)>/)
+  const email = (match?.[1] ?? normalized).trim().toLowerCase()
+  return email === 'onboarding@resend.dev' || email.endsWith('@resend.dev')
+}
+
 /** Server default when a property has no custom sender. */
 export function resolveEmailFromEnv(): string {
   const from = process.env.RESEND_FROM?.trim()
-  if (from) return from
+  if (from) return normalizeEmailFromHeader(from)
   return 'MOJO Apartments <onboarding@resend.dev>'
 }
 

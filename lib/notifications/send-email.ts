@@ -1,7 +1,11 @@
 import { isProd } from '@/lib/env'
 import { Resend } from 'resend'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { isEmailConfigured, resolveEmailFromForHotel } from '@/lib/notifications/email-provider'
+import {
+  isEmailConfigured,
+  isResendSandboxFrom,
+  resolveEmailFromForHotel,
+} from '@/lib/notifications/email-provider'
 import { renderStaffEmail, type StaffEmailContent } from '@/lib/notifications/email-template'
 import { shouldSendHotelEmailNotification } from '@/lib/notifications/recipients'
 
@@ -18,6 +22,20 @@ export interface EmailNotifyOptions {
 
 function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+}
+
+function humanizeResendError(message: string, from: string): string {
+  const lower = message.toLowerCase()
+  if (
+    lower.includes('only send testing emails to your own email') ||
+    lower.includes('verify a domain at resend.com')
+  ) {
+    const sandboxNote = isResendSandboxFrom(from)
+      ? ' You are using the Resend sandbox sender (onboarding@resend.dev), which only delivers to the email on your Resend account.'
+      : ''
+    return `Email could not be delivered to this recipient.${sandboxNote} Verify a domain at resend.com/domains, set RESEND_FROM to an address on that domain (and in Settings → Email notifications), then redeploy.`
+  }
+  return message
 }
 
 async function logEmailNotification(
@@ -104,7 +122,13 @@ export async function sendToEmail(
     })
 
     if (error) {
-      const result = { success: false, error: error.message }
+      const result = {
+        success: false,
+        error: humanizeResendError(error.message, from),
+      }
+      if (process.env.NODE_ENV === 'development') {
+        console.error(`[email:${opts.templateKey}] Resend error → ${email}:`, error.message)
+      }
       await logEmailNotification(opts, email, text, result)
       return result
     }

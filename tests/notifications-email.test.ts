@@ -5,7 +5,12 @@ import {
   isEmailTemplateEnabled,
   mergeEmailPrefs,
 } from '@/lib/notifications/email-preferences'
-import { formatEmailFrom, isEmailConfigured } from '@/lib/notifications/email-provider'
+import {
+  formatEmailFrom,
+  isEmailConfigured,
+  isResendSandboxFrom,
+  normalizeEmailFromHeader,
+} from '@/lib/notifications/email-provider'
 import { renderStaffEmail } from '@/lib/notifications/email-template'
 
 describe('email notification preferences', () => {
@@ -38,6 +43,17 @@ describe('email provider formatting', () => {
     expect(formatEmailFrom('MOJO Osu', 'alerts@mojo.com')).toBe(
       'MOJO Osu <alerts@mojo.com>',
     )
+  })
+
+  it('normalizes stray spaces in RESEND_FROM', () => {
+    expect(normalizeEmailFromHeader('MOJO Apartments <onboarding@resend.dev >')).toBe(
+      'MOJO Apartments <onboarding@resend.dev>',
+    )
+  })
+
+  it('detects Resend sandbox sender', () => {
+    expect(isResendSandboxFrom('MOJO Apartments <onboarding@resend.dev>')).toBe(true)
+    expect(isResendSandboxFrom('MOJO <alerts@mojo.com>')).toBe(false)
   })
 })
 

@@ -6606,6 +6606,15 @@
     border: 1px solid rgba(var(--shadow-tint), 0.1);
     background: rgba(255, 255, 255, 0.9);
     padding: 0.25rem;
+    transition:
+      border-color 0.2s ease,
+      box-shadow 0.2s ease,
+      opacity 0.2s ease;
+  }
+
+  .ops-date-selector--loading {
+    border-color: rgba(var(--glow-purple), 0.22);
+    box-shadow: 0 0 0 3px rgba(var(--glow-purple), 0.08);
   }
 
   .ops-date-selector__nav {
@@ -6616,10 +6625,17 @@
     justify-content: center;
     border-radius: 999px;
     color: var(--muted-foreground);
-    transition: background 0.15s ease, color 0.15s ease;
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: background 0.15s ease, color 0.15s ease, opacity 0.15s ease;
   }
 
-  .ops-date-selector__nav:hover {
+  .ops-date-selector__nav:disabled {
+    cursor: wait;
+    opacity: 0.45;
+  }
+
+  .ops-date-selector__nav:hover:not(:disabled) {
     background: rgba(var(--glow-purple), 0.08);
     color: var(--foreground);
   }
@@ -6655,6 +6671,12 @@
     font-size: 0.6875rem;
     font-weight: 700;
     color: var(--brand-purple);
+    transition: opacity 0.15s ease;
+  }
+
+  .ops-date-selector__today:disabled {
+    cursor: wait;
+    opacity: 0.45;
   }
 
   .rooms-view-toggle {
@@ -6674,7 +6696,15 @@
     font-size: 0.8125rem;
     font-weight: 600;
     color: var(--muted-foreground);
+    cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
     transition: background 0.15s ease, color 0.15s ease;
+  }
+
+  .rooms-view-toggle__btn:focus-visible {
+    outline: 2px solid rgba(var(--glow-purple), 0.35);
+    outline-offset: 2px;
   }
 
   .rooms-view-toggle__btn--active {
@@ -7177,33 +7207,9 @@
   .help-assistant-compose__bar {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-end;
     gap: 0.5rem;
     padding: 0.5rem 0.625rem 0.625rem;
-  }
-
-  .help-assistant-compose__tools {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-    color: var(--muted-foreground);
-  }
-
-  .help-assistant-compose__tool {
-    display: inline-flex;
-    height: 2rem;
-    width: 2rem;
-    align-items: center;
-    justify-content: center;
-    border-radius: 0.625rem;
-    transition:
-      background-color 0.2s ease,
-      color 0.2s ease;
-  }
-
-  .help-assistant-compose__tool:hover {
-    background: rgba(60, 33, 108, 0.06);
-    color: var(--primary);
   }
 
   .help-assistant-compose__meta {

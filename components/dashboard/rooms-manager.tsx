@@ -87,11 +87,16 @@ export function RoomsManager({
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const viewParam = searchParams.get('view')
-  const view: 'grid' | 'floor' =
+  const urlView: 'grid' | 'floor' =
     viewParam === 'floor' ? 'floor' : viewParam === 'grid' ? 'grid' : initialView
+  const [view, setViewState] = useState<'grid' | 'floor'>(urlView)
   const [editing, setEditing] = useState<DbRoom | null>(null)
   const [creating, setCreating] = useState(false)
   const [searchQuery, setSearchQuery] = useState(initialSearch)
+
+  useEffect(() => {
+    setViewState(urlView)
+  }, [urlView])
 
   useEffect(() => {
     setSearchQuery(initialSearch)
@@ -135,11 +140,10 @@ export function RoomsManager({
 
   const setView = useCallback(
     (next: 'grid' | 'floor') => {
+      setViewState(next)
       const params = new URLSearchParams(searchParams.toString())
-      if (next === 'floor') params.set('view', 'floor')
-      else params.delete('view')
-      const qs = params.toString()
-      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+      params.set('view', next)
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false })
     },
     [pathname, router, searchParams],
   )

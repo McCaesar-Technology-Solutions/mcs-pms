@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { ArrowLeft, ArrowRight, BookOpen, MessageCircle, Search, Send, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, MessageCircle, Send, X } from 'lucide-react'
 import { findHelpTopic, getHelpPack, getRoleLabel, rankHelpTopics } from '@/lib/help'
 import type { HelpRole, HelpTopic } from '@/lib/help/types'
 import type { UserRole } from '@/types'
@@ -125,28 +125,18 @@ export function HelpAssistant({ role, bottomOffset = 'default' }: HelpAssistantP
                   aria-label="Search help topics"
                 />
                 <div className="help-assistant-compose__bar">
-                  <div className="help-assistant-compose__tools">
-                    <span className="help-assistant-compose__tool" aria-hidden>
-                      <Search className="h-4 w-4" />
-                    </span>
-                    <span className="help-assistant-compose__tool" aria-hidden>
-                      <BookOpen className="h-4 w-4" />
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="help-assistant-compose__meta" aria-live="polite">
-                      {query.length}/{QUERY_MAX}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={openFirstResult}
-                      disabled={ranked.length === 0}
-                      className="help-assistant-send"
-                      aria-label="Open top result"
-                    >
-                      <Send className="h-4 w-4" />
-                    </button>
-                  </div>
+                  <span className="help-assistant-compose__meta" aria-live="polite">
+                    {query.length}/{QUERY_MAX}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={openFirstResult}
+                    disabled={ranked.length === 0}
+                    className="help-assistant-send"
+                    aria-label="Open top result"
+                  >
+                    <Send className="h-4 w-4" />
+                  </button>
                 </div>
               </div>
 
