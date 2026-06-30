@@ -97,9 +97,14 @@ Phone required → guest portal link/QR for the guest.
    - Room total
    - **Folio (unbilled)** if charges were posted on Guests page
    - **Estimated total** and **Outstanding**
-2. **Check out** → payment method.
-3. Toggle **Payment received now** if guest pays in full at desk.
-4. Confirm → invoice created (owner sees in Billing), room → Cleaning.
+2. Tap **Begin checkout** — folio locks; post any final charges first if needed.
+3. Tap **Complete checkout** → choose payment method.
+4. Toggle **Payment received now** if guest pays in full at desk.
+5. Confirm → invoice created (owner sees in Billing), room → Cleaning.
+
+**Overstay** (past departure time): begin checkout urgently; **Approve late checkout** if policy allows.
+
+**Walkout** (guest left without paying): use **Record walkout** — room is released and balance stays due on the invoice.
 
 ### Cancel and no-show
 
@@ -134,7 +139,7 @@ Phone required → guest portal link/QR for the guest.
 - Edit contact.
 - **Guest folio** — post minibar, laundry, damage, etc. (₵). Shows on reservation before checkout.
 - Portal link management.
-- **Check out** from guest card if needed.
+- **Check out** from guest card if needed (same **Begin checkout** → **Complete checkout** flow).
 
 ---
 

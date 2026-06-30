@@ -140,13 +140,16 @@ Use **Outstanding** every morning. If it is high, open **Billing** and **Reserva
 
 ### Check out
 
-1. Open **Checked in** reservation → **Check out**.
-2. Choose **payment method**.
-3. **Early checkout** if leaving before booked date.
-4. **Payment received now**:
+1. Open **Checked in** reservation → **Begin checkout** (folio locks).
+2. Post final folio charges if needed → **Complete checkout**.
+3. Choose **payment method**.
+4. **Early checkout** if leaving before booked date.
+5. **Payment received now**:
    - **On** → invoice marked **Paid** (deposit counts toward total).
    - **Off** → invoice **Pending**; collect later in **Billing**.
-5. **Confirm check-out** → GRA tax invoice created, room → **Cleaning**, clean task created.
+6. **Confirm check-out** → GRA tax invoice created, room → **Cleaning**, clean task created.
+
+**Walkout** and **late checkout approval** are available from the reservation panel when needed (same as manager/receptionist).
 
 ### Cancel or no-show **with a deposit**
 
@@ -162,7 +165,7 @@ Without a deposit, cancel uses a normal confirmation dialog.
 **Rules:**
 
 - Only **Confirmed** bookings can be cancelled or marked no-show.
-- **Checked-in guests cannot be cancelled** — use **Check out**.
+- **Checked-in guests cannot be cancelled** — use **Begin checkout** → **Complete checkout**.
 - Cancel blocked if there is **unpaid folio** or **unpaid invoice** on the stay.
 
 ---

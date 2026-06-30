@@ -13,6 +13,7 @@ import {
   guestRateKey,
 } from '@/lib/rate-limit'
 import type { Guest } from '@/types'
+import { runNotifyTask } from '@/lib/notifications/notify-task'
 import { guestFacingAuthorName } from '@/lib/contacts/display'
 import { profilePhotoPublicUrl } from '@/lib/profile-photos/storage'
 import { canEditOwnMessage } from '@/lib/messaging/can-edit-message'
@@ -242,13 +243,19 @@ export async function postGuestStayMessage(input: unknown): Promise<GuestConvers
     .eq('id', conversationId)
 
   void import('@/lib/notifications/guest-conversation').then(({ notifyGuestStayMessageToManagers }) =>
-    notifyGuestStayMessageToManagers({
-      hotelId: auth.guest.hotel_id,
-      guestName: auth.guest.name,
-      roomNumber: auth.roomNumber,
-      messagePreview: body,
-      conversationId,
-    }).catch(() => undefined),
+    runNotifyTask(
+      notifyGuestStayMessageToManagers({
+        hotelId: auth.guest.hotel_id,
+        guestName: auth.guest.name,
+        roomNumber: auth.roomNumber,
+        messagePreview: body,
+        conversationId,
+      }),
+      {
+        templateKey: 'guest_stay_chat',
+        hotelId: auth.guest.hotel_id,
+      },
+    ),
   )
 
   revalidateStayChatPaths()
@@ -377,12 +384,19 @@ export async function postStaffGuestStayMessage(
   } | null
 
   void import('@/lib/notifications/guest-conversation').then(({ notifyStaffStayMessageToGuest }) =>
-    notifyStaffStayMessageToGuest({
-      hotelId: profile.hotel_id!,
-      guestId: conversation.guest_id,
-      guestPhone: guest?.phone?.trim() ?? null,
-      messagePreview: body,
-    }).catch(() => undefined),
+    runNotifyTask(
+      notifyStaffStayMessageToGuest({
+        hotelId: profile.hotel_id!,
+        guestId: conversation.guest_id,
+        guestPhone: guest?.phone?.trim() ?? null,
+        messagePreview: body,
+      }),
+      {
+        templateKey: 'guest_stay_chat',
+        hotelId: profile.hotel_id!,
+        channel: 'sms',
+      },
+    ),
   )
 
   revalidateStayChatPaths()

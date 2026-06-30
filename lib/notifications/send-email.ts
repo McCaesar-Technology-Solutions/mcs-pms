@@ -150,5 +150,47 @@ export async function notifyEmails(
   opts: EmailNotifyOptions,
 ): Promise<void> {
   const unique = [...new Set(emails.map((e) => e.trim().toLowerCase()).filter(isValidEmail))]
-  await Promise.all(unique.map((email) => sendToEmail(email, content, opts)))
+  const { enqueueEmailOutbox } = await import('@/lib/notifications/outbox')
+  const { reportNotificationFailure } = await import('@/lib/notifications/notify-failure')
+
+  await Promise.all(
+    unique.map(async (email) => {
+      const result = await sendToEmail(email, content, opts)
+      if (result.success || result.providerId === 'skipped-pref' || result.providerId === 'dev-log') {
+        return
+      }
+
+      const error = result.error ?? 'Email send failed'
+      try {
+        await enqueueEmailOutbox({
+          hotelId: opts.hotelId,
+          email,
+          content,
+          templateKey: opts.templateKey,
+          idempotencyKey: `${opts.templateKey}:email:${email}:${content.subject.slice(0, 48)}`,
+        })
+      } catch (enqueueErr) {
+        const enqueueMessage =
+          enqueueErr instanceof Error ? enqueueErr.message : 'Outbox enqueue failed'
+        reportNotificationFailure({
+          templateKey: opts.templateKey,
+          hotelId: opts.hotelId,
+          channel: 'email',
+          recipient: email,
+          error: `${error}; enqueue: ${enqueueMessage}`,
+          stage: 'send',
+        })
+        return
+      }
+
+      reportNotificationFailure({
+        templateKey: opts.templateKey,
+        hotelId: opts.hotelId,
+        channel: 'email',
+        recipient: email,
+        error,
+        stage: 'outbox_retry',
+      })
+    }),
+  )
 }

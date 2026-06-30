@@ -336,5 +336,48 @@ export async function notifyPhones(
   opts: NotifyOptions,
 ): Promise<void> {
   const unique = [...new Set(phones.map((p) => toE164(p)).filter(Boolean))]
-  await Promise.all(unique.map((phone) => sendToPhone(phone, body, opts)))
+  const { enqueueSmsOutbox } = await import('@/lib/notifications/outbox')
+  const { reportNotificationFailure } = await import('@/lib/notifications/notify-failure')
+
+  await Promise.all(
+    unique.map(async (phone) => {
+      const results = await sendToPhone(phone, body, opts)
+      const failed = results.filter(
+        (r) => !r.success && r.providerId !== 'skipped-pref' && r.providerId !== 'dev-log',
+      )
+      if (failed.length === 0) return
+
+      const error = failed.map((r) => r.error).filter(Boolean).join('; ') || 'SMS send failed'
+      try {
+        await enqueueSmsOutbox({
+          hotelId: opts.hotelId,
+          phone,
+          body,
+          templateKey: opts.templateKey,
+          idempotencyKey: `${opts.templateKey}:sms:${phone}:${body.slice(0, 48)}`,
+        })
+      } catch (enqueueErr) {
+        const enqueueMessage =
+          enqueueErr instanceof Error ? enqueueErr.message : 'Outbox enqueue failed'
+        reportNotificationFailure({
+          templateKey: opts.templateKey,
+          hotelId: opts.hotelId,
+          channel: 'sms',
+          recipient: phone,
+          error: `${error}; enqueue: ${enqueueMessage}`,
+          stage: 'send',
+        })
+        return
+      }
+
+      reportNotificationFailure({
+        templateKey: opts.templateKey,
+        hotelId: opts.hotelId,
+        channel: 'sms',
+        recipient: phone,
+        error,
+        stage: 'outbox_retry',
+      })
+    }),
+  )
 }

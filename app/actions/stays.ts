@@ -23,6 +23,7 @@ import {
 } from '@/lib/folio/rollup'
 import { writeAuditLog, logRoomStatusChange } from '@/lib/audit/log'
 import { canCheckIn, canCheckOut } from '@/lib/reservations/lifecycle'
+import { runNotifyTask } from '@/lib/notifications/notify-task'
 import { validateCheckoutBalance } from '@/lib/reservations/checkout-validation'
 import { appendReservationEvent, transitionReservation } from '@/lib/reservations/state-machine'
 import { normalizeActorRole } from '@/lib/reservations/transitions'
@@ -686,13 +687,20 @@ async function executeStayCheckout(
 
   if (guestPhone && !isWalkout) {
     void import('@/lib/notifications/stays').then(({ notifyGuestCheckedOut }) =>
-      notifyGuestCheckedOut({
+      runNotifyTask(
+        notifyGuestCheckedOut({
         hotelId: reservation.hotel_id,
         phone: guestPhone,
         guestName: reservation.guest_name,
         totalGhs: taxes.total,
         paid: paidNow,
-      }).catch(() => undefined),
+      }),
+        {
+          templateKey: 'guest_checked_out',
+          hotelId: reservation.hotel_id,
+          channel: 'sms',
+        },
+      )
     )
   }
 

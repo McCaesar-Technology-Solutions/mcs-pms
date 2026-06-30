@@ -1,6 +1,7 @@
 import type { createAdminClient } from '@/lib/supabase/admin'
 import type { ReservationStatus } from '@/types'
 import type { TransitionSideEffect } from '@/lib/reservations/transitions'
+import { runNotifyTask } from '@/lib/notifications/notify-task'
 
 type AdminClient = ReturnType<typeof createAdminClient>
 
@@ -74,36 +75,57 @@ export async function runNotificationsSideEffect(ctx: SideEffectContext): Promis
   if (ctx.toStatus === 'confirmed' && ctx.payload?.guestPhone) {
     const phone = String(ctx.payload.guestPhone)
     const roomNumber = ctx.payload.roomNumber ? String(ctx.payload.roomNumber) : null
-    await notifyGuestReservationConfirmed({
-      hotelId: ctx.reservation.hotel_id,
-      phone,
-      guestName: ctx.reservation.guest_name,
-      roomNumber,
-      checkIn: ctx.reservation.check_in,
-      checkOut: ctx.reservation.check_out,
-    }).catch(() => undefined)
+    runNotifyTask(
+      notifyGuestReservationConfirmed({
+        hotelId: ctx.reservation.hotel_id,
+        phone,
+        guestName: ctx.reservation.guest_name,
+        roomNumber,
+        checkIn: ctx.reservation.check_in,
+        checkOut: ctx.reservation.check_out,
+      }),
+      {
+        templateKey: 'reservation_confirmed',
+        hotelId: ctx.reservation.hotel_id,
+        channel: 'sms',
+      },
+    )
   }
 
   if (ctx.toStatus === 'checked_in' && ctx.payload?.guestPhone && ctx.payload?.portalToken) {
-    await notifyGuestCheckedIn({
-      hotelId: ctx.reservation.hotel_id,
-      phone: String(ctx.payload.guestPhone),
-      guestName: ctx.reservation.guest_name,
-      roomNumber: ctx.payload.roomNumber ? String(ctx.payload.roomNumber) : null,
-      checkOut: ctx.reservation.check_out,
-      portalToken: String(ctx.payload.portalToken),
-    }).catch(() => undefined)
+    runNotifyTask(
+      notifyGuestCheckedIn({
+        hotelId: ctx.reservation.hotel_id,
+        phone: String(ctx.payload.guestPhone),
+        guestName: ctx.reservation.guest_name,
+        roomNumber: ctx.payload.roomNumber ? String(ctx.payload.roomNumber) : null,
+        checkOut: ctx.reservation.check_out,
+        portalToken: String(ctx.payload.portalToken),
+      }),
+      {
+        templateKey: 'guest_checked_in',
+        hotelId: ctx.reservation.hotel_id,
+        channel: 'sms',
+      },
+    )
   }
 
   if (ctx.toStatus === 'cancelled' && ctx.payload?.guestPhone) {
     const { notifyGuestReservationCancelled } = await import('@/lib/notifications/stays')
-    await notifyGuestReservationCancelled({
-      hotelId: ctx.reservation.hotel_id,
-      phone: String(ctx.payload.guestPhone),
-      guestName: ctx.reservation.guest_name,
-      checkIn: ctx.reservation.check_in,
-      checkOut: ctx.reservation.check_out,
-    }).catch(() => undefined)
+    runNotifyTask(
+      notifyGuestReservationCancelled({
+        hotelId: ctx.reservation.hotel_id,
+        phone: String(ctx.payload.guestPhone),
+        guestName: ctx.reservation.guest_name,
+        checkIn: ctx.reservation.check_in,
+        checkOut: ctx.reservation.check_out,
+      }),
+      {
+        templateKey: 'reservation_cancelled',
+        hotelId: ctx.reservation.hotel_id,
+        channel: 'sms',
+      },
+    )
   }
 }
 

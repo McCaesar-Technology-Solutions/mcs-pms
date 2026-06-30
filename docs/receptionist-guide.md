@@ -71,7 +71,7 @@ Use **payment filters** (Unpaid, Deposit paid, Paid, etc.) to find guests who st
 |--------|---------|
 | **Confirmed** / **Pre-arrival** | Expected arrival — use **Check in** |
 | **Provisional** | Hold on the room — collect deposit or cancel hold |
-| **Checked in** | In house — extend, move room, or **Check out** |
+| **Checked in** | In house — extend, move room, or **Begin checkout** |
 | **Checkout in progress** | Folio locked — **Complete checkout** |
 | **Overstay** | Past departure time — begin checkout urgently |
 | **Checked out** / **Post stay** | Departed — read-only history |
@@ -104,7 +104,7 @@ If guest paid via Airbnb/Booking and you have confirmation: **Channel prepaid** 
 
 ### Check out
 
-1. Open **Checked in** reservation.
+1. Open **Checked in** or **Checkout in progress** reservation.
 2. Read **Payment** box carefully:
 
    | Line | Meaning |
@@ -115,13 +115,18 @@ If guest paid via Airbnb/Booking and you have confirmation: **Channel prepaid** 
    | Paid | Deposits already collected |
    | **Outstanding** | What guest still owes **today** |
 
-3. Tap **Check out**.
-4. Choose payment method.
-5. **Early checkout** if leaving before booked date.
-6. **Payment received now**:
+3. Tap **Begin checkout** — folio locks so no new charges can be posted.
+4. Post any final folio charges if needed, then tap **Complete checkout**.
+5. Choose payment method.
+6. **Early checkout** if leaving before booked date.
+7. **Payment received now**:
    - **On** if they pay everything now.
    - **Off** if they will pay later (owner collects in Billing).
-7. **Confirm check-out** → room goes to **Cleaning**; invoice goes to owner.
+8. **Confirm check-out** → room goes to **Cleaning**; invoice goes to owner.
+
+**Overstay:** begin checkout urgently; tap **Approve late checkout** when appropriate.
+
+**Walkout:** if the guest left without paying, use **Record walkout** (do not use this at the desk during normal checkout).
 
 ### Cancel a booking
 

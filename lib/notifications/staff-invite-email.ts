@@ -1,5 +1,7 @@
 import type { EmailSendResult } from '@/lib/notifications/send-email'
 import { isEmailConfigured } from '@/lib/notifications/email-provider'
+import { enqueueEmailOutbox } from '@/lib/notifications/outbox'
+import { reportNotificationFailure } from '@/lib/notifications/notify-failure'
 import { appUrl } from '@/lib/notifications/app-url'
 
 /** Manager or receptionist invite — email with accept-invite link. */
@@ -30,8 +32,47 @@ export async function notifyStaffInviteEmail(input: {
   }
 
   const { sendToEmail } = await import('@/lib/notifications/send-email')
-  return sendToEmail(input.email, content, {
+  const result = await sendToEmail(input.email, content, {
     hotelId: input.hotelId,
     templateKey: 'staff_invite',
   })
+
+  if (
+    !result.success &&
+    result.providerId !== 'skipped-pref' &&
+    result.providerId !== 'dev-log'
+  ) {
+    try {
+      await enqueueEmailOutbox({
+        hotelId: input.hotelId,
+        email: input.email,
+        content,
+        templateKey: 'staff_invite',
+        idempotencyKey: `staff_invite:${input.inviteToken}`,
+      })
+    } catch (enqueueErr) {
+      const enqueueMessage =
+        enqueueErr instanceof Error ? enqueueErr.message : 'Outbox enqueue failed'
+      reportNotificationFailure({
+        templateKey: 'staff_invite',
+        hotelId: input.hotelId,
+        channel: 'email',
+        recipient: input.email,
+        error: `${result.error ?? 'Email send failed'}; enqueue: ${enqueueMessage}`,
+        stage: 'send',
+      })
+      return { success: false, error: result.error ?? 'Could not send the invite email.' }
+    }
+
+    reportNotificationFailure({
+      templateKey: 'staff_invite',
+      hotelId: input.hotelId,
+      channel: 'email',
+      recipient: input.email,
+      error: result.error,
+      stage: 'outbox_retry',
+    })
+  }
+
+  return result
 }

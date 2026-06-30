@@ -18,6 +18,7 @@ import { getHotelGuestRules } from '@/lib/data/guest-rules'
 import { guestRoomEntrySchema, submitComplaintSchema } from '@/lib/validations'
 import { stayNights, tokenExpiryISO } from '@/lib/stays/helpers'
 import { formatInvoiceNumber } from '@/lib/invoices/numbering'
+import { runNotifyTask } from '@/lib/notifications/notify-task'
 import type { ExportHotelInfo, InvoiceExportRow } from '@/lib/export/types'
 import { guestNeedsRulesAcceptance } from '@/app/actions/guest-rules'
 import { getGuestFromSession, submitGuestComplaint } from '@/app/actions/guest'
@@ -308,7 +309,9 @@ export async function submitGuestFeedback(input: unknown): Promise<GuestPortalAc
   if (error || !data) return { success: false, error: 'Could not save feedback.' }
 
   void import('@/lib/notifications/guest-feedback').then(({ notifyGuestFeedbackSubmitted }) =>
-    notifyGuestFeedbackSubmitted(data.id).catch(() => undefined),
+    runNotifyTask(notifyGuestFeedbackSubmitted(data.id), {
+      templateKey: 'guest_feedback',
+    }),
   )
 
   revalidatePath('/guest')

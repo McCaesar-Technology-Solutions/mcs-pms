@@ -13,6 +13,7 @@ import {
   shouldMarkOverstay,
 } from '@/lib/cron/reservation-lifecycle-guards'
 import { notifyManagers } from '@/lib/notifications/manager-notify'
+import { runNotifyTask } from '@/lib/notifications/notify-task'
 import { appUrl } from '@/lib/notifications/app-url'
 
 type Admin = ReturnType<typeof createAdminClient>
@@ -259,18 +260,24 @@ export async function processOverstayReservations(): Promise<{ processed: number
 
       if (result.success) {
         processed++
-        void notifyManagers({
-          hotelId: hotel.id,
-          templateKey: 'reservation_overstay',
-          smsBody: `MOJO: Overstay — ${row.guest_name} (departure ${row.check_out}). Front desk follow-up needed.`,
-          email: {
-            subject: `Overstay alert · ${row.guest_name}`,
-            preview: 'A guest has passed checkout time without departing.',
-            lines: [`Guest: ${row.guest_name}`, `Scheduled departure: ${row.check_out}`],
-            actionUrl: appUrl('/manager/reservations'),
-            actionLabel: 'View reservations',
+        runNotifyTask(
+          notifyManagers({
+            hotelId: hotel.id,
+            templateKey: 'reservation_overstay',
+            smsBody: `MOJO: Overstay — ${row.guest_name} (departure ${row.check_out}). Front desk follow-up needed.`,
+            email: {
+              subject: `Overstay alert · ${row.guest_name}`,
+              preview: 'A guest has passed checkout time without departing.',
+              lines: [`Guest: ${row.guest_name}`, `Scheduled departure: ${row.check_out}`],
+              actionUrl: appUrl('/manager/reservations'),
+              actionLabel: 'View reservations',
+            },
+          }),
+          {
+            templateKey: 'reservation_overstay',
+            hotelId: hotel.id,
           },
-        }).catch(() => undefined)
+        )
       } else {
         skipped++
       }

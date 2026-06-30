@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendToEmail } from '@/lib/notifications/send-email'
 import { sendToPhone } from '@/lib/notifications/send'
+import { reportNotificationFailure } from '@/lib/notifications/notify-failure'
 import type { StaffEmailContent } from '@/lib/notifications/email-template'
 import type { Json } from '@/lib/supabase/types'
 
@@ -82,6 +83,16 @@ export async function processNotificationOutbox(): Promise<{
       failed++
       const dead = attempts >= row.max_attempts
       const backoffMs = Math.min(60_000 * attempts, 15 * 60_000)
+      if (dead) {
+        reportNotificationFailure({
+          templateKey: row.template_key,
+          hotelId: row.hotel_id ?? undefined,
+          channel: row.channel === 'whatsapp' ? 'whatsapp' : row.channel === 'email' ? 'email' : 'sms',
+          recipient: row.recipient,
+          error: lastError ?? 'Unknown error',
+          stage: 'outbox_dead',
+        })
+      }
       await admin
         .from('notification_outbox')
         .update({

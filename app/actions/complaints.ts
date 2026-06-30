@@ -12,6 +12,7 @@ import { scheduleComplaintVisitSchema } from '@/lib/validations'
 import type { Complaint, ComplaintEvent, ComplaintPriority, DbRoomStatus } from '@/types'
 import { profilePhotoPublicUrl } from '@/lib/profile-photos/storage'
 import { canEditOwnMessage } from '@/lib/messaging/can-edit-message'
+import { runNotifyTask } from '@/lib/notifications/notify-task'
 
 export type ComplaintActionResult<T = void> =
   | { success: true; data?: T }
@@ -198,8 +199,14 @@ export async function createStaffComplaint(input: unknown): Promise<ComplaintAct
   })
 
   void import('@/lib/notifications/complaints').then(({ notifyComplaintSubmitted, notifyGuestComplaintReceived }) => {
-    notifyComplaintSubmitted(complaint.id).catch(() => undefined)
-    notifyGuestComplaintReceived(complaint.id).catch(() => undefined)
+    runNotifyTask(notifyComplaintSubmitted(complaint.id), {
+      templateKey: 'complaint_submitted',
+      hotelId: profile.hotel_id ?? undefined,
+    })
+    runNotifyTask(notifyGuestComplaintReceived(complaint.id), {
+      templateKey: 'complaint_guest_received',
+      hotelId: profile.hotel_id ?? undefined,
+    })
   })
 
   revalidatePath('/manager/complaints')
@@ -305,7 +312,9 @@ export async function assignComplaint(
   })
 
   void import('@/lib/notifications/complaints').then(({ notifyComplaintAssigned }) =>
-    notifyComplaintAssigned(complaintId, technicianId).catch(() => undefined),
+    runNotifyTask(notifyComplaintAssigned(complaintId, technicianId), {
+      templateKey: 'complaint_assigned',
+    }),
   )
 
   if (profile.hotel_id) {
@@ -380,7 +389,9 @@ export async function approveComplaint(
 
     if (complaint.assigned_to) {
       void import('@/lib/notifications/complaints').then(({ notifyComplaintEstimateApproved }) =>
-        notifyComplaintEstimateApproved(complaintId, complaint.assigned_to!).catch(() => undefined),
+        runNotifyTask(notifyComplaintEstimateApproved(complaintId, complaint.assigned_to!), {
+          templateKey: 'complaint_estimate_approved',
+        }),
       )
     }
   } else {
@@ -482,7 +493,9 @@ export async function scheduleTechnicianComplaintVisit(
   })
 
   void import('@/lib/notifications/complaints').then(({ notifyComplaintVisitScheduled }) =>
-    notifyComplaintVisitScheduled(parsed.data.complaintId, visitIso).catch(() => undefined),
+    runNotifyTask(notifyComplaintVisitScheduled(parsed.data.complaintId, visitIso), {
+      templateKey: 'complaint_visit_scheduled',
+    }),
   )
 
   revalidatePath('/technician/tasks')
@@ -537,7 +550,9 @@ export async function rejectComplaint(
   })
 
   void import('@/lib/notifications/complaints').then(({ notifyComplaintRejected }) =>
-    notifyComplaintRejected(complaintId, note).catch(() => undefined),
+    runNotifyTask(notifyComplaintRejected(complaintId, note), {
+      templateKey: 'complaint_rejected',
+    }),
   )
 
   revalidatePath('/manager/complaints')
@@ -649,7 +664,9 @@ export async function markComplaintComplete(complaintId: string): Promise<Compla
   })
 
   void import('@/lib/notifications/complaints').then(({ notifyComplaintCompletionRequested }) =>
-    notifyComplaintCompletionRequested(complaintId).catch(() => undefined),
+    runNotifyTask(notifyComplaintCompletionRequested(complaintId), {
+      templateKey: 'complaint_completion_requested',
+    }),
   )
 
   revalidatePath('/technician/tasks')

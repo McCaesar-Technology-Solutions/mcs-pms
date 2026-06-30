@@ -13,6 +13,7 @@ import {
 } from '@/lib/complaints/invoice-storage'
 import { submitComplaintEstimateSchema } from '@/lib/validations'
 import type { ComplaintEstimate } from '@/types'
+import { runNotifyTask } from '@/lib/notifications/notify-task'
 
 export type EstimateActionResult<T = void> =
   | { success: true; data?: T }
@@ -227,11 +228,10 @@ async function persistComplaintEstimate(input: {
   })
 
   void import('@/lib/notifications/complaints').then(({ notifyComplaintInvoiceSubmitted }) =>
-    notifyComplaintInvoiceSubmitted(
-      input.complaintId,
-      totalCost,
-      input.technicianName,
-    ).catch(() => undefined),
+    runNotifyTask(
+      notifyComplaintInvoiceSubmitted(input.complaintId, totalCost, input.technicianName),
+      { templateKey: 'complaint_invoice_submitted' },
+    ),
   )
 
   revalidateEstimateViews()

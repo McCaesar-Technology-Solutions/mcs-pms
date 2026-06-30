@@ -9,6 +9,7 @@ import { canGuestApproveCompletion } from '@/lib/complaints/workflow'
 import { walkInCheckIn, checkOutStay } from '@/app/actions/stays'
 import { getOccupancySpans } from '@/lib/data/occupancy'
 import type { Complaint, Guest } from '@/types'
+import { runNotifyTask } from '@/lib/notifications/notify-task'
 
 export type GuestActionResult<T = void> =
   | { success: true; data?: T }
@@ -161,8 +162,14 @@ export async function submitGuestComplaint(
   const reference = complaint.id.slice(0, 8).toUpperCase()
 
   void import('@/lib/notifications/complaints').then(({ notifyComplaintSubmitted, notifyGuestComplaintReceived }) => {
-    notifyComplaintSubmitted(complaint.id).catch(() => undefined)
-    notifyGuestComplaintReceived(complaint.id).catch(() => undefined)
+    runNotifyTask(notifyComplaintSubmitted(complaint.id), {
+      templateKey: 'complaint_submitted',
+      hotelId: guest.hotel_id,
+    })
+    runNotifyTask(notifyGuestComplaintReceived(complaint.id), {
+      templateKey: 'complaint_guest_received',
+      hotelId: guest.hotel_id,
+    })
   })
 
   return {
@@ -286,7 +293,9 @@ export async function approveGuestComplaintCompletion(
   })
 
   void import('@/lib/notifications/complaints').then(({ notifyGuestApprovedCompletion }) =>
-    notifyGuestApprovedCompletion(complaintId).catch(() => undefined),
+    runNotifyTask(notifyGuestApprovedCompletion(complaintId), {
+      templateKey: 'complaint_guest_approved',
+    }),
   )
 
   return { success: true }

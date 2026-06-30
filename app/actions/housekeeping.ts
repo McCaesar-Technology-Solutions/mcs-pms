@@ -7,6 +7,7 @@ import { applyHousekeepingSideEffects } from '@/lib/housekeeping/side-effects'
 import { canTransition, statusUpdateFields } from '@/lib/housekeeping/task-flow'
 import { createHousekeepingTaskSchema } from '@/lib/validations'
 import type { HousekeepingTaskType, Profile, TaskPriority, TaskStatus } from '@/types'
+import { runNotifyTask } from '@/lib/notifications/notify-task'
 
 export type HousekeepingActionResult<T = void> =
   | { success: true; data?: T }
@@ -86,7 +87,10 @@ export async function createHousekeepingTask(input: {
 
   if (parsed.data.assignedTo) {
     void import('@/lib/notifications/housekeeping').then(({ notifyHousekeepingTaskAssigned }) =>
-      notifyHousekeepingTaskAssigned(data.id).catch(() => undefined),
+      runNotifyTask(notifyHousekeepingTaskAssigned(data.id), {
+        templateKey: 'housekeeping_assigned',
+        hotelId: profile.hotel_id ?? undefined,
+      }),
     )
   }
 
@@ -112,7 +116,10 @@ export async function assignHousekeepingTask(
 
   if (assigneeId) {
     void import('@/lib/notifications/housekeeping').then(({ notifyHousekeepingTaskAssigned }) =>
-      notifyHousekeepingTaskAssigned(taskId).catch(() => undefined),
+      runNotifyTask(notifyHousekeepingTaskAssigned(taskId), {
+        templateKey: 'housekeeping_assigned',
+        hotelId: profile.hotel_id ?? undefined,
+      }),
     )
   }
 
@@ -219,14 +226,20 @@ export async function setHousekeepingTaskStatus(
 
     if (task.task_type === 'clean') {
       void import('@/lib/notifications/housekeeping').then(({ notifyHousekeepingCleanCompleted }) =>
-        notifyHousekeepingCleanCompleted({
-          taskId: task.id,
-          hotelId,
-          roomId: task.room_id,
-          priority: task.priority,
-          completedByName: profile.name,
-          inspectTaskId: sideEffect.inspectTaskId,
-        }).catch(() => undefined),
+        runNotifyTask(
+          notifyHousekeepingCleanCompleted({
+            taskId: task.id,
+            hotelId,
+            roomId: task.room_id,
+            priority: task.priority,
+            completedByName: profile.name,
+            inspectTaskId: sideEffect.inspectTaskId,
+          }),
+          {
+            templateKey: 'housekeeping_clean_done',
+            hotelId,
+          },
+        ),
       )
     }
   }

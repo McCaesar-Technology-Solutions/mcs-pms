@@ -19,6 +19,7 @@ import {
 import { canUpdateReservationFields } from '@/lib/reservations/lifecycle'
 import { transitionReservation } from '@/lib/reservations/state-machine'
 import { normalizeActorRole } from '@/lib/reservations/transitions'
+import { runNotifyTask } from '@/lib/notifications/notify-task'
 import {
   applyDepositDisposition,
   type DepositDisposition,
@@ -220,15 +221,21 @@ export async function createReservation(input: unknown): Promise<CreateReservati
   void import('@/lib/notifications/stays').then(async ({ notifyManagersNewReservation }) => {
     const admin = createAdminClient()
     const { data: room } = await admin.from('rooms').select('number').eq('id', data.roomId).maybeSingle()
-    await notifyManagersNewReservation({
-      hotelId: profile.hotel_id!,
-      guestName: data.guestName,
-      roomNumber: room?.number ?? null,
-      checkIn: data.checkIn,
-      checkOut: data.checkOut,
-      channel: data.channel,
-    })
-  }).catch(() => undefined)
+    runNotifyTask(
+      notifyManagersNewReservation({
+        hotelId: profile.hotel_id!,
+        guestName: data.guestName,
+        roomNumber: room?.number ?? null,
+        checkIn: data.checkIn,
+        checkOut: data.checkOut,
+        channel: data.channel,
+      }),
+      {
+        templateKey: 'reservation_new_manager',
+        hotelId: profile.hotel_id!,
+      },
+    )
+  })
 
   revalidateReservationViews()
   return { success: true, id: row.id }
@@ -654,13 +661,20 @@ export async function cancelReservation(
   const phone = guest?.phone?.trim()
   if (phone && reservation.guest_id) {
     void import('@/lib/notifications/stays').then(({ notifyGuestReservationCancelled }) =>
-      notifyGuestReservationCancelled({
-        hotelId: reservation.hotel_id,
-        phone,
-        guestName: reservation.guest_name,
-        checkIn: reservation.check_in,
-        checkOut: reservation.check_out,
-      }).catch(() => undefined),
+      runNotifyTask(
+        notifyGuestReservationCancelled({
+          hotelId: reservation.hotel_id,
+          phone,
+          guestName: reservation.guest_name,
+          checkIn: reservation.check_in,
+          checkOut: reservation.check_out,
+        }),
+        {
+          templateKey: 'reservation_cancelled',
+          hotelId: reservation.hotel_id,
+          channel: 'sms',
+        },
+      ),
     )
   }
 

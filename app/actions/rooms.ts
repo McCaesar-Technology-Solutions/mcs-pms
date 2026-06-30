@@ -11,6 +11,7 @@ import {
   roomImageStoragePath,
 } from '@/lib/rooms/image-storage'
 import type { DbRoomStatus } from '@/types'
+import { runNotifyTask } from '@/lib/notifications/notify-task'
 
 export type RoomActionResult<T = void> =
   | { success: true; data?: T }
@@ -103,14 +104,20 @@ export async function createRoom(input: {
 
   if (profile.role === 'manager') {
     void import('@/lib/notifications/rooms').then(({ notifyOwnerRoomCreated }) =>
-      notifyOwnerRoomCreated({
-        hotelId: profile.hotel_id!,
-        roomNumber: parsed.data.number.trim(),
-        managerName: profile.name,
-        floor: parsed.data.floor,
-        nightlyRate: parsed.data.nightlyRate,
-        categoryName: category?.name ?? null,
-      }).catch(() => undefined),
+      runNotifyTask(
+        notifyOwnerRoomCreated({
+          hotelId: profile.hotel_id!,
+          roomNumber: parsed.data.number.trim(),
+          managerName: profile.name,
+          floor: parsed.data.floor,
+          nightlyRate: parsed.data.nightlyRate,
+          categoryName: category?.name ?? null,
+        }),
+        {
+          templateKey: 'room_created',
+          hotelId: profile.hotel_id!,
+        },
+      ),
     )
 
     void writeAuditLog({
