@@ -44,4 +44,5 @@ Full payment workflows are in the Owner and Receptionist guides.
 
 ## Need technical help?
 
-See [DEPLOYMENT.md](../DEPLOYMENT.md) for migrations and hosting. Database migrations through **044** include reservation payments and housekeeping flow.
+- [GO-LIVE.md](GO-LIVE.md) — production checklist before real traffic
+- [DEPLOYMENT.md](../DEPLOYMENT.md) — migrations (001–051), hosting, env vars

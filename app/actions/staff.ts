@@ -2,7 +2,7 @@
 
 import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
+import { loadVerifiedStaffProfile, consumeStaffAuthError } from '@/lib/auth/staff-session'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { toE164 } from '@/lib/notifications/e164'
 import { inviteStaffSchema } from '@/lib/validations'
@@ -57,19 +57,7 @@ function describeSmsDelivery(results: import('@/lib/notifications/send').SendRes
 }
 
 async function requireStaffProfile(): Promise<Profile | null> {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return null
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
-    .maybeSingle()
-
-  return (profile as Profile) ?? null
+  return loadVerifiedStaffProfile()
 }
 
 function allowedInviteRoles(role: UserRole): ('manager' | 'technician' | 'receptionist')[] {

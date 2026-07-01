@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
+import { loadVerifiedStaffProfile, consumeStaffAuthError } from '@/lib/auth/staff-session'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getGuestFromSession } from '@/app/actions/guest'
 import {
@@ -35,18 +35,7 @@ function revalidateProfilePhotoViews() {
 }
 
 async function requireAuthenticatedProfile() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return null
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('id, hotel_id, role, name')
-    .eq('id', user.id)
-    .maybeSingle()
-
+  const profile = await loadVerifiedStaffProfile()
   if (!profile?.hotel_id) return null
   return profile
 }

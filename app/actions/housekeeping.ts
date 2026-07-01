@@ -1,8 +1,9 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { loadVerifiedStaffProfile, consumeStaffAuthError } from '@/lib/auth/staff-session'
 import { applyHousekeepingSideEffects } from '@/lib/housekeeping/side-effects'
 import { canTransition, statusUpdateFields } from '@/lib/housekeeping/task-flow'
 import { createHousekeepingTaskSchema } from '@/lib/validations'
@@ -14,26 +15,11 @@ export type HousekeepingActionResult<T = void> =
   | { success: false; error: string }
 
 async function requireStaff(): Promise<Profile | null> {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return null
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
-    .maybeSingle()
-
-  if (!profile) return null
-  return profile as Profile
+  return loadVerifiedStaffProfile()
 }
 
 async function requireManager(): Promise<Profile | null> {
-  const profile = await requireStaff()
-  if (!profile || !['owner', 'manager'].includes(profile.role)) return null
-  return profile
+  return loadVerifiedStaffProfile({ roles: ['owner', 'manager'] })
 }
 
 function isManagerRole(role: string): boolean {

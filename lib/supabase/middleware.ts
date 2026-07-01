@@ -240,7 +240,8 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith('/owner') ||
     pathname.startsWith('/manager') ||
     pathname.startsWith('/technician') ||
-    pathname.startsWith('/receptionist')
+    pathname.startsWith('/receptionist') ||
+    pathname.startsWith('/mobile')
   ) {
     if (!user) {
       const loginUrl = new URL('/login', request.url)

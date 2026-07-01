@@ -1,8 +1,8 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { requireVerifiedStaff, consumeStaffAuthError } from '@/lib/auth/staff-session'
 import { ownerOwnsHotel } from '@/lib/data/properties'
 import { updateHotelSettingsSchema, updateNotificationPrefsSchema, updateReservationLifecycleSettingsSchema } from '@/lib/validations'
 import type { NotificationSmsPrefs } from '@/lib/notifications/preferences'
@@ -20,6 +20,32 @@ function revalidateSettingsViews() {
   revalidatePath('/owner/gra-reports')
 }
 
+async function requireOwnerSettings(hotelId: string) {
+  const result = await requireVerifiedStaff({ roles: ['owner'] })
+  if (!result.ok) return { ok: false as const, error: consumeStaffAuthError(result.error) }
+  if (!(await ownerOwnsHotel(result.userId, hotelId))) {
+    return { ok: false as const, error: 'You do not have access to this property.' }
+  }
+  return { ok: true as const, userId: result.userId, profile: result.profile }
+}
+
+async function requireOwnerOrManagerSettings(hotelId: string) {
+  const result = await requireVerifiedStaff({ roles: ['owner', 'manager'] })
+  if (!result.ok) return { ok: false as const, error: consumeStaffAuthError(result.error) }
+
+  if (result.profile.role === 'owner') {
+    if (!(await ownerOwnsHotel(result.userId, hotelId))) {
+      return { ok: false as const, error: 'You do not have access to this property.' }
+    }
+    return { ok: true as const, userId: result.userId, profile: result.profile }
+  }
+
+  if (result.profile.hotel_id !== hotelId) {
+    return { ok: false as const, error: 'You do not have access to this property.' }
+  }
+  return { ok: true as const, userId: result.userId, profile: result.profile }
+}
+
 export async function updateHotelSettings(input: {
   hotelId: string
   name: string
@@ -35,25 +61,8 @@ export async function updateHotelSettings(input: {
     return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid input.' }
   }
 
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return { success: false, error: 'Not authorized.' }
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role, name')
-    .eq('id', user.id)
-    .maybeSingle()
-
-  if (profile?.role !== 'owner') {
-    return { success: false, error: 'Only owners can update property settings.' }
-  }
-
-  if (!(await ownerOwnsHotel(user.id, parsed.data.hotelId))) {
-    return { success: false, error: 'You do not have access to this property.' }
-  }
+  const auth = await requireOwnerSettings(parsed.data.hotelId)
+  if (!auth.ok) return { success: false, error: auth.error }
 
   const admin = createAdminClient()
   const { data: before } = await admin
@@ -92,8 +101,8 @@ export async function updateHotelSettings(input: {
 
   void writeAuditLog({
     hotelId: parsed.data.hotelId,
-    actorId: user.id,
-    actorName: profile?.name,
+    actorId: auth.userId,
+    actorName: auth.profile.name,
     entityType: 'hotel',
     entityId: parsed.data.hotelId,
     action: 'settings_updated',
@@ -123,34 +132,8 @@ export async function updateReservationLifecycleSettings(input: {
     return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid input.' }
   }
 
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return { success: false, error: 'Not authorized.' }
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role, name')
-    .eq('id', user.id)
-    .maybeSingle()
-
-  if (profile?.role !== 'owner' && profile?.role !== 'manager') {
-    return { success: false, error: 'Not authorized.' }
-  }
-
-  const { data: managerProfile } =
-    profile.role === 'manager'
-      ? await supabase.from('profiles').select('hotel_id').eq('id', user.id).maybeSingle()
-      : { data: null }
-
-  if (profile.role === 'owner' && !(await ownerOwnsHotel(user.id, parsed.data.hotelId))) {
-    return { success: false, error: 'You do not have access to this property.' }
-  }
-
-  if (profile.role === 'manager' && managerProfile?.hotel_id !== parsed.data.hotelId) {
-    return { success: false, error: 'You do not have access to this property.' }
-  }
+  const auth = await requireOwnerOrManagerSettings(parsed.data.hotelId)
+  if (!auth.ok) return { success: false, error: auth.error }
 
   const admin = createAdminClient()
   const { error } = await admin
@@ -171,8 +154,8 @@ export async function updateReservationLifecycleSettings(input: {
 
   void writeAuditLog({
     hotelId: parsed.data.hotelId,
-    actorId: user.id,
-    actorName: profile?.name,
+    actorId: auth.userId,
+    actorName: auth.profile.name,
     entityType: 'hotel',
     entityId: parsed.data.hotelId,
     action: 'reservation_lifecycle_settings',
@@ -192,25 +175,8 @@ export async function updateNotificationPreferences(input: {
     return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid input.' }
   }
 
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return { success: false, error: 'Not authorized.' }
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .maybeSingle()
-
-  if (profile?.role !== 'owner') {
-    return { success: false, error: 'Only owners can update notification settings.' }
-  }
-
-  if (!(await ownerOwnsHotel(user.id, parsed.data.hotelId))) {
-    return { success: false, error: 'You do not have access to this property.' }
-  }
+  const auth = await requireOwnerSettings(parsed.data.hotelId)
+  if (!auth.ok) return { success: false, error: auth.error }
 
   const prefs: NotificationSmsPrefs = {}
   for (const key of NOTIFICATION_TEMPLATE_KEYS) {
@@ -241,25 +207,8 @@ export async function updateEmailNotificationPreferences(input: {
     return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid input.' }
   }
 
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return { success: false, error: 'Not authorized.' }
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .maybeSingle()
-
-  if (profile?.role !== 'owner') {
-    return { success: false, error: 'Only owners can update notification settings.' }
-  }
-
-  if (!(await ownerOwnsHotel(user.id, parsed.data.hotelId))) {
-    return { success: false, error: 'You do not have access to this property.' }
-  }
+  const auth = await requireOwnerSettings(parsed.data.hotelId)
+  if (!auth.ok) return { success: false, error: auth.error }
 
   const prefs: NotificationEmailPrefs = {}
   for (const key of EMAIL_STAFF_TEMPLATE_KEYS) {

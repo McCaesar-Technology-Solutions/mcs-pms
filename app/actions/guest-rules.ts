@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
+import { requireVerifiedStaff, consumeStaffAuthError } from '@/lib/auth/staff-session'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { writeAuditLog } from '@/lib/audit/log'
 import {
@@ -19,28 +19,19 @@ export type GuestRulesActionResult<T = void> =
   | { success: false; error: string }
 
 async function requireRulesEditor(hotelId: string) {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return { ok: false as const, error: 'Not authorized.' }
+  const result = await requireVerifiedStaff({ roles: ['owner', 'manager'] })
+  if (!result.ok) return { ok: false as const, error: consumeStaffAuthError(result.error) }
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role, name, hotel_id')
-    .eq('id', user.id)
-    .maybeSingle()
-
-  if (!profile) return { ok: false as const, error: 'Not authorized.' }
+  const { profile, userId } = result
 
   if (profile.role === 'owner') {
-    const owns = await ownerOwnsHotel(user.id, hotelId)
+    const owns = await ownerOwnsHotel(userId, hotelId)
     if (!owns) return { ok: false as const, error: 'Not authorized for this property.' }
-    return { ok: true as const, userId: user.id, actorName: profile.name }
+    return { ok: true as const, userId, actorName: profile.name }
   }
 
-  if (profile.role === 'manager' && profile.hotel_id === hotelId) {
-    return { ok: true as const, userId: user.id, actorName: profile.name }
+  if (profile.hotel_id === hotelId) {
+    return { ok: true as const, userId, actorName: profile.name }
   }
 
   return { ok: false as const, error: 'Only owners and managers can edit guest rules.' }

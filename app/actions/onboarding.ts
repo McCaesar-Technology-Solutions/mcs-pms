@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
-import { createClient } from '@/lib/supabase/server'
+import { requireVerifiedStaff } from '@/lib/auth/staff-session'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { ensureGuestPortalSlug } from '@/lib/guest-portal'
 import { ensureDefaultGuestRules } from '@/lib/data/guest-rules'
@@ -58,20 +58,12 @@ const teamStepSchema = z.object({
 const resumeStepSchema = z.enum(['welcome', 'property', 'compliance', 'team', 'done']).optional()
 
 async function requireOnboardingOwner() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return null
+  const result = await requireVerifiedStaff({ roles: ['owner'], skipMfa: true })
+  if (!result.ok) return null
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('id, role, hotel_id, onboarding_step, onboarding_completed_at, name')
-    .eq('id', user.id)
-    .maybeSingle()
-
-  if (!profile || profile.role !== 'owner' || profile.onboarding_completed_at) return null
-  return { supabase, profile, userId: user.id }
+  const { profile, supabase, userId } = result
+  if (profile.onboarding_completed_at) return null
+  return { supabase, profile, userId }
 }
 
 async function advanceStep(userId: string, step: OnboardingStep) {

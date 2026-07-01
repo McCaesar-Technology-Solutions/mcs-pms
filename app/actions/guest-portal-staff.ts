@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
-import { createClient } from '@/lib/supabase/server'
+import { requireVerifiedStaff, consumeStaffAuthError } from '@/lib/auth/staff-session'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { writeAuditLog } from '@/lib/audit/log'
 import { fulfillGuestRequest, notifyRequestStatus } from '@/lib/guest/request-fulfillment'
@@ -15,28 +15,19 @@ export type GuestPortalStaffResult<T = void> =
   | { success: false; error: string }
 
 async function requirePortalEditor(hotelId: string) {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return { ok: false as const, error: 'Not authorized.' }
+  const result = await requireVerifiedStaff({ roles: ['owner', 'manager'] })
+  if (!result.ok) return { ok: false as const, error: consumeStaffAuthError(result.error) }
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role, name, hotel_id')
-    .eq('id', user.id)
-    .maybeSingle()
-
-  if (!profile) return { ok: false as const, error: 'Not authorized.' }
+  const { profile, userId } = result
 
   if (profile.role === 'owner') {
-    const owns = await ownerOwnsHotel(user.id, hotelId)
+    const owns = await ownerOwnsHotel(userId, hotelId)
     if (!owns) return { ok: false as const, error: 'Not authorized for this property.' }
-    return { ok: true as const, userId: user.id, actorName: profile.name }
+    return { ok: true as const, userId, actorName: profile.name }
   }
 
-  if (profile.role === 'manager' && profile.hotel_id === hotelId) {
-    return { ok: true as const, userId: user.id, actorName: profile.name }
+  if (profile.hotel_id === hotelId) {
+    return { ok: true as const, userId, actorName: profile.name }
   }
 
   return { ok: false as const, error: 'Only owners and managers can edit guest portal settings.' }
@@ -273,24 +264,11 @@ export async function updateGuestRequestStatus(
   requestId: string,
   status: z.infer<typeof requestStatusSchema>,
 ): Promise<GuestPortalStaffResult> {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return { success: false, error: 'Not authorized.' }
+  const auth = await requireVerifiedStaff({ roles: ['owner', 'manager', 'receptionist'] })
+  if (!auth.ok) return { success: false, error: consumeStaffAuthError(auth.error) }
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role, hotel_id')
-    .eq('id', user.id)
-    .maybeSingle()
-
-  if (
-    !profile?.hotel_id ||
-    !['owner', 'manager', 'receptionist'].includes(profile.role)
-  ) {
-    return { success: false, error: 'Not authorized.' }
-  }
+  const { profile, userId, supabase } = auth
+  if (!profile.hotel_id) return { success: false, error: 'Not authorized.' }
 
   const parsed = requestStatusSchema.safeParse(status)
   if (!parsed.success) return { success: false, error: 'Invalid status.' }
@@ -314,7 +292,7 @@ export async function updateGuestRequestStatus(
       roomId: request.room_id,
       guestId: request.guest_id,
       note: request.note,
-      createdBy: user.id,
+      createdBy: userId,
       guestRequestId: request.id,
     })
   }
@@ -337,12 +315,12 @@ export async function updateGuestRequestStatus(
   const { data: actorProfile } = await supabase
     .from('profiles')
     .select('name')
-    .eq('id', user.id)
+    .eq('id', userId)
     .maybeSingle()
 
   void writeAuditLog({
     hotelId: profile.hotel_id,
-    actorId: user.id,
+    actorId: userId,
     actorName: actorProfile?.name ?? profile.role,
     entityType: 'guest_request',
     entityId: requestId,
@@ -364,19 +342,11 @@ export async function updateGuestRequestStatus(
 export async function getStaffComplaintPhotoUrl(
   complaintId: string,
 ): Promise<GuestPortalStaffResult<{ url: string }>> {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return { success: false, error: 'Not authorized.' }
+  const auth = await requireVerifiedStaff()
+  if (!auth.ok) return { success: false, error: consumeStaffAuthError(auth.error) }
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('hotel_id, role')
-    .eq('id', user.id)
-    .maybeSingle()
-
-  if (!profile?.hotel_id) return { success: false, error: 'Not authorized.' }
+  const { profile } = auth
+  if (!profile.hotel_id) return { success: false, error: 'Not authorized.' }
 
   const admin = createAdminClient()
   const { data } = await admin

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
+import { loadVerifiedStaffProfile, consumeStaffAuthError } from '@/lib/auth/staff-session'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { writeAuditLog } from '@/lib/audit/log'
@@ -19,19 +20,7 @@ export type ComplaintActionResult<T = void> =
   | { success: false; error: string }
 
 async function requireStaffProfile() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return null
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
-    .maybeSingle()
-
-  return profile
+  return loadVerifiedStaffProfile()
 }
 
 async function assertComplaintStaffAccess(
@@ -66,6 +55,11 @@ async function assertComplaintStaffAccess(
 }
 
 export async function getHotelComplaints(): Promise<ComplaintActionResult<Complaint[]>> {
+  const profile = await requireStaffProfile()
+  if (!profile) {
+    return { success: false, error: consumeStaffAuthError() }
+  }
+
   try {
     const data = await fetchHotelComplaints()
     return { success: true, data }

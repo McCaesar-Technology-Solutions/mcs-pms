@@ -14,7 +14,14 @@ import {
   MFA_SEND_MAX_PER_15_MIN,
 } from '@/lib/auth/mfa-sms'
 import { buildMfaStatus } from '@/lib/auth/mfa-status'
-import { mfaRedirectPath, safeMfaNext, userNeedsMfa, type MfaMethod } from '@/lib/auth/mfa'
+import { migrateLegacyTotpMfa } from '@/lib/auth/migrate-legacy-totp'
+import {
+  mfaRedirectPath,
+  roleRequiresMfa,
+  safeMfaNext,
+  userNeedsMfa,
+  type MfaMethod,
+} from '@/lib/auth/mfa'
 import { assertRateLimit, AUTH_RATE_LIMITS, authRateKey } from '@/lib/rate-limit'
 import { sendToPhone } from '@/lib/notifications/send'
 import { sendToEmail } from '@/lib/notifications/send-email'
@@ -353,39 +360,6 @@ async function loadStaffProfile(userId: string) {
   return data ? ({ ...data, role: data.role as UserRole } as StaffProfile) : null
 }
 
-/** Authenticator apps are no longer supported — move legacy rows to SMS or disable. */
-export async function migrateLegacyTotpMfa(userId: string): Promise<void> {
-  const admin = createAdminClient()
-  const { data } = await admin
-    .from('profiles')
-    .select('mfa_method, mfa_totp_secret, mfa_totp_pending_secret, phone, email')
-    .eq('id', userId)
-    .maybeSingle()
-
-  if (!data) return
-  const hasTotp =
-    data.mfa_method === 'totp' ||
-    Boolean(data.mfa_totp_secret?.trim()) ||
-    Boolean(data.mfa_totp_pending_secret?.trim())
-  if (!hasTotp) return
-
-  const hasPhone = Boolean(data.phone?.trim())
-  const hasEmail = Boolean(data.email?.trim())
-  const useSms = hasPhone
-  const useEmail = !hasPhone && hasEmail
-
-  await admin
-    .from('profiles')
-    .update({
-      mfa_enabled: useSms || useEmail,
-      mfa_method: useSms ? 'sms' : useEmail ? 'email' : null,
-      mfa_sms_enabled: useSms,
-      mfa_totp_secret: null,
-      mfa_totp_pending_secret: null,
-    })
-    .eq('id', userId)
-}
-
 async function markSessionVerified(
   supabase: Awaited<ReturnType<typeof createClient>>,
   userId: string,
@@ -425,7 +399,7 @@ async function markSessionVerified(
   }
 }
 
-/** Post-login redirect — always proceed to the app; 2FA is configured in Settings only. */
+/** Post-login redirect — send staff through enroll/verify when required. */
 export async function getStaffMfaRedirect(intendedPath: string): Promise<string> {
   const { supabase, user, profile } = await requireStaffContext()
   if (!user || !profile) return '/login'
@@ -515,6 +489,13 @@ export async function getMfaSmsStatus(): Promise<
 export async function disableMfa(): Promise<MfaActionResult> {
   const { user, profile } = await requireStaffContext()
   if (!user || !profile) return { success: false, error: 'Not signed in.' }
+
+  if (roleRequiresMfa(profile.role)) {
+    return {
+      success: false,
+      error: 'Two-factor authentication is required for your role and cannot be disabled.',
+    }
+  }
 
   const admin = createAdminClient()
   const { error } = await admin

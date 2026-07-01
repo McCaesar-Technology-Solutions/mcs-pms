@@ -1,18 +1,28 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   MFA_METHOD_LABELS,
   canEnrollMfa,
   mfaGateForRole,
   mfaRedirectPath,
+  roleRequiresMfa,
   safeMfaNext,
   userNeedsMfa,
 } from '@/lib/auth/mfa'
 import { hashOtp, hashSessionKey } from '@/lib/auth/mfa-sms'
+import * as env from '@/lib/env'
 
 describe('userNeedsMfa', () => {
   it('applies when opted in for non-privileged roles', () => {
     expect(userNeedsMfa('technician', false)).toBe(false)
     expect(userNeedsMfa('technician', true)).toBe(true)
+  })
+
+  it('requires owner/manager in production even when not enabled', () => {
+    vi.spyOn(env, 'isProd').mockReturnValue(true)
+    expect(userNeedsMfa('owner', false)).toBe(true)
+    expect(userNeedsMfa('manager', false)).toBe(true)
+    expect(userNeedsMfa('receptionist', false)).toBe(false)
+    vi.restoreAllMocks()
   })
 })
 

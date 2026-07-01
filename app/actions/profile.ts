@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
+import { requireVerifiedStaff, consumeStaffAuthError } from '@/lib/auth/staff-session'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { phoneSchema } from '@/lib/phone'
 import { z } from 'zod'
@@ -18,27 +18,17 @@ export async function updateProfilePhone(phone: string): Promise<ProfileActionRe
     return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid phone number.' }
   }
 
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return { success: false, error: 'Not signed in.' }
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .maybeSingle()
-
-  if (!profile || !['owner', 'manager', 'technician', 'receptionist'].includes(profile.role)) {
-    return { success: false, error: 'Not authorized.' }
-  }
+  const result = await requireVerifiedStaff({
+    roles: ['owner', 'manager', 'technician', 'receptionist'],
+    skipMfa: true,
+  })
+  if (!result.ok) return { success: false, error: consumeStaffAuthError(result.error) }
 
   const admin = createAdminClient()
   const { error } = await admin
     .from('profiles')
     .update({ phone: parsed.data.phone.trim() })
-    .eq('id', user.id)
+    .eq('id', result.userId)
 
   if (error) return { success: false, error: error.message }
 

@@ -4,7 +4,8 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { getProfile } from '@/lib/auth/get-profile'
+import { getVerifiedProfile } from '@/lib/auth/get-profile'
+import { consumeStaffAuthError } from '@/lib/auth/staff-session'
 import { writeAuditLog } from '@/lib/audit/log'
 import { clampLimit } from '@/lib/data/pagination'
 import { isFolioPostingBlocked } from '@/lib/folio/lock'
@@ -27,9 +28,9 @@ export async function postGuestCharge(input: unknown): Promise<FolioActionResult
     return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid charge.' }
   }
 
-  const profile = await getProfile()
+  const profile = await getVerifiedProfile()
   if (!profile?.hotel_id || !['owner', 'manager', 'receptionist'].includes(profile.role)) {
-    return { success: false, error: 'Not authorized.' }
+    return { success: false, error: consumeStaffAuthError() }
   }
 
   const supabase = await createClient()
@@ -89,7 +90,7 @@ export async function postGuestCharge(input: unknown): Promise<FolioActionResult
 }
 
 export async function getGuestFolioCharges(guestId: string, limit?: number) {
-  const profile = await getProfile()
+  const profile = await getVerifiedProfile()
   if (!profile?.hotel_id) return []
 
   const supabase = await createClient()

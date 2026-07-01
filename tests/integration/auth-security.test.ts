@@ -24,7 +24,8 @@ describe('production auth policy', () => {
     expect(roleRequiresMfa('manager')).toBe(true)
     expect(roleRequiresMfa('receptionist')).toBe(false)
     expect(roleRequiresMfa('technician')).toBe(false)
-    expect(userNeedsMfa('owner', false)).toBe(false)
+    expect(userNeedsMfa('owner', false)).toBe(true)
+    expect(userNeedsMfa('manager', false)).toBe(true)
     expect(userNeedsMfa('owner', true)).toBe(true)
   })
 

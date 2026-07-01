@@ -3,7 +3,8 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { getProfile } from '@/lib/auth/get-profile'
+import { getVerifiedProfile } from '@/lib/auth/get-profile'
+import { consumeStaffAuthError } from '@/lib/auth/staff-session'
 import { reconcileHotelBillingState } from '@/lib/billing/reconcile-hotel-billing'
 import { writeAuditLog } from '@/lib/audit/log'
 import { todayISO } from '@/lib/stays/helpers'
@@ -13,9 +14,9 @@ export type NightAuditResult =
   | { success: false; error: string }
 
 export async function runNightAudit(notes?: string): Promise<NightAuditResult> {
-  const profile = await getProfile()
+  const profile = await getVerifiedProfile()
   if (!profile?.hotel_id || !['owner', 'manager'].includes(profile.role)) {
-    return { success: false, error: 'Not authorized.' }
+    return { success: false, error: consumeStaffAuthError() }
   }
 
   const businessDate = todayISO()
@@ -98,7 +99,7 @@ export async function runNightAudit(notes?: string): Promise<NightAuditResult> {
 }
 
 export async function getRecentNightAudits(limit = 30) {
-  const profile = await getProfile()
+  const profile = await getVerifiedProfile()
   if (!profile?.hotel_id || !['owner', 'manager'].includes(profile.role)) return []
 
   const supabase = await createClient()

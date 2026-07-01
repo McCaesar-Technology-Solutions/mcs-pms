@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
-import { createClient } from '@/lib/supabase/server'
+import { loadVerifiedStaffProfile, consumeStaffAuthError } from '@/lib/auth/staff-session'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 export type ExpenseActionResult<T = void> =
@@ -19,20 +19,7 @@ const expenseSchema = z.object({
 })
 
 async function requireOwner() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return null
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('id, role, hotel_id, name')
-    .eq('id', user.id)
-    .maybeSingle()
-
-  if (!profile || profile.role !== 'owner' || !profile.hotel_id) return null
-  return profile
+  return loadVerifiedStaffProfile({ roles: ['owner'] })
 }
 
 function revalidateExpenses() {

@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { requireVerifiedStaff, consumeStaffAuthError } from '@/lib/auth/staff-session'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getComplaintEstimate } from '@/lib/data/complaint-estimates'
@@ -27,21 +28,10 @@ function revalidateEstimateViews() {
 }
 
 async function requireAssignedTechnician(complaintId: string) {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return { error: 'Not authorized.' as const }
+  const result = await requireVerifiedStaff({ roles: ['technician'] })
+  if (!result.ok) return { error: consumeStaffAuthError(result.error) }
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role, name')
-    .eq('id', user.id)
-    .maybeSingle()
-
-  if (profile?.role !== 'technician') {
-    return { error: 'Only technicians can submit estimates.' as const }
-  }
+  const { supabase, user, profile } = result
 
   const { data: complaint } = await supabase
     .from('complaints')
@@ -71,21 +61,12 @@ async function requireAssignedTechnician(complaintId: string) {
 }
 
 async function requireInvoiceViewer(complaintId: string) {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return { error: 'Not authorized.' as const }
+  const result = await requireVerifiedStaff({
+    roles: ['owner', 'manager', 'receptionist', 'technician'],
+  })
+  if (!result.ok) return { error: consumeStaffAuthError(result.error) }
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role, hotel_id')
-    .eq('id', user.id)
-    .maybeSingle()
-
-  if (!profile || !['owner', 'manager', 'receptionist', 'technician'].includes(profile.role)) {
-    return { error: 'Not authorized.' as const }
-  }
+  const { supabase, user, profile } = result
 
   const { data: complaint } = await supabase
     .from('complaints')

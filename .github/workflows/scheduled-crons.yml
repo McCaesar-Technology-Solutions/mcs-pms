@@ -11,7 +11,11 @@ on:
     - cron: '0 * * * *'
     - cron: '15 * * * *'
     - cron: '30 * * * *'
+    - cron: '0 6 * * *'
   workflow_dispatch:
+
+env:
+  CRON_AUTH: 'Authorization: Bearer ${{ secrets.CRON_SECRET }}'
 
 jobs:
   every-five-minutes:
@@ -21,12 +25,12 @@ jobs:
       - name: Drain notification outbox
         run: |
           curl -sfS \
-            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "$CRON_AUTH" \
             "${{ secrets.PRODUCTION_APP_URL }}/api/cron/notifications"
       - name: Expire reservation holds
         run: |
           curl -sfS \
-            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "$CRON_AUTH" \
             "${{ secrets.PRODUCTION_APP_URL }}/api/cron/reservation-holds"
 
   hourly-pre-arrival:
@@ -36,7 +40,7 @@ jobs:
       - name: Reservation pre-arrival reminders
         run: |
           curl -sfS \
-            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "$CRON_AUTH" \
             "${{ secrets.PRODUCTION_APP_URL }}/api/cron/reservation-pre-arrival"
 
   hourly-overstay:
@@ -46,7 +50,7 @@ jobs:
       - name: Reservation overstay check
         run: |
           curl -sfS \
-            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "$CRON_AUTH" \
             "${{ secrets.PRODUCTION_APP_URL }}/api/cron/reservation-overstay"
 
   hourly-auto-checkout-prompt:
@@ -56,5 +60,18 @@ jobs:
       - name: Auto checkout prompt
         run: |
           curl -sfS \
-            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "$CRON_AUTH" \
             "${{ secrets.PRODUCTION_APP_URL }}/api/cron/reservation-auto-checkout-prompt"
+
+  daily-readiness:
+    if: github.event.schedule == '0 6 * * *' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Health check
+        run: |
+          curl -sfS "${{ secrets.PRODUCTION_APP_URL }}/api/health"
+      - name: Readiness check
+        run: |
+          body=$(curl -sfS "${{ secrets.PRODUCTION_APP_URL }}/api/ready")
+          echo "$body"
+          echo "$body" | grep -q '"status":"ready"'

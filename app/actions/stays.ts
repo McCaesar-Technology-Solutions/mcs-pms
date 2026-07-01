@@ -32,6 +32,7 @@ import {
   finalizeReservationCheckoutPayment,
   refreshPreCheckoutPaymentStatus,
 } from '@/lib/billing/reservation-payment'
+import { requireVerifiedStaff } from '@/lib/auth/staff-session'
 import type { PaymentMethod, ReservationChannel } from '@/types'
 import { z } from 'zod'
 
@@ -57,19 +58,9 @@ const checkInStaySchema = z.object({
 })
 
 async function requireManager() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return { supabase, profile: null, userId: null }
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('id, role, hotel_id, name')
-    .eq('id', user.id)
-    .maybeSingle()
-
-  return { supabase, profile, userId: user.id }
+  const result = await requireVerifiedStaff()
+  if (!result.ok) return { supabase: result.supabase, profile: null, userId: null }
+  return { supabase: result.supabase, profile: result.profile, userId: result.userId }
 }
 
 async function getRoomNightlyRate(

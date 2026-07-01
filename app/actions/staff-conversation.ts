@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
-import { createClient } from '@/lib/supabase/server'
+import { loadVerifiedStaffProfile, consumeStaffAuthError } from '@/lib/auth/staff-session'
 import { createAdminClient } from '@/lib/supabase/admin'
 import {
   loadStaffConversationMessages,
@@ -34,18 +34,7 @@ const groupSchema = z.object({
 })
 
 async function requireStaffMessenger() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return null
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('id, role, hotel_id, name')
-    .eq('id', user.id)
-    .maybeSingle()
-
+  const profile = await loadVerifiedStaffProfile()
   if (!profile?.hotel_id || !STAFF_MESSAGING_ROLES.has(profile.role)) return null
   return profile
 }

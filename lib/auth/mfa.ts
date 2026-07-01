@@ -19,8 +19,9 @@ export function roleRequiresMfa(role: UserRole): boolean {
   return role === 'owner' || role === 'manager'
 }
 
-/** Owner/manager are encouraged to enable 2FA in Settings; gate only applies once enabled. */
-export function userNeedsMfa(_role: UserRole, mfaEnabled: boolean): boolean {
+/** Owner/manager must use 2FA in production; other roles only when opted in. */
+export function userNeedsMfa(role: UserRole, mfaEnabled: boolean): boolean {
+  if (roleRequiresMfa(role)) return true
   return mfaEnabled
 }
 

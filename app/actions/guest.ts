@@ -1,5 +1,6 @@
 'use server'
 
+import { loadVerifiedStaffProfile } from '@/lib/auth/staff-session'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { validateGuestAccessToken } from '@/lib/guest/access-token'
 import { getGuestSessionId } from '@/lib/guest-session'
@@ -465,20 +466,10 @@ export async function updateGuestPhone(phone: string): Promise<GuestActionResult
 }
 
 async function requireHotelManager(): Promise<{ hotel_id: string; role: string } | null> {
-  const { createClient } = await import('@/lib/supabase/server')
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return null
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('hotel_id, role')
-    .eq('id', user.id)
-    .maybeSingle()
-
-  if (!profile?.hotel_id || !['owner', 'manager', 'receptionist'].includes(profile.role)) return null
+  const profile = await loadVerifiedStaffProfile({
+    roles: ['owner', 'manager', 'receptionist'],
+  })
+  if (!profile?.hotel_id) return null
   return { hotel_id: profile.hotel_id, role: profile.role }
 }
 

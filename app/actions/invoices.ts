@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { randomUUID } from 'node:crypto'
-import { createClient } from '@/lib/supabase/server'
+import { requireVerifiedStaff, consumeStaffAuthError } from '@/lib/auth/staff-session'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { allocateInvoiceNumber } from '@/lib/invoices/numbering'
 import { computeInvoiceTaxesWithOption } from '@/lib/tax'
@@ -68,20 +68,10 @@ const refundSchema = z.object({
 })
 
 async function requireBillingStaff() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return null
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('id, role, hotel_id, name')
-    .eq('id', user.id)
-    .maybeSingle()
-
-  if (!profile?.hotel_id || profile.role !== 'owner') return null
-  return profile
+  const result = await requireVerifiedStaff({ roles: ['owner'] })
+  if (!result.ok) return null
+  if (!result.profile.hotel_id) return null
+  return result.profile
 }
 
 function revalidateBilling() {

@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
+import { requireVerifiedStaff } from '@/lib/auth/staff-session'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { ensureGuestPortalSlug } from '@/lib/guest-portal'
 import { ensureDefaultGuestRules } from '@/lib/data/guest-rules'
@@ -35,23 +35,9 @@ function revalidateOwnerViews() {
 }
 
 async function requireOwner() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return { supabase, profile: null, userId: null }
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('id, role, hotel_id')
-    .eq('id', user.id)
-    .maybeSingle()
-
-  if (!profile || profile.role !== 'owner') {
-    return { supabase, profile: null, userId: user.id }
-  }
-
-  return { supabase, profile, userId: user.id }
+  const result = await requireVerifiedStaff({ roles: ['owner'] })
+  if (!result.ok) return { supabase: result.supabase, profile: null, userId: null }
+  return { supabase: result.supabase, profile: result.profile, userId: result.userId }
 }
 
 function propertyCode(name: string): string {

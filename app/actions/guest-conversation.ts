@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
-import { createClient } from '@/lib/supabase/server'
+import { loadVerifiedStaffProfile } from '@/lib/auth/staff-session'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getGuestFromSession } from '@/app/actions/guest'
 import { guestNeedsRulesAcceptance } from '@/app/actions/guest-rules'
@@ -60,18 +60,7 @@ async function requireGuestWithRules(): Promise<
 }
 
 async function requireFrontDeskProfile() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return null
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
-    .maybeSingle()
-
+  const profile = await loadVerifiedStaffProfile()
   if (!profile?.hotel_id || !FRONT_DESK_ROLES.has(profile.role)) return null
   return profile
 }

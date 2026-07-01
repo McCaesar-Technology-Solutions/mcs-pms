@@ -108,41 +108,8 @@ export async function signIn(
     return { success: false, error: 'Invalid credentials. Please try again.' }
   }
 
-  // Clear stale "required MFA" flags left from the old policy (enabled but never set up).
-  const admin = createAdminClient()
-  const { data: mfaRow } = await admin
-    .from('profiles')
-    .select('mfa_enabled, mfa_method, mfa_totp_secret, phone, email')
-    .eq('id', data.user.id)
-    .maybeSingle()
-
-  // Legacy authenticator MFA is migrated to SMS (or disabled) on sign-in.
-  if (mfaRow) {
-    const { migrateLegacyTotpMfa } = await import('@/app/actions/mfa')
-    await migrateLegacyTotpMfa(data.user.id)
-
-    const { data: refreshed } = await admin
-      .from('profiles')
-      .select('mfa_enabled, mfa_method, phone, email')
-      .eq('id', data.user.id)
-      .maybeSingle()
-
-    const row = refreshed ?? mfaRow
-    const incompleteSms = row.mfa_enabled && row.mfa_method === 'sms' && !row.phone?.trim()
-    const incompleteEmail = row.mfa_enabled && row.mfa_method === 'email' && !row.email?.trim()
-    if (incompleteSms || incompleteEmail || (row.mfa_enabled && !row.mfa_method)) {
-      await admin
-        .from('profiles')
-        .update({
-          mfa_enabled: false,
-          mfa_method: null,
-          mfa_sms_enabled: false,
-          mfa_totp_secret: null,
-          mfa_totp_pending_secret: null,
-        })
-        .eq('id', data.user.id)
-    }
-  }
+  const { migrateLegacyTotpMfa } = await import('@/lib/auth/migrate-legacy-totp')
+  await migrateLegacyTotpMfa(data.user.id)
 
   const redirectTo = await staffRedirectAfterAuth(ROLE_HOME[profile.role])
   return { success: true, role: profile.role, redirectTo }

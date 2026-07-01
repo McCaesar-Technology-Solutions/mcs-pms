@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { loadVerifiedStaffProfile } from '@/lib/auth/staff-session'
 import type { Profile } from '@/types'
 
 export async function getSessionUser() {
@@ -26,4 +27,9 @@ export async function getProfile(): Promise<Profile | null> {
   if (error || !data) return null
 
   return data as Profile
+}
+
+/** Staff profile with MFA verified — use in server actions. */
+export async function getVerifiedProfile(): Promise<Profile | null> {
+  return loadVerifiedStaffProfile()
 }

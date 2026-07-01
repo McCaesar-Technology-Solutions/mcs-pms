@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
-import { createClient } from '@/lib/supabase/server'
+import { requireVerifiedStaff } from '@/lib/auth/staff-session'
 import { checkInStay } from '@/app/actions/stays'
 import { findAvailableRooms, roomHasClash } from '@/lib/data/occupancy'
 import { calculateStayTotal, type RateType } from '@/lib/pricing/stay-totals'
@@ -67,19 +67,9 @@ const VALID_CHANNELS: ReservationChannel[] = [
 ]
 
 async function requireManager() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return { supabase, profile: null }
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('id, role, hotel_id, name')
-    .eq('id', user.id)
-    .maybeSingle()
-
-  return { supabase, profile }
+  const result = await requireVerifiedStaff()
+  if (!result.ok) return { supabase: result.supabase, profile: null }
+  return { supabase: result.supabase, profile: result.profile }
 }
 
 function revalidateReservationViews() {

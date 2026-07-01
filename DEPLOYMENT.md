@@ -106,28 +106,23 @@ CRON_SECRET=long-random-string-for-vercel-cron
 
 ### 2. Schema and migrations
 
-Migrations live in `supabase/migrations/` (`001` through `038`). Every tenant table has RLS enabled.
+Migrations live in `supabase/migrations/` (`001` through **`051`**). Every tenant table has RLS enabled.
 
-| Migration | Purpose |
-|-----------|---------|
-| `001`–`004` | Core schema, RLS, rooms |
-| `005`–`006` | Multi-property, owner auth |
-| `007` | Complaint estimates + realtime for complaints |
-| `008` | Room categories |
-| `009` | Profile phones |
-| `010`–`011` | Invoice numbering |
-| `012` | Notification log |
-| `013` | Two-step complaint approval (`approval_stage`) |
-| `014` | Technician profile visibility (owner phone privacy) |
-| `015` | Realtime publication for reservations, guests, invoices, etc. |
-| `016` | `staff_invites.phone` for technician invites |
-| `017` | `REPLICA IDENTITY FULL` for richer realtime UPDATE payloads |
-| `018` | Receptionist role: role constraints + front-desk RLS policies |
-| `019` | SMS OTP two-factor authentication tables + `profiles.mfa_sms_enabled` |
-| `020`–`037` | Guest portal, complaints, housekeeping, GRA, portal phase 2 |
-| **`038`** | **Production hardening**: rate-limit RLS, invite expiry, manager invoice read-only, guest folio, night audit, payment records, notification outbox, complaint SLA, `no_show` status |
+Run `npm run check:migrations` locally to verify the repo has a contiguous `001`–`051` sequence before deploy.
 
-**Apply migration `038` before production go-live.**
+| Range | Purpose |
+|-------|---------|
+| `001`–`018` | Core schema, RLS, housekeeping, categories, MFA SMS, receptionist role, realtime |
+| `019`–`027` | MFA email, notification prefs, VAT/property images |
+| `028`–`037` | Guest portal, rules, pre-arrival, rate limits, production hardening base |
+| **`038`** | **Production hardening**: rate-limit RLS, invite expiry, folio, night audit, notification outbox |
+| `039`–`044` | Partial payments, iCal channels, SaaS onboarding, housekeeping flow, reservation payments |
+| `045`–`050` | Guest stay chat, conversations realtime, ops features, profile photos, message editing |
+| **`051`** | **Reservation lifecycle v2**: expanded statuses, holds, no-show/overstay settings, folio lock |
+
+**Apply all migrations before production go-live.** See [docs/GO-LIVE.md](docs/GO-LIVE.md) for the full checklist and SQL verification queries.
+
+After `051`, enable lifecycle v2 per hotel in Owner → Settings when the property is ready (defaults to off).
 
 **Fresh database** — Supabase CLI:
 
@@ -197,25 +192,35 @@ Requirements:
 - Flow: sign in → add phone if missing (`/enroll-mfa`) → enter SMS code (`/verify-mfa`) → dashboard.
 - **Owner and manager MFA is mandatory in production** (`NODE_ENV=production`).
 
-### 7. Vercel Cron jobs
+### 7. Vercel Cron jobs (daily)
 
-Configure `CRON_SECRET` in Vercel env vars. Vercel Cron sends `Authorization: Bearer <CRON_SECRET>` to:
+Configure `CRON_SECRET` in Vercel env vars. Vercel Cron sends `Authorization: Bearer <CRON_SECRET>` to routes in `vercel.json`:
+
+| Route | Schedule (UTC) | Purpose |
+|-------|----------------|---------|
+| `/api/cron/cleanup` | Daily 03:00 | Purge stale rate limits and MFA challenges |
+| `/api/cron/reservation-no-show` | Daily 00:05 | Mark no-shows (lifecycle v2) |
+| `/api/cron/reservation-archive` | Daily 04:30 | Archive completed stays |
+
+**Hobby plan limit:** Vercel Hobby only allows cron jobs that run **once per day**. Sub-daily jobs run via [`.github/workflows/scheduled-crons.yml`](.github/workflows/scheduled-crons.yml):
 
 | Route | Schedule | Purpose |
 |-------|----------|---------|
-| `/api/cron/cleanup` | Daily 03:00 UTC | Purge stale rate limits and MFA challenges |
+| `/api/cron/notifications` | Every 5 min | Drain notification outbox + retries |
+| `/api/cron/reservation-holds` | Every 5 min | Expire provisional holds |
+| `/api/cron/reservation-pre-arrival` | Hourly :00 | Pre-arrival reminders |
+| `/api/cron/reservation-overstay` | Hourly :15 | Overstay detection |
+| `/api/cron/reservation-auto-checkout-prompt` | Hourly :30 | Checkout prompts |
 
-**Hobby plan limit:** Vercel Hobby only allows cron jobs that run **once per day**. Sub-daily jobs are handled by [`.github/workflows/scheduled-crons.yml`](.github/workflows/scheduled-crons.yml) instead:
+Add GitHub repository secrets **`CRON_SECRET`** (same value as Vercel) and **`PRODUCTION_APP_URL`** (e.g. `https://mcs-pms.vercel.app`). Test manually: Actions → Scheduled crons → Run workflow.
 
-| Route | Schedule | Purpose |
-|-------|----------|---------|
-| `/api/cron/notifications` | Every 5 min | Drain notification outbox |
+Post-deploy: `PRODUCTION_APP_URL=https://your-app.vercel.app npm run smoke:prod`
 
-Add GitHub repository secrets **`CRON_SECRET`** (same value as Vercel) and **`PRODUCTION_APP_URL`** (e.g. `https://your-app.vercel.app`). On Vercel Pro, you may move these back into `vercel.json` if you prefer.
+On Vercel Pro, you may move sub-daily routes into `vercel.json` if you prefer.
 
 ### 8. Production seed policy
 
-**Never run `npm run seed` in production.** The seed script exits when `NODE_ENV=production`. Create the owner account via controlled signup (`ALLOW_PUBLIC_SIGNUP=true` only if needed) or Supabase Auth admin.
+**Never run `npm run seed` in production.** The seed script exits when `NODE_ENV=production`. Create the owner account via controlled signup (set `DISABLE_PUBLIC_SIGNUP=true` after the first owner) or Supabase Auth admin.
 
 ## Authentication Setup
 
@@ -477,16 +482,16 @@ git push origin v1.0.0
 
 ## Security Checklist
 
-- [ ] Apply migration `038` on Supabase
+- [ ] Apply migrations `001`–`051` on Supabase ([GO-LIVE.md](docs/GO-LIVE.md))
 - [ ] Set `MFA_OTP_SECRET`, `GUEST_SESSION_SECRET`, `CRON_SECRET`
-- [ ] Set `NEXT_PUBLIC_APP_URL` to production domain
-- [ ] Configure SMS (Arkesel) or email (Resend) provider
-- [ ] Disable public signup unless required (`ALLOW_PUBLIC_SIGNUP`)
+- [ ] Set `NEXT_PUBLIC_APP_URL` to production domain (no trailing spaces)
+- [ ] Configure SMS (Arkesel) or email (Resend with verified domain)
+- [ ] Set `DISABLE_PUBLIC_SIGNUP=true` after first owner exists
+- [ ] Configure GitHub secrets `CRON_SECRET` + `PRODUCTION_APP_URL`
 - [ ] Never run seed script against production database
 - [ ] Enable HTTPS (automatic on Vercel)
-- [ ] Set security headers in next.config.mjs
 - [ ] Configure `SENTRY_DSN` for error monitoring
-- [ ] Verify `/api/health` and `/api/ready` after deploy
+- [ ] Verify `/api/health` and `/api/ready` after deploy (`npm run smoke:prod`)
 
 ## Troubleshooting
 

@@ -4,7 +4,8 @@ import { randomUUID } from 'node:crypto'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { getProfile } from '@/lib/auth/get-profile'
+import { getVerifiedProfile } from '@/lib/auth/get-profile'
+import { consumeStaffAuthError } from '@/lib/auth/staff-session'
 import { canOwnerEraseGuestData, canStaffExportGuestData } from '@/lib/auth/tenant-access'
 import { writeAuditLog } from '@/lib/audit/log'
 
@@ -15,9 +16,9 @@ export type GuestPrivacyResult =
   | { success: false; error: string }
 
 export async function exportGuestData(guestId: string): Promise<GuestPrivacyResult> {
-  const profile = await getProfile()
+  const profile = await getVerifiedProfile()
   if (!profile?.hotel_id || !canStaffExportGuestData(profile.role)) {
-    return { success: false, error: 'Not authorized.' }
+    return { success: false, error: consumeStaffAuthError() }
   }
 
   const admin = createAdminClient()
@@ -63,9 +64,9 @@ export async function exportGuestData(guestId: string): Promise<GuestPrivacyResu
 }
 
 export async function eraseGuestPersonalData(guestId: string): Promise<GuestPrivacyResult> {
-  const profile = await getProfile()
+  const profile = await getVerifiedProfile()
   if (!profile?.hotel_id || !canOwnerEraseGuestData(profile.role)) {
-    return { success: false, error: 'Only the property owner can erase guest data.' }
+    return { success: false, error: consumeStaffAuthError('Only the property owner can erase guest data.') }
   }
 
   const admin = createAdminClient()

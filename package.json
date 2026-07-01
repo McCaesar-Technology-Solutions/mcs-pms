@@ -9,6 +9,8 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "check:migrations": "node scripts/check-migrations.mjs",
+    "smoke:prod": "node scripts/smoke-prod.mjs",
     "seed": "node scripts/seed.mjs"
   },
   "dependencies": {

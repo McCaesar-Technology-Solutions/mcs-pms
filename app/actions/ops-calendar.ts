@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
-import { createClient } from '@/lib/supabase/server'
+import { requireVerifiedStaff, consumeStaffAuthError } from '@/lib/auth/staff-session'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 export type OpsCalendarActionResult<T = void> =
@@ -20,25 +20,10 @@ const eventSchema = z.object({
 })
 
 async function requireOpsStaff() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return null
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('id, role, hotel_id')
-    .eq('id', user.id)
-    .maybeSingle()
-
-  if (
-    !profile?.hotel_id ||
-    !['owner', 'manager', 'receptionist'].includes(profile.role)
-  ) {
-    return null
-  }
-  return profile
+  const result = await requireVerifiedStaff({ roles: ['owner', 'manager', 'receptionist'] })
+  if (!result.ok) return null
+  if (!result.profile.hotel_id) return null
+  return result.profile
 }
 
 function revalidateCalendar() {

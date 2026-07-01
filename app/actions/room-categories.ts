@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
+import { requireVerifiedStaff } from '@/lib/auth/staff-session'
 import { createRoomCategorySchema, updateRoomCategorySchema } from '@/lib/validations'
 import { writeAuditLog, moneyDelta } from '@/lib/audit/log'
 
@@ -17,19 +17,9 @@ function revalidateRoomViews() {
 }
 
 async function requireStaff() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return { supabase, profile: null }
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('id, role, hotel_id, name')
-    .eq('id', user.id)
-    .maybeSingle()
-
-  return { supabase, profile }
+  const result = await requireVerifiedStaff()
+  if (!result.ok) return { supabase: result.supabase, profile: null }
+  return { supabase: result.supabase, profile: result.profile }
 }
 
 export async function createRoomCategory(input: {
