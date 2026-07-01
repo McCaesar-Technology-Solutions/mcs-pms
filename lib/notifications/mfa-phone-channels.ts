@@ -35,6 +35,8 @@ export function resolveMfaPhoneChannel(
     return requested
   }
 
+  // Prefer SMS for one-time codes — more reliable than WhatsApp for MFA.
+  if (available.includes('sms')) return 'sms'
   if (available.includes('whatsapp')) return 'whatsapp'
   return available[0]!
 }

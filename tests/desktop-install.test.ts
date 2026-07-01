@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isMobileUserAgent, isSafariDesktop } from '@/lib/pwa/desktop-install'
+import { isMobileUserAgent, isSafariDesktop, detectDesktopBrowser, manualInstallSteps } from '@/lib/pwa/desktop-install'
 
 describe('isSafariDesktop', () => {
   it('detects Safari on Mac', () => {
@@ -33,5 +33,24 @@ describe('isMobileUserAgent', () => {
 
   it('allows desktop user agents', () => {
     expect(isMobileUserAgent(desktopChrome)).toBe(false)
+  })
+})
+
+describe('detectDesktopBrowser', () => {
+  it('detects Chrome on Mac', () => {
+    const ua =
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    expect(detectDesktopBrowser(ua)).toBe('chrome')
+  })
+
+  it('detects Edge', () => {
+    const ua =
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0'
+    expect(detectDesktopBrowser(ua)).toBe('edge')
+  })
+
+  it('returns manual steps for Chrome', () => {
+    expect(manualInstallSteps('chrome').length).toBeGreaterThan(0)
+    expect(manualInstallSteps('chrome').join(' ')).toMatch(/menu/i)
   })
 })

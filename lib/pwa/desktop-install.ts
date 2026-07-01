@@ -55,3 +55,46 @@ export function isSafariDesktop(userAgent?: string): boolean {
 export function shouldShowDesktopInstallHint(): boolean {
   return isDesktopEnvironment() && !isStandaloneApp() && !isInstallHintDismissed()
 }
+
+export type DesktopBrowser = 'chrome' | 'edge' | 'safari' | 'firefox' | 'other'
+
+export function detectDesktopBrowser(userAgent?: string): DesktopBrowser {
+  const ua = userAgent ?? (typeof navigator !== 'undefined' ? navigator.userAgent : '')
+  if (!ua) return 'other'
+  if (/Edg\//.test(ua)) return 'edge'
+  if (/Firefox\//.test(ua)) return 'firefox'
+  if (/Macintosh/.test(ua) && /Safari/.test(ua) && !/Chrome|Chromium|Edg/.test(ua)) return 'safari'
+  if (/Chrome\//.test(ua)) return 'chrome'
+  return 'other'
+}
+
+/** When the browser does not fire beforeinstallprompt (common on first visit). */
+export function manualInstallSteps(browser: DesktopBrowser): string[] {
+  switch (browser) {
+    case 'chrome':
+      return [
+        'Use Chrome in a normal window (not Incognito).',
+        'Open the ⋮ menu (top-right) → Cast, save, and share → Install page as app.',
+        'Some Chrome versions show a monitor ⊕ icon at the right end of the address bar instead.',
+        'If nothing appears, sign in once and revisit — Chrome often enables install after you use the site.',
+      ]
+    case 'edge':
+      return [
+        'Open the ⋮ menu (top-right) → Apps → Install this site as an app.',
+        'Or use the app icon at the right end of the address bar if you see it.',
+        'Sign in once and revisit if install is not listed yet.',
+      ]
+    case 'safari':
+      return ['Choose File → Add to Dock to open MOJO in its own window.']
+    case 'firefox':
+      return [
+        'Firefox does not support install-from-address-bar like Chrome.',
+        'Use Chrome or Edge on desktop, or bookmark this page for quick access.',
+      ]
+    default:
+      return [
+        'Use Chrome or Edge on desktop for the best install experience.',
+        'Look in the browser menu for Install app or Install this site.',
+      ]
+  }
+}

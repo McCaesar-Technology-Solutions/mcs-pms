@@ -3,29 +3,48 @@
 import { useEffect, useState } from 'react'
 import { Download, X } from 'lucide-react'
 import {
+  detectDesktopBrowser,
   dismissInstallHint,
-  isSafariDesktop,
+  manualInstallSteps,
   shouldShowDesktopInstallHint,
   type BeforeInstallPromptEvent,
 } from '@/lib/pwa/desktop-install'
 
+type PromptState = 'waiting' | 'ready' | 'manual'
+
+const PROMPT_WAIT_MS = 3000
+
 export function DesktopInstallHint() {
   const [visible, setVisible] = useState(false)
+  const [promptState, setPromptState] = useState<PromptState>('waiting')
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [installing, setInstalling] = useState(false)
+  const browser = detectDesktopBrowser()
 
   useEffect(() => {
     if (!shouldShowDesktopInstallHint()) return
 
     setVisible(true)
 
+    let promptReceived = false
+
     function onBeforeInstallPrompt(e: Event) {
       e.preventDefault()
+      promptReceived = true
       setDeferredPrompt(e as BeforeInstallPromptEvent)
+      setPromptState('ready')
     }
 
     window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt)
-    return () => window.removeEventListener('beforeinstallprompt', onBeforeInstallPrompt)
+
+    const timer = window.setTimeout(() => {
+      if (!promptReceived) setPromptState('manual')
+    }, PROMPT_WAIT_MS)
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onBeforeInstallPrompt)
+      window.clearTimeout(timer)
+    }
   }, [])
 
   async function handleInstall() {
@@ -50,8 +69,8 @@ export function DesktopInstallHint() {
 
   if (!visible) return null
 
-  const canInstall = !!deferredPrompt
-  const safariDesktop = isSafariDesktop() && !deferredPrompt
+  const steps = manualInstallSteps(browser)
+  const canInstall = promptState === 'ready' && !!deferredPrompt
 
   return (
     <div
@@ -78,20 +97,19 @@ export function DesktopInstallHint() {
               {installing ? 'Installing…' : 'Install app'}
             </button>
           </>
-        ) : safariDesktop ? (
+        ) : promptState === 'waiting' ? (
           <div>
-            <p className="font-medium text-white">Add to Dock</p>
-            <p className="mt-0.5 text-xs text-white/65">
-              In Safari, choose <span className="font-semibold text-white/80">File → Add to Dock</span>{' '}
-              to open MOJO in its own window.
-            </p>
+            <p className="font-medium text-white">Install on your computer</p>
+            <p className="mt-0.5 text-xs text-white/65">Checking install options…</p>
           </div>
         ) : (
           <div>
             <p className="font-medium text-white">Install on your computer</p>
-            <p className="mt-0.5 text-xs text-white/65">
-              Click the install icon in your browser&apos;s address bar to add MOJO to your desktop.
-            </p>
+            <ol className="mt-2 list-decimal space-y-1 pl-4 text-xs text-white/65">
+              {steps.map((step) => (
+                <li key={step}>{step}</li>
+              ))}
+            </ol>
           </div>
         )}
       </div>

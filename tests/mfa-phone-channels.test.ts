@@ -58,6 +58,10 @@ describe('resolveMfaPhoneChannel', () => {
     expect(result).toEqual({ error: 'WhatsApp verification is not available. Try SMS instead.' })
   })
 
+  it('defaults to SMS when both channels are available', () => {
+    expect(resolveMfaPhoneChannel()).toBe('sms')
+  })
+
   it('labels channels for user-facing copy', () => {
     expect(mfaPhoneChannelLabel('sms')).toBe('SMS')
     expect(mfaPhoneChannelLabel('whatsapp')).toBe('WhatsApp')
