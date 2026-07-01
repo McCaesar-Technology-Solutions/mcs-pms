@@ -110,7 +110,12 @@ export default async function DashboardPage({
       <div className="page-content-stack page-shell--after-hero">
         <RoleWayfindingPanel role="owner" />
         <section className="dashboard-section dashboard-section--compact">
-          <FrontDeskOpsSection routePrefix="/owner" opsDateParam={opsDateParam} title="Property operations" />
+          <FrontDeskOpsSection
+            routePrefix="/owner"
+            opsDateParam={opsDateParam}
+            title="Property operations"
+            initialContext={frontDesk}
+          />
         </section>
 
         <PageTabShell

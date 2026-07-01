@@ -105,7 +105,8 @@ export function getTodayArrivals(
   return reservations
     .filter(
       (r) =>
-        (ARRIVING_STATUSES as readonly string[]).includes(r.status) && r.checkInDate === today,
+        r.checkInDate === today &&
+        ['provisional', 'confirmed', 'pre_arrival', 'checked_in'].includes(r.status),
     )
     .sort((a, b) => a.guestName.localeCompare(b.guestName))
 }

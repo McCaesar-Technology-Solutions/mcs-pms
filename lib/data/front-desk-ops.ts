@@ -1,10 +1,13 @@
 import {
-  getTodayArrivals,
   getTodayDepartures,
   type TodayOperations,
 } from '@/lib/data/overview'
+import { isOpsDateToday } from '@/lib/dates/ops-date'
 import { OPEN_BOOKING_STATUSES } from '@/lib/reservations/lifecycle'
 import type { DbRoom, DbRoomStatus, Reservation, ReservationPaymentStatus } from '@/types'
+
+const ARRIVING_FOR_OPS = ['provisional', 'confirmed', 'pre_arrival', 'checked_in'] as const
+const IN_HOUSE_NOW = ['checked_in', 'overstay', 'checkout_in_progress'] as const
 
 export interface ExtendedTodayOperations extends TodayOperations {
   dirtyRooms: number
@@ -54,22 +57,36 @@ function isSecuredPayment(status: ReservationPaymentStatus, depositAmount: numbe
   return false
 }
 
-function activeStayStatus(status: string): boolean {
-  return (OPEN_BOOKING_STATUSES as readonly string[]).includes(status)
+export function countGuestsInHouseNow(reservations: Reservation[]): number {
+  return reservations.filter((r) =>
+    (IN_HOUSE_NOW as readonly string[]).includes(r.status),
+  ).length
 }
 
-/** Guests in house on a given business date. */
+/** Guests in house on a business date (night-audit style for past/future dates). */
 export function countInHouseOnDate(reservations: Reservation[], date: string): number {
   return reservations.filter(
     (r) =>
-      activeStayStatus(r.status) &&
+      (OPEN_BOOKING_STATUSES as readonly string[]).includes(r.status) &&
       r.checkInDate <= date &&
       r.checkOutDate > date,
   ).length
 }
 
+export function countGuestsForOpsDate(reservations: Reservation[], date: string): number {
+  return isOpsDateToday(date)
+    ? countGuestsInHouseNow(reservations)
+    : countInHouseOnDate(reservations, date)
+}
+
 export function getArrivalsForDate(reservations: Reservation[], date: string): Reservation[] {
-  return getTodayArrivals(reservations, date)
+  return reservations
+    .filter(
+      (r) =>
+        r.checkInDate === date &&
+        (ARRIVING_FOR_OPS as readonly string[]).includes(r.status),
+    )
+    .sort((a, b) => a.guestName.localeCompare(b.guestName))
 }
 
 export function getDeparturesForDate(reservations: Reservation[], date: string): Reservation[] {
@@ -97,7 +114,7 @@ export function computeExtendedTodayOperations(
   date: string,
 ): ExtendedTodayOperations {
   const base: TodayOperations = {
-    guestsInHouse: countInHouseOnDate(reservations, date),
+    guestsInHouse: countGuestsForOpsDate(reservations, date),
     arrivalsToday: getArrivalsForDate(reservations, date).length,
     departuresToday: getDeparturesForDate(reservations, date).length,
   }

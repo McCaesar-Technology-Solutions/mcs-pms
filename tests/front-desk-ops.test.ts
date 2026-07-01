@@ -141,17 +141,17 @@ describe('front desk ops', () => {
   })
 
   it('counts prepaid arrivals', () => {
-    expect(countPrepaidArrivals(reservations, '2026-06-15')).toBe(1)
+    expect(countPrepaidArrivals(reservations, '2026-06-15')).toBe(2)
   })
 
   it('computes extended ops metrics', () => {
     const ops = computeExtendedTodayOperations(rooms, reservations, 2, 3, '2026-06-15')
     expect(ops.guestsInHouse).toBe(2)
-    expect(ops.arrivalsToday).toBe(1)
+    expect(ops.arrivalsToday).toBe(2)
     expect(ops.dirtyRooms).toBe(1)
     expect(ops.guestRequests).toBe(2)
     expect(ops.unreadMessages).toBe(3)
-    expect(ops.prepaidArrivals).toBe(1)
+    expect(ops.prepaidArrivals).toBe(2)
     expect(ops.vacantRooms).toBe(1)
   })
 
@@ -160,6 +160,6 @@ describe('front desk ops', () => {
     const summary = computeFloorSummary(6, rooms.filter((r) => r.floor === 6), signals)
     expect(summary.occupied).toBe(1)
     expect(summary.dirty).toBe(1)
-    expect(summary.arrivals).toBe(0)
+    expect(summary.arrivals).toBe(1)
   })
 })

@@ -146,7 +146,11 @@ export default async function ManagerDashboardPage({
       <div className="page-content-stack page-shell--after-hero">
         <RoleWayfindingPanel role="manager" />
         <section className="dashboard-section dashboard-section--compact">
-          <FrontDeskOpsSection routePrefix="/manager" opsDateParam={opsDateParam} />
+          <FrontDeskOpsSection
+            routePrefix="/manager"
+            opsDateParam={opsDateParam}
+            initialContext={frontDesk}
+          />
         </section>
       <LivePageTabShell
           hashToTab={MANAGER_HASH_TO_TAB}

@@ -1,6 +1,7 @@
 import { getProfile } from '@/lib/auth/get-profile'
 import { parseOpsDate } from '@/lib/dates/ops-date'
 import { countUnreadGuestConversations } from '@/lib/data/guest-conversations'
+import { countUnreadStaffConversations } from '@/lib/data/staff-conversations'
 import {
   buildRoomBoardSignals,
   computeExtendedTodayOperations,
@@ -28,13 +29,16 @@ export async function loadFrontDeskOpsContext(
   const opsDate = parseOpsDate(opsDateParam)
   const hotelId = profile.hotel_id
 
-  const [{ dbRooms, reservations }, guestRequests, unreadMessages] = await Promise.all([
-    getDashboardData(),
-    loadHotelGuestRequests(hotelId),
-    countUnreadGuestConversations(hotelId),
-  ])
+  const [{ dbRooms, reservations }, guestRequests, unreadGuestMessages, unreadTeamMessages] =
+    await Promise.all([
+      getDashboardData(),
+      loadHotelGuestRequests(hotelId),
+      countUnreadGuestConversations(hotelId),
+      countUnreadStaffConversations(hotelId, profile.id),
+    ])
 
   const pendingRequests = guestRequests.filter((r) => r.status === 'pending').length
+  const unreadMessages = unreadGuestMessages + unreadTeamMessages
   const signals = buildRoomBoardSignals(dbRooms, reservations, opsDate)
   const ops = computeExtendedTodayOperations(
     dbRooms,

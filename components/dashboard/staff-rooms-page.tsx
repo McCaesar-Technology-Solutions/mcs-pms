@@ -1,7 +1,7 @@
 import { Suspense } from 'react'
 import { RoomsManager } from '@/components/dashboard/rooms-manager'
 import { PageHeader } from '@/components/dashboard/page-header'
-import { FrontDeskOpsStrip } from '@/components/dashboard/front-desk-ops-strip'
+import { FrontDeskOpsStripLive } from '@/components/dashboard/front-desk-ops-strip-live'
 import { loadRoomsPageData } from '@/lib/data/rooms-page'
 import type { StaffRoutePrefix } from '@/lib/data/front-desk-ops'
 
@@ -30,8 +30,8 @@ export async function StaffRoomsPage({
   const pageData = await loadRoomsPageData(routePrefix, params)
 
   const opsStrip = (
-    <FrontDeskOpsStrip
-      ops={pageData.ops}
+    <FrontDeskOpsStripLive
+      initialOps={pageData.ops}
       opsDate={pageData.opsDate}
       routePrefix={routePrefix}
       title="Front desk snapshot"

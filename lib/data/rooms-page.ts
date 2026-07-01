@@ -1,6 +1,7 @@
 import { getProfile } from '@/lib/auth/get-profile'
 import { parseOpsDate } from '@/lib/dates/ops-date'
 import { countUnreadGuestConversations } from '@/lib/data/guest-conversations'
+import { countUnreadStaffConversations } from '@/lib/data/staff-conversations'
 import { getDashboardData } from '@/lib/data/dashboard'
 import { buildFrontDeskOpsContext, serializeRoomSignals } from '@/lib/data/load-front-desk-ops'
 import { loadHotelGuestRequests } from '@/lib/data/guest-portal'
@@ -40,12 +41,13 @@ export async function loadRoomsPageData(
   let unreadMessages = 0
 
   if (profile?.hotel_id) {
-    const [guestRequests, unread] = await Promise.all([
+    const [guestRequests, unreadGuest, unreadTeam] = await Promise.all([
       loadHotelGuestRequests(profile.hotel_id),
       countUnreadGuestConversations(profile.hotel_id),
+      countUnreadStaffConversations(profile.hotel_id, profile.id),
     ])
     pendingRequests = guestRequests.filter((r) => r.status === 'pending').length
-    unreadMessages = unread
+    unreadMessages = unreadGuest + unreadTeam
   }
 
   const opsDate = parseOpsDate(searchParams.opsDate)

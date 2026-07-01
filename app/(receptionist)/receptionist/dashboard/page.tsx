@@ -85,7 +85,11 @@ export default async function ReceptionistDashboardPage({
       <div className="page-content-stack page-shell--after-hero">
         <RoleWayfindingPanel role="receptionist" />
         <section className="dashboard-section dashboard-section--compact">
-          <FrontDeskOpsSection routePrefix="/receptionist" opsDateParam={opsDateParam} />
+          <FrontDeskOpsSection
+            routePrefix="/receptionist"
+            opsDateParam={opsDateParam}
+            initialContext={frontDesk}
+          />
         </section>
 
         <PageTabShell
