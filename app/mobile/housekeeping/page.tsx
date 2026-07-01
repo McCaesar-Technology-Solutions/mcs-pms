@@ -16,7 +16,7 @@ export default async function MobileHousekeepingPage() {
     redirect('/technician/tasks')
   }
 
-  if (!profile.hotel_id || !['owner', 'manager'].includes(profile.role)) {
+  if (!profile.hotel_id || !['owner', 'manager', 'receptionist'].includes(profile.role)) {
     redirect('/login')
   }
 
@@ -30,7 +30,12 @@ export default async function MobileHousekeepingPage() {
     .filter((s) => s.is_active !== false)
     .map((s) => ({ id: s.id, name: s.name }))
 
-  const backHref = profile.role === 'owner' ? '/owner/dashboard' : '/manager/housekeeping'
+  const backHref =
+    profile.role === 'owner'
+      ? '/owner/dashboard'
+      : profile.role === 'receptionist'
+        ? '/receptionist/dashboard'
+        : '/manager/housekeeping'
 
   return (
     <div className="mx-auto min-h-dvh max-w-lg p-4 pb-8">
@@ -53,7 +58,7 @@ export default async function MobileHousekeepingPage() {
           tasks={tasks}
           rooms={roomOptions}
           staff={assignableStaff}
-          canManage={profile.role === 'owner' || profile.role === 'manager'}
+          canManage={['owner', 'manager', 'receptionist'].includes(profile.role)}
           currentUserId={profile.id}
         />
       </MobileRealtimeShell>

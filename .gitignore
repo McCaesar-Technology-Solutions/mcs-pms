@@ -17,3 +17,9 @@ node_modules
 .DS_Store
 *.tsbuildinfo
 .vercel
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/

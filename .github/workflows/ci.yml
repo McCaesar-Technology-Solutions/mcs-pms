@@ -32,3 +32,20 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://e2e-placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: e2e-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: e2e-service-key
+          NEXT_PUBLIC_APP_URL: http://127.0.0.1:3000
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: E2E tests
+        run: npm run test:e2e
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://e2e-placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: e2e-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: e2e-service-key
+          NEXT_PUBLIC_APP_URL: http://127.0.0.1:3000
+          CI: true

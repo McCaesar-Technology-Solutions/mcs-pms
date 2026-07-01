@@ -59,6 +59,9 @@ export default async function GuestPage({
 }
 
 function messageForError(error?: string): string {
+  if (error === 'rate_limit') {
+    return 'Too many sign-in attempts. Please wait a few minutes and try again.'
+  }
   if (error === 'expired') {
     return 'This link has expired. Please contact the front desk for a new one.'
   }

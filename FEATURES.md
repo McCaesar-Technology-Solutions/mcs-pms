@@ -56,13 +56,13 @@ The app is **production-ready as a custom PMS** for a hotel or portfolio operato
 
 | Area | State |
 |------|--------|
-| Automated tests | Vitest — 270+ unit/integration tests (`npm test`) |
+| Automated tests | Vitest (280+ tests) + Playwright E2E (`npm test`, `npm run test:e2e`) |
 | Error monitoring | Sentry via `SENTRY_DSN` (optional envelope reporter) |
 | Rate limiting | Auth, guest portal, MFA verify — DB-backed, fail-closed in prod |
 | Pagination | Default limit 100 on guests, complaints, billing lists |
 | Password reset | Done |
 | 2FA | SMS OTP — **mandatory** owner + manager in production |
-| Guest sessions | HMAC-signed tokens; room + surname entry |
+| Guest sessions | HMAC-signed tokens; `SameSite=Strict`; room + surname entry |
 | Privacy / Terms | `/privacy`, `/terms` published |
 | Migrations | Through `051` — apply all migrations; see `docs/GO-LIVE.md` |
 
@@ -71,6 +71,7 @@ Realtime updates require an **open browser tab** — not push when the app is cl
 #### 5. Partial features
 
 - **Technician housekeeping** — toast alerts only; no HK screen on `/technician/tasks`.
+- **Technician password reset** — technicians sign in with phone + synthetic email; self-serve forgot-password does not apply — re-invite via owner/manager.
 
 #### Recommended build order
 

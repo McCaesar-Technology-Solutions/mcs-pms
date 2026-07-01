@@ -1,10 +1,11 @@
 import { z } from 'zod'
 import { phoneSchema } from '@/lib/phone'
+import { newPasswordFieldSchema } from '@/lib/auth/password-policy'
 
 export const signInSchema = z
   .object({
     identifier: z.string().trim().min(1, 'Enter your email or phone number'),
-    password: z.string().min(8, 'Password must be at least 8 characters'),
+    password: z.string().min(1, 'Enter your password'),
   })
   .superRefine((data, ctx) => {
     const id = data.identifier
@@ -33,14 +34,27 @@ export const requestResetSchema = z.object({
 
 export const resetPasswordSchema = z
   .object({
-    password: z.string().min(8, 'Password must be at least 8 characters'),
-    confirm: z.string().min(8, 'Please confirm your password'),
+    password: newPasswordFieldSchema,
+    confirm: newPasswordFieldSchema,
   })
   .superRefine((data, ctx) => {
     if (data.password !== data.confirm) {
       ctx.addIssue({ code: 'custom', message: 'Passwords do not match.', path: ['confirm'] })
     }
   })
+
+function passwordsMatchRefine(
+  data: { password: string; confirmPassword: string },
+  ctx: z.RefinementCtx,
+) {
+  if (data.password !== data.confirmPassword) {
+    ctx.addIssue({
+      code: 'custom',
+      message: 'Passwords do not match.',
+      path: ['confirmPassword'],
+    })
+  }
+}
 
 export const inviteStaffSchema = z
   .object({
@@ -153,12 +167,15 @@ export const createHousekeepingTaskSchema = z.object({
   notes: z.string().max(500).optional().or(z.literal('')),
 })
 
-export const acceptInviteSchema = z.object({
-  token: z.string().uuid(),
-  name: z.string().min(2),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
-  phone: phoneSchema,
-})
+export const acceptInviteSchema = z
+  .object({
+    token: z.string().uuid(),
+    name: z.string().min(2),
+    password: newPasswordFieldSchema,
+    confirmPassword: newPasswordFieldSchema,
+    phone: phoneSchema,
+  })
+  .superRefine(passwordsMatchRefine)
 
 export const updateHotelSettingsSchema = z.object({
   hotelId: z.string().uuid(),
@@ -244,11 +261,14 @@ export const updateRoomSchema = createRoomSchema
       .optional(),
   })
 
-export const signUpOwnerSchema = z.object({
-  name: z.string().min(2, 'Your name is required'),
-  email: z.string().email('Enter a valid email'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
-})
+export const signUpOwnerSchema = z
+  .object({
+    name: z.string().min(2, 'Your name is required'),
+    email: z.string().email('Enter a valid email'),
+    password: newPasswordFieldSchema,
+    confirmPassword: newPasswordFieldSchema,
+  })
+  .superRefine(passwordsMatchRefine)
 
 export type SignInInput = z.infer<typeof signInSchema>
 export type EnrollGuestInput = z.infer<typeof enrollGuestSchema>

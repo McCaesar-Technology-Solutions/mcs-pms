@@ -5,6 +5,8 @@ import { useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { PasswordInput } from '@/components/auth/password-input'
+import { PASSWORD_MIN_LENGTH } from '@/lib/auth/password-policy'
 import { acceptInvite } from '@/app/actions/auth'
 
 function AcceptInviteForm() {
@@ -13,6 +15,7 @@ function AcceptInviteForm() {
 
   const [name, setName] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [phone, setPhone] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -28,9 +31,14 @@ function AcceptInviteForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
-    setLoading(true)
 
-    const result = await acceptInvite(token, name, password, phone)
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.')
+      return
+    }
+
+    setLoading(true)
+    const result = await acceptInvite(token, name, password, confirmPassword, phone)
     setLoading(false)
 
     if (!result.success) {
@@ -40,6 +48,8 @@ function AcceptInviteForm() {
 
     window.location.assign(result.redirectTo)
   }
+
+  const fieldClass = 'border-white/20 bg-white/10 text-white'
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
@@ -52,7 +62,7 @@ function AcceptInviteForm() {
           value={name}
           onChange={(e) => setName(e.target.value)}
           required
-          className="border-white/20 bg-white/10 text-white"
+          className={fieldClass}
         />
       </div>
 
@@ -67,7 +77,7 @@ function AcceptInviteForm() {
           onChange={(e) => setPhone(e.target.value)}
           required
           placeholder="+233 XX XXX XXXX"
-          className="border-white/20 bg-white/10 text-white"
+          className={fieldClass}
         />
       </div>
 
@@ -75,14 +85,30 @@ function AcceptInviteForm() {
         <Label htmlFor="password" className="text-white/90">
           Password
         </Label>
-        <Input
+        <PasswordInput
           id="password"
-          type="password"
+          autoComplete="new-password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
-          minLength={8}
-          className="border-white/20 bg-white/10 text-white"
+          minLength={PASSWORD_MIN_LENGTH}
+          className={fieldClass}
+        />
+        <p className="text-xs text-white/50">At least {PASSWORD_MIN_LENGTH} characters.</p>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="confirmPassword" className="text-white/90">
+          Confirm password
+        </Label>
+        <PasswordInput
+          id="confirmPassword"
+          autoComplete="new-password"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          required
+          minLength={PASSWORD_MIN_LENGTH}
+          className={fieldClass}
         />
       </div>
 

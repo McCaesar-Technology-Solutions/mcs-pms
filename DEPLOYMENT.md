@@ -154,12 +154,14 @@ Create private buckets in the Supabase dashboard (or via migration):
 
 | Bucket | Purpose |
 |--------|---------|
-| `guest-documents` | ID scans, registration forms |
-| `property-assets` | Property photos, logos |
-| `invoices` | Generated invoice PDFs |
+| `guest-id-documents` | Guest ID scans (private; service role uploads) |
+| `guest-complaint-photos` | Guest-submitted complaint photos |
+| `property-images` | Property photos, logos, profile images (public read) |
 | `complaint-invoices` | Technician-uploaded complaint invoices (PDF/image) |
 
-Access via Storage RLS policies tied to `organization_id`.
+Invoice PDFs for checkout are generated in-app (jsPDF) — there is no `invoices` storage bucket.
+
+Access private buckets via service role; `property-images` has authenticated upload policies (migration `038`).
 
 ### 4. Auth redirect URLs
 
@@ -278,48 +280,13 @@ export async function middleware(request: NextRequest) {
 
 ## Build Configuration
 
-### next.config.mjs
+Security headers and CSP are defined in the repo’s [`next.config.mjs`](next.config.mjs) (imports [`lib/security/csp.mjs`](lib/security/csp.mjs)). Images use `unoptimized: true` today for simpler Supabase Storage URLs — enable Next.js image optimization when property photo LCP becomes a priority.
 
-```javascript
-const nextConfig = {
-  // Enable React Compiler for better performance
-  reactCompiler: true,
-  
-  // Image optimization
-  images: {
-    formats: ['image/avif', 'image/webp'],
-    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
-    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
-  },
-  
-  // Static generation
-  staticPageGenerationTimeout: 120,
-  
-  // Security headers
-  async headers() {
-    return [
-      {
-        source: '/:path*',
-        headers: [
-          {
-            key: 'X-Content-Type-Options',
-            value: 'nosniff',
-          },
-          {
-            key: 'X-Frame-Options',
-            value: 'DENY',
-          },
-          {
-            key: 'X-XSS-Protection',
-            value: '1; mode=block',
-          },
-        ],
-      },
-    ]
-  },
-}
-
-export default nextConfig
+```bash
+npm run build
+npm run start   # production server locally
+npm test        # Vitest unit/integration
+npm run test:e2e  # Playwright (starts server automatically)
 ```
 
 ## Performance Optimization
@@ -327,9 +294,8 @@ export default nextConfig
 ### Build Analysis
 
 ```bash
-# Analyze bundle size
-pnpm run build
-ANALYZE=true pnpm run build
+# Analyze bundle size (optional @next/bundle-analyzer)
+npm run build
 ```
 
 ### Image Optimization
@@ -376,21 +342,7 @@ Enabled automatically - view in Vercel Dashboard:
 
 ### Error Tracking
 
-Integrate Sentry:
-```bash
-pnpm add @sentry/nextjs
-```
-
-```typescript
-// sentry.config.js
-import * as Sentry from "@sentry/nextjs"
-
-Sentry.init({
-  dsn: "your-sentry-dsn",
-  environment: process.env.NODE_ENV,
-  tracesSampleRate: 1.0,
-})
-```
+Lightweight Sentry reporting is built in when `SENTRY_DSN` is set (`lib/monitoring/sentry.ts`). Full `@sentry/nextjs` integration is optional.
 
 ### Logging
 
@@ -404,43 +356,23 @@ logger.error('Payment failed', { error: err.message })
 
 ## Continuous Deployment
 
-### GitHub Actions Workflow
+Production deploys use **Vercel** connected to the `main` branch (Git push → automatic build).
 
-Create `.github/workflows/deploy.yml`:
+CI (`.github/workflows/ci.yml`) runs on every PR and `main` push:
 
-```yaml
-name: Deploy to Vercel
+- `npm run lint`
+- `npm run check:migrations`
+- `npm run test`
+- `npm run build`
+- `npm run test:e2e` (Playwright smoke)
 
-on:
-  push:
-    branches: [main]
+Optional post-deploy smoke (manual): set GitHub secret `PRODUCTION_APP_URL`, then run the **Production smoke** workflow or:
 
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      
-      - uses: pnpm/action-setup@v2
-        with:
-          version: 8
-      
-      - uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-          cache: 'pnpm'
-      
-      - run: pnpm install
-      - run: pnpm run build
-      - run: pnpm run test
-      
-      - uses: vercel/action@main
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          production: true
+```bash
+PRODUCTION_APP_URL=https://your-app.vercel.app npm run smoke:prod
 ```
+
+No separate `deploy.yml` is required when Vercel Git integration handles deploys.
 
 ## Domain Configuration
 
@@ -505,7 +437,8 @@ vercel deploy --prod --force
 vercel logs --prod
 
 # Test locally first
-pnpm run build
+npm run build
+npm run test:e2e
 ```
 
 ### Performance Issues

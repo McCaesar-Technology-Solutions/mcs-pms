@@ -1,5 +1,8 @@
 'use client'
 
+import { useEffect } from 'react'
+import { captureException } from '@/lib/monitoring/sentry'
+
 export default function GlobalError({
   error,
   reset,
@@ -7,6 +10,11 @@ export default function GlobalError({
   error: Error & { digest?: string }
   reset: () => void
 }) {
+  useEffect(() => {
+    console.error(error)
+    captureException(error, { digest: error.digest, boundary: 'app/global-error' })
+  }, [error])
+
   return (
     <html lang="en">
       <body className="flex min-h-dvh flex-col items-center justify-center bg-[#22124c] px-6 text-center text-white">
@@ -17,7 +25,7 @@ export default function GlobalError({
           <p className="font-serif text-4xl font-semibold text-[#d4a62e]">MOJO</p>
           <h1 className="mt-4 text-xl font-semibold">Application error</h1>
           <p className="mt-2 text-sm text-white/70">
-            {error.message || 'A critical error occurred.'}
+            A critical error occurred. Please reload the page or try again later.
           </p>
           <button
             type="button"

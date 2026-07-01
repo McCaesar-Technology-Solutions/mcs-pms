@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeEach, afterEach } from 'vitest'
 import {
   createGuestSessionToken,
+  guestSessionCookieOptions,
   parseGuestSessionToken,
 } from '@/lib/guest-session'
 
@@ -42,5 +43,13 @@ describe('guest session tokens', () => {
 
   it('rejects a raw guest id (legacy enter route bug)', async () => {
     expect(await parseGuestSessionToken('550e8400-e29b-41d4-a716-446655440000')).toBeNull()
+  })
+
+  it('uses strict same-site cookies scoped to /guest', () => {
+    const expiresAt = new Date(Date.now() + 60_000)
+    const opts = guestSessionCookieOptions(expiresAt)
+    expect(opts.sameSite).toBe('strict')
+    expect(opts.path).toBe('/guest')
+    expect(opts.httpOnly).toBe(true)
   })
 })

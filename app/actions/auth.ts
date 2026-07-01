@@ -189,6 +189,7 @@ export async function signUpOwner(input: {
   name: string
   email: string
   password: string
+  confirmPassword: string
 }): Promise<AuthActionResult> {
   if (!isPublicSignupAllowed()) {
     return {
@@ -283,9 +284,10 @@ export async function acceptInvite(
   token: string,
   name: string,
   password: string,
+  confirmPassword: string,
   phone: string,
 ): Promise<AuthActionResult> {
-  const parsed = acceptInviteSchema.safeParse({ token, name, password, phone })
+  const parsed = acceptInviteSchema.safeParse({ token, name, password, confirmPassword, phone })
   if (!parsed.success) {
     return { success: false, error: 'Please check your details and try again.' }
   }

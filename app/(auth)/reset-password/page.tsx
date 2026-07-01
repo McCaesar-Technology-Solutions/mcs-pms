@@ -3,8 +3,9 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { PasswordInput } from '@/components/auth/password-input'
+import { PASSWORD_MIN_LENGTH } from '@/lib/auth/password-policy'
 import { updatePassword } from '@/app/actions/auth'
 
 export default function ResetPasswordPage() {
@@ -18,8 +19,13 @@ export default function ResetPasswordPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
-    setLoading(true)
 
+    if (password !== confirm) {
+      setError('Passwords do not match.')
+      return
+    }
+
+    setLoading(true)
     const result = await updatePassword(password, confirm)
     setLoading(false)
 
@@ -30,6 +36,8 @@ export default function ResetPasswordPage() {
     setDone(true)
     setTimeout(() => router.push('/login?reset=success'), 1500)
   }
+
+  const fieldClass = 'border-white/20 bg-white/10 text-white'
 
   return (
     <div className="flex min-h-dvh items-center justify-center bg-[#22124C] px-4 py-12">
@@ -54,31 +62,30 @@ export default function ResetPasswordPage() {
               <Label htmlFor="password" className="text-white/90">
                 New password
               </Label>
-              <Input
+              <PasswordInput
                 id="password"
-                type="password"
                 autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                minLength={8}
-                className="border-white/20 bg-white/10 text-white"
+                minLength={PASSWORD_MIN_LENGTH}
+                className={fieldClass}
               />
+              <p className="text-xs text-white/50">At least {PASSWORD_MIN_LENGTH} characters.</p>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="confirm" className="text-white/90">
                 Confirm password
               </Label>
-              <Input
+              <PasswordInput
                 id="confirm"
-                type="password"
                 autoComplete="new-password"
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}
                 required
-                minLength={8}
-                className="border-white/20 bg-white/10 text-white"
+                minLength={PASSWORD_MIN_LENGTH}
+                className={fieldClass}
               />
             </div>
 

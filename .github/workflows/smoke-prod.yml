@@ -1,0 +1,25 @@
+name: Production smoke
+
+on:
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Smoke test production
+        env:
+          PRODUCTION_APP_URL: ${{ secrets.PRODUCTION_APP_URL }}
+        run: |
+          if [ -z "$PRODUCTION_APP_URL" ]; then
+            echo "Set PRODUCTION_APP_URL in repository secrets"
+            exit 1
+          fi
+          npm run smoke:prod
