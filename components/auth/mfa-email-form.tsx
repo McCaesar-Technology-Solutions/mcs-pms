@@ -41,7 +41,7 @@ export function MfaEmailForm({ nextPath, mode }: MfaEmailFormProps) {
   }, [])
 
   useEffect(() => {
-    let cancelled = false
+    const cancelled = false
 
     async function init() {
       try {

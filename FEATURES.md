@@ -56,7 +56,7 @@ The app is **production-ready as a custom PMS** for a hotel or portfolio operato
 
 | Area | State |
 |------|--------|
-| Automated tests | Vitest — 130+ unit/integration tests (`npm test`) |
+| Automated tests | Vitest — 270+ unit/integration tests (`npm test`) |
 | Error monitoring | Sentry via `SENTRY_DSN` (optional envelope reporter) |
 | Rate limiting | Auth, guest portal, MFA verify — DB-backed, fail-closed in prod |
 | Pagination | Default limit 100 on guests, complaints, billing lists |
@@ -64,7 +64,7 @@ The app is **production-ready as a custom PMS** for a hotel or portfolio operato
 | 2FA | SMS OTP — **mandatory** owner + manager in production |
 | Guest sessions | HMAC-signed tokens; room + surname entry |
 | Privacy / Terms | `/privacy`, `/terms` published |
-| Migrations | Through `042` — apply `scripts/apply-042-chunks/042_owner_onboarding.sql` for the setup wizard |
+| Migrations | Through `051` — apply all migrations; see `docs/GO-LIVE.md` |
 
 Realtime updates require an **open browser tab** — not push when the app is closed.
 
@@ -403,45 +403,13 @@ When viewing an invoice:
 
 ## Channels
 
-Manage OTA (Online Travel Agency) integrations and multi-channel distribution.
+> **Not implemented in the current version.** Reservations support manual **channel tagging** (Airbnb, Booking.com, walk-in, direct, other) when staff create bookings. There is no channel manager UI, iCal import/export, or OTA API integration. Database schema for future iCal feeds exists (`channel_ical_feeds` in migration `040`) but has no application code yet.
 
-### Connected Channels
-Display of all integrated booking channels:
-
-Each channel card shows:
-- **Channel Logo/Name**: Airbnb, Booking.com, Expedia, etc.
-- **Connection Status**: Connected (green) or Disconnected (red)
-- **Last Sync**: When listing was last updated
-- **Active Listings**: Number of properties listed
-- **Sync Frequency**: How often to check for new bookings
-
-### Channel Management
-For each connected channel:
-
-**Options:**
-- **View Listings**: See all active property listings on that channel
-- **Edit Credentials**: Update authentication credentials
-- **Sync Now**: Manually trigger inventory sync
-- **Disconnect**: Remove channel integration
-
-**Information:**
-- Current listings
-- Availability calendar
-- Recent bookings from channel
-- Performance metrics (bookings, revenue)
-- Channel-specific settings
-
-### Multi-Channel Inventory
-Central inventory management:
-
-- **Update Availability**: Set availability across all channels simultaneously
-- **Sync Errors**: Alert if there are sync failures
-- **Pricing Rules**: Set pricing by channel (e.g., Airbnb 10% higher than website)
-- **Block Periods**: Mark dates unavailable across all channels
+For reporting, use **Analytics** and filter by channel on the owner dashboard.
 
 ---
 
-## Analytics
+## Analytics (reference)
 
 Performance metrics and business intelligence.
 

@@ -68,7 +68,7 @@ export function MfaSmsForm({ nextPath, mode }: MfaSmsFormProps) {
   )
 
   useEffect(() => {
-    let cancelled = false
+    const cancelled = false
 
     async function init() {
       try {

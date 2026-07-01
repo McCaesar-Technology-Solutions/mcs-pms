@@ -15,6 +15,7 @@ import {
 } from '@/lib/auth/mfa'
 import { buildMfaStatus } from '@/lib/auth/mfa-status'
 import { mfaRedirectIfNeeded } from '@/lib/auth/mfa-server'
+import { isPublicSignupAllowed } from '@/lib/env'
 import type { Database } from '@/lib/supabase/types'
 import type { UserRole } from '@/types'
 
@@ -96,6 +97,15 @@ export async function updateSession(request: NextRequest) {
 
   if (pathname.startsWith('/auth/') || pathname === '/reset-password') {
     return supabaseResponse
+  }
+
+  if (
+    (pathname === '/signup' || pathname.startsWith('/signup/')) &&
+    !isPublicSignupAllowed()
+  ) {
+    const loginUrl = new URL('/login', request.url)
+    loginUrl.searchParams.set('error', 'signup_disabled')
+    return NextResponse.redirect(loginUrl)
   }
 
   if (isMfaPath(pathname)) {

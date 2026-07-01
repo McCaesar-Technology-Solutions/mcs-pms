@@ -629,7 +629,7 @@ function DoneStep({
       <div>
         <h1 className="text-2xl font-semibold">You&apos;re ready to go</h1>
         <p className="mt-2 text-sm text-white/70">
-          Your property is live. Open the dashboard to create reservations and connect OTA calendars.
+          Your property is live. Open the dashboard to create reservations and manage daily operations.
         </p>
       </div>
       <div className="flex justify-center">

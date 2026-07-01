@@ -1,5 +1,27 @@
 # MOJO APARTMENTS - Security Guide
 
+## Implementation status (June 2026)
+
+This document mixes **what is deployed today** with **future recommendations**. Use this table before relying on a control in production.
+
+| Control | Status | Notes |
+|---------|--------|-------|
+| HTTPS (Vercel) | **Live** | TLS terminated at Vercel |
+| Security headers (`X-Frame-Options`, etc.) | **Live** | `next.config.mjs` |
+| HSTS / CSP | **Not in app** | May be added at CDN; not in `next.config.mjs` |
+| Supabase Auth + RBAC + RLS | **Live** | Middleware + `loadVerifiedStaffProfile` |
+| MFA (owner/manager, production) | **Live** | SMS OTP via Arkesel/Termii |
+| Password policy | **8+ characters** | Not 12+ / symbol rules described below |
+| Session cookies | **HttpOnly via Supabase** | `SameSite=Lax`; no 15-minute idle timeout in app |
+| Rate limiting | **Live** | Postgres-backed (`rate_limits`); not Redis/Upstash |
+| Guest HMAC sessions | **Live** | `lib/guest-session.ts` |
+| Input validation | **Live** | Zod on server actions |
+| Audit logging | **Live** | `audit_log` + guest PII export/erase |
+| Notification fail-closed (prod) | **Live** | SMS/email when providers unset |
+| Sentry | **Optional** | Lightweight reporter when `SENTRY_DSN` set |
+
+Sections below that describe aspirational patterns (12-char passwords, CSP snippet, 15-minute sessions, Redis rate limits) are **design targets**, not current behavior.
+
 ## Security Overview
 
 MOJO APARTMENTS follows security best practices to protect guest data, property information, and financial records.

@@ -15,7 +15,7 @@ export function MfaVerifyForm({ nextPath }: MfaVerifyFormProps) {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    let cancelled = false
+    const cancelled = false
 
     async function init() {
       try {

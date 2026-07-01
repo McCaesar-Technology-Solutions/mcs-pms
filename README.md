@@ -20,7 +20,7 @@ The app is a **working PMS** with real persistence, role-based access, and live 
 | SMS/email notifications + outbox retry | Done |
 | Live updates via Supabase Realtime | Done |
 | Online payments (Paystack / Hubtel) | Not in this version — manual front-desk recording |
-| OTA / channel manager | iCal import/export only |
+| OTA / channel manager | Manual channel tagging only — no iCal sync or channel manager UI |
 
 ---
 
@@ -34,7 +34,7 @@ npm run dev
 
 Open [http://localhost:3000/login](http://localhost:3000/login).
 
-**Owner:** sign up at `/signup`.  
+**Owner:** sign up at `/signup` when public registration is enabled (`DISABLE_PUBLIC_SIGNUP` unset).  
 **Staff:** accept invite at `/accept-invite?token=...`.  
 **Guest:** portal link from front desk — `/guest/enter?token=...`.
 

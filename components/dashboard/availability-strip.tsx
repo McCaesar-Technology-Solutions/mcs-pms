@@ -128,6 +128,7 @@ function OccupancyHeatmap({
 
 export function AvailabilityStrip({ data }: { data?: Availability[] }) {
   const { activeProperty } = useProperty()
+  const [selectedDate, setSelectedDate] = useState<string | null>(null)
 
   if (!data || data.length === 0) {
     return (
@@ -142,8 +143,8 @@ export function AvailabilityStrip({ data }: { data?: Availability[] }) {
   const totalRooms = availability[0] ? getTotal(availability[0]) : activeProperty.totalRooms
   const todayStr = availability[0]?.date ?? ''
   const today = availability[0]
-  const [selectedDate, setSelectedDate] = useState(todayStr)
-  const selected = availability.find((d) => d.date === selectedDate) ?? today
+  const activeDate = selectedDate ?? todayStr
+  const selected = availability.find((d) => d.date === activeDate) ?? today
 
   return (
     <div className="surface-card">
@@ -170,7 +171,7 @@ export function AvailabilityStrip({ data }: { data?: Availability[] }) {
         availability={availability}
         totalRooms={totalRooms}
         todayStr={todayStr}
-        selectedDate={selectedDate}
+        selectedDate={activeDate}
         onSelect={setSelectedDate}
       />
       </div>
@@ -206,7 +207,7 @@ export function AvailabilityStrip({ data }: { data?: Availability[] }) {
           <div className="flex min-w-max gap-4">
             {availability.map((day) => {
               const { weekday, date, isToday } = formatDayLabel(day.date, day.date === todayStr)
-              const isSelected = day.date === selectedDate
+              const isSelected = day.date === activeDate
               const occupancy = getOccupancyPercent(day)
 
               return (
