@@ -86,7 +86,7 @@ export function AppShell({
 
   if (enableRealtime && profile?.hotel_id) {
     return (
-      <HotelRealtimeProvider hotelId={profile.hotel_id}>
+      <HotelRealtimeProvider hotelId={profile.hotel_id} currentUserId={profile.id}>
         {content}
       </HotelRealtimeProvider>
     )

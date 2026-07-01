@@ -7,6 +7,7 @@ import { getVerifiedProfile } from '@/lib/auth/get-profile'
 import { consumeStaffAuthError } from '@/lib/auth/staff-session'
 import { reconcileHotelBillingState } from '@/lib/billing/reconcile-hotel-billing'
 import { writeAuditLog } from '@/lib/audit/log'
+import { computeCloseMetrics } from '@/lib/audits/compute-close-metrics'
 import { todayISO } from '@/lib/stays/helpers'
 
 export type NightAuditResult =
@@ -36,33 +37,7 @@ export async function runNightAudit(notes?: string): Promise<NightAuditResult> {
     return { success: false, error: 'Night audit already closed for today.' }
   }
 
-  const [{ data: rooms }, { data: reservations }, { data: invoices }] = await Promise.all([
-    supabase.from('rooms').select('status').eq('hotel_id', profile.hotel_id),
-    supabase
-      .from('reservations')
-      .select('status, check_in, check_out')
-      .eq('hotel_id', profile.hotel_id),
-    supabase
-      .from('invoices')
-      .select('total_amount, payment_status, issued_at')
-      .eq('hotel_id', profile.hotel_id)
-      .gte('issued_at', `${businessDate}T00:00:00`)
-      .lte('issued_at', `${businessDate}T23:59:59`),
-  ])
-
-  const roomRows = rooms ?? []
-  const occupied = roomRows.filter((r) => r.status === 'occupied').length
-  const available = roomRows.filter((r) => r.status === 'available').length
-
-  const resRows = reservations ?? []
-  const arrivals = resRows.filter((r) => r.check_in === businessDate && r.status === 'checked_in').length
-  const departures = resRows.filter(
-    (r) => r.check_out === businessDate && (r.status === 'checked_out' || r.status === 'checked_in'),
-  ).length
-
-  const revenue = (invoices ?? [])
-    .filter((i) => i.payment_status === 'paid')
-    .reduce((sum, i) => sum + Number(i.total_amount ?? 0), 0)
+  const metrics = await computeCloseMetrics(supabase, profile.hotel_id, businessDate, businessDate)
 
   const { data, error } = await supabase
     .from('night_audits')
@@ -70,11 +45,11 @@ export async function runNightAudit(notes?: string): Promise<NightAuditResult> {
       hotel_id: profile.hotel_id,
       business_date: businessDate,
       closed_by: profile.id,
-      rooms_occupied: occupied,
-      rooms_available: available,
-      arrivals,
-      departures,
-      revenue_posted: revenue,
+      rooms_occupied: metrics.roomsOccupied,
+      rooms_available: metrics.roomsAvailable,
+      arrivals: metrics.arrivals,
+      departures: metrics.departures,
+      revenue_posted: metrics.revenuePosted,
       notes: notes?.trim() || null,
     })
     .select('id')
@@ -90,7 +65,12 @@ export async function runNightAudit(notes?: string): Promise<NightAuditResult> {
     entityId: profile.hotel_id,
     action: 'night_audit',
     summary: `Closed night audit for ${businessDate}`,
-    details: { arrivals, departures, occupied, revenue },
+    details: {
+      arrivals: metrics.arrivals,
+      departures: metrics.departures,
+      occupied: metrics.roomsOccupied,
+      revenue: metrics.revenuePosted,
+    },
   })
 
   revalidatePath('/owner/dashboard')

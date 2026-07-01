@@ -29,6 +29,7 @@ function TechnicianRealtimeChannel({ userId, children }: TechnicianRealtimeProps
     let retryTimer: ReturnType<typeof setTimeout> | null = null
 
     const refreshComplaints = () => publish('complaints')
+    const refreshMessages = () => publish(['messages', 'layout'])
 
     const channel = supabase
       .channel(`technician-live-${userId}-${retryKey}`)
@@ -97,6 +98,35 @@ function TechnicianRealtimeChannel({ userId, children }: TechnicianRealtimeProps
             })
           }
           publish('housekeeping')
+        },
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'staff_conversation_messages',
+        },
+        (payload) => {
+          const row = payload.new as { author_id?: string }
+          if (row.author_id !== userId) {
+            import('sonner').then(({ toast }) => {
+              toast.info('New team message')
+            })
+          }
+          refreshMessages()
+        },
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'staff_conversation_members',
+          filter: `profile_id=eq.${userId}`,
+        },
+        () => {
+          refreshMessages()
         },
       )
       .subscribe((status) => {

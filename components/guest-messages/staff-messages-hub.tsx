@@ -16,6 +16,7 @@ interface StaffMessagesHubProps {
   currentUserId: string
   basePath: string
   reservationsHref: string
+  canManageGroupMembers?: boolean
 }
 
 export function StaffMessagesHub({
@@ -25,6 +26,7 @@ export function StaffMessagesHub({
   currentUserId,
   basePath,
   reservationsHref,
+  canManageGroupMembers = false,
 }: StaffMessagesHubProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -114,6 +116,7 @@ export function StaffMessagesHub({
           hotelStaff={hotelStaff}
           currentUserId={currentUserId}
           onConversationCreated={(id) => onSelectTeam(id)}
+          canManageGroupMembers={canManageGroupMembers}
         />
       )}
     </div>

@@ -25,7 +25,12 @@ import {
 } from '@/lib/data/overview'
 import { getOccupancyToday } from '@/lib/data/occupancy'
 import { getRecentNightAudits } from '@/app/actions/night-audit'
-import { NightAuditPanel } from '@/components/dashboard/night-audit-panel'
+import {
+  getPeriodAudits,
+  isCurrentMonthAuditClosed,
+  isCurrentYearAuditClosed,
+} from '@/app/actions/period-audit'
+import { PeriodAuditsSection } from '@/components/dashboard/period-audits-section'
 import { OpsCalendarPanel } from '@/components/dashboard/ops-calendar-panel'
 import { createClient } from '@/lib/supabase/server'
 import { loadOpsCalendarEvents, opsCalendarWeekRange } from '@/lib/data/ops-calendar'
@@ -46,11 +51,15 @@ export default async function DashboardPage({
   const frontDesk = await loadFrontDeskOpsContext(opsDateParam)
   const opsDate = frontDesk?.opsDate ?? parseOpsDate(opsDateParam)
 
-  const [{ metrics, availability, reservations, invoices, hotelId }, tasks, nightAudits] =
+  const [{ metrics, availability, reservations, invoices, hotelId }, tasks, nightAudits, monthlyAudits, yearlyAudits, monthClosed, yearClosed] =
     await Promise.all([
       getDashboardData(),
       getHousekeepingTasks(),
       getRecentNightAudits(),
+      getPeriodAudits('monthly'),
+      getPeriodAudits('yearly'),
+      isCurrentMonthAuditClosed(),
+      isCurrentYearAuditClosed(),
     ])
 
   const { fromIso, toIso } = opsCalendarWeekRange()
@@ -112,8 +121,8 @@ export default async function DashboardPage({
             { id: 'guest-reviews', label: 'Guest reviews' },
             {
               id: 'night-audit',
-              label: 'Night audit',
-              badge: todayClosed ? undefined : 1,
+              label: 'Audits',
+              badge: todayClosed && monthClosed && yearClosed ? undefined : 1,
             },
           ]}
           panels={{
@@ -159,10 +168,17 @@ export default async function DashboardPage({
             'night-audit': (
               <section id="night-audit" className="dashboard-section scroll-mt-24">
                 <SectionHeading
-                  title="End of day"
-                  description="Night audit and business date close"
+                  title="Period audits"
+                  description="Night, monthly, and yearly closes for operational and revenue snapshots"
                 />
-                <NightAuditPanel audits={nightAudits} todayClosed={todayClosed} />
+                <PeriodAuditsSection
+                  nightAudits={nightAudits}
+                  monthlyAudits={monthlyAudits}
+                  yearlyAudits={yearlyAudits}
+                  todayClosed={todayClosed}
+                  monthClosed={monthClosed}
+                  yearClosed={yearClosed}
+                />
               </section>
             ),
           }}

@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { MessageCircle, Plus, Search, Users } from 'lucide-react'
 import { StaffTeamThread } from '@/components/staff-messages/staff-team-thread'
 import { NewStaffConversationModal } from '@/components/staff-messages/new-staff-conversation-modal'
@@ -16,6 +17,7 @@ interface StaffTeamInboxProps {
   hotelStaff: { id: string; name: string; role: string }[]
   currentUserId: string
   onConversationCreated: (id: string) => void
+  canManageGroupMembers?: boolean
 }
 
 export function StaffTeamInbox({
@@ -26,7 +28,9 @@ export function StaffTeamInbox({
   hotelStaff,
   currentUserId,
   onConversationCreated,
+  canManageGroupMembers = false,
 }: StaffTeamInboxProps) {
+  const router = useRouter()
   const [query, setQuery] = useState('')
   const [composeOpen, setComposeOpen] = useState(false)
   const [, startTransition] = useTransition()
@@ -174,6 +178,9 @@ export function StaffTeamInbox({
                   : 'Direct message'
               }
               onBack={onBack}
+              canManageGroupMembers={canManageGroupMembers}
+              hotelStaff={hotelStaff}
+              onMembersChanged={() => router.refresh()}
             />
           ) : (
             <div className="staff-messenger__placeholder">

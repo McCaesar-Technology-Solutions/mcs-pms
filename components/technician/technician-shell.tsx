@@ -17,6 +17,7 @@ import { PhoneContactList } from '@/components/ui/phone-contact'
 import { PortalBrand } from '@/components/brand/portal-brand'
 import { CommandPaletteProvider } from '@/components/dashboard/command-palette'
 import { TechnicianBottomNav, TechnicianSearchButton } from '@/components/technician/technician-wayfinding'
+import { useMessagesNavBadge } from '@/components/staff-messages/use-messages-nav-badge'
 import Image from 'next/image'
 import { hasPhoneNumber } from '@/lib/phone'
 import type { StaffContact } from '@/lib/data/contacts'
@@ -44,8 +45,10 @@ export function TechnicianShell({
   const avatarUrl = profileAvatarUrl(profile)
   const pathname = usePathname()
   const onMessages = pathname.startsWith('/technician/messages')
+  const unreadMessages = useMessagesNavBadge('/technician/messages')
 
   return (
+    <TechnicianRealtime userId={profile.id}>
     <CommandPaletteProvider profile={profile}>
     <div className="technician-portal-shell technician-portal-shell--with-nav">
       {!hasPhoneNumber(profile.phone) && <ProfilePhoneBanner roleLabel="technician" />}
@@ -79,10 +82,19 @@ export function TechnicianShell({
             <TechnicianSearchButton />
             <Link
               href="/technician/messages"
-              className={`technician-portal-icon-btn hidden md:inline-flex ${onMessages ? 'technician-portal-icon-btn--active' : ''}`}
-              aria-label="Team messages"
+              className={`technician-portal-icon-btn relative hidden md:inline-flex ${onMessages ? 'technician-portal-icon-btn--active' : ''}`}
+              aria-label={
+                unreadMessages > 0
+                  ? `Team messages, ${unreadMessages} unread`
+                  : 'Team messages'
+              }
             >
               <MessageCircle className="h-4 w-4" />
+              {unreadMessages > 0 && (
+                <span className="absolute -right-0.5 -top-0.5 flex h-[16px] min-w-[16px] items-center justify-center rounded-full border-2 border-white bg-primary px-0.5 text-[9px] font-bold tabular-nums text-white">
+                  {unreadMessages > 9 ? '9+' : unreadMessages}
+                </span>
+              )}
             </Link>
             <button
               type="button"
@@ -138,9 +150,7 @@ export function TechnicianShell({
         )}
       </header>
 
-      <main className="technician-portal-main">
-        <TechnicianRealtime userId={profile.id}>{children}</TechnicianRealtime>
-      </main>
+      <main className="technician-portal-main">{children}</main>
 
       <TechnicianBottomNav />
 
@@ -157,5 +167,6 @@ export function TechnicianShell({
       />
     </div>
     </CommandPaletteProvider>
+    </TechnicianRealtime>
   )
 }

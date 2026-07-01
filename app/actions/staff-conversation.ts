@@ -17,6 +17,8 @@ export type StaffConversationActionResult<T = void> =
   | { success: false; error: string }
 
 const STAFF_MESSAGING_ROLES = new Set(['owner', 'manager', 'receptionist', 'technician'])
+const GROUP_MANAGEMENT_ROLES = new Set(['owner', 'manager'])
+const MAX_GROUP_MEMBERS = 20
 
 const messageSchema = z.object({
   conversationId: z.string().uuid(),
@@ -30,7 +32,12 @@ const editMessageSchema = z.object({
 
 const groupSchema = z.object({
   name: z.string().min(1).max(80),
-  memberIds: z.array(z.string().uuid()).min(1).max(20),
+  memberIds: z.array(z.string().uuid()).min(1).max(MAX_GROUP_MEMBERS),
+})
+
+const addMembersSchema = z.object({
+  conversationId: z.string().uuid(),
+  memberIds: z.array(z.string().uuid()).min(1).max(MAX_GROUP_MEMBERS),
 })
 
 async function requireStaffMessenger() {
@@ -298,4 +305,83 @@ export async function createStaffGroupChat(input: {
 
   revalidateStaffMessagePaths()
   return { success: true, data: { conversationId: created.id } }
+}
+
+export async function addStaffToGroupChat(input: {
+  conversationId: string
+  memberIds: string[]
+}): Promise<StaffConversationActionResult<{ addedCount: number }>> {
+  const parsed = addMembersSchema.safeParse(input)
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid request.' }
+  }
+
+  const profile = await requireStaffMessenger()
+  if (!profile?.hotel_id) return { success: false, error: 'Not authorized.' }
+  if (!GROUP_MANAGEMENT_ROLES.has(profile.role)) {
+    return { success: false, error: 'Only owners and managers can add members to group chats.' }
+  }
+
+  if (!(await assertMember(parsed.data.conversationId, profile.id))) {
+    return { success: false, error: 'Conversation not found.' }
+  }
+
+  const admin = createAdminClient()
+  const { data: conversation } = await admin
+    .from('staff_conversations')
+    .select('id, conversation_type, hotel_id')
+    .eq('id', parsed.data.conversationId)
+    .maybeSingle()
+
+  if (!conversation || conversation.hotel_id !== profile.hotel_id) {
+    return { success: false, error: 'Conversation not found.' }
+  }
+  if (conversation.conversation_type !== 'group') {
+    return { success: false, error: 'You can only add members to group chats.' }
+  }
+
+  const { data: existingRows } = await admin
+    .from('staff_conversation_members')
+    .select('profile_id')
+    .eq('conversation_id', parsed.data.conversationId)
+
+  const existingIds = new Set((existingRows ?? []).map((row) => row.profile_id))
+  const newMemberIds = [...new Set(parsed.data.memberIds)].filter((id) => !existingIds.has(id))
+
+  if (newMemberIds.length === 0) {
+    return { success: false, error: 'All selected staff are already in this group.' }
+  }
+
+  if (existingIds.size + newMemberIds.length > MAX_GROUP_MEMBERS) {
+    return {
+      success: false,
+      error: `Groups can have at most ${MAX_GROUP_MEMBERS} members.`,
+    }
+  }
+
+  const { data: validMembers } = await admin
+    .from('profiles')
+    .select('id')
+    .eq('hotel_id', profile.hotel_id)
+    .in('id', newMemberIds)
+
+  if ((validMembers?.length ?? 0) !== newMemberIds.length) {
+    return { success: false, error: 'One or more staff members are invalid.' }
+  }
+
+  const rows = newMemberIds.map((id) => ({
+    conversation_id: parsed.data.conversationId,
+    profile_id: id,
+  }))
+
+  const { error: memberError } = await admin.from('staff_conversation_members').insert(rows)
+  if (memberError) return { success: false, error: memberError.message }
+
+  await admin
+    .from('staff_conversations')
+    .update({ updated_at: new Date().toISOString() })
+    .eq('id', parsed.data.conversationId)
+
+  revalidateStaffMessagePaths()
+  return { success: true, data: { addedCount: newMemberIds.length } }
 }

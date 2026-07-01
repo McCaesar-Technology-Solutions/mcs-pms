@@ -21,6 +21,9 @@ interface StaffTeamThreadProps {
   conversationType?: 'dm' | 'group'
   subtitle?: string | null
   onBack?: () => void
+  canManageGroupMembers?: boolean
+  hotelStaff?: { id: string; name: string; role: string }[]
+  onMembersChanged?: () => void
 }
 
 const TEAM_QUICK_REPLIES = [
@@ -37,6 +40,9 @@ export function StaffTeamThread({
   conversationType = 'dm',
   subtitle,
   onBack,
+  canManageGroupMembers = false,
+  hotelStaff = [],
+  onMembersChanged,
 }: StaffTeamThreadProps) {
   const [messages, setMessages] = useState<StaffConversationMessage[]>([])
   const [body, setBody] = useState('')
@@ -210,6 +216,9 @@ export function StaffTeamThread({
         conversationId={conversationId}
         open={detailsOpen}
         onClose={() => setDetailsOpen(false)}
+        canManageGroupMembers={canManageGroupMembers}
+        hotelStaff={hotelStaff}
+        onMembersChanged={onMembersChanged}
       />
 
       <div ref={scrollRef} className="staff-messenger__messages" aria-live="polite">

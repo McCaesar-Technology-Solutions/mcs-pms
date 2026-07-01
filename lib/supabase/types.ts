@@ -1738,6 +1738,60 @@ export type Database = {
         }
         Relationships: []
       }
+      period_audits: {
+        Row: {
+          id: string
+          hotel_id: string
+          period_type: 'monthly' | 'yearly'
+          period_year: number
+          period_month: number | null
+          period_key: string
+          closed_by: string | null
+          rooms_occupied: number
+          rooms_available: number
+          arrivals: number
+          departures: number
+          revenue_posted: number
+          night_audits_count: number
+          notes: string | null
+          closed_at: string | null
+        }
+        Insert: {
+          id?: string
+          hotel_id: string
+          period_type: 'monthly' | 'yearly'
+          period_year: number
+          period_month?: number | null
+          period_key: string
+          closed_by?: string | null
+          rooms_occupied?: number
+          rooms_available?: number
+          arrivals?: number
+          departures?: number
+          revenue_posted?: number
+          night_audits_count?: number
+          notes?: string | null
+          closed_at?: string | null
+        }
+        Update: {
+          id?: string
+          hotel_id?: string
+          period_type?: 'monthly' | 'yearly'
+          period_year?: number
+          period_month?: number | null
+          period_key?: string
+          closed_by?: string | null
+          rooms_occupied?: number
+          rooms_available?: number
+          arrivals?: number
+          departures?: number
+          revenue_posted?: number
+          night_audits_count?: number
+          notes?: string | null
+          closed_at?: string | null
+        }
+        Relationships: []
+      }
       payment_records: {
         Row: {
           id: string

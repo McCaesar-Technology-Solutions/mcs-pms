@@ -1,6 +1,7 @@
 import { getProfile } from '@/lib/auth/get-profile'
 import { isPendingCompletion, needsGuestCompletionApproval } from '@/lib/complaints/workflow'
 import { loadGuestConversations } from '@/lib/data/guest-conversations'
+import { loadStaffConversations } from '@/lib/data/staff-conversations'
 import { formatInvoiceNumber } from '@/lib/invoices/numbering'
 import { createClient } from '@/lib/supabase/server'
 import { ARRIVING_STATUSES, DEPARTING_STATUSES } from '@/lib/reservations/lifecycle'
@@ -17,8 +18,11 @@ export type StaffAlertKind =
   | 'guest_request'
   | 'guest_stay_chat'
   | 'guest_message'
+  | 'team_message'
   | 'housekeeping_inspect'
   | 'housekeeping_overdue'
+
+const STAFF_ALERT_ROLES = new Set<UserRole>(['owner', 'manager', 'receptionist', 'technician'])
 
 export interface StaffAlert {
   id: string
@@ -46,23 +50,33 @@ function todayISO(): string {
 function basePath(role: UserRole): string {
   if (role === 'owner') return '/owner'
   if (role === 'receptionist') return '/receptionist'
+  if (role === 'technician') return '/technician'
   return '/manager'
 }
 
-function messagesHref(prefix: string, conversationId?: string): string {
-  if (prefix === '/receptionist') {
-    return conversationId
-      ? `/receptionist/messages?conversation=${conversationId}`
-      : '/receptionist/messages'
+function messagesNavHref(role: UserRole): string {
+  if (role === 'technician') return '/technician/messages'
+  return `${basePath(role)}/messages`
+}
+
+function messagesHref(
+  role: UserRole,
+  opts?: { guestConversationId?: string; teamConversationId?: string },
+): string {
+  if (role === 'technician') {
+    return opts?.teamConversationId
+      ? `/technician/messages?team=${opts.teamConversationId}`
+      : '/technician/messages'
   }
-  if (prefix === '/owner') {
-    return conversationId
-      ? `/owner/messages?conversation=${conversationId}`
-      : '/owner/messages'
+
+  const prefix = basePath(role)
+  if (opts?.teamConversationId) {
+    return `${prefix}/messages?tab=team&team=${opts.teamConversationId}`
   }
-  return conversationId
-    ? `/manager/messages?conversation=${conversationId}`
-    : '/manager/messages'
+  if (opts?.guestConversationId) {
+    return `${prefix}/messages?conversation=${opts.guestConversationId}`
+  }
+  return `${prefix}/messages`
 }
 
 function guestRequestsHref(prefix: string): string {
@@ -73,7 +87,7 @@ function guestRequestsHref(prefix: string): string {
 
 export async function fetchStaffAlerts(limit = 30): Promise<StaffAlert[]> {
   const profile = await getProfile()
-  if (!profile?.hotel_id || !['owner', 'manager', 'receptionist'].includes(profile.role)) {
+  if (!profile?.hotel_id || !STAFF_ALERT_ROLES.has(profile.role)) {
     return []
   }
 
@@ -86,6 +100,8 @@ export async function fetchStaffAlerts(limit = 30): Promise<StaffAlert[]> {
 
   const includeBilling = role === 'owner'
   const includeGuestPortal = role === 'owner' || role === 'manager' || role === 'receptionist'
+  const includeGuestMessages = includeGuestPortal
+  const includeTeamMessages = STAFF_ALERT_ROLES.has(role)
 
   const [
     invoicesRes,
@@ -95,6 +111,7 @@ export async function fetchStaffAlerts(limit = 30): Promise<StaffAlert[]> {
     requestsRes,
     housekeepingRes,
     stayConversations,
+    teamConversations,
   ] = await Promise.all([
     includeBilling
       ? supabase
@@ -144,7 +161,10 @@ export async function fetchStaffAlerts(limit = 30): Promise<StaffAlert[]> {
           .order('created_at', { ascending: false })
           .limit(15)
       : Promise.resolve({ data: [] }),
-    includeGuestPortal ? loadGuestConversations(hotelId) : Promise.resolve([]),
+    includeGuestMessages ? loadGuestConversations(hotelId) : Promise.resolve([]),
+    includeTeamMessages
+      ? loadStaffConversations(hotelId, profile.id)
+      : Promise.resolve([]),
   ])
 
   for (const inv of invoicesRes.data ?? []) {
@@ -307,8 +327,24 @@ export async function fetchStaffAlerts(limit = 30): Promise<StaffAlert[]> {
       kind: 'guest_stay_chat',
       title: `Message from ${conv.guestName}`,
       subtitle: `${conv.roomNumber ? `Room ${conv.roomNumber} · ` : ''}${conv.lastMessageBody?.slice(0, 60) ?? 'New message'}`,
-      href: messagesHref(prefix, conv.id),
-      badgeHref: messagesHref(prefix),
+      href: messagesHref(role, { guestConversationId: conv.id }),
+      badgeHref: messagesNavHref(role),
+      urgent: true,
+      sort: 1,
+    })
+  }
+
+  for (const conv of teamConversations.filter((c) => c.unread)) {
+    items.push({
+      id: `team-${conv.id}`,
+      kind: 'team_message',
+      title:
+        conv.conversationType === 'group'
+          ? `Team message — ${conv.name}`
+          : `Team message from ${conv.name}`,
+      subtitle: conv.lastMessageBody?.slice(0, 60) ?? 'New message',
+      href: messagesHref(role, { teamConversationId: conv.id }),
+      badgeHref: messagesNavHref(role),
       urgent: true,
       sort: 1,
     })
@@ -356,7 +392,7 @@ export async function fetchStaffAlerts(limit = 30): Promise<StaffAlert[]> {
 /** Sidebar badge counts keyed by nav href */
 export async function getNavBadgeMap(): Promise<Record<string, number>> {
   const profile = await getProfile()
-  if (!profile?.hotel_id || !['owner', 'manager', 'receptionist'].includes(profile.role)) {
+  if (!profile?.hotel_id || !STAFF_ALERT_ROLES.has(profile.role)) {
     return {}
   }
 

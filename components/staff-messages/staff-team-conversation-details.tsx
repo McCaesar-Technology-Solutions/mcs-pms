@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { Loader2, Users, X } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import { Loader2, UserPlus, Users, X } from 'lucide-react'
 import { getStaffTeamConversationDetails } from '@/app/actions/staff-conversation'
+import { AddGroupMembersModal } from '@/components/staff-messages/add-group-members-modal'
 import { MessengerAvatar } from '@/components/messaging/messenger-avatar'
 import type { StaffConversationDetails } from '@/lib/data/staff-conversations'
 
@@ -10,6 +11,9 @@ interface StaffTeamConversationDetailsProps {
   conversationId: string
   open: boolean
   onClose: () => void
+  canManageGroupMembers?: boolean
+  hotelStaff?: { id: string; name: string; role: string }[]
+  onMembersChanged?: () => void
 }
 
 function roleLabel(role: string) {
@@ -33,20 +37,20 @@ export function StaffTeamConversationDetails({
   conversationId,
   open,
   onClose,
+  canManageGroupMembers = false,
+  hotelStaff = [],
+  onMembersChanged,
 }: StaffTeamConversationDetailsProps) {
   const [details, setDetails] = useState<StaffConversationDetails | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [addMembersOpen, setAddMembersOpen] = useState(false)
 
-  useEffect(() => {
-    if (!open) return
-
-    let cancelled = false
+  const loadDetails = useCallback(() => {
     setLoading(true)
     setError(null)
 
-    void getStaffTeamConversationDetails(conversationId).then((result) => {
-      if (cancelled) return
+    return getStaffTeamConversationDetails(conversationId).then((result) => {
       if (result.success && result.data) {
         setDetails(result.data)
       } else {
@@ -55,11 +59,16 @@ export function StaffTeamConversationDetails({
       }
       setLoading(false)
     })
+  }, [conversationId])
 
-    return () => {
-      cancelled = true
-    }
-  }, [conversationId, open])
+  useEffect(() => {
+    if (!open) return
+    void loadDetails()
+  }, [open, loadDetails])
+
+  useEffect(() => {
+    if (!open) setAddMembersOpen(false)
+  }, [open])
 
   useEffect(() => {
     if (!open) return
@@ -75,8 +84,15 @@ export function StaffTeamConversationDetails({
 
   const isGroup = details?.conversationType === 'group'
   const createdLabel = formatCreatedAt(details?.createdAt ?? null)
+  const existingMemberIds = details?.members.map((m) => m.id) ?? []
+  const canAddMembers =
+    canManageGroupMembers &&
+    isGroup &&
+    details != null &&
+    hotelStaff.some((s) => !existingMemberIds.includes(s.id))
 
   return (
+    <>
     <div className="staff-messenger__details" role="dialog" aria-label="Conversation details">
       <button
         type="button"
@@ -140,11 +156,23 @@ export function StaffTeamConversationDetails({
               </div>
 
               <div>
-                <div className="mb-2 flex items-center gap-1.5">
-                  <Users className="h-4 w-4 text-[var(--brand-purple)]" aria-hidden />
-                  <h3 className="text-sm font-semibold text-foreground">
-                    {isGroup ? 'Members' : 'Participants'}
-                  </h3>
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <Users className="h-4 w-4 text-[var(--brand-purple)]" aria-hidden />
+                    <h3 className="text-sm font-semibold text-foreground">
+                      {isGroup ? 'Members' : 'Participants'}
+                    </h3>
+                  </div>
+                  {canAddMembers && (
+                    <button
+                      type="button"
+                      onClick={() => setAddMembersOpen(true)}
+                      className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-[var(--brand-purple)] hover:bg-secondary"
+                    >
+                      <UserPlus className="h-3.5 w-3.5" aria-hidden />
+                      Add members
+                    </button>
+                  )}
                 </div>
                 <ul className="staff-messenger__details-members">
                   {details.members.map((member) => (
@@ -176,5 +204,20 @@ export function StaffTeamConversationDetails({
         </div>
       </div>
     </div>
+
+      {addMembersOpen && details && (
+        <AddGroupMembersModal
+          conversationId={conversationId}
+          conversationName={details.name}
+          existingMemberIds={existingMemberIds}
+          hotelStaff={hotelStaff}
+          onClose={() => setAddMembersOpen(false)}
+          onAdded={() => {
+            void loadDetails()
+            onMembersChanged?.()
+          }}
+        />
+      )}
+    </>
   )
 }

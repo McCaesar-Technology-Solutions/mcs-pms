@@ -11,6 +11,7 @@ import { RealtimeLayoutRefresh } from '@/components/realtime/realtime-layout-ref
 
 interface HotelRealtimeProviderProps {
   hotelId: string
+  currentUserId?: string
   children: ReactNode
 }
 
@@ -18,7 +19,7 @@ function hotelFilter(hotelId: string) {
   return `hotel_id=eq.${hotelId}`
 }
 
-function HotelRealtimeChannel({ hotelId, children }: HotelRealtimeProviderProps) {
+function HotelRealtimeChannel({ hotelId, currentUserId, children }: HotelRealtimeProviderProps) {
   const { publish } = useRealtimeRefreshContext()
   const [disconnected, setDisconnected] = useState(false)
   const [retryKey, setRetryKey] = useState(0)
@@ -203,6 +204,34 @@ function HotelRealtimeChannel({ hotelId, children }: HotelRealtimeProviderProps)
       .on(
         'postgres_changes',
         {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'staff_conversation_messages',
+        },
+        (payload) => {
+          const row = payload.new as { author_id?: string }
+          if (!currentUserId || row.author_id !== currentUserId) {
+            import('sonner').then(({ toast }) => {
+              toast.info('New team message')
+            })
+          }
+          refreshMessages()
+        },
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'staff_conversation_members',
+        },
+        () => {
+          refreshMessages()
+        },
+      )
+      .on(
+        'postgres_changes',
+        {
           event: 'UPDATE',
           schema: 'public',
           table: 'guest_conversations',
@@ -228,7 +257,7 @@ function HotelRealtimeChannel({ hotelId, children }: HotelRealtimeProviderProps)
       if (retryTimer) clearTimeout(retryTimer)
       supabase.removeChannel(channel)
     }
-  }, [hotelId, retryKey, publish])
+  }, [hotelId, currentUserId, retryKey, publish])
 
   return (
     <>
@@ -239,10 +268,12 @@ function HotelRealtimeChannel({ hotelId, children }: HotelRealtimeProviderProps)
   )
 }
 
-export function HotelRealtimeProvider({ hotelId, children }: HotelRealtimeProviderProps) {
+export function HotelRealtimeProvider({ hotelId, currentUserId, children }: HotelRealtimeProviderProps) {
   return (
     <RealtimeRefreshProvider>
-      <HotelRealtimeChannel hotelId={hotelId}>{children}</HotelRealtimeChannel>
+      <HotelRealtimeChannel hotelId={hotelId} currentUserId={currentUserId}>
+        {children}
+      </HotelRealtimeChannel>
     </RealtimeRefreshProvider>
   )
 }

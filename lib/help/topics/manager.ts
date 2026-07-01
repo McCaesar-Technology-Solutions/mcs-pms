@@ -87,7 +87,7 @@ export const managerHelpTopics: HelpTopic[] = [
     ],
     href: '/manager/dashboard',
     hrefLabel: 'Open dashboard',
-    keywords: ['night audit', 'close', 'end of day'],
+    keywords: ['night audit', 'monthly audit', 'yearly audit', 'close', 'end of day', 'period close'],
     pathPrefixes: ['/manager/dashboard'],
   },
 ]

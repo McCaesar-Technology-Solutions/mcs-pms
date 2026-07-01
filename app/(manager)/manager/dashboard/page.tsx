@@ -31,7 +31,12 @@ import { getOccupancyToday } from '@/lib/data/occupancy'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { getRecentNightAudits } from '@/app/actions/night-audit'
-import { NightAuditPanel } from '@/components/dashboard/night-audit-panel'
+import {
+  getPeriodAudits,
+  isCurrentMonthAuditClosed,
+  isCurrentYearAuditClosed,
+} from '@/app/actions/period-audit'
+import { PeriodAuditsSection } from '@/components/dashboard/period-audits-section'
 import { getManagerTabBadges } from '@/lib/data/staff-alerts'
 import { OpsCalendarPanel } from '@/components/dashboard/ops-calendar-panel'
 import { loadOpsCalendarEvents, opsCalendarWeekRange } from '@/lib/data/ops-calendar'
@@ -56,7 +61,7 @@ export default async function ManagerDashboardPage({
   const frontDesk = await loadFrontDeskOpsContext(opsDateParam)
   const opsDate = frontDesk?.opsDate ?? parseOpsDate(opsDateParam)
 
-  const [complaints, { metrics, reservations, hotelId }, tasks, notificationLog, auditLog, nightAudits] =
+  const [complaints, { metrics, reservations, hotelId }, tasks, notificationLog, auditLog, nightAudits, monthlyAudits, yearlyAudits, monthClosed, yearClosed] =
     await Promise.all([
       fetchHotelComplaints(),
       getDashboardData(),
@@ -64,6 +69,10 @@ export default async function ManagerDashboardPage({
       getNotificationLog(50),
       getAuditLog(50),
       getRecentNightAudits(),
+      getPeriodAudits('monthly'),
+      getPeriodAudits('yearly'),
+      isCurrentMonthAuditClosed(),
+      isCurrentYearAuditClosed(),
     ])
 
   const supabase = await createClient()
@@ -148,8 +157,8 @@ export default async function ManagerDashboardPage({
             { id: 'guest-reviews', label: 'Guest reviews' },
             {
               id: 'night-audit',
-              label: 'Night audit',
-              badge: todayClosed ? undefined : 1,
+              label: 'Audits',
+              badge: todayClosed && monthClosed && yearClosed ? undefined : 1,
             },
             { id: 'activity', label: 'Activity' },
           ]}
@@ -202,10 +211,17 @@ export default async function ManagerDashboardPage({
             'night-audit': (
               <section id="night-audit" className="dashboard-section scroll-mt-24">
                 <SectionHeading
-                  title="End of day"
-                  description="Night audit and business date close"
+                  title="Period audits"
+                  description="Night, monthly, and yearly closes for operational and revenue snapshots"
                 />
-                <NightAuditPanel audits={nightAudits} todayClosed={todayClosed} />
+                <PeriodAuditsSection
+                  nightAudits={nightAudits}
+                  monthlyAudits={monthlyAudits}
+                  yearlyAudits={yearlyAudits}
+                  todayClosed={todayClosed}
+                  monthClosed={monthClosed}
+                  yearClosed={yearClosed}
+                />
               </section>
             ),
             activity: (

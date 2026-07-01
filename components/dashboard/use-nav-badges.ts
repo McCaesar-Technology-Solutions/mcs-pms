@@ -52,5 +52,9 @@ export function useNavBadges(
   useRealtimeRefresh('messages', refreshBadges)
   useRealtimeRefresh('guest_portal', refreshBadges)
 
+  useEffect(() => {
+    void refreshBadges()
+  }, [refreshBadges])
+
   return { navItems, navGroups, refreshBadges }
 }

@@ -13,6 +13,7 @@ import {
   MessageSquare,
   Sparkles,
   UserPlus,
+  Users,
   Wrench,
 } from 'lucide-react'
 import { loadNotifications } from '@/app/actions/notifications'
@@ -37,6 +38,7 @@ const KIND_ICONS: Record<AppNotification['kind'], typeof FileText> = {
   guest_request: Bell,
   guest_stay_chat: MessageCircle,
   guest_message: MessageSquare,
+  team_message: Users,
   housekeeping_inspect: Sparkles,
   housekeeping_overdue: Briefcase,
 }

@@ -28,6 +28,7 @@ export default async function ManagerMessagesPage() {
           currentUserId={profile.id}
           basePath="/manager/messages"
           reservationsHref="/manager/reservations"
+          canManageGroupMembers
         />
       </Suspense>
     </div>
