@@ -26,6 +26,17 @@ test.describe('public auth pages', () => {
     await page.getByRole('button', { name: /hide password/i }).click()
     await expect(password).toHaveAttribute('type', 'password')
   })
+
+  test('desktop install hint shows on large screens only', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/login')
+    await expect(page.getByRole('region', { name: /install app/i })).toHaveCount(0)
+
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await page.goto('/login')
+    await expect(page.getByRole('region', { name: /install app/i })).toBeVisible()
+    await expect(page.getByText(/install on your computer/i)).toBeVisible()
+  })
 })
 
 test.describe('legal pages', () => {

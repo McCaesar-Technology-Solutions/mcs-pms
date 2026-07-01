@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PasswordInput } from '@/components/auth/password-input'
+import { DesktopInstallHint } from '@/components/pwa/desktop-install-hint'
 import { signIn } from '@/app/actions/auth'
 import { isMfaPath } from '@/lib/auth/mfa'
 
@@ -65,6 +66,8 @@ export function LoginForm({ publicSignupAllowed }: LoginFormProps) {
           </p>
           <p className="mt-2 text-sm text-white/70">Staff sign in</p>
         </div>
+
+        <DesktopInstallHint />
 
         {resetDone && (
           <p className="mb-5 rounded-lg bg-emerald-500/15 px-3 py-2 text-sm text-emerald-100">
