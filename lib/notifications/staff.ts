@@ -1,4 +1,5 @@
 import { sendToPhone, type SendResult } from '@/lib/notifications/send'
+import { phoneNotifyOpts } from '@/lib/notifications/phone-notify'
 import { isSmsConfigured } from '@/lib/notifications/sms-provider'
 import { smsInviteUrl, smsLine } from '@/lib/notifications/sms-format'
 
@@ -21,9 +22,5 @@ export async function notifyStaffInvite(input: {
     smsInviteUrl(input.inviteToken),
   )
 
-  return sendToPhone(input.phone, body, {
-    hotelId: input.hotelId,
-    templateKey: 'staff_invite',
-    includeWhatsApp: true,
-  })
+  return sendToPhone(input.phone, body, phoneNotifyOpts('staff_invite', { hotelId: input.hotelId }))
 }

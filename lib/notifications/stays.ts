@@ -1,4 +1,5 @@
 import { notifyPhones } from '@/lib/notifications/send'
+import { phoneNotifyOpts } from '@/lib/notifications/phone-notify'
 import { appUrl } from '@/lib/notifications/app-url'
 import { smsLine, smsRoom, smsShortDate, smsGuestEnterUrl, smsUrl } from '@/lib/notifications/sms-format'
 import { notifyManagers } from '@/lib/notifications/manager-notify'
@@ -20,11 +21,7 @@ export async function notifyGuestCheckedIn(input: {
     smsGuestEnterUrl(input.portalToken),
   )
 
-  await notifyPhones([input.phone], body, {
-    hotelId: input.hotelId,
-    templateKey: 'guest_checked_in',
-    includeWhatsApp: false,
-  })
+  await notifyPhones([input.phone], body, phoneNotifyOpts('guest_checked_in', { hotelId: input.hotelId }))
 }
 
 /** Future reservation confirmed — guest has a linked profile with phone. */

@@ -1,4 +1,5 @@
 import { notifyPhones } from '@/lib/notifications/send'
+import { phoneNotifyOpts } from '@/lib/notifications/phone-notify'
 import { notifyEmails } from '@/lib/notifications/send-email'
 import { managerEmails, managerPhones } from '@/lib/notifications/recipients'
 import type { StaffEmailContent } from '@/lib/notifications/email-template'
@@ -17,11 +18,7 @@ export async function notifyManagers(input: {
 
   await Promise.all([
     phones.length > 0
-      ? notifyPhones(phones, input.smsBody, {
-          hotelId: input.hotelId,
-          templateKey: input.templateKey,
-          includeWhatsApp: false,
-        })
+      ? notifyPhones(phones, input.smsBody, phoneNotifyOpts(input.templateKey, { hotelId: input.hotelId }))
       : Promise.resolve(),
     emails.length > 0
       ? notifyEmails(emails, input.email, {

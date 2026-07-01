@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { notifyPhones } from '@/lib/notifications/send'
+import { phoneNotifyOpts } from '@/lib/notifications/phone-notify'
 import { appUrl } from '@/lib/notifications/app-url'
 import { smsLine, smsRoom, smsTruncate, smsUrl } from '@/lib/notifications/sms-format'
 import { formatComplaintVisit } from '@/lib/complaints/visit'
@@ -113,11 +114,7 @@ export async function notifyGuestComplaintReceived(complaintId: string): Promise
     smsUrl('/guest'),
   )
 
-  await notifyPhones([ctx.guestPhone], body, {
-    hotelId: ctx.hotelId,
-    templateKey: 'complaint_guest_received',
-    includeWhatsApp: false,
-  })
+  await notifyPhones([ctx.guestPhone], body, phoneNotifyOpts('complaint_guest_received', { hotelId: ctx.hotelId }))
 
   if (ctx.guestId) {
     const { notifyGuestComplaintEmail } = await import('@/lib/notifications/guest-email')
@@ -146,11 +143,7 @@ export async function notifyComplaintAssigned(
     smsUrl('/technician/tasks'),
   )
 
-  await notifyPhones([phone], body, {
-    hotelId: ctx.hotelId,
-    templateKey: 'complaint_assigned',
-    includeWhatsApp: false,
-  })
+  await notifyPhones([phone], body, phoneNotifyOpts('complaint_assigned', { hotelId: ctx.hotelId }))
 }
 
 /** Technician marked job complete — alert manager and guest (when linked). */
@@ -188,11 +181,7 @@ export async function notifyComplaintCompletionRequested(complaintId: string): P
       smsUrl('/guest'),
     )
 
-    await notifyPhones([ctx.guestPhone], body, {
-      hotelId: ctx.hotelId,
-      templateKey: 'complaint_guest_signoff',
-      includeWhatsApp: false,
-    })
+    await notifyPhones([ctx.guestPhone], body, phoneNotifyOpts('complaint_guest_signoff', { hotelId: ctx.hotelId }))
   }
 }
 
@@ -216,11 +205,7 @@ export async function notifyComplaintVisitScheduled(
       smsUrl('/guest'),
     )
 
-    await notifyPhones([ctx.guestPhone], body, {
-      hotelId: ctx.hotelId,
-      templateKey: 'complaint_visit_scheduled',
-      includeWhatsApp: false,
-    })
+    await notifyPhones([ctx.guestPhone], body, phoneNotifyOpts('complaint_visit_scheduled', { hotelId: ctx.hotelId }))
   }
 
   if (ctx.guestId) {
@@ -341,11 +326,7 @@ export async function notifyComplaintEstimateApproved(
     smsUrl('/technician/tasks'),
   )
 
-  await notifyPhones([phone], body, {
-    hotelId: ctx.hotelId,
-    templateKey: 'complaint_estimate_approved',
-    includeWhatsApp: false,
-  })
+  await notifyPhones([phone], body, phoneNotifyOpts('complaint_estimate_approved', { hotelId: ctx.hotelId }))
 }
 
 /** Manager sent job back — alert technician with note. */
@@ -367,11 +348,7 @@ export async function notifyComplaintRejected(
     smsUrl('/technician/tasks'),
   )
 
-  await notifyPhones([phone], body, {
-    hotelId: ctx.hotelId,
-    templateKey: 'complaint_rejected',
-    includeWhatsApp: false,
-  })
+  await notifyPhones([phone], body, phoneNotifyOpts('complaint_rejected', { hotelId: ctx.hotelId }))
 }
 
 /** Guest replied on a complaint thread — alert managers. */
@@ -428,11 +405,7 @@ export async function notifyComplaintStaffMessageToGuest(
   )
 
   if (ctx.guestPhone) {
-    await notifyPhones([ctx.guestPhone], smsBody, {
-      hotelId: ctx.hotelId,
-      templateKey: 'complaint_guest_message',
-      includeWhatsApp: false,
-    })
+    await notifyPhones([ctx.guestPhone], smsBody, phoneNotifyOpts('complaint_guest_message', { hotelId: ctx.hotelId }))
   }
 
   if (ctx.guestId) {

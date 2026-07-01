@@ -1,4 +1,5 @@
 import { notifyPhones } from '@/lib/notifications/send'
+import { phoneNotifyOpts } from '@/lib/notifications/phone-notify'
 import { smsLine, smsRoom, smsTruncate, smsUrl } from '@/lib/notifications/sms-format'
 import type { HousekeepingTaskType } from '@/types'
 
@@ -43,11 +44,7 @@ export async function notifyHousekeepingTaskAssigned(taskId: string): Promise<vo
     smsUrl('/technician/tasks'),
   )
 
-  await notifyPhones([phone], body, {
-    hotelId: task.hotel_id,
-    templateKey: 'housekeeping_assigned',
-    includeWhatsApp: false,
-  })
+  await notifyPhones([phone], body, phoneNotifyOpts('housekeeping_assigned', { hotelId: task.hotel_id }))
 }
 
 /** Clean task marked done — room needs inspection; alert managers to verify. */

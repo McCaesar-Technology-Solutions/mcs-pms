@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { notifyPhones } from '@/lib/notifications/send'
+import { phoneNotifyOpts } from '@/lib/notifications/phone-notify'
 import { notifyEmails } from '@/lib/notifications/send-email'
 import {
   managerOnlyEmails,
@@ -110,22 +111,14 @@ export async function notifyGuestFeedbackSubmitted(feedbackId: string): Promise<
       ? notifyPhones(
           managerPhones,
           `${smsBody} ${smsUrl(MANAGER_REVIEWS_URL)}`,
-          {
-            hotelId: data.hotel_id,
-            templateKey,
-            includeWhatsApp: false,
-          },
+          phoneNotifyOpts(templateKey, { hotelId: data.hotel_id }),
         )
       : Promise.resolve(),
     ownerPhoneList.length > 0
       ? notifyPhones(
           ownerPhoneList,
           `${smsBody} ${smsUrl(OWNER_REVIEWS_URL)}`,
-          {
-            hotelId: data.hotel_id,
-            templateKey,
-            includeWhatsApp: false,
-          },
+          phoneNotifyOpts(templateKey, { hotelId: data.hotel_id }),
         )
       : Promise.resolve(),
   ])
