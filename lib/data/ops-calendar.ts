@@ -1,4 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
+import { OPS_EVENT_LABELS } from '@/lib/ops-calendar/categories'
+
+export { OPS_EVENT_LABELS }
 
 export interface OpsCalendarEventRow {
   id: string
@@ -9,6 +12,14 @@ export interface OpsCalendarEventRow {
   allDay: boolean
   roomNumber: string | null
   notes: string | null
+}
+
+export function opsCalendarWeekRange(): { fromIso: string; toIso: string } {
+  const weekStart = new Date()
+  weekStart.setHours(0, 0, 0, 0)
+  const weekEnd = new Date(weekStart)
+  weekEnd.setDate(weekEnd.getDate() + 7)
+  return { fromIso: weekStart.toISOString(), toIso: weekEnd.toISOString() }
 }
 
 export async function loadOpsCalendarEvents(
@@ -35,13 +46,4 @@ export async function loadOpsCalendarEvents(
     roomNumber: (row.rooms as { number?: string } | null)?.number ?? null,
     notes: row.notes,
   }))
-}
-
-export const OPS_EVENT_LABELS: Record<string, string> = {
-  training: 'Training',
-  meeting: 'Meeting',
-  guest_service: 'Guest service',
-  maintenance: 'Maintenance',
-  event: 'Event',
-  general: 'General',
 }

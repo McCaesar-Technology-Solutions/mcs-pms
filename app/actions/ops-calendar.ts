@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { requireVerifiedStaff, consumeStaffAuthError } from '@/lib/auth/staff-session'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { notifyOpsCalendarEventCreated } from '@/lib/notifications/ops-calendar'
+import { runNotifyTask } from '@/lib/notifications/notify-task'
 
 export type OpsCalendarActionResult<T = void> =
   | { success: true; data?: T }
@@ -17,6 +19,7 @@ const eventSchema = z.object({
   allDay: z.boolean().optional(),
   roomId: z.string().uuid().optional(),
   notes: z.string().max(500).optional(),
+  notifyTeam: z.boolean().optional(),
 })
 
 async function requireOpsStaff() {
@@ -30,6 +33,10 @@ function revalidateCalendar() {
   revalidatePath('/owner/dashboard')
   revalidatePath('/manager/dashboard')
   revalidatePath('/receptionist/dashboard')
+  revalidatePath('/owner/messages')
+  revalidatePath('/manager/messages')
+  revalidatePath('/receptionist/messages')
+  revalidatePath('/technician/messages')
 }
 
 export async function createOpsCalendarEvent(
@@ -44,19 +51,47 @@ export async function createOpsCalendarEvent(
   if (!profile) return { success: false, error: 'Not authorized.' }
 
   const admin = createAdminClient()
-  const { error } = await admin.from('ops_calendar_events').insert({
-    hotel_id: profile.hotel_id!,
-    title: parsed.data.title.trim(),
-    category: parsed.data.category,
-    starts_at: parsed.data.startsAt,
-    ends_at: parsed.data.endsAt ?? null,
-    all_day: parsed.data.allDay ?? false,
-    room_id: parsed.data.roomId ?? null,
-    notes: parsed.data.notes?.trim() || null,
-    created_by: profile.id,
-  })
+  const notifyTeam = parsed.data.notifyTeam ?? true
 
-  if (error) return { success: false, error: error.message }
+  const { data: created, error } = await admin
+    .from('ops_calendar_events')
+    .insert({
+      hotel_id: profile.hotel_id!,
+      title: parsed.data.title.trim(),
+      category: parsed.data.category,
+      starts_at: parsed.data.startsAt,
+      ends_at: parsed.data.endsAt ?? null,
+      all_day: parsed.data.allDay ?? false,
+      room_id: parsed.data.roomId ?? null,
+      notes: parsed.data.notes?.trim() || null,
+      created_by: profile.id,
+    })
+    .select('id, rooms(number)')
+    .single()
+
+  if (error || !created) return { success: false, error: error?.message ?? 'Could not save event.' }
+
+  const roomNumber = (created.rooms as { number?: string } | null)?.number ?? null
+
+  void runNotifyTask(
+    notifyOpsCalendarEventCreated({
+      hotelId: profile.hotel_id!,
+      authorId: profile.id,
+      authorName: profile.name ?? 'Staff',
+      title: parsed.data.title.trim(),
+      category: parsed.data.category,
+      startsAt: parsed.data.startsAt,
+      allDay: parsed.data.allDay ?? false,
+      roomNumber,
+      notes: parsed.data.notes?.trim() || null,
+      notifyTeam,
+    }),
+    {
+      templateKey: 'ops_calendar_event',
+      hotelId: profile.hotel_id!,
+    },
+  )
+
   revalidateCalendar()
   return { success: true }
 }

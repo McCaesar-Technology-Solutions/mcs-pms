@@ -5,7 +5,8 @@ import { CalendarDays, Plus, Trash2 } from 'lucide-react'
 import { DataEmptyState } from '@/components/dashboard/data-empty-state'
 import { toast } from 'sonner'
 import { createOpsCalendarEvent, deleteOpsCalendarEvent } from '@/app/actions/ops-calendar'
-import { OPS_EVENT_LABELS, type OpsCalendarEventRow } from '@/lib/data/ops-calendar'
+import { OPS_EVENT_LABELS, isImportantOpsCategory } from '@/lib/ops-calendar/categories'
+import type { OpsCalendarEventRow } from '@/lib/data/ops-calendar'
 import {
   CenteredModal,
   ModalBody,
@@ -15,7 +16,15 @@ import {
 
 interface OpsCalendarPanelProps {
   events: OpsCalendarEventRow[]
+  /** Owner, manager, receptionist can add/remove events. */
   canManage?: boolean
+}
+
+function panelDescription(canManage: boolean): string {
+  if (canManage) {
+    return 'Training, meetings, and property events this week. Team sees this on their dashboards; optional SMS/email and Property team chat for important items.'
+  }
+  return 'Shared schedule for this week — same events managers add for the whole team.'
 }
 
 function formatWhen(event: OpsCalendarEventRow) {
@@ -44,7 +53,7 @@ export function OpsCalendarPanel({ events, canManage = false }: OpsCalendarPanel
             <CalendarDays className="h-5 w-5 text-[var(--brand-purple)]" />
             <h3 className="text-base font-semibold text-foreground">Ops calendar</h3>
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">Training, meetings, and property events this week.</p>
+          <p className="mt-1 text-sm text-muted-foreground">{panelDescription(Boolean(canManage))}</p>
         </div>
         {canManage && (
           <button
@@ -123,6 +132,7 @@ function OpsEventFormModal({ onClose, onDone }: { onClose: () => void; onDone: (
   const [category, setCategory] = useState<OpsCalendarEventRow['category']>('general')
   const [startsAt, setStartsAt] = useState('')
   const [notes, setNotes] = useState('')
+  const [notifyTeam, setNotifyTeam] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
@@ -138,9 +148,10 @@ function OpsEventFormModal({ onClose, onDone }: { onClose: () => void; onDone: (
         category: category as 'training' | 'meeting' | 'guest_service' | 'maintenance' | 'event' | 'general',
         startsAt: new Date(startsAt).toISOString(),
         notes: notes || undefined,
+        notifyTeam,
       })
       if (result.success) {
-        toast.success('Event added')
+        toast.success(notifyTeam ? 'Event added — team notified' : 'Event added')
         onDone()
       } else {
         setError(result.error ?? 'Could not save event')
@@ -155,13 +166,33 @@ function OpsEventFormModal({ onClose, onDone }: { onClose: () => void; onDone: (
       </ModalHeader>
       <ModalBody className="space-y-3">
         <input placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} className="app-field w-full" />
-        <select value={category} onChange={(e) => setCategory(e.target.value)} className="app-field w-full">
+        <select
+          value={category}
+          onChange={(e) => setCategory(e.target.value as OpsCalendarEventRow['category'])}
+          className="app-field w-full"
+        >
           {Object.entries(OPS_EVENT_LABELS).map(([key, label]) => (
             <option key={key} value={key}>{label}</option>
           ))}
         </select>
         <input type="datetime-local" value={startsAt} onChange={(e) => setStartsAt(e.target.value)} className="app-field w-full" />
         <textarea placeholder="Notes (optional)" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="app-field w-full" />
+        <label className="flex cursor-pointer items-start gap-2 text-sm text-muted-foreground">
+          <input
+            type="checkbox"
+            checked={notifyTeam}
+            onChange={(e) => setNotifyTeam(e.target.checked)}
+            className="mt-0.5"
+          />
+          <span>
+            Notify team by SMS and email (respects notification settings).{' '}
+            {isImportantOpsCategory(category) ? (
+              <span className="text-foreground">Also posts to Property team in Messages.</span>
+            ) : (
+              <span>General events stay on the dashboard only.</span>
+            )}
+          </span>
+        </label>
         {error && <p className="text-sm text-destructive">{error}</p>}
       </ModalBody>
       <ModalFooter>

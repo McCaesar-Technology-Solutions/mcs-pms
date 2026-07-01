@@ -24,6 +24,7 @@ export const NOTIFICATION_TEMPLATE_KEYS = [
   'housekeeping_assigned',
   'housekeeping_clean_done',
   'staff_invite',
+  'ops_calendar_event',
 ] as const
 
 export type NotificationTemplateKey = (typeof NOTIFICATION_TEMPLATE_KEYS)[number]
@@ -75,8 +76,8 @@ export const NOTIFICATION_PREF_GROUPS: {
   },
   {
     title: 'Housekeeping & staff',
-    description: 'Task assignments and team invites.',
-    keys: ['housekeeping_assigned', 'housekeeping_clean_done', 'staff_invite'],
+    description: 'Task assignments, team invites, and ops calendar.',
+    keys: ['housekeeping_assigned', 'housekeeping_clean_done', 'staff_invite', 'ops_calendar_event'],
   },
 ]
 
@@ -105,6 +106,7 @@ export const NOTIFICATION_PREF_LABELS: Record<NotificationTemplateKey, string> =
   housekeeping_assigned: 'Housekeeping task assigned',
   housekeeping_clean_done: 'Clean complete — needs inspection (managers)',
   staff_invite: 'Staff invite link (technician SMS)',
+  ops_calendar_event: 'Ops calendar event scheduled (team SMS)',
 }
 
 /** Keys that bypass property prefs (security / auth). */

@@ -13,6 +13,7 @@ export const EMAIL_STAFF_TEMPLATE_KEYS = [
   'guest_feedback_low',
   'staff_invite',
   'room_created',
+  'ops_calendar_event',
 ] as const
 
 export type EmailStaffTemplateKey = (typeof EMAIL_STAFF_TEMPLATE_KEYS)[number]
@@ -56,6 +57,11 @@ export const EMAIL_PREF_GROUPS: {
     description: 'When managers add rooms to your property.',
     keys: ['room_created'],
   },
+  {
+    title: 'Operations calendar',
+    description: 'When managers schedule team events.',
+    keys: ['ops_calendar_event'],
+  },
 ]
 
 export const EMAIL_PREF_LABELS: Record<EmailStaffTemplateKey, string> = {
@@ -72,6 +78,7 @@ export const EMAIL_PREF_LABELS: Record<EmailStaffTemplateKey, string> = {
   guest_feedback_low: 'Low guest review (≤2 stars)',
   staff_invite: 'Staff invite email (manager / receptionist)',
   room_created: 'New room added by manager',
+  ops_calendar_event: 'Ops calendar event scheduled (team email)',
 }
 
 /** Staff invite emails always send — onboarding must not be blocked by prefs. */

@@ -56,6 +56,52 @@ export async function managerOnlyPhones(hotelId: string): Promise<string[]> {
   return [...new Set((data ?? []).map((p) => p.phone!.trim()).filter(Boolean))]
 }
 
+/** Active staff phones at a property (all front-line roles). */
+export async function hotelStaffPhones(
+  hotelId: string,
+  excludeProfileId?: string,
+): Promise<string[]> {
+  const admin = createAdminClient()
+  const { data } = await admin
+    .from('profiles')
+    .select('id, phone')
+    .eq('hotel_id', hotelId)
+    .eq('is_active', true)
+    .in('role', ['owner', 'manager', 'receptionist', 'technician'])
+    .not('phone', 'is', null)
+
+  return [
+    ...new Set(
+      (data ?? [])
+        .filter((p) => p.id !== excludeProfileId && p.phone?.trim())
+        .map((p) => p.phone!.trim()),
+    ),
+  ]
+}
+
+/** Active staff emails at a property (all front-line roles). */
+export async function hotelStaffEmails(
+  hotelId: string,
+  excludeProfileId?: string,
+): Promise<string[]> {
+  const admin = createAdminClient()
+  const { data } = await admin
+    .from('profiles')
+    .select('id, email')
+    .eq('hotel_id', hotelId)
+    .eq('is_active', true)
+    .in('role', ['owner', 'manager', 'receptionist', 'technician'])
+    .not('email', 'is', null)
+
+  return [
+    ...new Set(
+      (data ?? [])
+        .filter((p) => p.id !== excludeProfileId && isRealStaffEmail(p.email))
+        .map((p) => p.email!.trim().toLowerCase()),
+    ),
+  ]
+}
+
 /** Manager phones for a property; falls back to owner if no manager on file. */
 export async function managerPhones(hotelId: string): Promise<string[]> {
   const admin = createAdminClient()

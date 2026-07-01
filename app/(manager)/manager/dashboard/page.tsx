@@ -34,7 +34,7 @@ import { getRecentNightAudits } from '@/app/actions/night-audit'
 import { NightAuditPanel } from '@/components/dashboard/night-audit-panel'
 import { getManagerTabBadges } from '@/lib/data/staff-alerts'
 import { OpsCalendarPanel } from '@/components/dashboard/ops-calendar-panel'
-import { loadOpsCalendarEvents } from '@/lib/data/ops-calendar'
+import { loadOpsCalendarEvents, opsCalendarWeekRange } from '@/lib/data/ops-calendar'
 import { todayISO } from '@/lib/stays/helpers'
 
 const MANAGER_HASH_TO_TAB: Record<string, string> = {
@@ -89,10 +89,7 @@ export default async function ManagerDashboardPage({
   let guestFeedback: Awaited<ReturnType<typeof loadHotelGuestFeedback>> | null = null
   let opsCalendarEvents: Awaited<ReturnType<typeof loadOpsCalendarEvents>> = []
   if (hotelId) {
-    const weekStart = new Date()
-    weekStart.setHours(0, 0, 0, 0)
-    const weekEnd = new Date(weekStart)
-    weekEnd.setDate(weekEnd.getDate() + 7)
+    const { fromIso, toIso } = opsCalendarWeekRange()
     const admin = createAdminClient()
     const [{ data: hotel }, requests, inbox, feedback, hotelPrefs, calendarEvents] = await Promise.all([
       admin.from('hotels').select('name').eq('id', hotelId).maybeSingle(),
@@ -104,7 +101,7 @@ export default async function ManagerDashboardPage({
         .select('notification_sms_prefs, notification_email_prefs')
         .eq('id', hotelId)
         .maybeSingle(),
-      loadOpsCalendarEvents(hotelId, weekStart.toISOString(), weekEnd.toISOString()),
+      loadOpsCalendarEvents(hotelId, fromIso, toIso),
     ])
     propertyName = hotel?.name ?? propertyName
     guestRequests = requests

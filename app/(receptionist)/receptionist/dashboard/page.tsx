@@ -19,6 +19,8 @@ import {
   getTodayDepartures,
 } from '@/lib/data/overview'
 import { getOccupancyToday } from '@/lib/data/occupancy'
+import { OpsCalendarPanel } from '@/components/dashboard/ops-calendar-panel'
+import { loadOpsCalendarEvents, opsCalendarWeekRange } from '@/lib/data/ops-calendar'
 import { createClient } from '@/lib/supabase/server'
 
 const RECEPTIONIST_HASH_TO_TAB: Record<string, string> = {
@@ -55,6 +57,10 @@ export default async function ReceptionistDashboardPage({
   const arrivals = getTodayArrivals(reservations, opsDate)
   const departures = getTodayDepartures(reservations, opsDate)
   const guestRequests = hotelId ? await loadHotelGuestRequests(hotelId) : []
+  const { fromIso, toIso } = opsCalendarWeekRange()
+  const opsCalendarEvents = hotelId
+    ? await loadOpsCalendarEvents(hotelId, fromIso, toIso)
+    : []
   const pendingRequests = guestRequests.filter((r) => r.status === 'pending').length
   const openComplaints = complaints.filter((c) => c.status !== 'resolved').length
 
@@ -92,14 +98,17 @@ export default async function ReceptionistDashboardPage({
           ]}
           panels={{
             today: (
-              <section className="dashboard-section space-y-4">
-                <SectionHeading title="Today on the desk" description="Arrivals and departures" />
-                <TodayGuestStrip
-                  arrivals={arrivals}
-                  departures={departures}
-                  reservationsHref="/receptionist/reservations"
-                />
-              </section>
+              <>
+                <section className="dashboard-section space-y-4">
+                  <SectionHeading title="Today on the desk" description="Arrivals and departures" />
+                  <TodayGuestStrip
+                    arrivals={arrivals}
+                    departures={departures}
+                    reservationsHref="/receptionist/reservations"
+                  />
+                </section>
+                <OpsCalendarPanel events={opsCalendarEvents} />
+              </>
             ),
             requests:
               hotelId ? (

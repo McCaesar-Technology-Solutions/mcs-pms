@@ -26,7 +26,9 @@ import {
 import { getOccupancyToday } from '@/lib/data/occupancy'
 import { getRecentNightAudits } from '@/app/actions/night-audit'
 import { NightAuditPanel } from '@/components/dashboard/night-audit-panel'
+import { OpsCalendarPanel } from '@/components/dashboard/ops-calendar-panel'
 import { createClient } from '@/lib/supabase/server'
+import { loadOpsCalendarEvents, opsCalendarWeekRange } from '@/lib/data/ops-calendar'
 import { todayISO } from '@/lib/stays/helpers'
 
 const OWNER_HASH_TO_TAB: Record<string, string> = {
@@ -50,6 +52,11 @@ export default async function DashboardPage({
       getHousekeepingTasks(),
       getRecentNightAudits(),
     ])
+
+  const { fromIso, toIso } = opsCalendarWeekRange()
+  const opsCalendarEvents = hotelId
+    ? await loadOpsCalendarEvents(hotelId, fromIso, toIso)
+    : []
 
   const supabase = await createClient()
   const [guestFeedback, occupancyToday] = await Promise.all([
@@ -134,6 +141,7 @@ export default async function DashboardPage({
                 <section className="dashboard-section dashboard-section--compact">
                   <OperationsSummary tasks={tasks} />
                 </section>
+                <OpsCalendarPanel events={opsCalendarEvents} canManage />
                 <DashboardMoreLinks />
               </>
             ),
