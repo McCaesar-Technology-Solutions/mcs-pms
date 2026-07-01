@@ -61,6 +61,7 @@ import { GuestStayChat } from '@/components/guest/guest-stay-chat'
 import { GuestStatusAlerts } from '@/components/guest/guest-status-alerts'
 import { FormError } from '@/components/ui/form-error'
 import { RealtimeReconnectBanner } from '@/components/realtime/reconnect-banner'
+import { useRealtimeSubscription } from '@/components/realtime/use-realtime-subscription'
 import { PhoneContactList } from '@/components/ui/phone-contact'
 import { PortalBrand } from '@/components/brand/portal-brand'
 import { HelpAssistant } from '@/components/help/help-assistant'
@@ -189,8 +190,6 @@ export function GuestPortal({
   const [staffMessageUnread, setStaffMessageUnread] = useState(false)
   const [dnd, setDnd] = useState(Boolean((guest as Guest & { do_not_disturb?: boolean }).do_not_disturb))
   const [complaints, setComplaints] = useState<Complaint[]>([])
-  const [disconnected, setDisconnected] = useState(false)
-  const [retryKey, setRetryKey] = useState(0)
   const [copiedWifi, setCopiedWifi] = useState(false)
   const [requestLoading, setRequestLoading] = useState<string | null>(null)
   const [requestError, setRequestError] = useState<string | null>(null)
@@ -259,41 +258,27 @@ export function GuestPortal({
     if (result.success && result.data) setComplaints(result.data)
   }, [])
 
+  const subscribeGuestComplaints = useCallback(
+    (supabase: ReturnType<typeof createClient>, retryKey: number) =>
+      supabase
+        .channel(`guest-complaints-${guest.id}-${retryKey}`)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'complaints', filter: `guest_id=eq.${guest.id}` },
+          () => {
+            void loadComplaints()
+          },
+        ),
+    [guest.id, loadComplaints],
+  )
+
+  const { showReconnectBanner, reconnect } = useRealtimeSubscription(subscribeGuestComplaints, [guest.id])
+
   useEffect(() => {
-    loadComplaints()
+    void loadComplaints()
     const interval = setInterval(loadComplaints, 12000)
     return () => clearInterval(interval)
   }, [loadComplaints])
-
-  useEffect(() => {
-    const supabase = createClient()
-    let backoff = 1000
-    let retryTimer: ReturnType<typeof setTimeout> | null = null
-
-    const channel = supabase
-      .channel(`guest-complaints-${guest.id}-${retryKey}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'complaints', filter: `guest_id=eq.${guest.id}` },
-        () => loadComplaints(),
-      )
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          backoff = 1000
-          setDisconnected(false)
-        }
-        if (status === 'CHANNEL_ERROR' || status === 'CLOSED') {
-          setDisconnected(true)
-          retryTimer = setTimeout(() => setRetryKey((k) => k + 1), backoff)
-          backoff = Math.min(backoff * 2, 8000)
-        }
-      })
-
-    return () => {
-      if (retryTimer) clearTimeout(retryTimer)
-      supabase.removeChannel(channel)
-    }
-  }, [guest.id, loadComplaints, retryKey])
 
   async function toggleDnd() {
     const next = !dnd
@@ -460,11 +445,8 @@ export function GuestPortal({
 
   return (
     <div className="guest-portal-shell">
-      {disconnected && (
-        <RealtimeReconnectBanner
-          onReconnect={() => setRetryKey((k) => k + 1)}
-          offset="guest-nav"
-        />
+      {showReconnectBanner && (
+        <RealtimeReconnectBanner onReconnect={reconnect} offset="guest-nav" />
       )}
 
       <header className={`guest-portal-header ${activeTab === 'messages' ? 'guest-portal-header--compact' : ''}`}>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { useCallback, type ReactNode } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { RealtimeReconnectBanner } from '@/components/realtime/reconnect-banner'
 import {
@@ -8,6 +8,8 @@ import {
   useRealtimeRefreshContext,
 } from '@/components/realtime/realtime-refresh-context'
 import { RealtimeLayoutRefresh } from '@/components/realtime/realtime-layout-refresh'
+import { useRealtimeSubscription } from '@/components/realtime/use-realtime-subscription'
+import type { RealtimeChannel } from '@supabase/supabase-js'
 
 interface HotelRealtimeProviderProps {
   hotelId: string
@@ -21,155 +23,121 @@ function hotelFilter(hotelId: string) {
 
 function HotelRealtimeChannel({ hotelId, currentUserId, children }: HotelRealtimeProviderProps) {
   const { publish } = useRealtimeRefreshContext()
-  const [disconnected, setDisconnected] = useState(false)
-  const [retryKey, setRetryKey] = useState(0)
 
-  const reconnect = useCallback(() => {
-    setRetryKey((k) => k + 1)
-    setDisconnected(false)
-  }, [])
+  const subscribe = useCallback(
+    (supabase: ReturnType<typeof createClient>, retryKey: number): RealtimeChannel[] => {
+      const refreshLayout = () => publish('layout')
+      const refreshComplaints = () => publish(['complaints', 'layout'])
+      const refreshHousekeeping = () => publish(['housekeeping', 'layout'])
+      const refreshMessages = () => publish(['messages', 'layout'])
+      const refreshGuestPortal = () => publish(['guest_portal', 'layout'])
 
-  useEffect(() => {
-    const supabase = createClient()
-    let backoff = 1000
-    let retryTimer: ReturnType<typeof setTimeout> | null = null
+      const layoutTables = [
+        'reservations',
+        'guests',
+        'rooms',
+        'room_categories',
+        'invoices',
+        'profiles',
+        'staff_invites',
+      ] as const
 
-    const refreshLayout = () => publish('layout')
-    const refreshComplaints = () => publish(['complaints', 'layout'])
-    const refreshHousekeeping = () => publish(['housekeeping', 'layout'])
-    const refreshMessages = () => publish(['messages', 'layout'])
-    const refreshGuestPortal = () => publish(['guest_portal', 'layout'])
+      const opsChannel = supabase.channel(`hotel-live-ops-${hotelId}-${retryKey}`)
+      for (const table of layoutTables) {
+        opsChannel.on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table, filter: hotelFilter(hotelId) },
+          refreshLayout,
+        )
+      }
 
-    const channel = supabase.channel(`hotel-live-${hotelId}-${retryKey}`)
-
-    const layoutTables = [
-      'reservations',
-      'guests',
-      'rooms',
-      'room_categories',
-      'invoices',
-      'profiles',
-      'staff_invites',
-    ] as const
-
-    for (const table of layoutTables) {
-      channel.on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table, filter: hotelFilter(hotelId) },
-        () => {
-          refreshLayout()
-        },
-      )
-    }
-
-    channel
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'complaints',
-          filter: hotelFilter(hotelId),
-        },
-        (payload) => {
-          const row = payload.new as { category?: string }
-          import('sonner').then(({ toast }) => {
-            toast.info(`New complaint — ${row.category ?? 'issue'} reported`)
-          })
-          refreshComplaints()
-        },
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'complaints',
-          filter: hotelFilter(hotelId),
-        },
-        (payload) => {
-          const row = payload.new as { status?: string; approval_stage?: string | null }
-          if (row.status === 'pending_approval') {
+      opsChannel
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'complaints', filter: hotelFilter(hotelId) },
+          (payload) => {
+            const row = payload.new as { category?: string }
             import('sonner').then(({ toast }) => {
-              if (row.approval_stage !== 'estimate') {
-                toast.success('Job ready for approval')
-              }
+              toast.info(`New complaint — ${row.category ?? 'issue'} reported`)
             })
-          }
-          refreshComplaints()
-        },
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'DELETE',
-          schema: 'public',
-          table: 'complaints',
-          filter: hotelFilter(hotelId),
-        },
-        () => {
-          refreshComplaints()
-        },
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'complaint_estimates',
-          filter: hotelFilter(hotelId),
-        },
-        (payload) => {
-          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-            import('sonner').then(({ toast }) => {
-              toast.info('Technician cost estimate received')
-            })
-          }
-          refreshComplaints()
-        },
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'housekeeping_tasks',
-          filter: hotelFilter(hotelId),
-        },
-        (payload) => {
-          if (payload.eventType === 'INSERT') {
-            import('sonner').then(({ toast }) => {
-              toast.info('New housekeeping task')
-            })
-          }
-          refreshHousekeeping()
-        },
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'guest_requests',
-          filter: hotelFilter(hotelId),
-        },
-        (payload) => {
-          if (payload.eventType === 'INSERT') {
-            import('sonner').then(({ toast }) => {
-              toast.info('New guest request')
-            })
-          }
-          refreshGuestPortal()
-        },
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'complaint_messages',
-        },
-        (payload) => {
+            refreshComplaints()
+          },
+        )
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'complaints', filter: hotelFilter(hotelId) },
+          (payload) => {
+            const row = payload.new as { status?: string; approval_stage?: string | null }
+            if (row.status === 'pending_approval') {
+              import('sonner').then(({ toast }) => {
+                if (row.approval_stage !== 'estimate') {
+                  toast.success('Job ready for approval')
+                }
+              })
+            }
+            refreshComplaints()
+          },
+        )
+        .on(
+          'postgres_changes',
+          { event: 'DELETE', schema: 'public', table: 'complaints', filter: hotelFilter(hotelId) },
+          refreshComplaints,
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'complaint_estimates',
+            filter: hotelFilter(hotelId),
+          },
+          (payload) => {
+            if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+              import('sonner').then(({ toast }) => {
+                toast.info('Technician cost estimate received')
+              })
+            }
+            refreshComplaints()
+          },
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'housekeeping_tasks',
+            filter: hotelFilter(hotelId),
+          },
+          (payload) => {
+            if (payload.eventType === 'INSERT') {
+              import('sonner').then(({ toast }) => {
+                toast.info('New housekeeping task')
+              })
+            }
+            refreshHousekeeping()
+          },
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'guest_requests',
+            filter: hotelFilter(hotelId),
+          },
+          (payload) => {
+            if (payload.eventType === 'INSERT') {
+              import('sonner').then(({ toast }) => {
+                toast.info('New guest request')
+              })
+            }
+            refreshGuestPortal()
+          },
+        )
+
+      const messagesChannel = supabase.channel(`hotel-live-messages-${hotelId}-${retryKey}`)
+      messagesChannel
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'complaint_messages' }, (payload) => {
           if (payload.eventType === 'INSERT') {
             const row = payload.new as { author_role?: string }
             if (row.author_role === 'guest') {
@@ -180,89 +148,57 @@ function HotelRealtimeChannel({ hotelId, currentUserId, children }: HotelRealtim
           }
           refreshMessages()
           refreshComplaints()
-        },
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'guest_conversation_messages',
-        },
-        (payload) => {
-          if (payload.eventType === 'INSERT') {
-            const row = payload.new as { author_role?: string }
-            if (row.author_role === 'guest') {
+        })
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'guest_conversation_messages' },
+          (payload) => {
+            if (payload.eventType === 'INSERT') {
+              const row = payload.new as { author_role?: string }
+              if (row.author_role === 'guest') {
+                import('sonner').then(({ toast }) => {
+                  toast.info('New guest message')
+                })
+              }
+            }
+            refreshMessages()
+          },
+        )
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'staff_conversation_messages' },
+          (payload) => {
+            const row = payload.new as { author_id?: string }
+            if (!currentUserId || row.author_id !== currentUserId) {
               import('sonner').then(({ toast }) => {
-                toast.info('New guest message')
+                toast.info('New team message')
               })
             }
-          }
-          refreshMessages()
-        },
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'staff_conversation_messages',
-        },
-        (payload) => {
-          const row = payload.new as { author_id?: string }
-          if (!currentUserId || row.author_id !== currentUserId) {
-            import('sonner').then(({ toast }) => {
-              toast.info('New team message')
-            })
-          }
-          refreshMessages()
-        },
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'staff_conversation_members',
-        },
-        () => {
-          refreshMessages()
-        },
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'guest_conversations',
-          filter: hotelFilter(hotelId),
-        },
-        () => {
-          refreshMessages()
-        },
-      )
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          backoff = 1000
-          setDisconnected(false)
-        }
-        if (status === 'CHANNEL_ERROR' || status === 'CLOSED') {
-          setDisconnected(true)
-          retryTimer = setTimeout(() => setRetryKey((k) => k + 1), backoff)
-          backoff = Math.min(backoff * 2, 8000)
-        }
-      })
+            refreshMessages()
+          },
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'guest_conversations',
+            filter: hotelFilter(hotelId),
+          },
+          refreshMessages,
+        )
 
-    return () => {
-      if (retryTimer) clearTimeout(retryTimer)
-      supabase.removeChannel(channel)
-    }
-  }, [hotelId, currentUserId, retryKey, publish])
+      return [opsChannel, messagesChannel]
+    },
+    [hotelId, currentUserId, publish],
+  )
+
+  const { showReconnectBanner, reconnect } = useRealtimeSubscription(subscribe, [hotelId, currentUserId])
 
   return (
     <>
       <RealtimeLayoutRefresh />
-      {disconnected && <RealtimeReconnectBanner onReconnect={reconnect} />}
+      {showReconnectBanner && <RealtimeReconnectBanner onReconnect={reconnect} />}
       {children}
     </>
   )
