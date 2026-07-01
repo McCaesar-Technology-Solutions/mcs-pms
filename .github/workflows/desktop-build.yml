@@ -1,0 +1,65 @@
+name: Desktop builds
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_url:
+        description: 'Hosted PMS URL (no trailing slash)'
+        required: true
+        default: 'https://mcs-pms.vercel.app'
+
+jobs:
+  build-tauri:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+            name: macOS
+          - platform: windows-latest
+            name: Windows
+
+    runs-on: ${{ matrix.platform }}
+    name: Build ${{ matrix.name }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: desktop/src-tauri
+
+      - name: Install desktop dependencies
+        working-directory: desktop
+        run: npm ci
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MOJO_APP_URL: ${{ inputs.app_url }}
+        with:
+          projectPath: desktop
+
+      - name: Upload installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: mojo-desktop-${{ matrix.name }}
+          path: |
+            desktop/src-tauri/target/release/bundle/dmg/
+            desktop/src-tauri/target/release/bundle/macos/
+            desktop/src-tauri/target/release/bundle/msi/
+            desktop/src-tauri/target/release/bundle/nsis/
+          if-no-files-found: warn

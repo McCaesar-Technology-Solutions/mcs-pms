@@ -19,12 +19,24 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: 'MOJO APARTMENTS - Property Management System',
   description: 'Professional property management system for Ghana hospitality',
-  icons: { icon: '/icon.svg' },
+  icons: {
+    icon: '/icon.svg',
+    apple: '/icons/apple-touch-icon.png',
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'MOJO Apartments',
+  },
   openGraph: {
     title: 'MOJO APARTMENTS',
     description: 'Professional property management system for Ghana hospitality',
     type: 'website',
   },
+}
+
+export const viewport = {
+  themeColor: '#22124c',
 }
 
 export default function RootLayout({

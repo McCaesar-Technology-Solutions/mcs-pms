@@ -164,3 +164,5 @@ Run in order with a test owner account:
 | Production ready | `GET /api/ready` |
 | Liveness | `GET /api/health` |
 | Full deploy guide | [DEPLOYMENT.md](../DEPLOYMENT.md) |
+| Staff desktop app | **Install from browser** — open `/login` in Chrome/Edge, use the install icon in the address bar (PWA). Safari: Share → Add to Dock. |
+| Optional native installers | [desktop/README.md](../desktop/README.md) — Tauri `.msi` / `.dmg` if you need unsigned native bundles |
