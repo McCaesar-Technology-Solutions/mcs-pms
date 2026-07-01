@@ -5,7 +5,6 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { ROLE_HOME } from '@/lib/auth/roles'
 import {
   hashOtp,
-  hashSessionKey,
   generateOtpCode,
   maskPhone,
   maskEmail,
@@ -13,6 +12,7 @@ import {
   MFA_SEND_COOLDOWN_MS,
   MFA_SEND_MAX_PER_15_MIN,
 } from '@/lib/auth/mfa-sms'
+import { mfaVerifiedExpiresAt, resolveMfaSessionKey } from '@/lib/auth/mfa-session-key'
 import { buildMfaStatus } from '@/lib/auth/mfa-status'
 import { migrateLegacyTotpMfa } from '@/lib/auth/migrate-legacy-totp'
 import {
@@ -368,23 +368,23 @@ async function markSessionVerified(
     const {
       data: { session },
     } = await supabase.auth.getSession()
-    if (!session?.refresh_token) {
+    if (!session?.access_token && !session?.refresh_token) {
       return { success: false, error: 'Your session expired. Sign in again.' }
     }
 
     const admin = createAdminClient()
-    const sessionKey = await hashSessionKey(session.refresh_token)
+    const sessionKey = await resolveMfaSessionKey(session)
+    if (!sessionKey) {
+      return { success: false, error: 'Your session expired. Sign in again.' }
+    }
     const now = new Date().toISOString()
-    const sessionExpires = session.expires_at
-      ? new Date(session.expires_at * 1000).toISOString()
-      : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
 
     await admin.from('mfa_verified_sessions').upsert(
       {
         user_id: userId,
         session_key: sessionKey,
         verified_at: now,
-        expires_at: sessionExpires,
+        expires_at: mfaVerifiedExpiresAt(),
       },
       { onConflict: 'user_id,session_key' },
     )

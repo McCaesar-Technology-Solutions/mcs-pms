@@ -64,7 +64,12 @@ export function MfaSmsForm({ nextPath, mode }: MfaSmsFormProps) {
           return
         }
 
-        const { hasPhone, maskedPhone: masked } = status.data!
+        const { hasPhone, maskedPhone: masked, sessionVerified } = status.data!
+
+        if (mode === 'verify' && sessionVerified) {
+          router.replace(destination)
+          return
+        }
 
         if (mode === 'setup' && !hasPhone) {
           setNeedsPhone(true)
@@ -77,7 +82,9 @@ export function MfaSmsForm({ nextPath, mode }: MfaSmsFormProps) {
         setBootstrapping(false)
 
         if (mode === 'verify' || hasPhone) {
-          await deliverCode(sendMfaSmsCode)
+          if (!sessionVerified) {
+            await deliverCode(sendMfaSmsCode)
+          }
         }
       } catch (err) {
         if (!cancelled) {
@@ -90,7 +97,7 @@ export function MfaSmsForm({ nextPath, mode }: MfaSmsFormProps) {
     }
 
     init()
-  }, [mode, deliverCode])
+  }, [mode, deliverCode, destination, router])
 
   async function handleSavePhone(e: React.FormEvent) {
     e.preventDefault()

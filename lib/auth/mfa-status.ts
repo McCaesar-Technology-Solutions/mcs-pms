@@ -1,5 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { hashSessionKey } from '@/lib/auth/mfa-crypto'
+import {
+  resolveLegacyMfaSessionKey,
+  resolveMfaSessionKey,
+} from '@/lib/auth/mfa-session-key'
 import { roleRequiresMfa, userNeedsMfa, type MfaMethod, type MfaStatus } from '@/lib/auth/mfa'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { Database } from '@/lib/supabase/types'
@@ -35,17 +38,23 @@ export async function buildMfaStatus(
       const {
         data: { session },
       } = await supabase.auth.getSession()
-      if (session?.refresh_token) {
-        const sessionKey = await hashSessionKey(session.refresh_token)
+      if (session) {
         const admin = createAdminClient()
-        const { data } = await admin
-          .from('mfa_verified_sessions')
-          .select('id')
-          .eq('user_id', userId)
-          .eq('session_key', sessionKey)
-          .gt('expires_at', new Date().toISOString())
-          .maybeSingle()
-        sessionVerified = Boolean(data)
+        const now = new Date().toISOString()
+        const sessionKey = await resolveMfaSessionKey(session)
+        const legacyKey = await resolveLegacyMfaSessionKey(session)
+        const keys = [...new Set([sessionKey, legacyKey].filter(Boolean))] as string[]
+
+        if (keys.length > 0) {
+          const { data } = await admin
+            .from('mfa_verified_sessions')
+            .select('id')
+            .eq('user_id', userId)
+            .in('session_key', keys)
+            .gt('expires_at', now)
+            .limit(1)
+          sessionVerified = Boolean(data?.[0])
+        }
       }
     } catch {
       sessionVerified = false

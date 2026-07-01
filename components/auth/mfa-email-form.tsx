@@ -54,7 +54,12 @@ export function MfaEmailForm({ nextPath, mode }: MfaEmailFormProps) {
           return
         }
 
-        const { hasEmail, maskedEmail: masked, method } = status.data!
+        const { hasEmail, maskedEmail: masked, method, sessionVerified } = status.data!
+
+        if (mode === 'verify' && sessionVerified) {
+          router.replace(destination)
+          return
+        }
 
         if (mode === 'setup' && (!hasEmail || method !== 'email')) {
           setError('Your account has no email on file. Update your profile and try again.')
@@ -66,7 +71,9 @@ export function MfaEmailForm({ nextPath, mode }: MfaEmailFormProps) {
         setBootstrapping(false)
 
         if (mode === 'verify' || hasEmail) {
-          await deliverCode()
+          if (!sessionVerified) {
+            await deliverCode()
+          }
         }
       } catch (err) {
         if (!cancelled) {
@@ -79,7 +86,7 @@ export function MfaEmailForm({ nextPath, mode }: MfaEmailFormProps) {
     }
 
     init()
-  }, [mode, deliverCode])
+  }, [mode, deliverCode, destination, router])
 
   async function handleResend() {
     await deliverCode()
