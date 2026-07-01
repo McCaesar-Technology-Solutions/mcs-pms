@@ -1,5 +1,3 @@
--- Message editing + read receipts for edit eligibility
-
 ALTER TABLE staff_conversation_messages
   ADD COLUMN IF NOT EXISTS edited_at timestamptz;
 
