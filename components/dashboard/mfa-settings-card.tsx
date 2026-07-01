@@ -109,7 +109,7 @@ export function MfaSettingsCard({ role, returnPath }: MfaSettingsCardProps) {
         </div>
         <p className="mb-4 text-sm text-muted-foreground">
           {isSms
-            ? "We'll text a 6-digit code to your phone when you sign in. Add your number below if needed, then enter the code we send."
+            ? "We'll send a 6-digit code via SMS or WhatsApp when you sign in. Add your number below if needed, then choose how to receive the code."
             : "We'll email a 6-digit code to your account address when you sign in. Enter the code we send to finish setup."}
         </p>
         <div className="rounded-xl bg-[#22124C] p-5">

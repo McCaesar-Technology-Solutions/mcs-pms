@@ -19,6 +19,7 @@ describe('resolveSmsProvider', () => {
     delete process.env.HUBTEL_CLIENT_SECRET
     delete process.env.TWILIO_ACCOUNT_SID
     delete process.env.TWILIO_AUTH_TOKEN
+    delete process.env.TERMII_API_KEY
   })
 
   afterEach(() => {
@@ -44,5 +45,11 @@ describe('resolveSmsProvider', () => {
     process.env.HUBTEL_CLIENT_ID = 'hubtel-id'
     process.env.HUBTEL_CLIENT_SECRET = 'hubtel-secret'
     expect(resolveSmsProvider()).toBe('hubtel')
+  })
+
+  it('ignores Termii API key for SMS routing (Termii is WhatsApp-only)', () => {
+    process.env.TERMII_API_KEY = 'termii-key'
+    process.env.ARKESEL_API_KEY = 'test-key'
+    expect(resolveSmsProvider()).toBe('arkesel')
   })
 })

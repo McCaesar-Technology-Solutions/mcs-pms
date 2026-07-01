@@ -20,6 +20,7 @@ import {
   signInSchema,
   signUpOwnerSchema,
 } from '@/lib/validations'
+import { resolveSignInEmail } from '@/lib/auth/resolve-sign-in'
 import type { UserRole } from '@/types'
 
 export type AuthActionResult =
@@ -53,16 +54,21 @@ async function staffRedirectAfterAuth(intendedPath: string): Promise<string> {
 }
 
 export async function signIn(
-  email: string,
+  identifier: string,
   password: string,
 ): Promise<AuthActionResult> {
-  const parsed = signInSchema.safeParse({ email, password })
+  const parsed = signInSchema.safeParse({ identifier, password })
   if (!parsed.success) {
     return { success: false, error: 'Invalid email or password.' }
   }
 
+  const email = await resolveSignInEmail(parsed.data.identifier)
+  if (!email) {
+    return { success: false, error: 'Invalid credentials. Please try again.' }
+  }
+
   const ip = await getClientIp()
-  const emailKey = parsed.data.email.trim().toLowerCase()
+  const rateKey = parsed.data.identifier.trim().toLowerCase()
   const ipLimit = await assertRateLimit(
     ipRateKey('sign-in', ip),
     AUTH_RATE_LIMITS.signIn,
@@ -71,14 +77,17 @@ export async function signIn(
   if (ipLimit) return { success: false, error: ipLimit }
 
   const accountLimit = await assertRateLimit(
-    authRateKey('sign-in', emailKey),
+    authRateKey('sign-in', rateKey),
     AUTH_RATE_LIMITS.signIn,
     'Too many sign-in attempts. Please wait and try again.',
   )
   if (accountLimit) return { success: false, error: accountLimit }
 
   const supabase = await createClient()
-  const { data, error } = await supabase.auth.signInWithPassword(parsed.data)
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password: parsed.data.password,
+  })
 
   if (error || !data.user) {
     return { success: false, error: 'Invalid credentials. Please try again.' }

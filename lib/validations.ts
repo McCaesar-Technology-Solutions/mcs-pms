@@ -1,10 +1,31 @@
 import { z } from 'zod'
 import { phoneSchema } from '@/lib/phone'
 
-export const signInSchema = z.object({
-  email: z.string().email('Enter a valid email'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
-})
+export const signInSchema = z
+  .object({
+    identifier: z.string().trim().min(1, 'Enter your email or phone number'),
+    password: z.string().min(8, 'Password must be at least 8 characters'),
+  })
+  .superRefine((data, ctx) => {
+    const id = data.identifier
+    if (id.includes('@')) {
+      if (!z.string().email().safeParse(id).success) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'Enter a valid email address.',
+          path: ['identifier'],
+        })
+      }
+      return
+    }
+    if (!phoneSchema.safeParse(id).success) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Enter a valid phone number.',
+        path: ['identifier'],
+      })
+    }
+  })
 
 export const requestResetSchema = z.object({
   email: z.string().email('Enter a valid email'),

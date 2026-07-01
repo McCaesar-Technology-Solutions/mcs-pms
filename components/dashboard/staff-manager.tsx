@@ -631,7 +631,7 @@ export function StaffManager({ currentProfile, staff, invites }: StaffManagerPro
                 />
                 {inviteUsesPhone && (
                   <p className="text-xs text-muted-foreground">
-                    The invite link is sent by SMS (and WhatsApp when Twilio is configured).
+                    The invite link is sent by SMS (Arkesel) and WhatsApp when Termii is configured.
                   </p>
                 )}
                 {!inviteUsesPhone && (

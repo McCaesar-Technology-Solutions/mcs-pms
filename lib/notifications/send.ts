@@ -8,6 +8,11 @@ import {
 } from '@/lib/notifications/arkesel-sender'
 import { resolveHubtelSenderId, validateHubtelSenderId } from '@/lib/notifications/hubtel-sender'
 import { isSmsConfigured, resolveSmsProvider, type SmsProvider } from '@/lib/notifications/sms-provider'
+import {
+  isTermiiWhatsAppConfigured,
+  isWhatsAppNotificationsConfigured,
+  sendTermiiWhatsApp,
+} from '@/lib/notifications/termii'
 import { shouldSendHotelNotification } from '@/lib/notifications/recipients'
 
 export type NotificationChannel = 'sms' | 'whatsapp'
@@ -24,10 +29,13 @@ export interface NotifyOptions {
   templateKey: string
   /** Send WhatsApp in addition to SMS when configured */
   includeWhatsApp?: boolean
+  /** Send only on these channels (subset of enabled channels). */
+  onlyChannels?: NotificationChannel[]
 }
 
 function channelsEnabled(): NotificationChannel[] {
   const raw = process.env.NOTIFICATION_CHANNELS?.trim()
+  // SMS via Arkesel/Hubtel/Twilio — WhatsApp via Termii (or Twilio fallback).
   if (raw) {
     return raw
       .split(',')
@@ -35,9 +43,7 @@ function channelsEnabled(): NotificationChannel[] {
       .filter((c): c is NotificationChannel => c === 'sms' || c === 'whatsapp')
   }
 
-  // Arkesel/Hubtel are SMS-only — include WhatsApp only when Twilio is configured.
-  const hasTwilio = Boolean(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN)
-  return hasTwilio ? ['sms', 'whatsapp'] : ['sms']
+  return isWhatsAppNotificationsConfigured() ? ['sms', 'whatsapp'] : ['sms']
 }
 
 /** Exposed for tests — which outbound channels are active. */
@@ -45,8 +51,24 @@ export function resolveNotificationChannels(): NotificationChannel[] {
   return channelsEnabled()
 }
 
-function isConfigured(): boolean {
-  return isSmsConfigured()
+function resolveTargetChannels(
+  enabled: NotificationChannel[],
+  opts: NotifyOptions,
+): NotificationChannel[] {
+  if (opts.onlyChannels?.length) {
+    return opts.onlyChannels.filter((c) => enabled.includes(c))
+  }
+
+  const channels: NotificationChannel[] = []
+  if (enabled.includes('sms')) channels.push('sms')
+  if (enabled.includes('whatsapp') && opts.includeWhatsApp !== false) channels.push('whatsapp')
+  return channels
+}
+
+function canDeliverToPhone(targetChannels: NotificationChannel[]): boolean {
+  if (targetChannels.includes('sms') && isSmsConfigured()) return true
+  if (targetChannels.includes('whatsapp') && isWhatsAppNotificationsConfigured()) return true
+  return false
 }
 
 async function sendArkeselSms(to: string, body: string): Promise<SendResult> {
@@ -165,6 +187,28 @@ async function sendTwilioSms(to: string, body: string): Promise<SendResult> {
   return { channel: 'sms', success: true, providerId: data.sid }
 }
 
+async function sendWhatsAppMessage(to: string, body: string): Promise<SendResult> {
+  if (isTermiiWhatsAppConfigured()) {
+    const result = await sendTermiiWhatsApp(to, body)
+    return {
+      channel: 'whatsapp',
+      success: result.success,
+      providerId: result.messageId,
+      error: result.error,
+    }
+  }
+
+  return sendTwilioWhatsApp(to, body)
+}
+
+function resolveLogProvider(channel: NotificationChannel): string {
+  if (channel === 'whatsapp') {
+    if (isTermiiWhatsAppConfigured()) return 'termii'
+    if (process.env.TWILIO_ACCOUNT_SID) return 'twilio'
+  }
+  return resolveSmsProvider()
+}
+
 async function sendTwilioWhatsApp(to: string, body: string): Promise<SendResult> {
   const sid = process.env.TWILIO_ACCOUNT_SID
   const token = process.env.TWILIO_AUTH_TOKEN
@@ -262,7 +306,7 @@ async function logNotification(
       channel,
       template_key: opts.templateKey,
       body,
-      provider: status === 'skipped' ? 'pref' : resolveSmsProvider(),
+      provider: status === 'skipped' ? 'pref' : resolveLogProvider(channel),
       provider_id: result.providerId ?? null,
       status,
       error_message:
@@ -292,37 +336,41 @@ export async function sendToPhone(
     return [skipped]
   }
 
-  if (!isConfigured()) {
+  const enabled = channelsEnabled()
+  const targetChannels = resolveTargetChannels(enabled, opts)
+
+  if (!canDeliverToPhone(targetChannels)) {
     if (isProd()) {
       const failed: SendResult = {
-        channel: 'sms',
+        channel: targetChannels[0] ?? 'sms',
         success: false,
-        error: 'SMS provider is not configured',
+        error:
+          targetChannels[0] === 'whatsapp'
+            ? 'WhatsApp is not configured'
+            : 'SMS provider is not configured',
       }
-      if (opts.hotelId) {
-        await logNotification(opts, e164, 'sms', body, failed)
+      if (opts.hotelId && targetChannels[0]) {
+        await logNotification(opts, e164, targetChannels[0], body, failed)
       }
       return [failed]
     }
     if (process.env.NODE_ENV === 'development') {
       console.info(`[notify:${opts.templateKey}] → ${e164}: ${body}`)
     }
-    return [{ channel: 'sms', success: true, providerId: 'dev-log' }]
+    return [{ channel: targetChannels[0] ?? 'sms', success: true, providerId: 'dev-log' }]
   }
 
-  const enabled = channelsEnabled()
   const results: SendResult[] = []
-  const useWhatsApp = opts.includeWhatsApp !== false && enabled.includes('whatsapp')
 
-  if (enabled.includes('sms')) {
+  if (targetChannels.includes('sms')) {
     const provider = resolveSmsProvider()
     const smsResult = await sendSmsViaProvider(provider, e164, body)
     results.push(smsResult)
     await logNotification(opts, e164, 'sms', body, smsResult)
   }
 
-  if (useWhatsApp && process.env.TWILIO_ACCOUNT_SID) {
-    const waResult = await sendTwilioWhatsApp(e164, body)
+  if (targetChannels.includes('whatsapp')) {
+    const waResult = await sendWhatsAppMessage(e164, body)
     results.push(waResult)
     await logNotification(opts, e164, 'whatsapp', body, waResult)
   }

@@ -36,6 +36,13 @@ import {
   sendTwilioVerification,
   twilioVerifyChannelLabel,
 } from '@/lib/notifications/twilio-verify'
+import { shouldUseTwilioVerifyForPhone } from '@/lib/notifications/termii'
+import {
+  mfaPhoneChannelLabel,
+  resolveMfaPhoneChannel,
+  resolveMfaPhoneChannels,
+  type MfaPhoneChannel,
+} from '@/lib/notifications/mfa-phone-channels'
 import { phoneSchema } from '@/lib/phone'
 import type { UserRole } from '@/types'
 
@@ -203,6 +210,7 @@ async function sendPhoneMfaCode(
   userId: string,
   profile: StaffProfile,
   phone: string,
+  requestedChannel?: string,
 ): Promise<
   MfaActionResult<{ maskedPhone: string; devCode?: string; deliveryChannel?: 'sms' | 'whatsapp' }>
 > {
@@ -211,12 +219,18 @@ async function sendPhoneMfaCode(
     return { success: false, error: 'Your phone number looks invalid. Update it and try again.' }
   }
 
+  const channelResult = resolveMfaPhoneChannel(requestedChannel)
+  if (typeof channelResult === 'object' && 'error' in channelResult) {
+    return { success: false, error: channelResult.error }
+  }
+  const channel = channelResult
+
   const rateLimitError = await assertOtpRateLimit(userId)
   if (rateLimitError) return { success: false, error: rateLimitError }
 
-  if (isTwilioVerifyConfigured()) {
-    const channel = resolvePhoneVerifyChannel()
-    const sent = await sendTwilioVerification(e164, channel)
+  if (shouldUseTwilioVerifyForPhone()) {
+    const twilioChannel = channel === 'whatsapp' ? 'whatsapp' : 'sms'
+    const sent = await sendTwilioVerification(e164, twilioChannel)
     if (!sent.success) {
       return { success: false, error: sent.error ?? 'Could not send the verification code.' }
     }
@@ -225,7 +239,7 @@ async function sendPhoneMfaCode(
       success: true,
       data: {
         maskedPhone: maskPhone(phone),
-        deliveryChannel: channel,
+        deliveryChannel: twilioChannel,
       },
     }
   }
@@ -244,19 +258,16 @@ async function sendPhoneMfaCode(
   const results = await sendToPhone(phone, body, {
     hotelId: profile.hotel_id ?? undefined,
     templateKey: 'mfa_otp',
-    includeWhatsApp: true,
+    onlyChannels: [channel],
   })
 
-  const sent = results.some((r) => r.success)
-  const isDev = process.env.NODE_ENV === 'development' && !isSmsConfigured()
-  const deliveryChannel = results.find((r) => r.success && r.channel === 'whatsapp')
-    ? 'whatsapp'
-    : 'sms'
+  const sent = results.some((r) => r.success && r.channel === channel)
+  const isDev = process.env.NODE_ENV === 'development' && resolveMfaPhoneChannels().length === 0
 
   if (!sent && !isDev) {
     return {
       success: false,
-      error: 'Could not send the code. Check notification settings or try again shortly.',
+      error: `Could not send the code via ${mfaPhoneChannelLabel(channel)}. Try the other option or try again shortly.`,
     }
   }
 
@@ -264,7 +275,7 @@ async function sendPhoneMfaCode(
     success: true,
     data: {
       maskedPhone: maskPhone(phone),
-      deliveryChannel,
+      deliveryChannel: channel,
       ...(isDev ? { devCode: code } : {}),
     },
   }
@@ -334,17 +345,20 @@ async function sendEmailMfaCode(
 }
 
 async function confirmMfaCode(profile: StaffProfile, userId: string, trimmed: string): Promise<boolean> {
-  if (isTwilioVerifyConfigured()) {
-    const to =
-      profile.mfa_method === 'email'
-        ? profile.email?.trim().toLowerCase()
-        : profile.phone
-          ? phoneVerifyDestination(profile.phone)
-          : null
+  if (profile.mfa_method === 'email' && isTwilioVerifyConfigured()) {
+    const to = profile.email?.trim().toLowerCase()
     if (!to) return false
     const checked = await checkTwilioVerification(to, trimmed)
     return checked.success
   }
+
+  if (profile.mfa_method === 'sms' && shouldUseTwilioVerifyForPhone()) {
+    const to = profile.phone ? phoneVerifyDestination(profile.phone) : null
+    if (!to) return false
+    const checked = await checkTwilioVerification(to, trimmed)
+    return checked.success
+  }
+
   return verifyOtpChallenge(userId, trimmed)
 }
 
@@ -419,6 +433,7 @@ export async function getMfaStatus(): Promise<
     sessionVerified: boolean
     usesTwilioVerify: boolean
     phoneDeliveryChannel: 'sms' | 'whatsapp' | null
+    phoneChannels: MfaPhoneChannel[]
   }>
 > {
   try {
@@ -433,6 +448,8 @@ export async function getMfaStatus(): Promise<
     const method =
       profile.mfa_method === 'sms' || profile.mfa_method === 'email' ? profile.mfa_method : null
 
+    const phoneChannels = method === 'sms' ? resolveMfaPhoneChannels() : []
+
     return {
       success: true,
       data: {
@@ -444,13 +461,13 @@ export async function getMfaStatus(): Promise<
         maskedPhone: profile.phone ? maskPhone(profile.phone) : null,
         maskedEmail: profile.email ? maskEmail(profile.email) : null,
         sessionVerified: status.sessionVerified,
-        usesTwilioVerify: isTwilioVerifyConfigured(),
+        usesTwilioVerify:
+          profile.mfa_method === 'email'
+            ? isTwilioVerifyConfigured()
+            : shouldUseTwilioVerifyForPhone(),
         phoneDeliveryChannel:
-          method === 'sms' && isTwilioVerifyConfigured()
-            ? resolvePhoneVerifyChannel()
-            : method === 'sms'
-              ? 'sms'
-              : null,
+          method === 'sms' && phoneChannels.length === 1 ? phoneChannels[0]! : null,
+        phoneChannels,
       },
     }
   } catch (err) {
@@ -470,6 +487,7 @@ export async function getMfaSmsStatus(): Promise<
     hasPhone: boolean
     maskedPhone: string | null
     sessionVerified: boolean
+    phoneChannels: MfaPhoneChannel[]
   }>
 > {
   const result = await getMfaStatus()
@@ -482,6 +500,7 @@ export async function getMfaSmsStatus(): Promise<
       hasPhone: result.data.hasPhone,
       maskedPhone: result.data.maskedPhone,
       sessionVerified: result.data.sessionVerified,
+      phoneChannels: result.data.phoneChannels,
     },
   }
 }
@@ -565,7 +584,9 @@ export async function enableEmailMfa(): Promise<MfaActionResult> {
   return { success: true }
 }
 
-export async function sendMfaSmsCode(): Promise<
+export async function sendMfaSmsCode(
+  channel?: MfaPhoneChannel,
+): Promise<
   MfaActionResult<{ maskedPhone: string; devCode?: string; deliveryChannel?: 'sms' | 'whatsapp' }>
 > {
   const { user, profile } = await requireStaffContext()
@@ -580,7 +601,7 @@ export async function sendMfaSmsCode(): Promise<
     return { success: false, error: 'Add a phone number before verifying.' }
   }
 
-  return sendPhoneMfaCode(user.id, profile, phone)
+  return sendPhoneMfaCode(user.id, profile, phone, channel)
 }
 
 export async function sendMfaEmailCode(): Promise<
@@ -626,10 +647,16 @@ export async function verifyMfaSmsCode(
 
   const ok = await confirmMfaCode(profile, user.id, trimmed)
   if (!ok) {
-    const channel = isTwilioVerifyConfigured() ? resolvePhoneVerifyChannel() : 'sms'
+    const channels = resolveMfaPhoneChannels()
+    const label =
+      channels.length > 1
+        ? 'SMS or WhatsApp'
+        : shouldUseTwilioVerifyForPhone()
+          ? twilioVerifyChannelLabel(resolvePhoneVerifyChannel())
+          : mfaPhoneChannelLabel(channels[0] ?? 'sms')
     return {
       success: false,
-      error: `Invalid or expired code. Request a new ${twilioVerifyChannelLabel(channel)} message and try again.`,
+      error: `Invalid or expired code. Request a new ${label} message and try again.`,
     }
   }
 
@@ -675,8 +702,11 @@ export async function verifyMfaEmailCode(
   return { success: true, data: { redirectTo: next } }
 }
 
-export async function saveMfaPhoneAndSend(phone: string): Promise<
-  MfaActionResult<{ maskedPhone: string; devCode?: string }>
+export async function saveMfaPhoneAndSend(
+  phone: string,
+  channel?: MfaPhoneChannel,
+): Promise<
+  MfaActionResult<{ maskedPhone: string; devCode?: string; deliveryChannel?: 'sms' | 'whatsapp' }>
 > {
   const parsed = phoneSchema.safeParse(phone)
   if (!parsed.success) {
@@ -701,5 +731,11 @@ export async function saveMfaPhoneAndSend(phone: string): Promise<
       .eq('id', user.id)
   }
 
-  return sendMfaSmsCode()
+  const savedPhone = parsed.data.trim()
+  if (!channel) {
+    return { success: true, data: { maskedPhone: maskPhone(savedPhone) } }
+  }
+
+  const refreshedProfile = { ...profile, phone: savedPhone }
+  return sendPhoneMfaCode(user.id, refreshedProfile, savedPhone, channel)
 }

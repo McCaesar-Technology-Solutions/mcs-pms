@@ -16,16 +16,16 @@ function trendCaption(values: number[], todayPercent?: number): string | null {
   const avg = Math.round(values.reduce((sum, value) => sum + value, 0) / values.length)
 
   if (todayPercent == null) {
-    return `14-day average ${avg}%`
+    return `Recent average ${avg}%`
   }
 
   const diff = todayPercent - avg
   if (diff === 0) {
-    return `14-day average ${avg}% · in line with today`
+    return 'In line with your recent average'
   }
 
   const direction = diff > 0 ? 'above' : 'below'
-  return `14-day average ${avg}% · ${Math.abs(diff)} pts ${direction} average`
+  return `${Math.abs(diff)}% ${direction} your recent average`
 }
 
 export function OccupancySnapshot({

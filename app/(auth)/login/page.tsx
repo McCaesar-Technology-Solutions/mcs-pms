@@ -23,7 +23,7 @@ function LoginForm() {
   const resetDone = searchParams.get('reset') === 'success'
   const linkExpired = searchParams.get('error') === 'link_expired'
   const nextParam = searchParams.get('next')
-  const [email, setEmail] = useState('')
+  const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -33,7 +33,7 @@ function LoginForm() {
     setError(null)
     setLoading(true)
 
-    const result = await signIn(email, password)
+    const result = await signIn(identifier, password)
     setLoading(false)
 
     if (!result.success) {
@@ -74,18 +74,23 @@ function LoginForm() {
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="space-y-2">
-            <Label htmlFor="email" className="text-white/90">
-              Email
+            <Label htmlFor="identifier" className="text-white/90">
+              Email or phone
             </Label>
             <Input
-              id="email"
-              type="email"
-              autoComplete="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              id="identifier"
+              type="text"
+              autoComplete="username"
+              inputMode="email"
+              placeholder="you@hotel.com or +233 24 123 4567"
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
               required
               className="border-white/20 bg-white/10 text-white placeholder:text-white/40"
             />
+            <p className="text-xs text-white/50">
+              Technicians: sign in with the phone number from your invite.
+            </p>
           </div>
 
           <div className="space-y-2">

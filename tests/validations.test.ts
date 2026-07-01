@@ -8,12 +8,21 @@ import {
 
 describe('signInSchema', () => {
   it('accepts a valid email + password', () => {
-    expect(signInSchema.safeParse({ email: 'a@b.com', password: 'secret12' }).success).toBe(true)
+    expect(signInSchema.safeParse({ identifier: 'a@b.com', password: 'secret12' }).success).toBe(true)
   })
 
-  it('rejects bad email or short password', () => {
-    expect(signInSchema.safeParse({ email: 'nope', password: 'secret1' }).success).toBe(false)
-    expect(signInSchema.safeParse({ email: 'a@b.com', password: '123' }).success).toBe(false)
+  it('accepts a valid phone + password', () => {
+    expect(signInSchema.safeParse({ identifier: '+233241234567', password: 'secret12' }).success).toBe(
+      true,
+    )
+  })
+
+  it('rejects bad identifier or short password', () => {
+    expect(signInSchema.safeParse({ identifier: 'nope', password: 'secret1' }).success).toBe(false)
+    expect(signInSchema.safeParse({ identifier: 'a@b.com', password: '123' }).success).toBe(false)
+    expect(signInSchema.safeParse({ identifier: 'not-an-email', password: 'secret12' }).success).toBe(
+      false,
+    )
   })
 })
 
