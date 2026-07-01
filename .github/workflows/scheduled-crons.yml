@@ -13,13 +13,23 @@ on:
     - cron: '30 * * * *'
     - cron: '0 6 * * *'
   workflow_dispatch:
+    inputs:
+      run_all:
+        description: 'Run every cron job (not only the scheduled slice)'
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
 
 env:
   CRON_AUTH: 'Authorization: Bearer ${{ secrets.CRON_SECRET }}'
+  RUN_ALL: ${{ github.event_name == 'workflow_dispatch' && (github.event.inputs.run_all != 'false') }}
 
 jobs:
   every-five-minutes:
-    if: github.event.schedule == '*/5 * * * *' || github.event_name == 'workflow_dispatch'
+    if: github.event.schedule == '*/5 * * * *' || env.RUN_ALL == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Drain notification outbox
@@ -34,7 +44,7 @@ jobs:
             "${{ secrets.PRODUCTION_APP_URL }}/api/cron/reservation-holds"
 
   hourly-pre-arrival:
-    if: github.event.schedule == '0 * * * *' || github.event_name == 'workflow_dispatch'
+    if: github.event.schedule == '0 * * * *' || env.RUN_ALL == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Reservation pre-arrival reminders
@@ -44,7 +54,7 @@ jobs:
             "${{ secrets.PRODUCTION_APP_URL }}/api/cron/reservation-pre-arrival"
 
   hourly-overstay:
-    if: github.event.schedule == '15 * * * *' || github.event_name == 'workflow_dispatch'
+    if: github.event.schedule == '15 * * * *' || env.RUN_ALL == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Reservation overstay check
@@ -54,7 +64,7 @@ jobs:
             "${{ secrets.PRODUCTION_APP_URL }}/api/cron/reservation-overstay"
 
   hourly-auto-checkout-prompt:
-    if: github.event.schedule == '30 * * * *' || github.event_name == 'workflow_dispatch'
+    if: github.event.schedule == '30 * * * *' || env.RUN_ALL == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Auto checkout prompt
@@ -64,7 +74,7 @@ jobs:
             "${{ secrets.PRODUCTION_APP_URL }}/api/cron/reservation-auto-checkout-prompt"
 
   daily-readiness:
-    if: github.event.schedule == '0 6 * * *' || github.event_name == 'workflow_dispatch'
+    if: github.event.schedule == '0 6 * * *' || env.RUN_ALL == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Health check

@@ -2,6 +2,8 @@
  * Runtime environment validation. Fail fast in production when required secrets are missing.
  */
 
+import { isResendSandboxFrom, resolveEmailFromEnv } from '@/lib/notifications/email-provider'
+
 const isProduction = process.env.NODE_ENV === 'production'
 
 export function isProd(): boolean {
@@ -56,6 +58,29 @@ export function validateProductionEnv(): { ok: true } | { ok: false; errors: str
   const emailOk = Boolean(process.env.RESEND_API_KEY)
   if (!smsOk && !emailOk) {
     errors.push('Configure at least one notification provider (ARKESEL_API_KEY or RESEND_API_KEY)')
+  }
+
+  if (process.env.ARKESEL_API_KEY?.trim() && !process.env.ARKESEL_SENDER_ID?.trim()) {
+    errors.push('ARKESEL_SENDER_ID is required when ARKESEL_API_KEY is set')
+  }
+
+  if (process.env.RESEND_API_KEY?.trim() && isResendSandboxFrom(resolveEmailFromEnv())) {
+    errors.push(
+      'RESEND_FROM must use a verified domain (sandbox onboarding@resend.dev is not allowed in production)',
+    )
+  }
+
+  const notificationChannels = process.env.NOTIFICATION_CHANNELS?.trim().toLowerCase() ?? ''
+  const whatsappRequested =
+    notificationChannels.includes('whatsapp') || Boolean(process.env.TERMII_API_KEY?.trim())
+
+  if (whatsappRequested) {
+    if (!process.env.TERMII_API_KEY?.trim()) {
+      errors.push('TERMII_API_KEY is required for WhatsApp notifications')
+    }
+    if (!process.env.TERMII_WHATSAPP_SENDER?.trim()) {
+      errors.push('TERMII_WHATSAPP_SENDER is required for WhatsApp notifications')
+    }
   }
 
   if (errors.length) return { ok: false, errors }

@@ -134,6 +134,7 @@ describe('mfaRedirectPath', () => {
 describe('safeMfaNext', () => {
   it('rejects open redirects and auth pages', () => {
     expect(safeMfaNext('https://evil.com', '/home')).toBe('/home')
+    expect(safeMfaNext('//evil.com', '/home')).toBe('/home')
     expect(safeMfaNext('/owner/settings', '/home')).toBe('/owner/settings')
     expect(safeMfaNext('/login', '/owner/dashboard')).toBe('/owner/dashboard')
   })

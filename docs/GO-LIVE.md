@@ -56,8 +56,11 @@ Set in **Project → Settings → Environment Variables** (Production):
 | `GUEST_SESSION_SECRET` | Yes | Random 32+ char string |
 | `CRON_SECRET` | Yes | Random string; same value in GitHub secrets |
 | `DISABLE_PUBLIC_SIGNUP` | Recommended | Set `true` after first owner exists |
-| `ARKESEL_API_KEY` + `ARKESEL_SENDER_ID` | One of SMS/email | Ghana SMS |
-| `RESEND_API_KEY` + `RESEND_FROM` | One of SMS/email | Staff invites, MFA email, alerts |
+| `ARKESEL_API_KEY` + `ARKESEL_SENDER_ID` | Yes (with Resend or Termii) | Ghana SMS |
+| `TERMII_API_KEY` + `TERMII_WHATSAPP_SENDER` | Yes when using WhatsApp | WhatsApp (Termii) |
+| `TERMII_BASE_URL` | If Termii dashboard differs | Default `https://api.ng.termii.com` |
+| `NOTIFICATION_CHANNELS` | Recommended | `sms,whatsapp` |
+| `RESEND_API_KEY` + `RESEND_FROM` | Yes (with Arkesel) | Staff email invites, email MFA — **verified domain only** |
 | `SENTRY_DSN` | Recommended | Error monitoring |
 
 **Redeploy** after changing env vars.

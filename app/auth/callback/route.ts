@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { safeRelativePath } from '@/lib/auth/safe-redirect'
 
 /**
  * Exchanges the one-time code from a Supabase email link (password recovery,
@@ -10,8 +11,7 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get('code')
   const next = searchParams.get('next') ?? '/'
 
-  // Only allow same-site relative redirects.
-  const safeNext = next.startsWith('/') ? next : '/'
+  const safeNext = safeRelativePath(next, '/', { blockAuthPaths: false })
 
   if (code) {
     const supabase = await createClient()
