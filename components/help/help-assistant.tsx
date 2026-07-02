@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { ArrowLeft, ArrowRight, MessageCircle, Send, X } from 'lucide-react'
@@ -9,11 +9,33 @@ import type { HelpRole, HelpTopic } from '@/lib/help/types'
 import type { UserRole } from '@/types'
 
 const QUERY_MAX = 120
+const DRAG_THRESHOLD_PX = 8
+const POS_STORAGE_KEY = 'help-assistant-pos'
+
+interface HelpPosition {
+  left: number
+  top: number
+}
 
 interface HelpAssistantProps {
   role: UserRole | 'guest'
   /** Extra bottom offset when a tab bar sits below (guest portal). */
   bottomOffset?: 'default' | 'guest'
+}
+
+function isMobileViewport() {
+  if (typeof window === 'undefined') return false
+  return window.matchMedia('(max-width: 767px)').matches
+}
+
+function clampPosition(left: number, top: number, width: number, height: number): HelpPosition {
+  const pad = 8
+  const maxLeft = Math.max(pad, window.innerWidth - width - pad)
+  const maxTop = Math.max(pad, window.innerHeight - height - pad)
+  return {
+    left: Math.min(Math.max(pad, left), maxLeft),
+    top: Math.min(Math.max(pad, top), maxTop),
+  }
 }
 
 export function HelpAssistant({ role, bottomOffset = 'default' }: HelpAssistantProps) {
@@ -22,8 +44,19 @@ export function HelpAssistant({ role, bottomOffset = 'default' }: HelpAssistantP
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [activeTopicId, setActiveTopicId] = useState<string | null>(null)
+  const [position, setPosition] = useState<HelpPosition | null>(null)
+  const [dragging, setDragging] = useState(false)
   const panelRef = useRef<HTMLDivElement>(null)
+  const rootRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const dragRef = useRef({
+    active: false,
+    moved: false,
+    startX: 0,
+    startY: 0,
+    originLeft: 0,
+    originTop: 0,
+  })
 
   const ranked = useMemo(
     () => rankHelpTopics(pack.topics, pathname, query),
@@ -32,6 +65,33 @@ export function HelpAssistant({ role, bottomOffset = 'default' }: HelpAssistantP
 
   const activeTopic = activeTopicId ? findHelpTopic(pack, activeTopicId) : null
   const roleLabel = getRoleLabel(role as HelpRole)
+
+  useEffect(() => {
+    if (!isMobileViewport()) return
+    try {
+      const raw = sessionStorage.getItem(POS_STORAGE_KEY)
+      if (!raw) return
+      const parsed = JSON.parse(raw) as HelpPosition
+      if (typeof parsed.left === 'number' && typeof parsed.top === 'number') {
+        setPosition(parsed)
+      }
+    } catch {
+      // ignore corrupt storage
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!position || !isMobileViewport()) return
+    const onResize = () => {
+      const root = rootRef.current
+      if (!root) return
+      setPosition((prev) =>
+        prev ? clampPosition(prev.left, prev.top, root.offsetWidth, root.offsetHeight) : prev,
+      )
+    }
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [position])
 
   useEffect(() => {
     if (!open) return
@@ -54,6 +114,15 @@ export function HelpAssistant({ role, bottomOffset = 'default' }: HelpAssistantP
     setActiveTopicId(null)
   }, [open])
 
+  const persistPosition = useCallback((next: HelpPosition) => {
+    setPosition(next)
+    try {
+      sessionStorage.setItem(POS_STORAGE_KEY, JSON.stringify(next))
+    } catch {
+      // ignore quota errors
+    }
+  }, [])
+
   function openFirstResult() {
     const first = ranked[0]
     if (first) setActiveTopicId(first.id)
@@ -66,13 +135,82 @@ export function HelpAssistant({ role, bottomOffset = 'default' }: HelpAssistantP
     }
   }
 
-  const rootClass =
-    bottomOffset === 'guest'
-      ? 'help-assistant-root help-assistant-root--guest'
-      : 'help-assistant-root'
+  function handleFabPointerDown(e: React.PointerEvent<HTMLButtonElement>) {
+    if (!isMobileViewport()) return
+
+    const root = rootRef.current
+    if (!root) return
+
+    e.currentTarget.setPointerCapture(e.pointerId)
+    const rect = root.getBoundingClientRect()
+    dragRef.current = {
+      active: true,
+      moved: false,
+      startX: e.clientX,
+      startY: e.clientY,
+      originLeft: position?.left ?? rect.left,
+      originTop: position?.top ?? rect.top,
+    }
+    setDragging(true)
+  }
+
+  function handleFabPointerMove(e: React.PointerEvent<HTMLButtonElement>) {
+    if (!dragRef.current.active) return
+
+    const dx = e.clientX - dragRef.current.startX
+    const dy = e.clientY - dragRef.current.startY
+    if (Math.abs(dx) + Math.abs(dy) > DRAG_THRESHOLD_PX) {
+      dragRef.current.moved = true
+    }
+
+    const root = rootRef.current
+    if (!root) return
+
+    const next = clampPosition(
+      dragRef.current.originLeft + dx,
+      dragRef.current.originTop + dy,
+      root.offsetWidth,
+      root.offsetHeight,
+    )
+    setPosition(next)
+  }
+
+  function finishFabPointer(e: React.PointerEvent<HTMLButtonElement>) {
+    if (!dragRef.current.active) return
+
+    const wasMoved = dragRef.current.moved
+    dragRef.current.active = false
+    setDragging(false)
+
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId)
+    }
+
+    if (wasMoved) {
+      const root = rootRef.current
+      if (root) {
+        const rect = root.getBoundingClientRect()
+        persistPosition(clampPosition(rect.left, rect.top, root.offsetWidth, root.offsetHeight))
+      }
+      return
+    }
+
+    setOpen((v) => !v)
+  }
+
+  const rootClass = [
+    bottomOffset === 'guest' ? 'help-assistant-root help-assistant-root--guest' : 'help-assistant-root',
+    position ? 'help-assistant-root--placed' : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
+
+  const rootStyle = position
+    ? { left: position.left, top: position.top, right: 'auto', bottom: 'auto' }
+    : undefined
 
   return (
-    <div className={rootClass}>
+    <div ref={rootRef} className={rootClass} style={rootStyle}>
       {open && (
         <div
           ref={panelRef}
@@ -187,12 +325,22 @@ export function HelpAssistant({ role, bottomOffset = 'default' }: HelpAssistantP
 
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
-        className={`help-assistant-fab${open ? ' help-assistant-fab--open' : ''}`}
+        onPointerDown={handleFabPointerDown}
+        onPointerMove={handleFabPointerMove}
+        onPointerUp={finishFabPointer}
+        onPointerCancel={finishFabPointer}
+        onClick={(e) => {
+          if (isMobileViewport()) {
+            e.preventDefault()
+            return
+          }
+          setOpen((v) => !v)
+        }}
+        className={`help-assistant-fab${open ? ' help-assistant-fab--open' : ''}${dragging ? ' help-assistant-fab--dragging' : ''}`}
         aria-expanded={open}
         aria-label={open ? 'Close help assistant' : 'Open help assistant'}
       >
-        {open ? <X className="h-5 w-5" /> : <MessageCircle className="h-5 w-5" />}
+        {open ? <X className="help-assistant-fab__icon" /> : <MessageCircle className="help-assistant-fab__icon" />}
       </button>
     </div>
   )
