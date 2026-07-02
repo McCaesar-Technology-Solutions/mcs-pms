@@ -4472,7 +4472,7 @@
       inset-block: 0;
       left: 0;
       z-index: 50;
-      width: 16rem;
+      width: 12rem;
       height: 100dvh;
       margin: 0;
       border-radius: 0;
@@ -4653,7 +4653,7 @@
   }
 
   .sidebar-header {
-    padding: 0.75rem 0.875rem 0.6875rem;
+    padding: 0.75rem 0.625rem 0.6875rem;
   }
 
   .sidebar-header--collapsed {
@@ -4691,7 +4691,7 @@
     flex-direction: column;
     overflow-x: hidden;
     overflow-y: auto;
-    padding: 0.625rem 0.75rem 0.6875rem;
+    padding: 0.625rem 0.625rem 0.6875rem;
     scrollbar-width: thin;
     scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
   }
@@ -4805,7 +4805,7 @@
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
-    padding: 0.625rem 0.75rem 0.6875rem;
+    padding: 0.625rem 0.625rem 0.6875rem;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
   }
 
