@@ -2,14 +2,16 @@
 
 import { SidebarNavLink } from '@/components/dashboard/sidebar-nav-link'
 import { usePathname } from 'next/navigation'
-import { PanelLeftClose, PanelLeft, X } from 'lucide-react'
-import { useState } from 'react'
+import { ChevronDown, PanelLeftClose, PanelLeft, X } from 'lucide-react'
+import { useCallback, useEffect, useId, useState } from 'react'
 import { SidebarLogo } from '@/components/brand/sidebar-logo'
 import { PropertySwitcher } from '@/components/dashboard/property-switcher'
 import { useNavBadges } from '@/components/dashboard/use-nav-badges'
 import type { NavItem, NavGroup } from '@/lib/navigation'
 import { getNavIcon } from '@/components/dashboard/nav-icons'
 import type { OccupancyToday } from '@/lib/data/occupancy'
+
+const GROUPS_STORAGE_KEY = 'sidebar-nav-groups'
 
 interface SidebarProps {
   mobileOpen?: boolean
@@ -19,6 +21,14 @@ interface SidebarProps {
   occupancyToday?: OccupancyToday
 }
 
+function groupSlug(label: string) {
+  return label.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+}
+
+function itemIsActive(pathname: string, href: string) {
+  return pathname === href || pathname.startsWith(`${href}/`)
+}
+
 export default function Sidebar({
   mobileOpen = false,
   onMobileClose,
@@ -26,14 +36,56 @@ export default function Sidebar({
   navGroups,
   occupancyToday,
 }: SidebarProps) {
-  const pathname = usePathname()
+  const pathname = usePathname() ?? ''
+  const navId = useId()
   const [collapsed, setCollapsed] = useState(false)
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({})
   const { navItems, navGroups: groups } = useNavBadges(navigation, navGroups)
 
   const isDrawer = mobileOpen
+  const showGroupToggles = !collapsed || isDrawer
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(GROUPS_STORAGE_KEY)
+      if (!raw) return
+      const parsed = JSON.parse(raw) as Record<string, boolean>
+      if (parsed && typeof parsed === 'object') {
+        setOpenGroups(parsed)
+      }
+    } catch {
+      // ignore corrupt storage
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!groups?.length) return
+    const activeGroup = groups.find((group) =>
+      group.items.some((item) => itemIsActive(pathname, item.href)),
+    )
+    if (!activeGroup) return
+    setOpenGroups((prev) => ({ ...prev, [activeGroup.label]: true }))
+  }, [pathname, groups])
+
+  const isGroupOpen = useCallback(
+    (label: string) => openGroups[label] ?? true,
+    [openGroups],
+  )
+
+  const toggleGroup = useCallback((label: string) => {
+    setOpenGroups((prev) => {
+      const next = { ...prev, [label]: !(prev[label] ?? true) }
+      try {
+        localStorage.setItem(GROUPS_STORAGE_KEY, JSON.stringify(next))
+      } catch {
+        // ignore quota errors
+      }
+      return next
+    })
+  }, [])
 
   function renderNavLink(item: NavItem) {
-    const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
+    const isActive = itemIsActive(pathname, item.href)
     const Icon = getNavIcon(item.icon)
     const showBadge = item.badge != null && item.badge > 0
 
@@ -65,6 +117,27 @@ export default function Sidebar({
           </span>
         )}
       </SidebarNavLink>
+    )
+  }
+
+  function renderGroupToggle(label: string, itemCount: number) {
+    const open = isGroupOpen(label)
+    const panelId = `${navId}-${groupSlug(label)}`
+
+    return (
+      <button
+        type="button"
+        className="sidebar-nav-group-toggle"
+        aria-expanded={open}
+        aria-controls={panelId}
+        onClick={() => toggleGroup(label)}
+      >
+        <span className="sidebar-nav-group-toggle__label">{label}</span>
+        <span className="sidebar-nav-group-toggle__meta">
+          <span className="sidebar-nav-group-toggle__count">{itemCount}</span>
+          <ChevronDown className="sidebar-nav-group-toggle__chevron" aria-hidden />
+        </span>
+      </button>
     )
   }
 
@@ -115,18 +188,36 @@ export default function Sidebar({
 
         <nav className="sidebar-nav" aria-label="Main navigation">
           {groupedNav ? (
-            groups!.map((group, index) => (
-              <div key={group.label} className={`sidebar-nav-group ${index > 0 ? 'sidebar-nav-group--spaced' : ''}`}>
-                {(!collapsed || isDrawer) && (
-                  <p className="sidebar-nav-eyebrow">{group.label}</p>
-                )}
-                <div className="sidebar-nav-group__items">{group.items.map(renderNavLink)}</div>
-              </div>
-            ))
+            groups!.map((group, index) => {
+              const open = isGroupOpen(group.label)
+              const panelId = `${navId}-${groupSlug(group.label)}`
+
+              return (
+                <div
+                  key={group.label}
+                  className={`sidebar-nav-group ${index > 0 ? 'sidebar-nav-group--spaced' : ''}${open ? '' : ' sidebar-nav-group--closed'}`}
+                >
+                  {showGroupToggles && renderGroupToggle(group.label, group.items.length)}
+                  <div
+                    id={panelId}
+                    className={`sidebar-nav-group__items${open || !showGroupToggles ? '' : ' sidebar-nav-group__items--closed'}`}
+                    hidden={showGroupToggles ? !open : false}
+                  >
+                    {group.items.map(renderNavLink)}
+                  </div>
+                </div>
+              )
+            })
           ) : (
-            <div className="sidebar-nav-group">
-              {(!collapsed || isDrawer) && <p className="sidebar-nav-eyebrow">Menu</p>}
-              <div className="sidebar-nav-group__items">{navItems.map(renderNavLink)}</div>
+            <div className={`sidebar-nav-group${isGroupOpen('Menu') ? '' : ' sidebar-nav-group--closed'}`}>
+              {showGroupToggles && renderGroupToggle('Menu', navItems.length)}
+              <div
+                id={`${navId}-menu`}
+                className={`sidebar-nav-group__items${isGroupOpen('Menu') || !showGroupToggles ? '' : ' sidebar-nav-group__items--closed'}`}
+                hidden={showGroupToggles ? !isGroupOpen('Menu') : false}
+              >
+                {navItems.map(renderNavLink)}
+              </div>
             </div>
           )}
         </nav>

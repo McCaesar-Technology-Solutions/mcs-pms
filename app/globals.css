@@ -4711,7 +4711,83 @@
 
   .sidebar-nav-group--spaced {
     margin-top: auto;
-    padding-top: 1rem;
+    padding-top: 0.75rem;
+  }
+
+  .sidebar-nav-group--closed.sidebar-nav-group--spaced {
+    padding-top: 0;
+  }
+
+  .sidebar-nav-group-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    gap: 0.625rem;
+    margin-bottom: 0.5rem;
+    padding: 0.5rem 0.5625rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 0.625rem;
+    background: rgba(255, 255, 255, 0.04);
+    text-align: left;
+    cursor: pointer;
+    transition:
+      background 0.22s ease,
+      border-color 0.22s ease,
+      color 0.22s ease;
+  }
+
+  .sidebar-nav-group-toggle:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.14);
+  }
+
+  .sidebar-nav-group-toggle:focus-visible {
+    outline: 2px solid rgba(var(--glow-gold), 0.55);
+    outline-offset: 2px;
+  }
+
+  .sidebar-nav-group-toggle__label {
+    min-width: 0;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--sidebar-muted);
+  }
+
+  .sidebar-nav-group-toggle__meta {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 0.375rem;
+  }
+
+  .sidebar-nav-group-toggle__count {
+    min-width: 1.125rem;
+    border-radius: 0.375rem;
+    background: rgba(255, 255, 255, 0.08);
+    padding: 0.125rem 0.375rem;
+    font-size: 0.625rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--sidebar-subtle);
+    text-align: center;
+  }
+
+  .sidebar-nav-group-toggle__chevron {
+    width: 0.875rem;
+    height: 0.875rem;
+    color: var(--sidebar-muted);
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .sidebar-nav-group-toggle[aria-expanded='false'] .sidebar-nav-group-toggle__chevron {
+    transform: rotate(-90deg);
+  }
+
+  .sidebar-nav-group__items--closed {
+    display: none;
   }
 
   .sidebar-nav-eyebrow {
