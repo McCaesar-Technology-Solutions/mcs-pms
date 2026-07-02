@@ -36,7 +36,7 @@ export function PropertySwitcher({ collapsed = false, compact = false }: Propert
   }, [pathname])
 
   const shellClass = compact
-    ? 'flex w-full items-center gap-3 rounded-xl bg-white/10 p-3 text-left shadow-elevation-1'
+    ? 'flex w-full items-center gap-2 rounded-lg bg-white/10 p-2 text-left shadow-elevation-1'
     : 'flex w-full items-center gap-3 rounded-xl bg-white/10 p-3 text-left shadow-elevation-1'
 
   if (loading) {
@@ -46,7 +46,7 @@ export function PropertySwitcher({ collapsed = false, compact = false }: Propert
         aria-busy
         aria-label="Loading properties"
       >
-        <Skeleton tone="sidebar" className={`shrink-0 rounded-lg ${compact ? 'h-8 w-8' : 'h-9 w-9'}`} />
+        <Skeleton tone="sidebar" className={`shrink-0 rounded-lg ${compact ? 'h-7 w-7' : 'h-9 w-9'}`} />
         {!collapsed && (
           <div className="min-w-0 flex-1 space-y-2">
             <Skeleton tone="sidebar" className={`rounded-md ${compact ? 'h-3 w-24' : 'h-3 w-24'}`} />
@@ -65,10 +65,10 @@ export function PropertySwitcher({ collapsed = false, compact = false }: Propert
         title={collapsed ? activeProperty.name : undefined}
         className={`${shellClass} ${collapsed ? 'justify-center' : ''}`}
       >
-        <PropertyThumb imageUrl={activeProperty.imageUrl} className={compact ? '!h-8 !w-8' : undefined} />
+        <PropertyThumb imageUrl={activeProperty.imageUrl} className={compact ? '!h-7 !w-7' : undefined} />
         {!collapsed && (
           <div className="min-w-0 flex-1">
-            <p className={`truncate font-semibold text-white ${compact ? 'text-sm' : 'text-sm'}`}>
+            <p className={`truncate font-semibold text-white ${compact ? 'text-xs' : 'text-sm'}`}>
               {activeProperty.name}
             </p>
             {!compact && (
@@ -98,15 +98,15 @@ export function PropertySwitcher({ collapsed = false, compact = false }: Propert
         >
           <div
             className={`flex shrink-0 items-center justify-center rounded-lg bg-white/10 shadow-elevation-2 ${
-              compact ? 'h-8 w-8' : 'h-9 w-9'
+              compact ? 'h-7 w-7' : 'h-9 w-9'
             }`}
           >
-            <Building2 className={`text-[var(--accent)] ${compact ? 'h-4 w-4' : 'h-4 w-4'}`} />
+            <Building2 className={`text-[var(--accent)] ${compact ? 'h-3.5 w-3.5' : 'h-4 w-4'}`} />
           </div>
           {!collapsed && (
             <>
               <div className="min-w-0 flex-1">
-                <p className={`truncate font-semibold text-white ${compact ? 'text-sm' : 'text-sm'}`}>
+                <p className={`truncate font-semibold text-white ${compact ? 'text-xs' : 'text-sm'}`}>
                   {activeProperty.name}
                 </p>
                 {!compact && (
@@ -118,7 +118,7 @@ export function PropertySwitcher({ collapsed = false, compact = false }: Propert
               </div>
               <ChevronDown
                 className={`shrink-0 text-[var(--sidebar-muted)] transition-transform ${
-                  compact ? 'h-4 w-4' : 'h-4 w-4'
+                  compact ? 'h-3.5 w-3.5' : 'h-4 w-4'
                 } ${open ? 'rotate-180' : ''}`}
               />
             </>
