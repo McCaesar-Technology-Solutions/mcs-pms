@@ -47,7 +47,7 @@ export default function Sidebar({
         onNavigate={onMobileClose}
       >
         <span className="sidebar-nav-link__icon">
-          <Icon className="h-5 w-5" aria-hidden />
+          <Icon className="h-4 w-4" aria-hidden />
           {showBadge && collapsed && !isDrawer && (
             <span className="sidebar-nav-link__badge-dot">
               {item.badge! > 9 ? '9+' : item.badge}
@@ -85,20 +85,17 @@ export default function Sidebar({
           mobileOpen ? 'max-md:translate-x-0' : 'max-md:-translate-x-full'
         } ${collapsed ? 'md:w-[4.5rem]' : 'md:w-64 md:translate-x-0'}`}
       >
-        <div className={`shrink-0 ${collapsed ? 'px-2.5 pt-4' : 'px-4 pt-4'}`}>
+        <div className={`sidebar-header shrink-0 ${collapsed ? 'sidebar-header--collapsed' : ''}`}>
           <div
-            className={`mb-3 flex items-center gap-3 ${collapsed && !isDrawer ? 'justify-center' : ''}`}
+            className={`sidebar-brand-row ${collapsed && !isDrawer ? 'sidebar-brand-row--collapsed' : ''}`}
             aria-label="MOJO Apartments"
           >
             <SidebarLogo />
             {(!collapsed || isDrawer) && (
               <div className="min-w-0 flex-1">
-                <p className="font-display truncate text-[1.05rem] font-semibold leading-tight">
+                <p className="sidebar-brand-title">
                   <span className="text-[var(--accent)]">MOJO</span>
                   <span className="text-white"> APARTMENTS</span>
-                </p>
-                <p className="truncate text-[10px] font-medium tracking-wide text-[var(--sidebar-muted)]">
-                  Property Management
                 </p>
               </div>
             )}
@@ -113,80 +110,65 @@ export default function Sidebar({
               </button>
             )}
           </div>
-          <div className="mb-5">
-            <PropertySwitcher collapsed={collapsed && !isDrawer} />
-          </div>
+          <PropertySwitcher collapsed={collapsed && !isDrawer} compact />
         </div>
 
-        <div className="sidebar-soft-divider mt-1" />
-
-        <nav className="sidebar-nav relative z-10 flex min-h-0 flex-1 flex-col gap-0.5 overflow-x-hidden overflow-y-auto p-3">
+        <nav className="sidebar-nav" aria-label="Main navigation">
           {groupedNav ? (
             groups!.map((group, index) => (
-              <div key={group.label} className={index > 0 ? 'mt-4' : ''}>
+              <div key={group.label} className={`sidebar-nav-group ${index > 0 ? 'sidebar-nav-group--spaced' : ''}`}>
                 {(!collapsed || isDrawer) && (
-                  <p className="label-eyebrow mb-2 px-3 text-[var(--sidebar-muted)]">{group.label}</p>
+                  <p className="sidebar-nav-eyebrow">{group.label}</p>
                 )}
-                <div className="flex flex-col gap-0.5">{group.items.map(renderNavLink)}</div>
+                <div className="sidebar-nav-group__items">{group.items.map(renderNavLink)}</div>
               </div>
             ))
           ) : (
             <>
-              {(!collapsed || isDrawer) && (
-                <p className="label-eyebrow mb-2 px-3 text-[var(--sidebar-muted)]">Menu</p>
-              )}
-              {navItems.map(renderNavLink)}
+              {(!collapsed || isDrawer) && <p className="sidebar-nav-eyebrow">Menu</p>}
+              <div className="sidebar-nav-group__items">{navItems.map(renderNavLink)}</div>
             </>
           )}
         </nav>
 
-        {occupancyToday &&
-          (!collapsed || isDrawer ? (
-            <>
-              <div className="sidebar-soft-divider" />
-              <div className="p-4 pb-2">
-                <div className="sidebar-glass-panel p-2.5">
-                  <p className="text-[10px] font-medium text-[var(--sidebar-muted)]">
-                    Occupancy today
-                  </p>
-                  <p className="mt-0.5 text-xl font-bold tabular-nums text-white">{occupancyToday.percent}%</p>
-                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/15">
-                    <div
-                      className="gradient-accent h-full rounded-full transition-[width] duration-500"
-                      style={{ width: `${occupancyToday.percent}%` }}
-                    />
-                  </div>
-                  <p className="mt-1.5 text-[10px] font-medium text-[var(--sidebar-muted)]">
-                    {occupancyToday.occupied} of {occupancyToday.total} rooms occupied
-                  </p>
+        <div className="sidebar-footer shrink-0">
+          {occupancyToday &&
+            (!collapsed || isDrawer ? (
+              <div className="sidebar-occupancy-strip" title={`${occupancyToday.occupied} of ${occupancyToday.total} rooms occupied`}>
+                <span className="sidebar-occupancy-strip__label">Occ.</span>
+                <span className="sidebar-occupancy-strip__value">{occupancyToday.percent}%</span>
+                <div className="sidebar-occupancy-strip__bar" aria-hidden>
+                  <div
+                    className="sidebar-occupancy-strip__fill"
+                    style={{ width: `${occupancyToday.percent}%` }}
+                  />
                 </div>
+                <span className="sidebar-occupancy-strip__meta">
+                  {occupancyToday.occupied}/{occupancyToday.total}
+                </span>
               </div>
-            </>
-          ) : (
-            <div className="hidden p-3 pb-2 md:block">
+            ) : (
               <div
-                className="sidebar-glass-panel mx-auto flex h-10 w-10 items-center justify-center text-xs font-bold text-white"
+                className="sidebar-occupancy-dot hidden md:flex"
                 title={`Occupancy today: ${occupancyToday.percent}% (${occupancyToday.occupied} of ${occupancyToday.total} rooms)`}
               >
                 {occupancyToday.percent}%
               </div>
-            </div>
-          ))}
+            ))}
 
-        <div className={`mt-auto hidden p-3 md:block ${collapsed ? 'px-2.5' : ''}`}>
           <button
             type="button"
             onClick={() => setCollapsed(!collapsed)}
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            className={`sidebar-collapse-footer ${collapsed ? 'justify-center px-0 py-2.5' : 'gap-2 px-3 py-2'}`}
+            className={`sidebar-collapse-footer hidden md:flex ${collapsed ? 'sidebar-collapse-footer--collapsed' : ''}`}
           >
             {collapsed ? (
-              <PanelLeft className="h-5 w-5 shrink-0" />
+              <PanelLeft className="h-4 w-4 shrink-0" />
             ) : (
               <>
-                <PanelLeftClose className="h-5 w-5 shrink-0" />
-                <span className="text-xs font-medium">Collapse sidebar</span>
+                <PanelLeftClose className="h-4 w-4 shrink-0" />
+                <span className="text-[11px] font-medium">Collapse</span>
               </>
             )}
           </button>

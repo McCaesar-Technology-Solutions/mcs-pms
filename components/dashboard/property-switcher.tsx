@@ -11,9 +11,10 @@ import { Skeleton } from '@/components/ui/skeleton'
 
 interface PropertySwitcherProps {
   collapsed?: boolean
+  compact?: boolean
 }
 
-export function PropertySwitcher({ collapsed = false }: PropertySwitcherProps) {
+export function PropertySwitcher({ collapsed = false, compact = false }: PropertySwitcherProps) {
   const pathname = usePathname()
   const router = useRouter()
   const {
@@ -34,20 +35,22 @@ export function PropertySwitcher({ collapsed = false }: PropertySwitcherProps) {
     setOpen(false)
   }, [pathname])
 
+  const shellClass = compact
+    ? 'flex w-full items-center gap-2 rounded-lg bg-white/10 p-2 text-left shadow-elevation-1'
+    : 'flex w-full items-center gap-3 rounded-xl bg-white/10 p-3 text-left shadow-elevation-1'
+
   if (loading) {
     return (
       <div
-        className={`flex w-full items-center gap-3 rounded-xl bg-white/10 p-3 ${
-          collapsed ? 'justify-center' : ''
-        }`}
+        className={`${shellClass} ${collapsed ? 'justify-center' : ''}`}
         aria-busy
         aria-label="Loading properties"
       >
-        <Skeleton tone="sidebar" className="h-9 w-9 shrink-0 rounded-lg" />
+        <Skeleton tone="sidebar" className={`shrink-0 rounded-lg ${compact ? 'h-7 w-7' : 'h-9 w-9'}`} />
         {!collapsed && (
           <div className="min-w-0 flex-1 space-y-2">
-            <Skeleton tone="sidebar" className="h-3 w-24 rounded-md" />
-            <Skeleton tone="sidebar" className="h-2.5 w-32 rounded-md" />
+            <Skeleton tone="sidebar" className={`rounded-md ${compact ? 'h-2.5 w-20' : 'h-3 w-24'}`} />
+            {!compact && <Skeleton tone="sidebar" className="h-2.5 w-32 rounded-md" />}
           </div>
         )}
       </div>
@@ -60,17 +63,19 @@ export function PropertySwitcher({ collapsed = false }: PropertySwitcherProps) {
     return (
       <div
         title={collapsed ? activeProperty.name : undefined}
-        className={`flex w-full items-center gap-3 rounded-xl bg-white/10 p-3 text-left shadow-elevation-1 ${
-          collapsed ? 'justify-center' : ''
-        }`}
+        className={`${shellClass} ${collapsed ? 'justify-center' : ''}`}
       >
-        <PropertyThumb imageUrl={activeProperty.imageUrl} />
+        <PropertyThumb imageUrl={activeProperty.imageUrl} className={compact ? '!h-7 !w-7' : undefined} />
         {!collapsed && (
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-white">{activeProperty.name}</p>
-            <p className="truncate text-xs font-medium text-[var(--sidebar-muted)]">
-              {activeProperty.totalRooms} rooms · {activeProperty.city}
+            <p className={`truncate font-semibold text-white ${compact ? 'text-xs' : 'text-sm'}`}>
+              {activeProperty.name}
             </p>
+            {!compact && (
+              <p className="truncate text-xs font-medium text-[var(--sidebar-muted)]">
+                {activeProperty.totalRooms} rooms · {activeProperty.city}
+              </p>
+            )}
           </div>
         )}
       </div>
@@ -87,28 +92,34 @@ export function PropertySwitcher({ collapsed = false }: PropertySwitcherProps) {
           aria-expanded={open}
           aria-haspopup="listbox"
           title={collapsed ? activeProperty.name : undefined}
-          className={`flex w-full items-center gap-3 rounded-xl bg-white/10 p-3 text-left shadow-elevation-1 transition-all hover:bg-white/14 ${
+          className={`${shellClass} transition-all hover:bg-white/14 ${
             collapsed ? 'justify-center' : ''
           } ${open ? 'ring-1 ring-white/20' : ''}`}
         >
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10 shadow-elevation-2">
-            <Building2 className="h-4 w-4 text-[var(--accent)]" />
+          <div
+            className={`flex shrink-0 items-center justify-center rounded-lg bg-white/10 shadow-elevation-2 ${
+              compact ? 'h-7 w-7' : 'h-9 w-9'
+            }`}
+          >
+            <Building2 className={`text-[var(--accent)] ${compact ? 'h-3.5 w-3.5' : 'h-4 w-4'}`} />
           </div>
           {!collapsed && (
             <>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold text-white">{activeProperty.name}</p>
-                <p className="truncate text-xs font-medium text-[var(--sidebar-muted)]">
-                  {properties.length > 1
-                    ? `${properties.length} properties · `
-                    : ''}
-                  {activeProperty.totalRooms} rooms · {activeProperty.city}
+                <p className={`truncate font-semibold text-white ${compact ? 'text-xs' : 'text-sm'}`}>
+                  {activeProperty.name}
                 </p>
+                {!compact && (
+                  <p className="truncate text-xs font-medium text-[var(--sidebar-muted)]">
+                    {properties.length > 1 ? `${properties.length} properties · ` : ''}
+                    {activeProperty.totalRooms} rooms · {activeProperty.city}
+                  </p>
+                )}
               </div>
               <ChevronDown
-                className={`h-4 w-4 shrink-0 text-[var(--sidebar-muted)] transition-transform ${
-                  open ? 'rotate-180' : ''
-                }`}
+                className={`shrink-0 text-[var(--sidebar-muted)] transition-transform ${
+                  compact ? 'h-3.5 w-3.5' : 'h-4 w-4'
+                } ${open ? 'rotate-180' : ''}`}
               />
             </>
           )}
