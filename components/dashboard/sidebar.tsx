@@ -12,6 +12,7 @@ import { getNavIcon } from '@/components/dashboard/nav-icons'
 import type { OccupancyToday } from '@/lib/data/occupancy'
 
 const GROUPS_STORAGE_KEY = 'sidebar-nav-groups'
+const COLLAPSED_STORAGE_KEY = 'sidebar-collapsed'
 
 interface SidebarProps {
   mobileOpen?: boolean
@@ -43,7 +44,17 @@ export default function Sidebar({
   const { navItems, navGroups: groups } = useNavBadges(navigation, navGroups)
 
   const isDrawer = mobileOpen
+  const isCollapsedRail = collapsed && !isDrawer
   const showGroupToggles = !collapsed || isDrawer
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(COLLAPSED_STORAGE_KEY)
+      if (stored === '1') setCollapsed(true)
+    } catch {
+      // ignore storage errors
+    }
+  }, [])
 
   useEffect(() => {
     try {
@@ -84,6 +95,18 @@ export default function Sidebar({
     })
   }, [])
 
+  const toggleCollapsed = useCallback(() => {
+    setCollapsed((prev) => {
+      const next = !prev
+      try {
+        localStorage.setItem(COLLAPSED_STORAGE_KEY, next ? '1' : '0')
+      } catch {
+        // ignore quota errors
+      }
+      return next
+    })
+  }, [])
+
   function renderNavLink(item: NavItem) {
     const isActive = itemIsActive(pathname, item.href)
     const Icon = getNavIcon(item.icon)
@@ -93,20 +116,20 @@ export default function Sidebar({
       <SidebarNavLink
         key={item.href}
         href={item.href}
-        title={collapsed && !isDrawer ? item.name : undefined}
-        collapsed={collapsed && !isDrawer}
+        title={isCollapsedRail ? item.name : undefined}
+        collapsed={isCollapsedRail}
         active={isActive}
         onNavigate={onMobileClose}
       >
         <span className="sidebar-nav-link__icon">
           <Icon className="h-4 w-4" aria-hidden />
-          {showBadge && collapsed && !isDrawer && (
+          {showBadge && isCollapsedRail && (
             <span className="sidebar-nav-link__badge-dot">
               {item.badge! > 9 ? '9+' : item.badge}
             </span>
           )}
         </span>
-        {(!collapsed || isDrawer) && (
+        {(!isCollapsedRail || isDrawer) && (
           <span className="sidebar-nav-link__text">
             <span className="truncate">{item.name}</span>
             {showBadge && (
@@ -156,15 +179,15 @@ export default function Sidebar({
       <aside
         className={`sidebar-elevated sidebar-floating flex min-h-0 shrink-0 flex-col overflow-hidden transition-[transform,width,box-shadow] duration-300 ease-in-out max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-50 max-md:h-dvh max-md:w-48 max-md:rounded-none max-md:overflow-x-hidden ${
           mobileOpen ? 'max-md:translate-x-0' : 'max-md:-translate-x-full'
-        } ${collapsed ? 'md:w-[2.75rem]' : 'md:w-48 md:translate-x-0'}`}
+        } ${isCollapsedRail ? 'sidebar--collapsed' : 'md:w-48 md:translate-x-0'}`}
       >
-        <div className={`sidebar-header shrink-0 ${collapsed ? 'sidebar-header--collapsed' : ''}`}>
+        <div className={`sidebar-header shrink-0 ${isCollapsedRail ? 'sidebar-header--collapsed' : ''}`}>
           <div
-            className={`sidebar-brand-row ${collapsed && !isDrawer ? 'sidebar-brand-row--collapsed' : ''}`}
+            className={`sidebar-brand-row ${isCollapsedRail ? 'sidebar-brand-row--collapsed' : ''}`}
             aria-label="MOJO Apartments"
           >
-            <SidebarLogo />
-            {(!collapsed || isDrawer) && (
+            <SidebarLogo compact={isCollapsedRail} />
+            {(!isCollapsedRail || isDrawer) && (
               <div className="min-w-0 flex-1">
                 <p className="sidebar-brand-title">
                   <span className="text-[var(--accent)]">MOJO</span>
@@ -183,7 +206,7 @@ export default function Sidebar({
               </button>
             )}
           </div>
-          <PropertySwitcher collapsed={collapsed && !isDrawer} compact />
+          <PropertySwitcher collapsed={isCollapsedRail} compact />
         </div>
 
         <nav className="sidebar-nav" aria-label="Main navigation">
@@ -195,7 +218,13 @@ export default function Sidebar({
               return (
                 <div
                   key={group.label}
-                  className={`sidebar-nav-group ${index > 0 ? 'sidebar-nav-group--spaced' : ''}${open ? '' : ' sidebar-nav-group--closed'}`}
+                  className={`sidebar-nav-group ${
+                    index > 0
+                      ? isCollapsedRail
+                        ? 'sidebar-nav-group--divided'
+                        : 'sidebar-nav-group--spaced'
+                      : ''
+                  }${open ? '' : ' sidebar-nav-group--closed'}`}
                 >
                   {showGroupToggles && renderGroupToggle(group.label, group.items.length)}
                   <div
@@ -224,7 +253,7 @@ export default function Sidebar({
 
         <div className="sidebar-footer shrink-0">
           {occupancyToday &&
-            (!collapsed || isDrawer ? (
+            (!isCollapsedRail || isDrawer ? (
               <div className="sidebar-occupancy-strip" title={`${occupancyToday.occupied} of ${occupancyToday.total} rooms occupied`}>
                 <span className="sidebar-occupancy-strip__label">Occ.</span>
                 <span className="sidebar-occupancy-strip__value">{occupancyToday.percent}%</span>
@@ -240,19 +269,19 @@ export default function Sidebar({
               </div>
             ) : (
               <div
-                className="sidebar-occupancy-dot hidden md:flex"
+                className="sidebar-occupancy-dot"
                 title={`Occupancy today: ${occupancyToday.percent}% (${occupancyToday.occupied} of ${occupancyToday.total} rooms)`}
               >
-                {occupancyToday.percent}%
+                <span className="sidebar-occupancy-dot__value">{occupancyToday.percent}</span>
               </div>
             ))}
 
           <button
             type="button"
-            onClick={() => setCollapsed(!collapsed)}
+            onClick={toggleCollapsed}
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            className={`sidebar-collapse-footer hidden md:flex ${collapsed ? 'sidebar-collapse-footer--collapsed' : ''}`}
+            className={`sidebar-collapse-footer hidden md:flex ${isCollapsedRail ? 'sidebar-collapse-footer--collapsed' : ''}`}
           >
             {collapsed ? (
               <PanelLeft className="h-4 w-4 shrink-0" />

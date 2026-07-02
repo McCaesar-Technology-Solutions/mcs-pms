@@ -1,10 +1,10 @@
 /** Inline mark for the dark sidebar — gold fill for contrast on purple. */
-export function SidebarLogo() {
+export function SidebarLogo({ compact = false }: { compact?: boolean }) {
   return (
     <svg
       viewBox="0 0 1203 944"
       aria-hidden="true"
-      className="h-[30px] w-auto shrink-0"
+      className={compact ? 'h-[1.375rem] w-[1.375rem] shrink-0' : 'h-[30px] w-auto shrink-0'}
       role="img"
     >
       <path
