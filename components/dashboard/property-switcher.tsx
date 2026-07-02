@@ -36,7 +36,7 @@ export function PropertySwitcher({ collapsed = false, compact = false }: Propert
   }, [pathname])
 
   const shellClass = compact
-    ? 'flex w-full items-center gap-2.5 rounded-xl bg-white/10 p-2.5 text-left shadow-elevation-1'
+    ? 'flex w-full items-center gap-3 rounded-xl bg-white/10 p-3 text-left shadow-elevation-1'
     : 'flex w-full items-center gap-3 rounded-xl bg-white/10 p-3 text-left shadow-elevation-1'
 
   if (loading) {

@@ -47,7 +47,7 @@ export default function Sidebar({
         onNavigate={onMobileClose}
       >
         <span className="sidebar-nav-link__icon">
-          <Icon className="h-[1.125rem] w-[1.125rem]" aria-hidden />
+          <Icon className="h-5 w-5" aria-hidden />
           {showBadge && collapsed && !isDrawer && (
             <span className="sidebar-nav-link__badge-dot">
               {item.badge! > 9 ? '9+' : item.badge}
@@ -81,9 +81,9 @@ export default function Sidebar({
       )}
 
       <aside
-        className={`sidebar-elevated sidebar-floating flex min-h-0 shrink-0 flex-col overflow-hidden transition-[transform,width,box-shadow] duration-300 ease-in-out max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-50 max-md:h-dvh max-md:w-72 max-md:rounded-none max-md:overflow-x-hidden ${
+        className={`sidebar-elevated sidebar-floating flex min-h-0 shrink-0 flex-col overflow-hidden transition-[transform,width,box-shadow] duration-300 ease-in-out max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-50 max-md:h-dvh max-md:w-80 max-md:rounded-none max-md:overflow-x-hidden ${
           mobileOpen ? 'max-md:translate-x-0' : 'max-md:-translate-x-full'
-        } ${collapsed ? 'md:w-[4.5rem]' : 'md:w-72 md:translate-x-0'}`}
+        } ${collapsed ? 'md:w-[4.5rem]' : 'md:w-80 md:translate-x-0'}`}
       >
         <div className={`sidebar-header shrink-0 ${collapsed ? 'sidebar-header--collapsed' : ''}`}>
           <div
@@ -168,7 +168,7 @@ export default function Sidebar({
             ) : (
               <>
                 <PanelLeftClose className="h-[1.125rem] w-[1.125rem] shrink-0" />
-                <span className="text-[0.8125rem] font-medium">Collapse</span>
+                <span className="text-sm font-medium">Collapse</span>
               </>
             )}
           </button>
