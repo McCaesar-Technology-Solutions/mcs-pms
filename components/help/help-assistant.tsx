@@ -47,7 +47,7 @@ export function HelpAssistant({ role, bottomOffset = 'default' }: HelpAssistantP
   const [position, setPosition] = useState<HelpPosition | null>(null)
   const [dragging, setDragging] = useState(false)
   const panelRef = useRef<HTMLDivElement>(null)
-  const rootRef = useRef<HTMLDivElement>(null)
+  const fabRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const dragRef = useRef({
     active: false,
@@ -83,10 +83,10 @@ export function HelpAssistant({ role, bottomOffset = 'default' }: HelpAssistantP
   useEffect(() => {
     if (!position || !isMobileViewport()) return
     const onResize = () => {
-      const root = rootRef.current
-      if (!root) return
+      const fab = fabRef.current
+      if (!fab) return
       setPosition((prev) =>
-        prev ? clampPosition(prev.left, prev.top, root.offsetWidth, root.offsetHeight) : prev,
+        prev ? clampPosition(prev.left, prev.top, fab.offsetWidth, fab.offsetHeight) : prev,
       )
     }
     window.addEventListener('resize', onResize)
@@ -138,11 +138,11 @@ export function HelpAssistant({ role, bottomOffset = 'default' }: HelpAssistantP
   function handleFabPointerDown(e: React.PointerEvent<HTMLButtonElement>) {
     if (!isMobileViewport()) return
 
-    const root = rootRef.current
-    if (!root) return
+    const fab = fabRef.current
+    if (!fab) return
 
     e.currentTarget.setPointerCapture(e.pointerId)
-    const rect = root.getBoundingClientRect()
+    const rect = fab.getBoundingClientRect()
     dragRef.current = {
       active: true,
       moved: false,
@@ -163,14 +163,14 @@ export function HelpAssistant({ role, bottomOffset = 'default' }: HelpAssistantP
       dragRef.current.moved = true
     }
 
-    const root = rootRef.current
-    if (!root) return
+    const fab = fabRef.current
+    if (!fab) return
 
     const next = clampPosition(
       dragRef.current.originLeft + dx,
       dragRef.current.originTop + dy,
-      root.offsetWidth,
-      root.offsetHeight,
+      fab.offsetWidth,
+      fab.offsetHeight,
     )
     setPosition(next)
   }
@@ -187,10 +187,10 @@ export function HelpAssistant({ role, bottomOffset = 'default' }: HelpAssistantP
     }
 
     if (wasMoved) {
-      const root = rootRef.current
-      if (root) {
-        const rect = root.getBoundingClientRect()
-        persistPosition(clampPosition(rect.left, rect.top, root.offsetWidth, root.offsetHeight))
+      const fab = fabRef.current
+      if (fab) {
+        const rect = fab.getBoundingClientRect()
+        persistPosition(clampPosition(rect.left, rect.top, fab.offsetWidth, fab.offsetHeight))
       }
       return
     }
@@ -198,151 +198,162 @@ export function HelpAssistant({ role, bottomOffset = 'default' }: HelpAssistantP
     setOpen((v) => !v)
   }
 
-  const rootClass = [
-    bottomOffset === 'guest' ? 'help-assistant-root help-assistant-root--guest' : 'help-assistant-root',
-    position ? 'help-assistant-root--placed' : '',
+  const fabRootClass = [
+    'help-assistant-fab-root',
+    bottomOffset === 'guest' ? 'help-assistant-fab-root--guest' : '',
+    position ? 'help-assistant-fab-root--placed' : '',
   ]
     .filter(Boolean)
     .join(' ')
 
-  const rootStyle = position
+  const fabRootStyle = position
     ? { left: position.left, top: position.top, right: 'auto', bottom: 'auto' }
     : undefined
 
   return (
-    <div ref={rootRef} className={rootClass} style={rootStyle}>
+    <>
       {open && (
-        <div
-          ref={panelRef}
-          className="help-assistant-panel"
-          role="dialog"
-          aria-label={pack.title}
-        >
-          <header className="help-assistant-header">
-            <div className="help-assistant-header__main">
-              <div className="flex items-center justify-between gap-2">
-                <span className="help-assistant-status">
-                  <span className="help-assistant-status__dot" aria-hidden />
-                  Help guide
-                </span>
-                <div className="help-assistant-badges">
-                  <span className="help-assistant-badge help-assistant-badge--muted">Guide</span>
-                  <span className="help-assistant-badge help-assistant-badge--accent">{roleLabel}</span>
-                </div>
-              </div>
-              <h2 className="help-assistant-header__title">{pack.title}</h2>
-              <p className="help-assistant-header__subtitle">{pack.subtitle}</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              className="help-assistant-close"
-              aria-label="Close help"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </header>
-
-          {activeTopic ? (
-            <TopicDetail
-              topic={activeTopic}
-              onBack={() => setActiveTopicId(null)}
-              onClose={() => setOpen(false)}
-            />
-          ) : (
-            <>
-              <div className="help-assistant-compose">
-                <input
-                  ref={inputRef}
-                  type="search"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value.slice(0, QUERY_MAX))}
-                  onKeyDown={handleSearchKeyDown}
-                  placeholder="Search checkout, folio, complaints…"
-                  className="help-assistant-compose__input"
-                  aria-label="Search help topics"
-                />
-                <div className="help-assistant-compose__bar">
-                  <span className="help-assistant-compose__meta" aria-live="polite">
-                    {query.length}/{QUERY_MAX}
+        <div className="help-assistant-layer" role="presentation">
+          <button
+            type="button"
+            className="help-assistant-backdrop"
+            aria-label="Close help"
+            onClick={() => setOpen(false)}
+          />
+          <div
+            ref={panelRef}
+            className="help-assistant-panel"
+            role="dialog"
+            aria-label={pack.title}
+          >
+            <header className="help-assistant-header">
+              <div className="help-assistant-header__main">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="help-assistant-status">
+                    <span className="help-assistant-status__dot" aria-hidden />
+                    Help guide
                   </span>
-                  <button
-                    type="button"
-                    onClick={openFirstResult}
-                    disabled={ranked.length === 0}
-                    className="help-assistant-send"
-                    aria-label="Open top result"
-                  >
-                    <Send className="h-4 w-4" />
-                  </button>
+                  <div className="help-assistant-badges">
+                    <span className="help-assistant-badge help-assistant-badge--muted">Guide</span>
+                    <span className="help-assistant-badge help-assistant-badge--accent">{roleLabel}</span>
+                  </div>
                 </div>
+                <h2 className="help-assistant-header__title">{pack.title}</h2>
+                <p className="help-assistant-header__subtitle">{pack.subtitle}</p>
               </div>
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="help-assistant-close"
+                aria-label="Close help"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </header>
 
-              <div className="help-assistant-topics">
-                {ranked.length === 0 ? (
-                  <p className="help-assistant-empty">
-                    No topics match. Try &ldquo;checkout&rdquo;, &ldquo;folio&rdquo;, or &ldquo;complaint&rdquo;.
-                  </p>
-                ) : (
-                  <ul>
-                    {ranked.map((topic, index) => {
-                      const featured = index < 3 && topicMatchesPath(topic, pathname)
-                      return (
-                        <li key={topic.id}>
-                          <button
-                            type="button"
-                            onClick={() => setActiveTopicId(topic.id)}
-                            className={`help-assistant-topic${featured ? ' help-assistant-topic--featured' : ''}`}
-                          >
-                            <span className="help-assistant-topic__icon" aria-hidden>
-                              {featured ? '★' : index + 1}
-                            </span>
-                            <span className="help-assistant-topic__body">
-                              <span className="help-assistant-topic__title">{topic.title}</span>
-                              <span className="help-assistant-topic__summary">{topic.summary}</span>
-                            </span>
-                          </button>
-                        </li>
-                      )
-                    })}
-                  </ul>
-                )}
-              </div>
+            {activeTopic ? (
+              <TopicDetail
+                topic={activeTopic}
+                onBack={() => setActiveTopicId(null)}
+                onClose={() => setOpen(false)}
+              />
+            ) : (
+              <>
+                <div className="help-assistant-compose">
+                  <input
+                    ref={inputRef}
+                    type="search"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value.slice(0, QUERY_MAX))}
+                    onKeyDown={handleSearchKeyDown}
+                    placeholder="Search checkout, folio, complaints…"
+                    className="help-assistant-compose__input"
+                    aria-label="Search help topics"
+                  />
+                  <div className="help-assistant-compose__bar">
+                    <span className="help-assistant-compose__meta" aria-live="polite">
+                      {query.length}/{QUERY_MAX}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={openFirstResult}
+                      disabled={ranked.length === 0}
+                      className="help-assistant-send"
+                      aria-label="Open top result"
+                    >
+                      <Send className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
 
-              <footer className="help-assistant-footer">
-                <span>
-                  Press <kbd>Esc</kbd> to close
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="help-assistant-status__dot" aria-hidden />
-                  Role-based tips
-                </span>
-              </footer>
-            </>
-          )}
+                <div className="help-assistant-topics">
+                  {ranked.length === 0 ? (
+                    <p className="help-assistant-empty">
+                      No topics match. Try &ldquo;checkout&rdquo;, &ldquo;folio&rdquo;, or &ldquo;complaint&rdquo;.
+                    </p>
+                  ) : (
+                    <ul>
+                      {ranked.map((topic, index) => {
+                        const featured = index < 3 && topicMatchesPath(topic, pathname)
+                        return (
+                          <li key={topic.id}>
+                            <button
+                              type="button"
+                              onClick={() => setActiveTopicId(topic.id)}
+                              className={`help-assistant-topic${featured ? ' help-assistant-topic--featured' : ''}`}
+                            >
+                              <span className="help-assistant-topic__icon" aria-hidden>
+                                {featured ? '★' : index + 1}
+                              </span>
+                              <span className="help-assistant-topic__body">
+                                <span className="help-assistant-topic__title">{topic.title}</span>
+                                <span className="help-assistant-topic__summary">{topic.summary}</span>
+                              </span>
+                            </button>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  )}
+                </div>
+
+                <footer className="help-assistant-footer">
+                  <span>
+                    Press <kbd>Esc</kbd> to close
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="help-assistant-status__dot" aria-hidden />
+                    Role-based tips
+                  </span>
+                </footer>
+              </>
+            )}
+          </div>
         </div>
       )}
 
-      <button
-        type="button"
-        onPointerDown={handleFabPointerDown}
-        onPointerMove={handleFabPointerMove}
-        onPointerUp={finishFabPointer}
-        onPointerCancel={finishFabPointer}
-        onClick={(e) => {
-          if (isMobileViewport()) {
-            e.preventDefault()
-            return
-          }
-          setOpen((v) => !v)
-        }}
-        className={`help-assistant-fab${open ? ' help-assistant-fab--open' : ''}${dragging ? ' help-assistant-fab--dragging' : ''}`}
-        aria-expanded={open}
-        aria-label={open ? 'Close help assistant' : 'Open help assistant'}
-      >
-        {open ? <X className="help-assistant-fab__icon" /> : <MessageCircle className="help-assistant-fab__icon" />}
-      </button>
-    </div>
+      <div ref={fabRef} className={fabRootClass} style={fabRootStyle}>
+        <button
+          type="button"
+          onPointerDown={handleFabPointerDown}
+          onPointerMove={handleFabPointerMove}
+          onPointerUp={finishFabPointer}
+          onPointerCancel={finishFabPointer}
+          onClick={(e) => {
+            if (isMobileViewport()) {
+              e.preventDefault()
+              return
+            }
+            setOpen((v) => !v)
+          }}
+          className={`help-assistant-fab${open ? ' help-assistant-fab--open' : ''}${dragging ? ' help-assistant-fab--dragging' : ''}`}
+          aria-expanded={open}
+          aria-label={open ? 'Close help assistant' : 'Open help assistant'}
+        >
+          {open ? <X className="help-assistant-fab__icon" /> : <MessageCircle className="help-assistant-fab__icon" />}
+        </button>
+      </div>
+    </>
   )
 }
 

@@ -47,7 +47,7 @@ export default function Sidebar({
         onNavigate={onMobileClose}
       >
         <span className="sidebar-nav-link__icon">
-          <Icon className="h-5 w-5" aria-hidden />
+          <Icon className="h-[1.125rem] w-[1.125rem]" aria-hidden />
           {showBadge && collapsed && !isDrawer && (
             <span className="sidebar-nav-link__badge-dot">
               {item.badge! > 9 ? '9+' : item.badge}
