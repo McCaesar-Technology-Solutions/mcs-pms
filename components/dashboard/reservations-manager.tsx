@@ -1,9 +1,10 @@
 'use client'
 
 import { useEffect, useMemo, useState, useTransition } from 'react'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 import { ChevronRight, LogIn, LogOut, Plus, Search, X, XCircle, CalendarPlus, ArrowRightLeft, UserX, Pencil } from 'lucide-react'
+import { CheckoutInvoiceDialog } from '@/components/dashboard/checkout-invoice-dialog'
 import {
   bookAndCheckIn,
   cancelReservation,
@@ -155,6 +156,9 @@ interface ReservationsManagerProps {
   occupancySpans: OccupancySpan[]
   initialSearch?: string
   openReservationId?: string
+  initialExtendStay?: boolean
+  initialExtendDate?: string
+  initialGuestRequestId?: string
   initialNewFlow?: 'book' | 'check_in'
   staffRole?: UserRole
   initialCheckInDate?: string
@@ -177,6 +181,9 @@ export function ReservationsManager({
   occupancySpans,
   initialSearch = '',
   openReservationId,
+  initialExtendStay = false,
+  initialExtendDate,
+  initialGuestRequestId,
   initialNewFlow,
   staffRole = 'receptionist',
   initialCheckInDate,
@@ -185,6 +192,8 @@ export function ReservationsManager({
   initialPaymentSecured = false,
 }: ReservationsManagerProps) {
   const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const [selectedId, setSelectedId] = useState<string | null>(openReservationId ?? null)
   const [search, setSearch] = useState(initialSearch)
 
@@ -200,6 +209,16 @@ export function ReservationsManager({
   const [paymentSecuredFilter, setPaymentSecuredFilter] = useState(initialPaymentSecured)
   const [creating, setCreating] = useState(Boolean(initialNewFlow))
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
+  const [checkoutInvoice, setCheckoutInvoice] = useState<{ id: string; guestName: string } | null>(
+    null,
+  )
+  const [activeGuestRequestId, setActiveGuestRequestId] = useState<string | null>(
+    initialGuestRequestId ?? null,
+  )
+
+  useEffect(() => {
+    setActiveGuestRequestId(initialGuestRequestId ?? null)
+  }, [initialGuestRequestId])
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase()
@@ -247,6 +266,16 @@ export function ReservationsManager({
     10,
     `${search}|${statusFilter}|${paymentFilter}`,
   )
+
+  function clearReservationDeepLink(closeReservation = false) {
+    const next = new URLSearchParams(searchParams.toString())
+    next.delete('extend')
+    next.delete('extendDate')
+    next.delete('guestRequest')
+    if (closeReservation) next.delete('open')
+    const query = next.toString()
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
+  }
 
   function toggleSelected(id: string) {
     setSelectedIds((prev) => {
@@ -526,8 +555,35 @@ export function ReservationsManager({
           reservation={selected}
           roomOptions={roomOptions}
           staffRole={staffRole}
-          onClose={() => setSelectedId(null)}
+          initialExtendStay={initialExtendStay && selected.id === openReservationId}
+          initialExtendDate={selected.id === openReservationId ? initialExtendDate : undefined}
+          guestRequestId={selected.id === openReservationId ? activeGuestRequestId : null}
+          onClose={() => {
+            setSelectedId(null)
+            clearReservationDeepLink(true)
+          }}
           onMutated={() => {
+            setSelectedId(null)
+            clearReservationDeepLink(true)
+            router.refresh()
+          }}
+          onGuestRequestHandled={() => {
+            setActiveGuestRequestId(null)
+            clearReservationDeepLink(true)
+          }}
+          onCheckoutInvoice={(invoiceId, guestName) => {
+            setCheckoutInvoice({ id: invoiceId, guestName })
+            router.refresh()
+          }}
+        />
+      )}
+
+      {checkoutInvoice && (
+        <CheckoutInvoiceDialog
+          invoiceId={checkoutInvoice.id}
+          guestName={checkoutInvoice.guestName}
+          onClose={() => {
+            setCheckoutInvoice(null)
             setSelectedId(null)
             router.refresh()
           }}
@@ -561,8 +617,13 @@ interface ReservationDrawerProps {
   reservation: Reservation
   roomOptions: RoomOption[]
   staffRole: UserRole
+  initialExtendStay?: boolean
+  initialExtendDate?: string
+  guestRequestId?: string | null
   onClose: () => void
   onMutated: () => void
+  onCheckoutInvoice?: (invoiceId: string, guestName: string) => void
+  onGuestRequestHandled?: () => void
 }
 
 const PAYMENT_METHODS: PaymentMethod[] = [
@@ -575,7 +636,18 @@ const PAYMENT_METHODS: PaymentMethod[] = [
   'bank_transfer',
 ]
 
-function ReservationDrawer({ reservation, roomOptions, staffRole, onClose, onMutated }: ReservationDrawerProps) {
+function ReservationDrawer({
+  reservation,
+  roomOptions,
+  staffRole,
+  initialExtendStay = false,
+  initialExtendDate,
+  guestRequestId,
+  onClose,
+  onMutated,
+  onCheckoutInvoice,
+  onGuestRequestHandled,
+}: ReservationDrawerProps) {
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
   const [checkingOut, setCheckingOut] = useState(false)
@@ -603,21 +675,62 @@ function ReservationDrawer({ reservation, roomOptions, staffRole, onClose, onMut
   const [editMonthlyRate, setEditMonthlyRate] = useState(String(reservation.monthlyRate))
   const [selectedGuestId, setSelectedGuestId] = useState<string | null>(null)
   const [portalUrl, setPortalUrl] = useState<string | null>(null)
-  const [newCheckOut, setNewCheckOut] = useState(reservation.checkOutDate)
+  const [newCheckOut, setNewCheckOut] = useState(initialExtendDate ?? reservation.checkOutDate)
   const [newRoomId, setNewRoomId] = useState(reservation.roomId)
 
-  function run(action: () => Promise<{ success: boolean; error?: string }>, onSuccess?: () => void) {
+  useEffect(() => {
+    if (!initialExtendDate) return
+    setNewCheckOut(initialExtendDate)
+  }, [initialExtendDate])
+
+  useEffect(() => {
+    if (initialExtendStay) {
+      setExtending(true)
+    }
+  }, [initialExtendStay])
+
+  function run(
+    action: () => Promise<{ success: boolean; error?: string; invoiceId?: string }>,
+    onSuccess?: () => void,
+  ) {
     setError(null)
     startTransition(async () => {
       const result = await action()
       if (result.success) {
-        toast.success('Saved')
-        if (onSuccess) onSuccess()
-        else onMutated()
+        if (result.invoiceId && onCheckoutInvoice) {
+          toast.success('Checked out — invoice ready')
+          setCheckingOut(false)
+          onCheckoutInvoice(result.invoiceId, reservation.guestName)
+        } else {
+          toast.success('Saved')
+          if (onSuccess) onSuccess()
+          else onMutated()
+        }
       } else {
         setError(result.error ?? 'Something went wrong.')
         toast.error(result.error ?? 'Something went wrong.')
       }
+    })
+  }
+
+  function submitExtension() {
+    setError(null)
+    startTransition(async () => {
+      const result = await extendStay(reservation.id, newCheckOut)
+      if (!result.success) {
+        setError(result.error ?? 'Something went wrong.')
+        toast.error(result.error ?? 'Something went wrong.')
+        return
+      }
+
+      toast.success(
+        guestRequestId
+          ? 'Stay extended. Mark the guest request as completed.'
+          : 'Stay extended.',
+      )
+      setExtending(false)
+      onMutated()
+      if (guestRequestId) onGuestRequestHandled?.()
     })
   }
 
@@ -1226,6 +1339,11 @@ function ReservationDrawer({ reservation, roomOptions, staffRole, onClose, onMut
               {extending && (
                 <div className="space-y-3 rounded-xl surface-inset p-4">
                   <p className="text-sm font-semibold">Extend stay</p>
+                  {guestRequestId && (
+                    <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-950">
+                      This extension came from a guest request. After saving the new date, go back and mark the request as completed.
+                    </p>
+                  )}
                   <Field label="New check-out date">
                     <input
                       type="date"
@@ -1242,7 +1360,7 @@ function ReservationDrawer({ reservation, roomOptions, staffRole, onClose, onMut
                     <button
                       type="button"
                       disabled={pending || newCheckOut <= reservation.checkOutDate}
-                      onClick={() => run(() => extendStay(reservation.id, newCheckOut))}
+                      onClick={submitExtension}
                       className="flex-[2] rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground"
                     >
                       {pending ? 'Saving…' : 'Extend'}

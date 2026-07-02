@@ -106,6 +106,7 @@ interface BillingOverviewProps {
   initialQuery?: string
   openInvoiceId?: string
   vatMode?: VatMode
+  readOnly?: boolean
 }
 
 export function BillingOverview({
@@ -114,6 +115,7 @@ export function BillingOverview({
   initialQuery = '',
   openInvoiceId,
   vatMode = 'exclusive',
+  readOnly = false,
 }: BillingOverviewProps) {
   const router = useRouter()
   const [statusFilter, setStatusFilter] = useState<string | null>(null)
@@ -351,14 +353,16 @@ export function BillingOverview({
             <h2 className="text-2xl font-semibold text-foreground">Invoices</h2>
             <p className="text-sm text-muted-foreground mt-1">{filteredInvoices.length} invoices</p>
           </div>
-          <button
-            type="button"
-            onClick={() => setCreating(true)}
-            className="app-btn app-btn-primary flex w-full items-center justify-center gap-2 sm:w-auto"
-          >
-            <Plus className="h-4 w-4" />
-            New Invoice
-          </button>
+          {!readOnly && (
+            <button
+              type="button"
+              onClick={() => setCreating(true)}
+              className="app-btn app-btn-primary flex w-full items-center justify-center gap-2 sm:w-auto"
+            >
+              <Plus className="h-4 w-4" />
+              New Invoice
+            </button>
+          )}
         </div>
 
         {rows.length > 0 && (
@@ -611,7 +615,8 @@ export function BillingOverview({
                 </button>
               )}
 
-              {detail.payment_status !== 'paid' &&
+              {!readOnly &&
+                detail.payment_status !== 'paid' &&
                 detail.payment_status !== 'refunded' &&
                 invoiceOpenBalance(detail) > 0 && (
                 <>
@@ -661,7 +666,7 @@ export function BillingOverview({
                 </>
               )}
 
-              {(detail.amount_paid ?? 0) > 0 && detail.payment_status !== 'refunded' && (
+              {!readOnly && (detail.amount_paid ?? 0) > 0 && detail.payment_status !== 'refunded' && (
                 <button
                   type="button"
                   disabled={pending}
@@ -676,6 +681,7 @@ export function BillingOverview({
         )}
       </CenteredModal>
 
+      {!readOnly && (
       <CenteredModal open={creating} onClose={() => setCreating(false)} className="max-w-md" aria-label="New invoice">
         <ModalHeader onClose={() => setCreating(false)}>
           <h3 className="text-lg font-semibold">New invoice</h3>
@@ -763,6 +769,7 @@ export function BillingOverview({
           </button>
         </ModalFooter>
       </CenteredModal>
+      )}
     </>
   )
 }

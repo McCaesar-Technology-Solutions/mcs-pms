@@ -1,3 +1,3 @@
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
-  return children
+  return <div className="auth-page-shell">{children}</div>
 }

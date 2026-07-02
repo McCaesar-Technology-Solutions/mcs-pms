@@ -34,6 +34,8 @@ export interface GuestPortalRequest {
   id: string
   requestType: 'housekeeping' | 'late_checkout' | 'extension' | 'self_checkout'
   note: string | null
+  requestedDate?: string | null
+  requestedTime?: string | null
   status: string
   createdAt: string
 }
@@ -42,6 +44,7 @@ export interface GuestRequestPanelRow extends GuestPortalRequest {
   guestName: string
   roomNumber: string | null
   doNotDisturb: boolean
+  reservationId: string | null
 }
 
 export interface GuestPortalContext {
@@ -111,7 +114,7 @@ export async function loadGuestPortalContext(guest: Guest): Promise<GuestPortalC
         .limit(10),
       admin
         .from('guest_requests')
-        .select('id, request_type, note, status, created_at')
+        .select('id, request_type, note, requested_date, requested_time, status, created_at')
         .eq('guest_id', guest.id)
         .order('created_at', { ascending: false })
         .limit(20),
@@ -154,6 +157,8 @@ export async function loadGuestPortalContext(guest: Guest): Promise<GuestPortalC
           id: row.id,
           requestType: row.request_type as GuestPortalRequest['requestType'],
           note: row.note,
+          requestedDate: row.requested_date ?? null,
+          requestedTime: row.requested_time ?? null,
           status: row.status,
           createdAt: row.created_at ?? new Date(0).toISOString(),
         })),
@@ -165,12 +170,33 @@ export async function loadHotelGuestRequests(hotelId: string): Promise<GuestRequ
   const admin = createAdminClient()
   const { data, error } = await admin
     .from('guest_requests')
-    .select('id, request_type, note, status, created_at, guests(name, do_not_disturb), rooms(number)')
+    .select(
+      'id, guest_id, request_type, note, requested_date, requested_time, status, created_at, guests(name, do_not_disturb), rooms(number)',
+    )
     .eq('hotel_id', hotelId)
     .order('created_at', { ascending: false })
     .limit(15)
 
   if (error) return []
+
+  const guestIds = Array.from(
+    new Set((data ?? []).map((row) => row.guest_id).filter((guestId): guestId is string => Boolean(guestId))),
+  )
+
+  const reservationIdsByGuest = new Map<string, string>()
+  if (guestIds.length > 0) {
+    const { data: activeReservations } = await admin
+      .from('reservations')
+      .select('id, guest_id, status')
+      .eq('hotel_id', hotelId)
+      .in('guest_id', guestIds)
+      .in('status', ['checked_in', 'overstay', 'checkout_in_progress'])
+
+    for (const reservation of activeReservations ?? []) {
+      if (!reservation.guest_id || reservationIdsByGuest.has(reservation.guest_id)) continue
+      reservationIdsByGuest.set(reservation.guest_id, reservation.id)
+    }
+  }
 
   return (data ?? []).map((row) => {
     const guestRow =
@@ -186,11 +212,14 @@ export async function loadHotelGuestRequests(hotelId: string): Promise<GuestRequ
       id: row.id,
       requestType: row.request_type as GuestPortalRequest['requestType'],
       note: row.note,
+      requestedDate: row.requested_date ?? null,
+      requestedTime: row.requested_time ?? null,
       status: row.status,
       createdAt: row.created_at ?? new Date(0).toISOString(),
       guestName: guest,
       roomNumber: room,
       doNotDisturb: Boolean(guestRow?.do_not_disturb),
+      reservationId: reservationIdsByGuest.get(row.guest_id) ?? null,
     }
   })
 }

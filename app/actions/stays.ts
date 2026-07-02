@@ -469,7 +469,7 @@ async function executeStayCheckout(
     includeTax: boolean
     departureStatus: StayDepartureStatus
   },
-): Promise<StayActionResult> {
+): Promise<StayActionResult<{ invoiceId: string | null }>> {
   const { reservation, profile, userId } = input
   const today = todayISO()
   const actorRole = normalizeActorRole(profile.role)
@@ -543,6 +543,8 @@ async function executeStayCheckout(
     .eq('reservation_id', reservation.id)
     .maybeSingle()
 
+  let invoiceId: string | null = existingInvoice?.id ?? null
+
   if (!existingInvoice) {
     const invoiceNumber = await allocateInvoiceNumber(reservation.hotel_id)
     const { data: invoiceRow } = await admin
@@ -579,6 +581,7 @@ async function executeStayCheckout(
     }
 
     if (invoiceRow?.id) {
+      invoiceId = invoiceRow.id
       await finalizeReservationCheckoutPayment(admin, {
         reservationId: reservation.id,
         invoiceId: invoiceRow.id,
@@ -709,7 +712,7 @@ async function executeStayCheckout(
       : `${reservation.guest_name} checked out — ₵${taxes.total.toLocaleString()} (${input.paymentMethod.replace(/_/g, ' ')}, ${paidNow ? 'paid' : 'pending'})${folioSubtotal > 0 ? ` incl. ₵${folioSubtotal} folio` : ''}`,
   })
 
-  return { success: true }
+  return { success: true, data: { invoiceId } }
 }
 
 export async function beginCheckoutStay(reservationId: string): Promise<StayActionResult> {
@@ -763,7 +766,7 @@ export async function completeCheckoutStay(input: {
   earlyCheckout?: boolean
   markAsPaid?: boolean
   includeTax?: boolean
-}): Promise<StayActionResult> {
+}): Promise<StayActionResult<{ invoiceId: string | null }>> {
   const { profile, userId } = await requireManager()
   if (!profile?.hotel_id || !userId || !['owner', 'manager', 'receptionist'].includes(profile.role)) {
     return { success: false, error: 'Not authorized.' }
@@ -808,7 +811,7 @@ export async function checkOutStay(input: {
   earlyCheckout?: boolean
   markAsPaid?: boolean
   includeTax?: boolean
-}): Promise<StayActionResult> {
+}): Promise<StayActionResult<{ invoiceId: string | null }>> {
   const { profile, userId } = await requireManager()
   if (!profile?.hotel_id || !userId || !['owner', 'manager', 'receptionist'].includes(profile.role)) {
     return { success: false, error: 'Not authorized.' }
@@ -1037,7 +1040,7 @@ export async function checkOutStay(input: {
       summary: `${guest.name} checked out (legacy guest record) — ${input.paymentMethod.replace(/_/g, ' ')}${folioSubtotal > 0 ? ` (+₵${folioSubtotal} folio)` : ''}`,
     })
 
-    return { success: true }
+    return { success: true, data: { invoiceId: invoiceRow?.id ?? null } }
   }
 
   if (!reservation) return { success: false, error: 'Reservation not found.' }
@@ -1060,7 +1063,7 @@ export async function checkOutStay(input: {
 export async function recordWalkoutStay(
   reservationId: string,
   input?: { paymentMethod?: PaymentMethod; earlyCheckout?: boolean; includeTax?: boolean },
-): Promise<StayActionResult> {
+): Promise<StayActionResult<{ invoiceId: string | null }>> {
   const { profile, userId } = await requireManager()
   if (!profile?.hotel_id || !userId || !['owner', 'manager', 'receptionist'].includes(profile.role)) {
     return { success: false, error: 'Not authorized.' }

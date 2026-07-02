@@ -50,7 +50,7 @@ export async function loadOpsInbox(hotelId: string, limit = 12): Promise<OpsInbo
       .limit(20),
     admin
       .from('guest_requests')
-      .select('id, request_type, created_at, guests(name), rooms(number)')
+      .select('id, guest_id, request_type, requested_date, created_at, guests(name), rooms(number)')
       .eq('hotel_id', hotelId)
       .eq('status', 'pending')
       .order('created_at', { ascending: false })
@@ -107,16 +107,47 @@ export async function loadOpsInbox(hotelId: string, limit = 12): Promise<OpsInbo
     })
   }
 
+  const requestGuestIds = Array.from(
+    new Set(
+      (requestsRes.data ?? [])
+        .map((r) => ('guest_id' in r ? r.guest_id : null))
+        .filter((guestId): guestId is string => Boolean(guestId)),
+    ),
+  )
+  const requestReservationIds = new Map<string, string>()
+  if (requestGuestIds.length > 0) {
+    const { data: activeReservations } = await admin
+      .from('reservations')
+      .select('id, guest_id')
+      .eq('hotel_id', hotelId)
+      .in('guest_id', requestGuestIds)
+      .in('status', ['checked_in', 'overstay', 'checkout_in_progress'])
+
+    for (const reservation of activeReservations ?? []) {
+      if (!reservation.guest_id || requestReservationIds.has(reservation.guest_id)) continue
+      requestReservationIds.set(reservation.guest_id, reservation.id)
+    }
+  }
+
   for (const r of requestsRes.data ?? []) {
     const guest = r.guests as { name?: string } | null
     const room = r.rooms as { number?: string } | null
+    const reservationId = 'guest_id' in r && r.guest_id ? requestReservationIds.get(r.guest_id) : null
+    const extensionHref =
+      r.request_type === 'extension' && reservationId && 'requested_date' in r && r.requested_date
+        ? `/manager/reservations?open=${encodeURIComponent(reservationId)}&extend=1&extendDate=${encodeURIComponent(r.requested_date)}&guestRequest=${encodeURIComponent(r.id)}`
+        : '/manager/dashboard#guest-requests'
     items.push({
       id: r.id,
       kind: 'guest_request',
       title: REQUEST_LABELS[r.request_type] ?? 'Guest request',
-      subtitle: `${guest?.name ?? 'Guest'}${room?.number ? ` · Room ${room.number}` : ''}`,
+      subtitle:
+        `${guest?.name ?? 'Guest'}${room?.number ? ` · Room ${room.number}` : ''}` +
+        (r.request_type === 'extension' && 'requested_date' in r && r.requested_date
+          ? ` · wants ${r.requested_date}`
+          : ''),
       priority: r.request_type === 'self_checkout' ? 1 : 2,
-      href: '/manager/dashboard#guest-requests',
+      href: extensionHref,
       createdAt: r.created_at ?? new Date(0).toISOString(),
     })
   }

@@ -2,7 +2,6 @@
 
 import { useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PasswordInput } from '@/components/auth/password-input'
@@ -49,8 +48,6 @@ function AcceptInviteForm() {
     window.location.assign(result.redirectTo)
   }
 
-  const fieldClass = 'border-white/20 bg-white/10 text-white'
-
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       <div className="space-y-2">
@@ -62,7 +59,7 @@ function AcceptInviteForm() {
           value={name}
           onChange={(e) => setName(e.target.value)}
           required
-          className={fieldClass}
+          className="auth-field"
         />
       </div>
 
@@ -77,7 +74,7 @@ function AcceptInviteForm() {
           onChange={(e) => setPhone(e.target.value)}
           required
           placeholder="+233 XX XXX XXXX"
-          className={fieldClass}
+          className="auth-field"
         />
       </div>
 
@@ -92,9 +89,9 @@ function AcceptInviteForm() {
           onChange={(e) => setPassword(e.target.value)}
           required
           minLength={PASSWORD_MIN_LENGTH}
-          className={fieldClass}
+          className="auth-field"
         />
-        <p className="text-xs text-white/50">At least {PASSWORD_MIN_LENGTH} characters.</p>
+        <p className="text-xs text-white/55">At least {PASSWORD_MIN_LENGTH} characters.</p>
       </div>
 
       <div className="space-y-2">
@@ -108,7 +105,7 @@ function AcceptInviteForm() {
           onChange={(e) => setConfirmPassword(e.target.value)}
           required
           minLength={PASSWORD_MIN_LENGTH}
-          className={fieldClass}
+          className="auth-field"
         />
       </div>
 
@@ -118,29 +115,23 @@ function AcceptInviteForm() {
         </p>
       )}
 
-      <Button
-        type="submit"
-        disabled={loading}
-        className="h-11 w-full bg-[#3C216C] text-white hover:bg-[#4c2a85]"
-      >
+      <button type="submit" disabled={loading} className="auth-submit-btn">
         {loading ? 'Creating account…' : 'Accept invite'}
-      </Button>
+      </button>
     </form>
   )
 }
 
 export default function AcceptInvitePage() {
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-[#22124C] px-4 py-12">
-      <div className="w-full max-w-md rounded-2xl border border-white/10 bg-white/5 p-8 shadow-2xl backdrop-blur-md">
-        <div className="mb-8 text-center">
-          <p className="text-3xl font-semibold text-[#D4A62E]">MOJO APARTMENTS</p>
-          <p className="mt-2 text-sm text-white/70">Complete your staff registration</p>
-        </div>
-        <Suspense fallback={<p className="text-white/70">Loading…</p>}>
-          <AcceptInviteForm />
-        </Suspense>
+    <div className="auth-form-card">
+      <div className="mb-8 text-center">
+        <p className="auth-brand-title">MOJO APARTMENTS</p>
+        <p className="mt-2 text-sm text-white/75">Complete your staff registration</p>
       </div>
+      <Suspense fallback={<p className="text-white/75">Loading…</p>}>
+        <AcceptInviteForm />
+      </Suspense>
     </div>
   )
 }

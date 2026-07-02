@@ -6,6 +6,9 @@ export default function ManagerReservationsPage({
   searchParams: Promise<{
     q?: string
     open?: string
+    extend?: string
+    extendDate?: string
+    guestRequest?: string
     checkIn?: string
     checkOut?: string
     status?: string

@@ -14,9 +14,16 @@ import {
 import { applyInvoicePaymentRecord } from '@/lib/billing/apply-payment'
 import { syncReservationPaymentFromInvoice } from '@/lib/billing/reservation-payment'
 import { writeAuditLog } from '@/lib/audit/log'
+import { formatInvoiceNumber } from '@/lib/invoices/numbering'
+import { stayNights } from '@/lib/stays/helpers'
+import type { ExportHotelInfo, InvoiceExportRow } from '@/lib/export/types'
 import type { PaymentMethod } from '@/types'
 
 export type InvoiceActionResult = { success: true } | { success: false; error: string }
+
+export type StaffInvoiceExportResult =
+  | { success: true; data: { hotel: ExportHotelInfo; invoice: InvoiceExportRow } }
+  | { success: false; error: string }
 
 const VALID_PAYMENT_METHODS: PaymentMethod[] = [
   'mtn_momo',
@@ -79,8 +86,85 @@ function revalidateBilling() {
   revalidatePath('/owner/gra-reports')
   revalidatePath('/owner/dashboard')
   revalidatePath('/owner/reservations')
+  revalidatePath('/manager/invoices')
   revalidatePath('/manager/reservations')
   revalidatePath('/receptionist/reservations')
+}
+
+async function requireInvoiceViewer() {
+  const result = await requireVerifiedStaff({ roles: ['owner', 'manager', 'receptionist'] })
+  if (!result.ok) return null
+  if (!result.profile.hotel_id) return null
+  return result.profile
+}
+
+export async function getStaffInvoiceExport(invoiceId: string): Promise<StaffInvoiceExportResult> {
+  const profile = await requireInvoiceViewer()
+  if (!profile?.hotel_id) {
+    return { success: false, error: consumeStaffAuthError() ?? 'Not authorized.' }
+  }
+
+  const admin = createAdminClient()
+  const { data: row } = await admin
+    .from('invoices')
+    .select(
+      '*, hotels(name, address, city, region, vat_registration_number, vat_mode), reservations(check_in, check_out, rooms(number))',
+    )
+    .eq('id', invoiceId)
+    .eq('hotel_id', profile.hotel_id)
+    .maybeSingle()
+
+  if (!row) return { success: false, error: 'Invoice not found.' }
+
+  const hotelRaw = row.hotels as {
+    name: string
+    address: string | null
+    city: string | null
+    region: string | null
+    vat_registration_number: string | null
+    vat_mode: 'exclusive' | 'inclusive' | null
+  } | null
+
+  const reservation = row.reservations as unknown as {
+    check_in: string
+    check_out: string
+    rooms?: { number: string } | null
+  } | null
+
+  const checkIn = reservation?.check_in ?? null
+  const checkOut = reservation?.check_out ?? null
+
+  return {
+    success: true,
+    data: {
+      hotel: {
+        name: hotelRaw?.name ?? 'Property',
+        address: hotelRaw?.address ?? null,
+        city: hotelRaw?.city ?? null,
+        region: hotelRaw?.region ?? null,
+        vatRegistrationNumber: hotelRaw?.vat_registration_number ?? null,
+        vatMode: hotelRaw?.vat_mode ?? 'exclusive',
+      },
+      invoice: {
+        invoiceNumber: formatInvoiceNumber({ invoice_number: row.invoice_number, id: row.id }),
+        guestName: row.guest_name,
+        roomNumber: reservation?.rooms?.number ?? null,
+        checkIn,
+        checkOut,
+        nights: checkIn && checkOut ? stayNights(checkIn, checkOut) : null,
+        issuedAt: row.issued_at,
+        subtotal: Number(row.subtotal),
+        nhil: Number(row.nhil_amount ?? 0),
+        getfund: Number(row.getfund_amount ?? 0),
+        covid: Number(row.covid_levy_amount ?? 0),
+        vat: Number(row.vat_amount ?? 0),
+        elevy: Number(row.elevy_amount ?? 0),
+        total: Number(row.total_amount),
+        paymentMethod: row.payment_method,
+        paymentStatus: row.payment_status,
+      },
+    },
+  }
 }
 
 function dueDateISO(daysFromNow: number): string {

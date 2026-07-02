@@ -35,7 +35,9 @@ import { todayISO } from '@/lib/stays/helpers'
 import { revalidateStayViews } from '@/lib/stays/revalidate'
 import type { PaymentMethod, ReservationChannel, ReservationStatus } from '@/types'
 
-export type ReservationActionResult = { success: true } | { success: false; error: string }
+export type ReservationActionResult =
+  | { success: true; invoiceId?: string }
+  | { success: false; error: string }
 
 export interface RoomSuggestion {
   id: string
@@ -457,7 +459,7 @@ export async function completeCheckoutReservation(
   })
   if (!result.success) return { success: false, error: result.error }
   revalidateReservationViews()
-  return { success: true }
+  return { success: true, invoiceId: result.data?.invoiceId ?? undefined }
 }
 
 export async function checkOutReservation(
@@ -480,7 +482,7 @@ export async function checkOutReservation(
   })
   if (!result.success) return { success: false, error: result.error }
   revalidateReservationViews()
-  return { success: true }
+  return { success: true, invoiceId: result.data?.invoiceId ?? undefined }
 }
 
 export async function recordWalkoutReservation(
@@ -496,7 +498,7 @@ export async function recordWalkoutReservation(
   const result = await recordWalkoutStay(id, { paymentMethod, earlyCheckout, includeTax })
   if (!result.success) return { success: false, error: result.error }
   revalidateReservationViews()
-  return { success: true }
+  return { success: true, invoiceId: result.data?.invoiceId ?? undefined }
 }
 
 export async function approveLateCheckoutReservation(

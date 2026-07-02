@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useTransition } from 'react'
+import Link from 'next/link'
 import { Bell } from 'lucide-react'
 import { GuestDndBadge } from '@/components/ui/guest-dnd-badge'
 import { toast } from 'sonner'
@@ -10,11 +11,14 @@ export interface GuestRequestRow {
   id: string
   requestType: string
   note: string | null
+  requestedDate?: string | null
+  requestedTime?: string | null
   status: string
   createdAt: string
   guestName: string
   roomNumber: string | null
   doNotDisturb: boolean
+  reservationId: string | null
 }
 
 const REQUEST_LABELS: Record<string, string> = {
@@ -27,9 +31,21 @@ const REQUEST_LABELS: Record<string, string> = {
 interface GuestRequestsPanelProps {
   hotelId: string
   initialRequests?: GuestRequestRow[]
+  reservationsHrefBase?: string
 }
 
-export function GuestRequestsPanel({ initialRequests = [] }: GuestRequestsPanelProps) {
+function formatRequestedDate(date: string) {
+  return new Date(`${date}T12:00:00`).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  })
+}
+
+export function GuestRequestsPanel({
+  initialRequests = [],
+  reservationsHrefBase = '/manager/reservations',
+}: GuestRequestsPanelProps) {
   const [requests, setRequests] = useState(initialRequests)
   const [pending, startTransition] = useTransition()
 
@@ -103,9 +119,27 @@ export function GuestRequestsPanel({ initialRequests = [] }: GuestRequestsPanelP
                 {req.note && (
                   <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{req.note}</p>
                 )}
+                {req.requestType === 'extension' && req.requestedDate && (
+                  <p className="mt-1 text-xs font-medium text-foreground">
+                    Requested new check-out: {formatRequestedDate(req.requestedDate)}
+                  </p>
+                )}
+                {req.requestType === 'late_checkout' && req.requestedTime && (
+                  <p className="mt-1 text-xs font-medium text-foreground">
+                    Requested checkout time: {req.requestedTime}
+                  </p>
+                )}
               </div>
               {req.status === 'pending' ? (
                 <div className="flex flex-wrap gap-1.5">
+                  {req.requestType === 'extension' && req.reservationId && req.requestedDate && (
+                    <Link
+                      href={`${reservationsHrefBase}?open=${encodeURIComponent(req.reservationId)}&extend=1&extendDate=${encodeURIComponent(req.requestedDate)}&guestRequest=${encodeURIComponent(req.id)}`}
+                      className="rounded-lg bg-primary/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-primary hover:bg-primary/15"
+                    >
+                      Extend stay
+                    </Link>
+                  )}
                   {(['acknowledged', 'completed', 'declined'] as const).map((status) => (
                     <button
                       key={status}

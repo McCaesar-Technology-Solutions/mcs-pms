@@ -12,6 +12,9 @@ interface StaffReservationsPageProps {
   searchParams: Promise<{
     q?: string
     open?: string
+    extend?: string
+    extendDate?: string
+    guestRequest?: string
     checkIn?: string
     checkOut?: string
     status?: string
@@ -26,7 +29,7 @@ export async function StaffReservationsPage({
   searchParams,
 }: StaffReservationsPageProps) {
   const params = await searchParams
-  const { q, open, checkIn } = params
+  const { q, open, checkIn, extend, extendDate, guestRequest } = params
   const filters = parseReservationSearchParams(params)
   const [profile, { reservations, roomOptions, occupancySpans, timelineRooms, timelineBars }] =
     await Promise.all([getProfile(), getDashboardData()])
@@ -44,6 +47,9 @@ export async function StaffReservationsPage({
             staffRole={profile?.role ?? 'receptionist'}
             initialSearch={q}
             openReservationId={open}
+            initialExtendStay={extend === '1'}
+            initialExtendDate={extendDate}
+            initialGuestRequestId={guestRequest}
             initialNewFlow={checkIn === '1' ? 'check_in' : undefined}
             initialCheckInDate={filters.initialCheckInDate}
             initialCheckOutDate={filters.initialCheckOutDate}

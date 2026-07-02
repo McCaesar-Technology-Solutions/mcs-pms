@@ -193,7 +193,11 @@ export default async function ManagerDashboardPage({
             ),
             'guest-portal': hotelId ? (
               <>
-                <GuestRequestsPanel hotelId={hotelId} initialRequests={guestRequests} />
+                <GuestRequestsPanel
+                  hotelId={hotelId}
+                  initialRequests={guestRequests}
+                  reservationsHrefBase="/manager/reservations"
+                />
                 <ManagerNotificationSummary smsPrefs={smsPrefs} emailPrefs={emailPrefs} />
                 <GuestPortalSettingsPanel
                   hotelId={hotelId}

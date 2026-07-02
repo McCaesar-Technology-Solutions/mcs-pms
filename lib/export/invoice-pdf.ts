@@ -10,7 +10,7 @@ function hotelAddress(hotel: ExportHotelInfo): string {
   return [hotel.address, hotel.city, hotel.region].filter(Boolean).join(', ')
 }
 
-export function downloadInvoicePdf(hotel: ExportHotelInfo, invoice: InvoiceExportRow): void {
+function buildInvoicePdf(hotel: ExportHotelInfo, invoice: InvoiceExportRow): jsPDF {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' })
   const pageW = doc.internal.pageSize.getWidth()
   let y = 18
@@ -135,5 +135,20 @@ export function downloadInvoicePdf(hotel: ExportHotelInfo, invoice: InvoiceExpor
     doc.text(`Status: ${invoice.paymentStatus}`, 14, y)
   }
 
+  return doc
+}
+
+export function downloadInvoicePdf(hotel: ExportHotelInfo, invoice: InvoiceExportRow): void {
+  const doc = buildInvoicePdf(hotel, invoice)
   doc.save(`${invoice.invoiceNumber.replace(/\//g, '-')}.pdf`)
+}
+
+export function printInvoicePdf(hotel: ExportHotelInfo, invoice: InvoiceExportRow): void {
+  const doc = buildInvoicePdf(hotel, invoice)
+  doc.autoPrint()
+  const blobUrl = doc.output('bloburl')
+  const printWindow = window.open(blobUrl, '_blank')
+  if (!printWindow) {
+    doc.save(`${invoice.invoiceNumber.replace(/\//g, '-')}.pdf`)
+  }
 }

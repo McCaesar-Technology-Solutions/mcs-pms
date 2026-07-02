@@ -191,7 +191,7 @@ export function MfaSmsForm({ nextPath, mode }: MfaSmsFormProps) {
             onChange={(e) => setPhone(e.target.value)}
             placeholder="+233 XX XXX XXXX"
             required
-            className="border-white/20 bg-white/10 text-white"
+            className="auth-field"
           />
         </div>
         {error && (
@@ -202,7 +202,7 @@ export function MfaSmsForm({ nextPath, mode }: MfaSmsFormProps) {
         <Button
           type="submit"
           disabled={loading || sending || !phone.trim()}
-          className="h-11 w-full bg-[#3C216C] text-white hover:bg-[#4c2a85] disabled:opacity-60"
+          className="auth-submit-btn"
         >
           {loading || sending ? 'Saving…' : 'Continue'}
         </Button>
@@ -287,7 +287,7 @@ export function MfaSmsForm({ nextPath, mode }: MfaSmsFormProps) {
           minLength={6}
           maxLength={6}
           autoFocus
-          className="border-white/20 bg-white/10 text-center text-lg tracking-[0.3em] text-white"
+          className="auth-field text-center text-lg tracking-[0.3em]"
         />
       </div>
 
@@ -300,7 +300,7 @@ export function MfaSmsForm({ nextPath, mode }: MfaSmsFormProps) {
       <Button
         type="submit"
         disabled={loading || code.length !== 6}
-        className="h-11 w-full bg-[#3C216C] text-white hover:bg-[#4c2a85] disabled:opacity-60"
+        className="auth-submit-btn"
       >
         {loading ? 'Verifying…' : 'Verify and continue'}
       </Button>

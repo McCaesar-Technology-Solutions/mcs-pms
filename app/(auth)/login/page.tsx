@@ -9,14 +9,12 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-dvh items-center justify-center bg-[var(--brand-purple-ink)] px-4 py-12">
-          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-white/5 p-8">
-            <Skeleton tone="dark" className="mx-auto mb-6 h-8 w-48" />
-            <div className="space-y-4">
-              <Skeleton tone="dark" className="h-10 w-full rounded-lg" />
-              <Skeleton tone="dark" className="h-10 w-full rounded-lg" />
-              <Skeleton tone="dark" className="h-11 w-full rounded-lg" />
-            </div>
+        <div className="auth-form-card">
+          <Skeleton tone="dark" className="mx-auto mb-6 h-8 w-48" />
+          <div className="space-y-4">
+            <Skeleton tone="dark" className="h-10 w-full rounded-lg" />
+            <Skeleton tone="dark" className="h-10 w-full rounded-lg" />
+            <Skeleton tone="dark" className="h-11 w-full rounded-lg" />
           </div>
         </div>
       }

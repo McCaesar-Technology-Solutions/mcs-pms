@@ -143,7 +143,7 @@ export function MfaEmailForm({ nextPath, mode }: MfaEmailFormProps) {
           minLength={6}
           maxLength={6}
           autoFocus
-          className="border-white/20 bg-white/10 text-center text-lg tracking-[0.3em] text-white"
+          className="auth-field text-center text-lg tracking-[0.3em]"
         />
       </div>
 
@@ -156,7 +156,7 @@ export function MfaEmailForm({ nextPath, mode }: MfaEmailFormProps) {
       <Button
         type="submit"
         disabled={loading || code.length !== 6}
-        className="h-11 w-full bg-[#3C216C] text-white hover:bg-[#4c2a85] disabled:opacity-60"
+        className="auth-submit-btn"
       >
         {loading ? 'Verifying…' : 'Verify and continue'}
       </Button>

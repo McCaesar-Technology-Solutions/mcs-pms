@@ -188,12 +188,22 @@ async function requireGuestWithRules() {
   return { ok: true as const, guest: session.data.guest, roomNumber: session.data.roomNumber }
 }
 
-const guestRequestSchema = z.object({
-  requestType: z.enum(['housekeeping', 'late_checkout', 'extension']),
-  note: z.string().max(500).optional(),
-  requestedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-  requestedTime: z.string().max(50).optional(),
-})
+const guestRequestSchema = z
+  .object({
+    requestType: z.enum(['housekeeping', 'late_checkout', 'extension']),
+    note: z.string().max(500).optional(),
+    requestedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    requestedTime: z.string().max(50).optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.requestType === 'extension' && !value.requestedDate) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['requestedDate'],
+        message: 'Choose your preferred new check-out date.',
+      })
+    }
+  })
 
 const feedbackSchema = z.object({
   rating: z.number().int().min(1).max(5),
