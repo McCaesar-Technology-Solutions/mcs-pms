@@ -7,9 +7,14 @@ import { Copy, Check } from 'lucide-react'
 interface PortalLinkPanelProps {
   loginUrl: string
   title?: string
+  portalPin?: string | null
 }
 
-export function PortalLinkPanel({ loginUrl, title = 'Guest portal link' }: PortalLinkPanelProps) {
+export function PortalLinkPanel({
+  loginUrl,
+  title = 'Guest portal link',
+  portalPin,
+}: PortalLinkPanelProps) {
   const [qr, setQr] = useState('')
   const [copied, setCopied] = useState(false)
 
@@ -37,6 +42,18 @@ export function PortalLinkPanel({ loginUrl, title = 'Guest portal link' }: Porta
         <img src={qr} alt="Guest portal QR code" className="mx-auto h-40 w-40 rounded-lg bg-white p-2" />
       )}
       <p className="break-all text-xs text-emerald-800/80">{loginUrl}</p>
+      {portalPin && (
+        <div className="rounded-lg bg-white/70 px-3 py-2">
+          <p className="text-xs font-medium text-emerald-900">Portal access PIN</p>
+          <p className="font-mono text-xl font-bold tracking-[0.3em] text-emerald-800">
+            {portalPin}
+          </p>
+          <p className="text-[11px] text-emerald-800/70">
+            Give this to the guest — they need it with their room number to sign in via the
+            property QR.
+          </p>
+        </div>
+      )}
       <button
         type="button"
         onClick={copy}

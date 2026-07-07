@@ -7,6 +7,7 @@ import { getHotelVatMode } from '@/lib/data/settings'
 import { allocateInvoiceNumber } from '@/lib/invoices/numbering'
 import { createPostCheckoutCleanTask } from '@/lib/housekeeping/checkout-task'
 import { phoneSchema } from '@/lib/phone'
+import { generatePortalPin } from '@/lib/guest/portal-pin'
 import { findAvailableRooms, roomHasClash } from '@/lib/data/occupancy'
 import { calculateStayTotal, type RateType } from '@/lib/pricing/stay-totals'
 import { getRoomRates } from '@/lib/pricing/room-rates'
@@ -171,7 +172,9 @@ export async function searchGuests(query: string): Promise<
 export async function checkInStay(
   reservationId: string,
   input: { phone: string; email?: string; guestId?: string; guestName?: string },
-): Promise<StayActionResult<{ loginUrl: string; token: string; guestId: string }>> {
+): Promise<
+  StayActionResult<{ loginUrl: string; token: string; guestId: string; portalPin: string }>
+> {
   const parsed = checkInStaySchema.safeParse(input)
   if (!parsed.success) {
     return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid input.' }
@@ -212,6 +215,7 @@ export async function checkInStay(
   const guestName = parsed.data.guestName?.trim() || reservation.guest_name
   const token = crypto.randomUUID()
   const tokenExpiresAt = tokenExpiryISO(reservation.check_out)
+  const portalPin = generatePortalPin()
 
   let guestId = parsed.data.guestId ?? reservation.guest_id ?? null
 
@@ -235,6 +239,7 @@ export async function checkInStay(
         check_out: reservation.check_out,
         token,
         token_expires_at: tokenExpiresAt,
+        portal_pin: portalPin,
       })
       .eq('id', guestId)
 
@@ -252,6 +257,7 @@ export async function checkInStay(
         check_out: reservation.check_out,
         token,
         token_expires_at: tokenExpiresAt,
+        portal_pin: portalPin,
         enrolled_by: userId,
       })
       .select('id')
@@ -322,7 +328,7 @@ export async function checkInStay(
     summary: `${guestName} checked in${roomRow?.number ? ` — Room ${roomRow.number}` : ''} (${reservation.check_in} → ${reservation.check_out})`,
   })
 
-  return { success: true, data: { loginUrl, token, guestId } }
+  return { success: true, data: { loginUrl, token, guestId, portalPin } }
 }
 
 export async function walkInCheckIn(input: {
@@ -335,7 +341,13 @@ export async function walkInCheckIn(input: {
   nightlyRate?: number
   monthlyRate?: number
 }): Promise<
-  StayActionResult<{ loginUrl: string; token: string; reservationId: string; guestId: string }>
+  StayActionResult<{
+    loginUrl: string
+    token: string
+    reservationId: string
+    guestId: string
+    portalPin: string
+  }>
 > {
   const { profile, userId } = await requireManager()
   if (!profile?.hotel_id || !userId || !['owner', 'manager', 'receptionist'].includes(profile.role)) {
@@ -399,6 +411,14 @@ export async function walkInCheckIn(input: {
   })
   if (!confirmed.success) {
     await admin.from('reservations').delete().eq('id', reservation.id)
+    if (confirmed.code === 'ROOM_CONFLICT') {
+      const suggestions = await findAvailableRooms(admin, profile.hotel_id, checkIn, input.checkOut)
+      return {
+        success: false,
+        error: 'That room was just booked for these dates. Pick another room.',
+        suggestions,
+      }
+    }
     return { success: false, error: confirmed.error ?? 'Could not confirm walk-in stay.' }
   }
 

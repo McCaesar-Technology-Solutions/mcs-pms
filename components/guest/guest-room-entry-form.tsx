@@ -10,7 +10,7 @@ interface GuestRoomEntryFormProps {
 
 export function GuestRoomEntryForm({ slug, hotelName }: GuestRoomEntryFormProps) {
   const [roomNumber, setRoomNumber] = useState('')
-  const [guestLastName, setGuestLastName] = useState('')
+  const [portalPin, setPortalPin] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -18,7 +18,7 @@ export function GuestRoomEntryForm({ slug, hotelName }: GuestRoomEntryFormProps)
     e.preventDefault()
     setLoading(true)
     setError(null)
-    const result = await enterGuestPortalByRoom({ slug, roomNumber, guestLastName })
+    const result = await enterGuestPortalByRoom({ slug, roomNumber, portalPin })
     setLoading(false)
     if (!result.success) {
       setError(result.error)
@@ -32,27 +32,11 @@ export function GuestRoomEntryForm({ slug, hotelName }: GuestRoomEntryFormProps)
           <p className="guest-auth-brand">MOJO APARTMENTS</p>
           <p className="mt-2 text-lg">{hotelName}</p>
           <p className="mt-2 text-sm leading-relaxed guest-text-muted">
-            Enter your room number to open the guest portal.
+            Enter your room number and the 4-digit PIN you received at check-in.
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <div>
-            <label htmlFor="guestLastName" className="mb-2 block text-sm font-medium">
-              Last name on booking
-            </label>
-            <input
-              id="guestLastName"
-              type="text"
-              autoComplete="family-name"
-              required
-              value={guestLastName}
-              onChange={(e) => setGuestLastName(e.target.value)}
-              placeholder="As shown on your reservation"
-              className="guest-field"
-            />
-          </div>
-
           <div>
             <label htmlFor="roomNumber" className="mb-2 block text-sm font-medium">
               Room number
@@ -71,20 +55,40 @@ export function GuestRoomEntryForm({ slug, hotelName }: GuestRoomEntryFormProps)
             />
           </div>
 
+          <div>
+            <label htmlFor="portalPin" className="mb-2 block text-sm font-medium">
+              Access PIN
+            </label>
+            <input
+              id="portalPin"
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={4}
+              autoComplete="one-time-code"
+              required
+              value={portalPin}
+              onChange={(e) => setPortalPin(e.target.value.replace(/\D/g, ''))}
+              placeholder="4-digit PIN"
+              className="guest-field text-center text-lg font-semibold tracking-[0.5em]"
+            />
+          </div>
+
           {error && (
             <p className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-700">{error}</p>
           )}
 
           <button
             type="submit"
-            disabled={loading || !roomNumber.trim() || !guestLastName.trim()}
+            disabled={loading || !roomNumber.trim() || portalPin.length < 4}
             className="guest-btn guest-btn-primary w-full py-3.5 text-base disabled:opacity-50"
           >
             {loading ? 'Opening…' : 'Continue'}
           </button>
 
           <p className="text-center text-xs guest-text-subtle">
-            Checked-in guests only. Contact the front desk if you need help.
+            Checked-in guests only. Your PIN is on your check-in slip — ask the front desk if you
+            need it again.
           </p>
         </form>
       </div>

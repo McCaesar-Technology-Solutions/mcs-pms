@@ -1,12 +1,23 @@
 import type { ReservationActorRole, ReservationStatus } from '@/types'
 
-/** Statuses that block room inventory on the calendar. */
+/** Statuses that block room inventory on the calendar (real, dated windows). */
 export const OCCUPANCY_BLOCKING_STATUSES = [
   'provisional',
   'confirmed',
   'pre_arrival',
   'checked_in',
   'checkout_in_progress',
+] as const satisfies readonly ReservationStatus[]
+
+/**
+ * Statuses where a guest is still physically holding the room even though the
+ * stored check_out date has passed. These must block the room from today
+ * onward regardless of their stale dates, so a new booking is never accepted
+ * for a room someone has not actually left.
+ */
+export const INDEFINITE_OCCUPANCY_STATUSES = [
+  'overstay',
+  'dispute_hold',
 ] as const satisfies readonly ReservationStatus[]
 
 /** Statuses that have released inventory. */

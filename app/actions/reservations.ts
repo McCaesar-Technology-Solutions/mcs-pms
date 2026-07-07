@@ -51,7 +51,13 @@ export type CreateReservationResult =
 export type BookAndCheckInResult =
   | {
       success: true
-      data: { loginUrl: string; token: string; guestId: string; reservationId: string }
+      data: {
+        loginUrl: string
+        token: string
+        guestId: string
+        reservationId: string
+        portalPin: string
+      }
     }
   | { success: false; error: string; suggestions?: RoomSuggestion[] }
 
@@ -193,6 +199,19 @@ export async function createReservation(input: unknown): Promise<CreateReservati
   })
   if (!confirmed.success) {
     await admin.from('reservations').delete().eq('id', row.id)
+    if (confirmed.code === 'ROOM_CONFLICT') {
+      const suggestions = await findAvailableRooms(
+        supabase,
+        profile.hotel_id,
+        data.checkIn,
+        data.checkOut,
+      )
+      return {
+        success: false,
+        error: 'That room was just booked for these dates. Pick another room.',
+        suggestions,
+      }
+    }
     return { success: false, error: confirmed.error ?? 'Could not confirm reservation.' }
   }
 

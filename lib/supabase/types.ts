@@ -560,6 +560,7 @@ export type Database = {
           check_out: string | null
           guest_rules_accepted_version: number | null
           do_not_disturb: boolean
+          portal_pin: string | null
           profile_image_path: string | null
           guest_photo_path: string | null
           guest_photo_mime: string | null
@@ -585,6 +586,7 @@ export type Database = {
           check_out?: string | null
           guest_rules_accepted_version?: number | null
           do_not_disturb?: boolean
+          portal_pin?: string | null
           profile_image_path?: string | null
           guest_photo_path?: string | null
           guest_photo_mime?: string | null
@@ -610,6 +612,7 @@ export type Database = {
           check_out?: string | null
           guest_rules_accepted_version?: number | null
           do_not_disturb?: boolean
+          portal_pin?: string | null
           profile_image_path?: string | null
           guest_photo_path?: string | null
           guest_photo_mime?: string | null

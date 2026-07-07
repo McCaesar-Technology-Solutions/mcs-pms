@@ -18,6 +18,7 @@ export interface GuestRow {
   source: ReservationChannel | null
   token: string | null
   tokenExpiresAt: string | null
+  portalPin: string | null
   reservationId: string | null
   isInHouse: boolean
   doNotDisturb: boolean

@@ -388,6 +388,7 @@ export interface Guest {
   check_out: string | null
   guest_rules_accepted_version: number | null
   do_not_disturb?: boolean | null
+  portal_pin?: string | null
   profile_image_path?: string | null
   enrolled_by: string | null
   created_at: string | null

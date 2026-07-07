@@ -3,6 +3,7 @@
 import { loadVerifiedStaffProfile } from '@/lib/auth/staff-session'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { validateGuestAccessToken } from '@/lib/guest/access-token'
+import { generatePortalPin } from '@/lib/guest/portal-pin'
 import { getGuestSessionId } from '@/lib/guest-session'
 import { guestNeedsRulesAcceptance } from '@/app/actions/guest-rules'
 import { submitComplaintSchema } from '@/lib/validations'
@@ -507,7 +508,7 @@ export async function revokeGuestAccess(guestId: string): Promise<GuestActionRes
  */
 export async function regenerateGuestAccess(
   guestId: string,
-): Promise<GuestActionResult<{ token: string; tokenExpiresAt: string }>> {
+): Promise<GuestActionResult<{ token: string; tokenExpiresAt: string; portalPin: string }>> {
   const profile = await requireHotelManager()
   if (!profile) return { success: false, error: 'Not authorized.' }
 
@@ -528,10 +529,11 @@ export async function regenerateGuestAccess(
 
   const token = crypto.randomUUID()
   const tokenExpiresAt = expires.toISOString()
+  const portalPin = generatePortalPin()
 
   const { error } = await admin
     .from('guests')
-    .update({ token, token_expires_at: tokenExpiresAt })
+    .update({ token, token_expires_at: tokenExpiresAt, portal_pin: portalPin })
     .eq('id', guestId)
     .eq('hotel_id', profile.hotel_id)
 
@@ -539,5 +541,5 @@ export async function regenerateGuestAccess(
 
   const { revalidatePath } = await import('next/cache')
   revalidateGuestViews(revalidatePath)
-  return { success: true, data: { token, tokenExpiresAt } }
+  return { success: true, data: { token, tokenExpiresAt, portalPin } }
 }

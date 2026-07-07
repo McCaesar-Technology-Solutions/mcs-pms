@@ -675,6 +675,7 @@ function ReservationDrawer({
   const [editMonthlyRate, setEditMonthlyRate] = useState(String(reservation.monthlyRate))
   const [selectedGuestId, setSelectedGuestId] = useState<string | null>(null)
   const [portalUrl, setPortalUrl] = useState<string | null>(null)
+  const [portalPin, setPortalPin] = useState<string | null>(null)
   const [newCheckOut, setNewCheckOut] = useState(initialExtendDate ?? reservation.checkOutDate)
   const [newRoomId, setNewRoomId] = useState(reservation.roomId)
 
@@ -976,7 +977,7 @@ function ReservationDrawer({
             )}
           </div>
 
-          {portalUrl && <PortalLinkPanel loginUrl={portalUrl} />}
+          {portalUrl && <PortalLinkPanel loginUrl={portalUrl} portalPin={portalPin} />}
 
           {error && (
             <p className="rounded-xl bg-red-50 px-3 py-2.5 text-sm text-red-700">{error}</p>
@@ -1214,6 +1215,7 @@ function ReservationDrawer({
                           })
                           if (result.success && result.data) {
                             setPortalUrl(result.data.loginUrl)
+                            setPortalPin(result.data.portalPin)
                             setCheckingIn(false)
                           } else if (!result.success) {
                             setError(result.error ?? 'Check-in failed.')
@@ -1633,6 +1635,7 @@ function ReservationFormModal({
   const [monthlyRate, setMonthlyRate] = useState(String(roomOptions[0]?.monthlyRate ?? 0))
   const [selectedGuestId, setSelectedGuestId] = useState<string | null>(null)
   const [portalUrl, setPortalUrl] = useState<string | null>(null)
+  const [portalPin, setPortalPin] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
@@ -1710,6 +1713,7 @@ function ReservationFormModal({
         })
         if (result.success) {
           setPortalUrl(result.data.loginUrl)
+          setPortalPin(result.data.portalPin)
         } else {
           setError(result.error)
           if (result.suggestions && result.suggestions.length > 0) {
@@ -1749,7 +1753,7 @@ function ReservationFormModal({
           </p>
         </ModalHeader>
         <ModalBody>
-          <PortalLinkPanel loginUrl={portalUrl} />
+          <PortalLinkPanel loginUrl={portalUrl} portalPin={portalPin} />
         </ModalBody>
         <ModalFooter>
           <button

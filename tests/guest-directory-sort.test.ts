@@ -16,6 +16,7 @@ function guest(overrides: Partial<GuestRow> & Pick<GuestRow, 'id' | 'name'>): Gu
     source: null,
     token: null,
     tokenExpiresAt: null,
+    portalPin: null,
     reservationId: null,
     isInHouse: false,
     doNotDisturb: false,

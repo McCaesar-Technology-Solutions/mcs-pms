@@ -1,4 +1,7 @@
-import { OCCUPANCY_BLOCKING_STATUSES } from '@/lib/reservations/lifecycle'
+import {
+  INDEFINITE_OCCUPANCY_STATUSES,
+  OCCUPANCY_BLOCKING_STATUSES,
+} from '@/lib/reservations/lifecycle'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/lib/supabase/types'
 
@@ -16,6 +19,7 @@ import type { Database } from '@/lib/supabase/types'
 type Client = SupabaseClient<Database>
 
 const BLOCKING_RESERVATION_STATUSES = OCCUPANCY_BLOCKING_STATUSES
+const INDEFINITE_BLOCKING_STATUSES = INDEFINITE_OCCUPANCY_STATUSES
 
 export interface OccupancySpan {
   roomId: string
@@ -37,6 +41,36 @@ export interface ClashOptions {
 
 function todayISO(): string {
   return new Date().toISOString().split('T')[0]
+}
+
+function tomorrowISO(): string {
+  const d = new Date()
+  d.setUTCDate(d.getUTCDate() + 1)
+  return d.toISOString().split('T')[0]
+}
+
+/**
+ * Rooms held by a guest who has not actually left (overstay / dispute hold).
+ * Their stored check_out is in the past, so date-range overlap alone misses
+ * them — we treat them as occupied for any window reaching today or beyond.
+ */
+async function roomsWithIndefiniteOccupant(
+  client: Client,
+  hotelId: string,
+  opts: { roomId?: string; excludeReservationId?: string } = {},
+): Promise<Set<string>> {
+  let query = client
+    .from('reservations')
+    .select('id, room_id')
+    .eq('hotel_id', hotelId)
+    .in('status', INDEFINITE_BLOCKING_STATUSES)
+  if (opts.roomId) query = query.eq('room_id', opts.roomId)
+  if (opts.excludeReservationId) query = query.neq('id', opts.excludeReservationId)
+
+  const { data } = await query
+  const taken = new Set<string>()
+  for (const r of data ?? []) if (r.room_id) taken.add(r.room_id)
+  return taken
 }
 
 export function datesOverlap(aIn: string, aOut: string, bIn: string, bOut: string): boolean {
@@ -77,7 +111,8 @@ export async function getOccupancyToday(client: Client, hotelId: string): Promis
  */
 export async function getOccupancySpans(client: Client, hotelId: string): Promise<OccupancySpan[]> {
   const today = todayISO()
-  const [reservationsRes, guestsRes] = await Promise.all([
+  const tomorrow = tomorrowISO()
+  const [reservationsRes, guestsRes, indefiniteRes] = await Promise.all([
     client
       .from('reservations')
       .select('room_id, check_in, check_out')
@@ -89,6 +124,11 @@ export async function getOccupancySpans(client: Client, hotelId: string): Promis
       .select('room_id, check_in, check_out')
       .eq('hotel_id', hotelId)
       .gte('check_out', today),
+    client
+      .from('reservations')
+      .select('room_id, check_in')
+      .eq('hotel_id', hotelId)
+      .in('status', INDEFINITE_BLOCKING_STATUSES),
   ])
 
   const spans: OccupancySpan[] = []
@@ -100,6 +140,14 @@ export async function getOccupancySpans(client: Client, hotelId: string): Promis
   for (const g of guestsRes.data ?? []) {
     if (g.room_id && g.check_in && g.check_out) {
       spans.push({ roomId: g.room_id, checkIn: g.check_in, checkOut: g.check_out, kind: 'guest' })
+    }
+  }
+  // Overstay / dispute-hold rooms: guest is still in the room despite a past
+  // check_out. Surface them as occupied through today so the meter is accurate.
+  for (const r of indefiniteRes.data ?? []) {
+    if (r.room_id) {
+      const checkIn = r.check_in && r.check_in < today ? r.check_in : today
+      spans.push({ roomId: r.room_id, checkIn, checkOut: tomorrow, kind: 'reservation' })
     }
   }
   return spans
@@ -143,7 +191,19 @@ export async function roomHasClash(
     reservationQuery,
     guestQuery,
   ])
-  return (reservationData?.length ?? 0) > 0 || (guestData?.length ?? 0) > 0
+  if ((reservationData?.length ?? 0) > 0 || (guestData?.length ?? 0) > 0) return true
+
+  // A room with an overstay/dispute-hold occupant is unavailable for any window
+  // that reaches today or the future, regardless of the occupant's stale dates.
+  if (checkOut > todayISO()) {
+    const indefinite = await roomsWithIndefiniteOccupant(client, hotelId, {
+      roomId,
+      excludeReservationId: opts.excludeReservationId,
+    })
+    if (indefinite.has(roomId)) return true
+  }
+
+  return false
 }
 
 /**
@@ -181,6 +241,13 @@ export async function findAvailableRooms(
     const taken = new Set<string>()
     for (const r of reservationData ?? []) if (r.room_id) taken.add(r.room_id)
     for (const g of guestData ?? []) if (g.room_id) taken.add(g.room_id)
+
+    if (checkOut > todayISO()) {
+      const indefinite = await roomsWithIndefiniteOccupant(client, hotelId, {
+        excludeReservationId: opts.excludeReservationId,
+      })
+      for (const id of indefinite) taken.add(id)
+    }
     return taken
   })()
 

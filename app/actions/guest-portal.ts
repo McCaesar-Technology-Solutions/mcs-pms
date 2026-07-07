@@ -107,13 +107,13 @@ export async function enterGuestPortalByRoom(input: unknown): Promise<GuestPorta
   const match = await findActiveGuestForRoom(
     hotel.id,
     parsed.data.roomNumber,
-    parsed.data.guestLastName,
+    parsed.data.portalPin,
   )
   if (!match) {
     return {
       success: false,
       error:
-        'No active stay found for that room. Double-check your room number or ask the front desk for help.',
+        'Room number and PIN do not match an active stay. Double-check the PIN from the front desk or ask them for help.',
     }
   }
 

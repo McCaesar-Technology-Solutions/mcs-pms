@@ -114,11 +114,11 @@ export const guestRoomEntrySchema = z.object({
     .trim()
     .min(1, 'Enter your room number')
     .max(20, 'Room number is too long'),
-  guestLastName: z
+  portalPin: z
     .string()
     .trim()
-    .min(2, 'Enter the last name on your booking')
-    .max(80, 'Last name is too long'),
+    .transform((value) => value.replace(/\D/g, ''))
+    .pipe(z.string().regex(/^\d{4}$/, 'Enter the 4-digit PIN from the front desk')),
 })
 
 export const staffComplaintSchema = z.object({

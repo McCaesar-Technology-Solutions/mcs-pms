@@ -634,6 +634,7 @@ function GuestAccessLink({ guest }: { guest: GuestRow }) {
   const router = useRouter()
   const [token, setToken] = useState<string | null>(guest.token)
   const [expiresAt, setExpiresAt] = useState<string | null>(guest.tokenExpiresAt)
+  const [pin, setPin] = useState<string | null>(guest.portalPin)
   const [qr, setQr] = useState('')
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -643,8 +644,9 @@ function GuestAccessLink({ guest }: { guest: GuestRow }) {
   useEffect(() => {
     setToken(guest.token)
     setExpiresAt(guest.tokenExpiresAt)
+    setPin(guest.portalPin)
     setError(null)
-  }, [guest.id, guest.token, guest.tokenExpiresAt])
+  }, [guest.id, guest.token, guest.tokenExpiresAt, guest.portalPin])
 
   const url = token ? `${window.location.origin}/guest/enter?t=${encodeURIComponent(token)}` : ''
   const expired = expiresAt ? new Date(expiresAt).getTime() < Date.now() : false
@@ -687,6 +689,7 @@ function GuestAccessLink({ guest }: { guest: GuestRow }) {
       if (result.success && result.data) {
         setToken(result.data.token)
         setExpiresAt(result.data.tokenExpiresAt)
+        setPin(result.data.portalPin)
         router.refresh()
       } else if (!result.success) {
         setError(result.error)
@@ -696,7 +699,7 @@ function GuestAccessLink({ guest }: { guest: GuestRow }) {
 
   const message = `Hi ${guest.name}, here is your guest portal access link${
     guest.roomNumber ? ` for Room ${guest.roomNumber}` : ''
-  }: ${url}`
+  }: ${url}${pin ? ` — Your access PIN is ${pin}.` : ''}`
   const phoneDigits = (guest.phone ?? '').replace(/[^0-9]/g, '')
   const waHref = phoneDigits
     ? `https://wa.me/${phoneDigits}?text=${encodeURIComponent(message)}`
@@ -742,6 +745,20 @@ function GuestAccessLink({ guest }: { guest: GuestRow }) {
               {copied ? 'Copied' : 'Copy'}
             </button>
           </div>
+
+          {pin && (
+            <div className="flex items-center justify-between surface-inset rounded-xl p-3">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground">Portal access PIN</p>
+                <p className="text-[11px] text-muted-foreground/80">
+                  For self-service entry via the property QR (room number + PIN).
+                </p>
+              </div>
+              <span className="rounded-lg bg-primary/10 px-3 py-1.5 font-mono text-lg font-bold tracking-[0.3em] text-primary">
+                {pin}
+              </span>
+            </div>
+          )}
 
           <div className="flex flex-wrap items-center gap-4">
             {qr && (
