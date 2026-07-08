@@ -15,7 +15,7 @@ export default async function ManagerInvoicesPage({
     <div className="page-shell page-content-stack">
       <PageHeader
         badge="Finance"
-        title="Invoices"
+        title="Billing"
         description="View and print guest invoices from check-outs and other charges."
       />
 

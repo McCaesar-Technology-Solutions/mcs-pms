@@ -14,6 +14,7 @@ import {
   ModalFooter,
   ModalHeader,
 } from '@/components/ui/centered-modal'
+import { APP_FIELD_CLASS, FormField } from '@/components/ui/form-field'
 import type { RoomCategory } from '@/types'
 
 interface RoomCategoriesPanelProps {
@@ -161,16 +162,16 @@ function CategoryModal({ category, onClose, onDone }: CategoryModalProps) {
       </ModalHeader>
 
       <ModalBody className="space-y-4">
-        <Field label="Category name">
+        <FormField label="Category name">
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="e.g. Executive Suite"
-            className={fieldClass}
+            className={APP_FIELD_CLASS}
           />
-        </Field>
+        </FormField>
 
-        <Field label="Default nightly rate (₵)">
+        <FormField label="Default nightly rate (₵)">
           <input
             type="number"
             min={0}
@@ -178,11 +179,11 @@ function CategoryModal({ category, onClose, onDone }: CategoryModalProps) {
             value={rate}
             onChange={(e) => setRate(e.target.value)}
             placeholder="250"
-            className={fieldClass}
+            className={APP_FIELD_CLASS}
           />
-        </Field>
+        </FormField>
 
-        <Field label="Default monthly rate (₵, optional)">
+        <FormField label="Default monthly rate (₵, optional)">
           <input
             type="number"
             min={0}
@@ -190,9 +191,9 @@ function CategoryModal({ category, onClose, onDone }: CategoryModalProps) {
             value={monthlyRate}
             onChange={(e) => setMonthlyRate(e.target.value)}
             placeholder="6000"
-            className={fieldClass}
+            className={APP_FIELD_CLASS}
           />
-        </Field>
+        </FormField>
 
         {error && (
           <p className="rounded-xl bg-red-50 px-3 py-2.5 text-sm text-red-700">{error}</p>
@@ -233,18 +234,5 @@ function CategoryModal({ category, onClose, onDone }: CategoryModalProps) {
         </div>
       </ModalFooter>
     </CenteredModal>
-  )
-}
-
-const fieldClass = 'app-field w-full'
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="block">
-      <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        {label}
-      </span>
-      {children}
-    </label>
   )
 }

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { acceptGuestRulesForSession, acceptPropertyRulesBySlug } from '@/app/actions/guest-rules'
 import type { GuestRuleRow } from '@/lib/data/guest-rules'
+import { GuestEntrySteps } from '@/components/guest/guest-entry-steps'
 
 interface GuestRulesGateProps {
   hotelName: string
@@ -40,6 +41,8 @@ export function GuestRulesGate({ hotelName, rules, mode, slug }: GuestRulesGateP
   return (
     <div className="guest-auth-shell">
       <div className="mx-auto flex max-w-lg flex-col gap-6">
+        <GuestEntrySteps current={1} />
+
         <div className="text-center">
           <p className="guest-auth-brand">MOJO APARTMENTS</p>
           <p className="mt-2 text-lg">{hotelName}</p>
@@ -83,7 +86,7 @@ export function GuestRulesGate({ hotelName, rules, mode, slug }: GuestRulesGateP
           disabled={!agreed || loading}
           className="guest-btn guest-btn-primary w-full py-3.5 text-base disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {loading ? 'Continuing…' : 'Continue to portal'}
+          {loading ? 'Continuing…' : 'Continue'}
         </button>
       </div>
     </div>

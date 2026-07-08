@@ -45,7 +45,7 @@ export function GuestNextStepBanner({
           <Icon className={isHome ? 'h-5 w-5' : 'h-4 w-4'} />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-semibold uppercase tracking-wide guest-text-subtle">
+          <p className="text-xs font-semibold guest-text-subtle">
             Next step · {action.reference}
           </p>
           <p className={`mt-0.5 font-semibold ${isHome ? 'text-base' : 'text-sm'}`}>

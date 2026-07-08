@@ -20,6 +20,7 @@ import {
   Plus,
 } from 'lucide-react'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
+import { APP_FIELD_CLASS, FormField } from '@/components/ui/form-field'
 import {
   approveComplaint,
   assignComplaint,
@@ -78,9 +79,6 @@ const priorityAccent: Record<string, string> = {
   medium: 'shadow-[inset_4px_0_0_0_#D4A62E]',
   low: 'shadow-[inset_4px_0_0_0_#cbd5e1]',
 }
-
-const softField =
-  'mt-2 w-full appearance-none rounded-xl border-0 bg-white px-4 py-3 text-sm text-foreground shadow-elevation-1 outline-none transition-[box-shadow,transform] focus:shadow-elevation-2 focus:ring-2 focus:ring-[#3C216C]/10'
 
 const staffPanelInset = 'staff-panel-inset'
 
@@ -388,7 +386,7 @@ function ComplaintsManagerContent() {
                   </p>
                   <p className="mt-0.5 line-clamp-1 text-sm text-muted-foreground">{c.description}</p>
                 </div>
-                <span className="shrink-0 rounded-full bg-[#D85A30]/12 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-[#D85A30]">
+                <span className="shrink-0 rounded-full bg-[#D85A30]/12 px-2.5 py-1 text-xs font-semibold text-[#D85A30]">
                   {managerPendingLabel(c)}
                 </span>
               </button>
@@ -448,7 +446,7 @@ function ComplaintsManagerContent() {
                     <SelectedIcon className="h-5 w-5" />
                   </div>
                   <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-widest text-white/55">
+                    <p className="text-xs font-medium text-white/55">
                       Complaint
                     </p>
                     <h2 className="mt-0.5 font-display text-2xl font-semibold capitalize">
@@ -501,7 +499,7 @@ function ComplaintsManagerContent() {
                   details: (
                     <div className="space-y-4">
                       <div className={`${staffPanelInset} p-4`}>
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                        <p className="text-xs font-medium text-muted-foreground">
                           Description
                         </p>
                         <p className="mt-2 text-sm leading-relaxed text-foreground">{selected.description}</p>
@@ -509,7 +507,7 @@ function ComplaintsManagerContent() {
 
                       {guestPhotoUrl && (
                         <div className={`${staffPanelInset} overflow-hidden p-4`}>
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                          <p className="text-xs font-medium text-muted-foreground">
                             Guest photo
                           </p>
                           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -546,7 +544,7 @@ function ComplaintsManagerContent() {
 
                       {selected.rejection_note && (
                         <div className="rounded-2xl bg-red-500/8 p-4 shadow-elevation-1">
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-red-600/90">
+                          <p className="text-xs font-medium text-red-600/90">
                             Manager note
                           </p>
                           <p className="mt-2 text-sm leading-relaxed text-red-800/90">
@@ -623,14 +621,11 @@ function ComplaintsManagerContent() {
                             </p>
                           ) : (
                             <div className="space-y-4">
-                              <div>
-                                <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                  Room status after approval
-                                </label>
+                              <FormField label="Room status after approval">
                                 <select
                                   value={roomStatus}
                                   onChange={(e) => setRoomStatus(e.target.value as DbRoomStatus)}
-                                  className={softField}
+                                  className={APP_FIELD_CLASS}
                                 >
                                   <option value="available">Available</option>
                                   <option value="occupied">Occupied</option>
@@ -638,7 +633,7 @@ function ComplaintsManagerContent() {
                                   <option value="needs_inspection">Needs inspection</option>
                                   <option value="cleaning">Cleaning</option>
                                 </select>
-                              </div>
+                              </FormField>
                               <button
                                 type="button"
                                 onClick={handleApprove}
@@ -650,17 +645,14 @@ function ComplaintsManagerContent() {
                               <p className="text-center text-xs text-muted-foreground">
                                 or send back to technician
                               </p>
-                              <div>
-                                <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                  Rejection note
-                                </label>
+                              <FormField label="Rejection note">
                                 <textarea
                                   value={rejectNote}
                                   onChange={(e) => setRejectNote(e.target.value)}
                                   placeholder="Explain what still needs to be fixed…"
-                                  className={`${softField} min-h-24 resize-none`}
+                                  className={`${APP_FIELD_CLASS} min-h-24 resize-none`}
                                 />
-                              </div>
+                              </FormField>
                               <button
                                 type="button"
                                 onClick={handleReject}
@@ -677,15 +669,14 @@ function ComplaintsManagerContent() {
                                 or send back to technician
                               </p>
                               <div className="mt-3">
-                                <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                  Rejection note
-                                </label>
+                              <FormField label="Rejection note">
                                 <textarea
                                   value={rejectNote}
                                   onChange={(e) => setRejectNote(e.target.value)}
                                   placeholder="Explain what still needs to be fixed…"
-                                  className={`${softField} min-h-24 resize-none`}
+                                  className={`${APP_FIELD_CLASS} min-h-24 resize-none`}
                                 />
+                              </FormField>
                               </div>
                               <button
                                 type="button"
@@ -707,8 +698,9 @@ function ComplaintsManagerContent() {
                             <h3 className="text-sm font-semibold text-[#3C216C]">Assign technician</h3>
                           </div>
                           <div className="px-4 pb-4">
+                            <FormField label="Technician">
                             <select
-                              className={softField}
+                              className={APP_FIELD_CLASS}
                               defaultValue=""
                               onChange={(e) => e.target.value && handleAssign(e.target.value)}
                               disabled={loading}
@@ -724,6 +716,7 @@ function ComplaintsManagerContent() {
                                 </option>
                               ))}
                             </select>
+                            </FormField>
                           </div>
                         </div>
                       )}

@@ -7,6 +7,8 @@ import {
   fetchComplaintEstimate,
   submitComplaintEstimateWithFile,
 } from '@/app/actions/complaint-estimates'
+import { APP_FIELD_CLASS, FormField } from '@/components/ui/form-field'
+import { formatGhs, MONEY_CLASS } from '@/lib/format/money'
 import type { ComplaintEstimate } from '@/types'
 
 interface MaterialRow {
@@ -23,10 +25,6 @@ function emptyRow(): MaterialRow {
     quantity: '1',
     unitCost: '',
   }
-}
-
-function formatMoney(n: number) {
-  return `₵${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
 interface ComplaintEstimateFormProps {
@@ -181,16 +179,15 @@ export function ComplaintEstimateForm({
       </p>
 
       <div>
-        <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Upload invoice file
-        </label>
+        <FormField label="Upload invoice file">
         <input
           type="file"
           accept=".pdf,image/jpeg,image/png,image/webp"
           disabled={disabled || saving}
           onChange={(e) => setInvoiceFile(e.target.files?.[0] ?? null)}
-          className="mt-1.5 block w-full text-sm text-muted-foreground file:mr-3 file:rounded-lg file:border-0 file:bg-[#3C216C]/10 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-[#3C216C]"
+          className="block w-full text-sm text-muted-foreground file:mr-3 file:rounded-lg file:border-0 file:bg-primary/10 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-primary"
         />
+        </FormField>
         {existingFileName && !invoiceFile && (
           <p className="mt-1.5 text-xs text-muted-foreground">
             Current file: <span className="font-medium text-foreground">{existingFileName}</span>
@@ -204,9 +201,9 @@ export function ComplaintEstimateForm({
 
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <span className="text-xs font-medium text-muted-foreground">
             Line items (optional)
-          </label>
+          </span>
           <button
             type="button"
             onClick={addRow}
@@ -220,7 +217,7 @@ export function ComplaintEstimateForm({
 
         <div className="overflow-x-auto rounded-lg border border-[#E9ECEF]">
           <table className="w-full min-w-[320px] text-left text-xs">
-            <thead className="bg-[#F7F4FB] text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+            <thead className="bg-secondary/60 text-xs font-medium text-muted-foreground">
               <tr>
                 <th className="px-2 py-2">Material</th>
                 <th className="w-16 px-2 py-2">Qty</th>
@@ -270,8 +267,8 @@ export function ComplaintEstimateForm({
                         className="w-full rounded-md border-0 bg-[#F7F4FB] px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-[#3C216C]/15"
                       />
                     </td>
-                    <td className="px-2 py-1.5 text-right font-semibold text-foreground">
-                      {formatMoney(line)}
+                    <td className={`px-2 py-1.5 text-right font-semibold text-foreground ${MONEY_CLASS}`}>
+                      {formatGhs(line)}
                     </td>
                     <td className="px-1 py-1.5">
                       <button
@@ -292,10 +289,7 @@ export function ComplaintEstimateForm({
         </div>
       </div>
 
-      <div>
-        <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Labour cost (₵)
-        </label>
+      <FormField label="Labour cost (₵)">
         <input
           type="number"
           min="0"
@@ -304,36 +298,33 @@ export function ComplaintEstimateForm({
           onChange={(e) => setLabourCost(e.target.value)}
           placeholder="0.00"
           disabled={disabled || saving}
-          className="mt-1.5 w-full rounded-xl border-0 bg-[#F7F4FB] px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#3C216C]/15"
+          className={APP_FIELD_CLASS}
         />
-      </div>
+      </FormField>
 
-      <div>
-        <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Note to manager
-        </label>
+      <FormField label="Note to manager">
         <textarea
           value={note}
           onChange={(e) => setNote(e.target.value)}
           placeholder="Scope of work, timeline, assumptions…"
           rows={3}
           disabled={disabled || saving}
-          className="mt-1.5 w-full resize-none rounded-xl border-0 bg-[#F7F4FB] px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#3C216C]/15"
+          className={`${APP_FIELD_CLASS} min-h-24 resize-none`}
         />
-      </div>
+      </FormField>
 
-      <div className="rounded-xl bg-[#3C216C]/6 px-3 py-3 text-sm">
+      <div className="surface-inset rounded-xl px-3 py-3 text-sm">
         <div className="flex justify-between text-muted-foreground">
           <span>Materials</span>
-          <span>{formatMoney(materialsTotal)}</span>
+          <span className={MONEY_CLASS}>{formatGhs(materialsTotal)}</span>
         </div>
         <div className="mt-1 flex justify-between text-muted-foreground">
           <span>Labour</span>
-          <span>{formatMoney(labour)}</span>
+          <span className={MONEY_CLASS}>{formatGhs(labour)}</span>
         </div>
-        <div className="mt-2 flex justify-between border-t border-[#3C216C]/10 pt-2 font-bold text-[#3C216C]">
+        <div className="mt-2 flex justify-between border-t border-border pt-2 font-bold text-primary">
           <span>Invoice total</span>
-          <span>{formatMoney(grandTotal)}</span>
+          <span className={MONEY_CLASS}>{formatGhs(grandTotal)}</span>
         </div>
       </div>
 

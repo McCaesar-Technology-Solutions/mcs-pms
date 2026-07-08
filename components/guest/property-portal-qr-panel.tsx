@@ -84,7 +84,7 @@ export function PropertyPortalQrPanel() {
             />
           )}
           <div className="min-w-0 flex-1 space-y-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <p className="text-xs font-medium text-muted-foreground">
               Join link
             </p>
             <p className="break-all rounded-xl bg-[#F7F4FB] px-3 py-2.5 text-sm font-medium text-[#3C216C]">

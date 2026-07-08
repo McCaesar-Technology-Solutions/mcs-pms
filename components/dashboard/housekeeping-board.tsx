@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { LayoutGrid, List } from 'lucide-react'
+import { LayoutGrid, List, Smartphone } from 'lucide-react'
+import Link from 'next/link'
 import { HousekeepingKanban } from '@/components/dashboard/housekeeping-kanban'
 import { HousekeepingTableView } from '@/components/dashboard/housekeeping-table-view'
 import type { HousekeepingTaskView } from '@/lib/housekeeping/task-view'
@@ -34,6 +35,13 @@ export function HousekeepingBoard(props: HousekeepingBoardProps) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-end gap-2">
+        <Link
+          href="/mobile/housekeeping"
+          className="inline-flex items-center gap-2 rounded-lg bg-secondary px-3 py-2 text-sm font-semibold text-foreground shadow-elevation-1 transition-all hover:shadow-elevation-2 md:hidden"
+        >
+          <Smartphone className="h-4 w-4" />
+          Mobile view
+        </Link>
         <div className="rooms-view-toggle" role="tablist" aria-label="Housekeeping view">
           <button
             type="button"

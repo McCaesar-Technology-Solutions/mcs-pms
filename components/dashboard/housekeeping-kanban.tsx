@@ -154,7 +154,7 @@ function TaskStatusControls({
   return (
     <div className="mt-3 flex items-center gap-2 border-t border-[#E9ECEF] pt-3">
       {isAssignedToOther && overrideOpen && (
-        <span className="text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+        <span className="text-xs font-semibold text-amber-700">
           Override
         </span>
       )}

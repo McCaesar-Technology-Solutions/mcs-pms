@@ -135,7 +135,7 @@ export function GuestRequestsPanel({
                   {req.requestType === 'extension' && req.reservationId && req.requestedDate && (
                     <Link
                       href={`${reservationsHrefBase}?open=${encodeURIComponent(req.reservationId)}&extend=1&extendDate=${encodeURIComponent(req.requestedDate)}&guestRequest=${encodeURIComponent(req.id)}`}
-                      className="rounded-lg bg-primary/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-primary hover:bg-primary/15"
+                      className="rounded-lg bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary hover:bg-primary/15"
                     >
                       Extend stay
                     </Link>
@@ -146,14 +146,14 @@ export function GuestRequestsPanel({
                       type="button"
                       disabled={pending}
                       onClick={() => updateStatus(req.id, status)}
-                      className="rounded-lg bg-[var(--comp-teal-soft)] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-[var(--comp-teal-ink)] hover:bg-[var(--comp-teal)]/15 disabled:opacity-50"
+                      className="rounded-lg bg-[var(--comp-teal-soft)] px-2.5 py-1 text-xs font-semibold text-[var(--comp-teal-ink)] hover:bg-[var(--comp-teal)]/15 disabled:opacity-50"
                     >
                       {status}
                     </button>
                   ))}
                 </div>
               ) : (
-                <span className="rounded-full bg-muted px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground">
                   {req.status}
                 </span>
               )}

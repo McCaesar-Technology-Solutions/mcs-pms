@@ -113,7 +113,57 @@ export function NotificationLogPanel({ entries, compact = false }: NotificationL
           </p>
         ) : (
           <>
-          <div className="data-table-wrap overflow-x-auto px-4 sm:px-6">
+          <div className="space-y-3 p-4 md:hidden">
+            {pagination.paginatedItems.map((entry) => (
+              <div
+                key={entry.id}
+                className={`elevated-list-item p-4 ${selection.isSelected(entry.id) ? 'ring-2 ring-primary/25' : ''}`}
+              >
+                <div className="flex items-start gap-3">
+                  <BulkSelectCheckbox
+                    checked={selection.isSelected(entry.id)}
+                    onChange={() => selection.toggle(entry.id)}
+                    aria-label={`Select message to ${entry.recipientEmail ?? entry.recipientPhone ?? 'recipient'}`}
+                    className="mt-1"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-sm font-semibold text-foreground">
+                        {entry.recipientEmail ?? entry.recipientPhone ?? '—'}
+                      </p>
+                      <span
+                        className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${statusClass(entry.status)}`}
+                      >
+                        {entry.status}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">{formatWhen(entry.createdAt)}</p>
+                    <p className="mt-2 inline-flex items-center gap-1 text-xs font-medium capitalize text-muted-foreground">
+                      {entry.channel === 'whatsapp' ? (
+                        <MessageSquare className="h-3.5 w-3.5" />
+                      ) : entry.channel === 'email' ? (
+                        <Mail className="h-3.5 w-3.5" />
+                      ) : (
+                        <Smartphone className="h-3.5 w-3.5" />
+                      )}
+                      {entry.channel}
+                    </p>
+                    {!compact && entry.templateKey && (
+                      <p className="mt-1 text-xs text-muted-foreground">Template: {entry.templateKey}</p>
+                    )}
+                    {!compact && (
+                      <p className="mt-2 line-clamp-3 text-sm text-foreground">{entry.body}</p>
+                    )}
+                    {entry.status === 'failed' && entry.errorMessage && (
+                      <p className="mt-2 text-xs text-red-600">{entry.errorMessage}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="hidden data-table-wrap overflow-x-auto px-4 sm:px-6 md:block">
             <table className="data-table w-full text-sm">
               <thead>
                 <tr>

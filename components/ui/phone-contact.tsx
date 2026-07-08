@@ -100,7 +100,7 @@ export function PhoneContactList({
   return (
     <div className="space-y-2">
       <p
-        className={`text-xs font-semibold uppercase tracking-wide ${
+        className={`text-xs font-semibold ${
           isDark ? 'text-white/70' : 'text-muted-foreground'
         }`}
       >

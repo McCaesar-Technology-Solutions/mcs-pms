@@ -13,7 +13,7 @@ export function GuestComplaintProgress({ complaint }: GuestComplaintProgressProp
 
   return (
     <div className="mt-3 guest-divider pt-3">
-      <p className="text-[10px] font-bold uppercase tracking-widest guest-text-subtle">
+      <p className="text-xs font-medium guest-text-subtle">
         Repair progress
       </p>
       <ol className="mt-3 space-y-0">

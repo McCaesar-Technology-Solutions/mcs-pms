@@ -96,7 +96,7 @@ export function OpsCalendarPanel({ events, canManage = false }: OpsCalendarPanel
                   {formatWhen(event)}
                   {event.roomNumber ? ` · Room ${event.roomNumber}` : ''}
                 </p>
-                <span className="mt-1 inline-block rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                <span className="mt-1 inline-block rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
                   {OPS_EVENT_LABELS[event.category] ?? event.category}
                 </span>
               </div>

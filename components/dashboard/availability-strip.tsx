@@ -222,7 +222,7 @@ export function AvailabilityStrip({ data }: { data?: Availability[] }) {
                   ].filter(Boolean).join(' ')}
                 >
                   <div className="mb-3 flex items-center justify-between gap-1">
-                    <span className={`text-[10px] font-bold uppercase tracking-wide ${isToday ? 'text-primary' : 'text-muted-foreground'}`}>
+                    <span className={`text-[10px] font-semibold ${isToday ? 'text-primary' : 'text-muted-foreground'}`}>
                       {isToday ? 'Today' : weekday}
                     </span>
                     {isToday && (

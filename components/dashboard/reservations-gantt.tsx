@@ -54,7 +54,7 @@ function DateHeaderRow({
       className="grid items-end gap-0"
       style={{ gridTemplateColumns: `5.5rem repeat(${dateRange.length}, ${DAY_COL_WIDTH}rem)` }}
     >
-      <div className="sticky left-0 z-10 bg-[var(--card)] px-2 pb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+      <div className="sticky left-0 z-10 bg-[var(--card)] px-2 pb-2 text-xs font-medium text-muted-foreground">
         Room
       </div>
       {dateRange.map((date) => {
@@ -73,7 +73,7 @@ function DateHeaderRow({
             }`}
           >
             <p
-              className={`text-[10px] font-bold uppercase ${isToday ? 'text-[#3C216C]' : 'text-muted-foreground'}`}
+              className={`text-[10px] font-semibold ${isToday ? 'text-primary' : 'text-muted-foreground'}`}
             >
               {d.toLocaleDateString('en-US', { weekday: 'narrow' })}
             </p>
@@ -274,7 +274,14 @@ export function ReservationsGantt({ rooms, bars, compact = false }: OccupancyTim
   )
 
   if (compact) {
-    return grid
+    return (
+      <div className="space-y-2">
+        <p className="px-1 text-xs text-muted-foreground">
+          Swipe horizontally to browse dates.
+        </p>
+        {grid}
+      </div>
+    )
   }
 
   return (

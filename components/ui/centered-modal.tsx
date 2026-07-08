@@ -5,14 +5,17 @@ import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
+export const modalCloseButtonClass =
+  'modal-panel-subtle shrink-0 rounded-lg p-2 transition-colors hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgba(60,33,108,0.35)]'
+
 export const modalOverlayClass =
   'absolute inset-0 bg-[#22124C]/60 backdrop-blur-[3px] transition-opacity'
 
 export const modalPanelClass =
-  'modal-panel surface-card relative z-10 flex w-full min-h-0 flex-col overflow-hidden rounded-2xl bg-white shadow-elevation-4'
+  'modal-panel surface-card relative z-10 flex w-full min-h-0 flex-col overflow-hidden rounded-2xl bg-card shadow-elevation-4'
 
 export const sheetPanelClass =
-  'relative z-10 flex h-full w-full max-w-md flex-col overflow-hidden bg-[#F7F5FB] shadow-[-12px_0_48px_rgba(34,18,76,0.14)]'
+  'relative z-10 flex h-full w-full max-w-md flex-col overflow-hidden bg-muted shadow-[-12px_0_48px_rgba(34,18,76,0.14)]'
 
 interface CenteredModalProps {
   open: boolean
@@ -92,7 +95,7 @@ export function ModalHeader({
   return (
     <div
       className={cn(
-        'flex shrink-0 items-start justify-between gap-3 bg-[#FAFDFF] px-6 py-4 shadow-elevation-1',
+        'flex shrink-0 items-start justify-between gap-3 bg-muted/50 px-6 py-4 shadow-elevation-1',
         className,
       )}
     >
@@ -102,7 +105,7 @@ export function ModalHeader({
           type="button"
           onClick={onClose}
           aria-label="Close"
-          className="modal-panel-subtle shrink-0 rounded-lg p-2 transition-colors hover:bg-[#E9ECEF]"
+          className={cn(modalCloseButtonClass, 'focus-visible:outline-none')}
         >
           <X className="h-5 w-5" />
         </button>
@@ -135,7 +138,7 @@ export function ModalFooter({
   return (
     <div
       className={cn(
-        'flex shrink-0 items-center justify-end gap-2.5 bg-[#FAFDFF] px-6 py-4 shadow-[0_-4px_24px_rgba(34,18,76,0.06)]',
+        'flex shrink-0 items-center justify-end gap-2.5 bg-muted/50 px-6 py-4 shadow-[0_-4px_24px_rgba(34,18,76,0.06)]',
         className,
       )}
     >

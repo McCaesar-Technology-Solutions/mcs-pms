@@ -47,7 +47,7 @@ export function ManagerNotificationSummary({
       <div className="surface-card-body">
         <div className="grid gap-4 md:grid-cols-2">
         <div>
-          <p className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-muted-foreground">
+          <p className="mb-2 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
             <Bell className="h-3.5 w-3.5" /> SMS
           </p>
           <ul className="space-y-1 text-sm text-muted-foreground">
@@ -64,7 +64,7 @@ export function ManagerNotificationSummary({
           </ul>
         </div>
         <div>
-          <p className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-muted-foreground">
+          <p className="mb-2 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
             <Mail className="h-3.5 w-3.5" /> Email
           </p>
           <ul className="space-y-1 text-sm text-muted-foreground">

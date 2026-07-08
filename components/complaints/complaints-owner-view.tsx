@@ -310,7 +310,7 @@ function ComplaintsOwnerViewContent({ canLog = false, canMessage = false }: Comp
                     <SelectedIcon className="h-5 w-5" />
                   </div>
                   <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-widest text-white/55">
+                    <p className="text-xs font-medium text-white/55">
                       Complaint
                     </p>
                     <h2 className="mt-0.5 font-display text-2xl font-semibold capitalize">
@@ -362,7 +362,7 @@ function ComplaintsOwnerViewContent({ canLog = false, canMessage = false }: Comp
                   details: (
                     <div className="space-y-4">
                       <div className={`${staffPanelInset} p-4`}>
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                        <p className="text-xs font-medium text-muted-foreground">
                           Description
                         </p>
                         <p className="mt-2 text-sm leading-relaxed text-foreground">{selected.description}</p>
@@ -400,7 +400,7 @@ function ComplaintsOwnerViewContent({ canLog = false, canMessage = false }: Comp
 
                       {selected.rejection_note && (
                         <div className="rounded-2xl bg-red-500/8 p-4 shadow-elevation-1">
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-red-600/90">
+                          <p className="text-xs font-medium text-red-600/90">
                             Manager note
                           </p>
                           <p className="mt-2 text-sm leading-relaxed text-red-800/90">

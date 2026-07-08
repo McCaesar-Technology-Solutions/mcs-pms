@@ -3,6 +3,7 @@
 import { useEffect, useId, useState } from 'react'
 import { Check, Search, X } from 'lucide-react'
 import { searchGuests } from '@/app/actions/stays'
+import { APP_FIELD_CLASS, FORM_FIELD_LABEL_CLASS } from '@/components/ui/form-field'
 
 export interface GuestSearchMatch {
   id: string
@@ -14,7 +15,7 @@ export interface GuestSearchMatch {
 interface GuestSearchFieldProps {
   label: string
   placeholder?: string
-  fieldClass: string
+  fieldClass?: string
   selectedGuestId: string | null
   onSelectGuest: (guest: GuestSearchMatch | null) => void
   onGuestNameChange?: (name: string) => void
@@ -23,7 +24,7 @@ interface GuestSearchFieldProps {
 export function GuestSearchField({
   label,
   placeholder = 'Search name or phone…',
-  fieldClass,
+  fieldClass = APP_FIELD_CLASS,
   selectedGuestId,
   onSelectGuest,
   onGuestNameChange,
@@ -77,7 +78,7 @@ export function GuestSearchField({
 
   return (
     <div>
-      <label className="mb-1.5 block text-sm font-semibold text-foreground">{label}</label>
+      <label className={FORM_FIELD_LABEL_CLASS}>{label}</label>
 
       {picked ? (
         <div className="flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2.5">
@@ -100,7 +101,7 @@ export function GuestSearchField({
       ) : (
         <div className="relative">
           <Search
-            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+            className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
             aria-hidden
           />
           <input
@@ -116,7 +117,7 @@ export function GuestSearchField({
               window.setTimeout(() => setOpen(false), 150)
             }}
             placeholder={placeholder}
-            className={`${fieldClass} pl-9`}
+            className={`${fieldClass} !pl-10`}
             role="combobox"
             aria-expanded={open && matches.length > 0}
             aria-controls={listId}

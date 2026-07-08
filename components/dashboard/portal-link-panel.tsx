@@ -49,8 +49,8 @@ export function PortalLinkPanel({
             {portalPin}
           </p>
           <p className="text-[11px] text-emerald-800/70">
-            Give this to the guest — they need it with their room number to sign in via the
-            property QR.
+            Guests scan the property QR, then sign in with their room number and this PIN. The link
+            below is optional for direct access.
           </p>
         </div>
       )}

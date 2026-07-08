@@ -11,6 +11,8 @@ import { ProfilePhoneBanner } from '@/components/dashboard/profile-phone-banner'
 import { CommandPaletteProvider } from '@/components/dashboard/command-palette'
 import { HelpAssistant } from '@/components/help/help-assistant'
 import { hasPhoneNumber } from '@/lib/phone'
+import { StaffThemeInitScript } from '@/components/providers/staff-theme-init-script'
+import { StaffThemeProvider } from '@/components/providers/staff-theme-provider'
 
 interface AppShellProps {
   children: React.ReactNode
@@ -84,13 +86,18 @@ export function AppShell({
     </CommandPaletteProvider>
   )
 
-  if (enableRealtime && profile?.hotel_id) {
-    return (
-      <HotelRealtimeProvider hotelId={profile.hotel_id} currentUserId={profile.id}>
-        {content}
-      </HotelRealtimeProvider>
-    )
-  }
+  const shell = (
+    <StaffThemeProvider>
+      <StaffThemeInitScript />
+      {enableRealtime && profile?.hotel_id ? (
+        <HotelRealtimeProvider hotelId={profile.hotel_id} currentUserId={profile.id}>
+          {content}
+        </HotelRealtimeProvider>
+      ) : (
+        content
+      )}
+    </StaffThemeProvider>
+  )
 
-  return content
+  return shell
 }

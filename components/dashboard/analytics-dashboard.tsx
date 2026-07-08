@@ -53,7 +53,7 @@ function MoMCard({
     <div
       className={`rounded-2xl border bg-gradient-to-br p-5 ${accents[accent]}`}
     >
-      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
+      <p className="text-xs font-medium text-muted-foreground">{label}</p>
       <p className="mt-2 text-2xl font-bold tabular-nums text-foreground">{value}</p>
       <p className="mt-1 text-xs text-muted-foreground">{sublabel}</p>
     </div>
@@ -114,7 +114,7 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
           <div className="relative z-10 p-6 sm:p-8">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                <p className="text-xs font-medium text-muted-foreground">
                   Total revenue
                 </p>
                 <p className="mt-2 text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
@@ -187,7 +187,7 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
               <div className="relative z-10 p-6">
                 <div className="mb-5 flex items-start justify-between">
                   <div className="flex-1">
-                    <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                    <p className="text-xs font-medium text-muted-foreground">
                       {kpi.label}
                     </p>
                     <p className="mt-2 text-3xl font-bold tracking-tight text-foreground">
@@ -226,7 +226,7 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
               key={m.month}
               className="rounded-xl bg-secondary/60 px-3 py-2 text-center"
             >
-              <p className="text-[10px] font-semibold uppercase text-muted-foreground">
+              <p className="text-xs font-medium text-muted-foreground">
                 {m.month.split(' ')[0]}
               </p>
               <p className="mt-0.5 text-sm font-bold text-foreground">
@@ -301,7 +301,7 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
             />
           </div>
           <div className="mt-8 rounded-2xl bg-secondary/50 p-5 text-center">
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <p className="text-xs font-medium text-muted-foreground">
               Avg stay · {data.avgStayNights} nights
             </p>
             {data.avgGuestRating != null ? (

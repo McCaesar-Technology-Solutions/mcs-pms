@@ -24,7 +24,7 @@ export function ToggleSwitch({
       {showLabel && (
         <span
           className={cn(
-            'min-w-[2rem] text-right text-xs font-bold uppercase tracking-wide',
+            'min-w-[2rem] text-right text-xs',
             disabled && 'opacity-60',
             checked ? 'text-[#3C216C]' : 'text-[#6B6578]',
           )}

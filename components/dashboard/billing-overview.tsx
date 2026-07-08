@@ -13,6 +13,7 @@ import { CenteredModal, ModalBody, ModalFooter, ModalHeader } from '@/components
 import { downloadCsv } from '@/lib/export/download-csv'
 import { copyToClipboard } from '@/lib/export/entity-refs'
 import { usePagination } from '@/lib/hooks/use-pagination'
+import { formatGhs, formatGhsCompact, MONEY_CLASS } from '@/lib/format/money'
 import { useRowSelection } from '@/lib/hooks/use-row-selection'
 import { PAYMENT_METHOD_LABELS, computeInvoiceTaxesWithOption, invoiceHasTaxBreakdown, type VatMode } from '@/lib/tax'
 import { formatInvoiceNumber } from '@/lib/invoices/numbering'
@@ -76,7 +77,7 @@ function mapInvoices(invoices: InvoiceWithRoom[]): BillingRow[] {
 }
 
 function money(value: number | null | undefined) {
-  return `₵${(value ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  return formatGhs(value)
 }
 
 function toExportRow(inv: InvoiceWithRoom) {
@@ -318,8 +319,8 @@ export function BillingOverview({
       />
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <div className="surface-card stat-tile stat-tile-emerald p-6">
-          <p className="text-sm text-muted-foreground font-semibold uppercase tracking-wider">Total Revenue</p>
-          <p className="text-3xl font-bold text-foreground mt-3">₵{totalRevenue.toLocaleString()}</p>
+          <p className="text-sm font-medium text-muted-foreground">Total revenue</p>
+          <p className={`text-3xl font-bold text-foreground mt-3 ${MONEY_CLASS}`}>{formatGhsCompact(totalRevenue)}</p>
           <div className="flex items-center gap-2 mt-4 text-amber-600 text-sm font-medium">
             <TrendingUp className="h-4 w-4" />
             {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
@@ -327,19 +328,19 @@ export function BillingOverview({
         </div>
 
         <div className="surface-card stat-tile stat-tile-blue p-6">
-          <p className="text-sm text-muted-foreground font-semibold uppercase tracking-wider">Paid Invoices</p>
-          <p className="text-3xl font-bold text-foreground mt-3">₵{paidAmount.toLocaleString()}</p>
+          <p className="text-sm font-medium text-muted-foreground">Paid invoices</p>
+          <p className={`text-3xl font-bold text-foreground mt-3 ${MONEY_CLASS}`}>{formatGhsCompact(paidAmount)}</p>
           <p className="text-xs text-muted-foreground mt-2">{rows.filter((inv) => inv.status === 'paid').length} invoices</p>
         </div>
 
         <div className="surface-card stat-tile stat-tile-amber p-6">
-          <p className="text-sm text-muted-foreground font-semibold uppercase tracking-wider">Pending Invoices</p>
-          <p className="text-3xl font-bold text-foreground mt-3">₵{pendingAmount.toLocaleString()}</p>
+          <p className="text-sm font-medium text-muted-foreground">Pending invoices</p>
+          <p className={`text-3xl font-bold text-foreground mt-3 ${MONEY_CLASS}`}>{formatGhsCompact(pendingAmount)}</p>
           <p className="text-xs text-muted-foreground mt-2">{rows.filter((inv) => inv.status === 'pending' || inv.status === 'overdue').length} invoices</p>
         </div>
 
         <div className="surface-card stat-tile stat-tile-purple p-6">
-          <p className="text-sm text-muted-foreground font-semibold uppercase tracking-wider">Collection Rate</p>
+          <p className="text-sm font-medium text-muted-foreground">Collection rate</p>
           <p className="text-3xl font-bold text-foreground mt-3">{Math.round(collectionRate)}%</p>
           <div className="w-full bg-secondary rounded-full h-2 mt-4">
             <div className="bg-primary h-2 rounded-full transition-all" style={{ width: `${collectionRate}%` }}></div>
@@ -543,7 +544,7 @@ export function BillingOverview({
               <div className="rounded-xl surface-inset p-4">
                 {invoiceHasTaxBreakdown(detail) ? (
                   <>
-                    <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    <p className="mb-3 text-xs font-medium text-muted-foreground">
                       GRA tax breakdown
                     </p>
                     <div className="space-y-2 text-sm">
@@ -621,7 +622,7 @@ export function BillingOverview({
                 invoiceOpenBalance(detail) > 0 && (
                 <>
                   <div className="rounded-xl surface-inset p-4 space-y-3">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    <p className="text-xs font-medium text-muted-foreground">
                       Record partial payment
                     </p>
                     <div className="flex gap-2">

@@ -115,7 +115,35 @@ export function AuditLogPanel({ entries, compact = false }: AuditLogPanelProps) 
           </p>
         ) : (
           <>
-          <div className="data-table-wrap overflow-x-auto px-4 sm:px-6">
+          <div className="space-y-3 p-4 md:hidden">
+            {pagination.paginatedItems.map((entry) => (
+              <div
+                key={entry.id}
+                className={`elevated-list-item p-4 ${selection.isSelected(entry.id) ? 'ring-2 ring-primary/25' : ''}`}
+              >
+                <div className="flex items-start gap-3">
+                  <BulkSelectCheckbox
+                    checked={selection.isSelected(entry.id)}
+                    onChange={() => selection.toggle(entry.id)}
+                    aria-label={`Select log entry ${logRef(entry.id, 'AUD')}`}
+                    className="mt-1"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs text-muted-foreground">{formatWhen(entry.createdAt)}</p>
+                    <p className="mt-1 text-sm font-semibold text-foreground">
+                      {entry.actorName?.trim() || 'Staff'}
+                    </p>
+                    {!compact && (
+                      <p className="mt-0.5 text-xs text-muted-foreground">{entityLabel(entry.entityType)}</p>
+                    )}
+                    <p className="mt-2 text-sm text-foreground">{entry.summary}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="hidden data-table-wrap overflow-x-auto px-4 sm:px-6 md:block">
             <table className="data-table w-full text-sm">
               <thead>
                 <tr>

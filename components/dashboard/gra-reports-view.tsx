@@ -15,6 +15,7 @@ import { useRowSelection } from '@/lib/hooks/use-row-selection'
 import type { ExportHotelInfo } from '@/lib/export/types'
 import type { GraReportRow, GraReportsSummary } from '@/lib/data/gra-reports'
 import type { DbInvoice } from '@/types'
+import { formatGhsCompact, MONEY_CLASS } from '@/lib/format/money'
 
 interface GRAReportsViewProps {
   reports: GraReportRow[]
@@ -134,7 +135,7 @@ export function GRAReportsView({ reports, summary, invoices, hotel }: GRAReports
 
         <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="info-block info-block-blue p-4">
-            <p className="text-xs text-muted-foreground font-semibold uppercase">Next Deadline</p>
+            <p className="text-xs font-medium text-muted-foreground">Next deadline</p>
             <p className="text-2xl font-bold text-blue-600 mt-2">{nextDeadlineFormatted}</p>
             <p className="text-xs text-muted-foreground mt-2">
               {summary.nextDeadlineLabel ? `${summary.nextDeadlineLabel} report` : 'No pending filings'}
@@ -142,15 +143,15 @@ export function GRAReportsView({ reports, summary, invoices, hotel }: GRAReports
           </div>
 
           <div className="info-block info-block-emerald p-4">
-            <p className="text-xs text-muted-foreground font-semibold uppercase">Compliance Status</p>
+            <p className="text-xs font-medium text-muted-foreground">Compliance status</p>
             <p className="text-2xl font-bold text-amber-600 mt-2">{summary.compliancePct}%</p>
             <p className="text-xs text-muted-foreground mt-2">Approved monthly reports</p>
           </div>
 
           <div className="info-block info-block-orange p-4">
-            <p className="text-xs text-muted-foreground font-semibold uppercase">Tax Paid YTD</p>
-            <p className="text-2xl font-bold text-orange-600 mt-2">
-              ₵{summary.taxPaidYtd.toLocaleString()}
+            <p className="text-xs font-medium text-muted-foreground">Tax paid YTD</p>
+            <p className={`text-2xl font-bold text-orange-600 mt-2 ${MONEY_CLASS}`}>
+              {formatGhsCompact(summary.taxPaidYtd)}
             </p>
             <p className="text-xs text-muted-foreground mt-2">{new Date().getFullYear()} year to date</p>
           </div>
@@ -186,7 +187,96 @@ export function GRAReportsView({ reports, summary, invoices, hotel }: GRAReports
           </div>
         ) : (
           <>
-          <div className="data-table-wrap overflow-x-auto px-4 sm:px-6">
+          <div className="space-y-3 p-4 md:hidden">
+            {pagination.paginatedItems.map((report) => (
+              <div
+                key={report.id}
+                className={`elevated-list-item p-4 ${
+                  selection.isSelected(report.id) ? 'ring-2 ring-primary/25' : ''
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <BulkSelectCheckbox
+                    checked={selection.isSelected(report.id)}
+                    onChange={() => selection.toggle(report.id)}
+                    aria-label={`Select period ${report.month}`}
+                    className="mt-1"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="font-semibold text-foreground">{report.month}</p>
+                        <p className="text-xs text-muted-foreground">{report.id}</p>
+                      </div>
+                      <span
+                        className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${getStatusColor(report.status)}`}
+                      >
+                        {getStatusIcon(report.status)}
+                        {report.status.charAt(0).toUpperCase() + report.status.slice(1)}
+                      </span>
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Revenue</p>
+                        <p className={`font-semibold ${MONEY_CLASS}`}>
+                          {formatGhsCompact(report.totalRevenue)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Tax paid</p>
+                        <p className={`font-semibold ${MONEY_CLASS}`}>
+                          {formatGhsCompact(report.taxAmount)}
+                        </p>
+                      </div>
+                    </div>
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Invoices {report.invoicesPaid}/{report.invoicesIssued}
+                    </p>
+                    <div className="relative mt-3" ref={exportMenu === report.id ? menuRef : undefined}>
+                      <button
+                        type="button"
+                        onClick={() => setExportMenu(exportMenu === report.id ? null : report.id)}
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-secondary px-3 py-2 text-sm font-semibold text-foreground"
+                      >
+                        <Eye className="h-4 w-4" />
+                        Export
+                        <ChevronDown className="h-3 w-3" />
+                      </button>
+                      {exportMenu === report.id && (
+                        <div className="modal-panel surface-card absolute left-0 right-0 z-10 mt-1 py-1 shadow-elevation-3">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              downloadGraCsv(report, invoices)
+                              setExportMenu(null)
+                            }}
+                            className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm hover:bg-secondary/60"
+                          >
+                            <Download className="h-4 w-4" />
+                            CSV
+                          </button>
+                          <button
+                            type="button"
+                            disabled={!hotel}
+                            onClick={() => {
+                              if (hotel) downloadGraPdf(hotel, report, invoices)
+                              setExportMenu(null)
+                            }}
+                            className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm hover:bg-secondary/60 disabled:opacity-40"
+                          >
+                            <Download className="h-4 w-4" />
+                            PDF
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="hidden data-table-wrap overflow-x-auto px-4 sm:px-6 md:block">
             <table className="data-table w-full text-sm">
               <thead>
                 <tr>
@@ -223,10 +313,14 @@ export function GRAReportsView({ reports, summary, invoices, hotel }: GRAReports
                       <p className="text-xs text-muted-foreground">{report.id}</p>
                     </td>
                     <td>
-                      <p className="font-semibold text-foreground">₵{report.totalRevenue.toLocaleString()}</p>
+                      <p className={`font-semibold text-foreground ${MONEY_CLASS}`}>
+                        {formatGhsCompact(report.totalRevenue)}
+                      </p>
                     </td>
                     <td>
-                      <p className="font-semibold text-foreground">₵{report.taxAmount.toLocaleString()}</p>
+                      <p className={`font-semibold text-foreground ${MONEY_CLASS}`}>
+                        {formatGhsCompact(report.taxAmount)}
+                      </p>
                     </td>
                     <td>
                       <p className="text-sm text-muted-foreground">

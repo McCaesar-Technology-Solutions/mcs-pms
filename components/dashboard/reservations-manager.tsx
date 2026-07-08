@@ -24,6 +24,7 @@ import {
   moveStayRoom,
 } from '@/app/actions/stays'
 import { GuestSearchField } from '@/components/dashboard/guest-search-field'
+import { APP_FIELD_CLASS, FormField } from '@/components/ui/form-field'
 import { GuestDndBadge } from '@/components/ui/guest-dnd-badge'
 import { PortalLinkPanel } from '@/components/dashboard/portal-link-panel'
 import { ReservationsBulkBar } from '@/components/dashboard/reservations-bulk-bar'
@@ -422,7 +423,7 @@ export function ReservationsManager({
                       {formatPaymentStatus(res.paymentStatus)}
                     </span>
                   </div>
-                  <span className="font-semibold text-foreground">₵{res.totalPrice}</span>
+                  <span className={`font-semibold tabular-nums text-foreground ${MONEY_CLASS}`}>₵{res.totalPrice}</span>
                 </div>
                 </button>
               </div>
@@ -792,7 +793,7 @@ function ReservationDrawer({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg p-2 text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+              className="rounded-lg p-2 text-white/80 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/80"
             >
               <X className="h-5 w-5" />
             </button>
@@ -819,7 +820,7 @@ function ReservationDrawer({
         <div className="flex-1 space-y-6 overflow-y-auto p-6">
           <div className="grid grid-cols-2 gap-3">
             <div className="surface-inset rounded-xl p-3">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              <p className="text-xs font-medium text-muted-foreground">
                 Check-in
               </p>
               <p className="mt-1 text-sm font-semibold text-foreground">
@@ -831,7 +832,7 @@ function ReservationDrawer({
               </p>
             </div>
             <div className="surface-inset rounded-xl p-3">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              <p className="text-xs font-medium text-muted-foreground">
                 Check-out
               </p>
               <p className="mt-1 text-sm font-semibold text-foreground">
@@ -845,7 +846,7 @@ function ReservationDrawer({
           </div>
 
           <div className="surface-inset rounded-xl p-4">
-            <p className="mb-3 text-xs font-semibold uppercase text-muted-foreground">Payment</p>
+            <p className="mb-3 text-xs font-medium text-muted-foreground">Payment</p>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">
@@ -914,7 +915,7 @@ function ReservationDrawer({
 
             {canRecordDeposit && recordingDeposit && (
               <div className="mt-4 space-y-3 border-t border-[#E9ECEF] pt-4">
-                <Field label={`Amount (max ₵${balance})`}>
+                <FormField label={`Amount (max ₵${balance})`}>
                   <input
                     type="number"
                     min={0.01}
@@ -922,15 +923,15 @@ function ReservationDrawer({
                     step={0.01}
                     value={depositAmount}
                     onChange={(e) => setDepositAmount(e.target.value)}
-                    className={fieldClass}
+                    className={APP_FIELD_CLASS}
                     placeholder="0.00"
                   />
-                </Field>
-                <Field label="Payment method">
+                </FormField>
+                <FormField label="Payment method">
                   <select
                     value={paymentMethod}
                     onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
-                    className={fieldClass}
+                    className={APP_FIELD_CLASS}
                   >
                     {PAYMENT_METHODS.map((m) => (
                       <option key={m} value={m}>
@@ -938,7 +939,7 @@ function ReservationDrawer({
                       </option>
                     ))}
                   </select>
-                </Field>
+                </FormField>
                 <div className="flex gap-2">
                   <button
                     type="button"
@@ -1005,14 +1006,14 @@ function ReservationDrawer({
               {canEdit && editing && (
                 <div className="space-y-3 rounded-xl surface-inset p-4">
                   <p className="text-sm font-semibold text-foreground">Edit reservation</p>
-                  <Field label="Guest name">
+                  <FormField label="Guest name">
                     <input
                       value={editGuestName}
                       onChange={(e) => setEditGuestName(e.target.value)}
-                      className={fieldClass}
+                      className={APP_FIELD_CLASS}
                     />
-                  </Field>
-                  <Field label="Room">
+                  </FormField>
+                  <FormField label="Room">
                     <select
                       value={editRoomId}
                       onChange={(e) => {
@@ -1024,72 +1025,72 @@ function ReservationDrawer({
                           setEditMonthlyRate(String(room.monthlyRate))
                         }
                       }}
-                      className={fieldClass}
+                      className={APP_FIELD_CLASS}
                     >
                       {roomOptions.map((r) => (
                         <option key={r.id} value={r.id}>Room {r.number}</option>
                       ))}
                     </select>
-                  </Field>
+                  </FormField>
                   <div className="grid grid-cols-2 gap-3">
-                    <Field label="Check-in">
+                    <FormField label="Check-in">
                       <input
                         type="date"
                         value={editCheckIn}
                         onChange={(e) => setEditCheckIn(e.target.value)}
-                        className={fieldClass}
+                        className={APP_FIELD_CLASS}
                       />
-                    </Field>
-                    <Field label="Check-out">
+                    </FormField>
+                    <FormField label="Check-out">
                       <input
                         type="date"
                         value={editCheckOut}
                         onChange={(e) => setEditCheckOut(e.target.value)}
-                        className={fieldClass}
+                        className={APP_FIELD_CLASS}
                       />
-                    </Field>
+                    </FormField>
                   </div>
-                  <Field label="Channel">
+                  <FormField label="Channel">
                     <select
                       value={editChannel}
                       onChange={(e) => setEditChannel(e.target.value as ReservationChannel)}
-                      className={fieldClass}
+                      className={APP_FIELD_CLASS}
                     >
                       {(Object.keys(CHANNEL_LABELS) as ReservationChannel[]).map((c) => (
                         <option key={c} value={c}>{CHANNEL_LABELS[c]}</option>
                       ))}
                     </select>
-                  </Field>
-                  <Field label="Rate type">
+                  </FormField>
+                  <FormField label="Rate type">
                     <select
                       value={editRateType}
                       onChange={(e) => setEditRateType(e.target.value as RateType)}
-                      className={fieldClass}
+                      className={APP_FIELD_CLASS}
                     >
                       <option value="nightly">Nightly</option>
                       <option value="monthly">Monthly (prorated)</option>
                     </select>
-                  </Field>
+                  </FormField>
                   {editRateType === 'nightly' ? (
-                    <Field label="Nightly rate (₵)">
+                    <FormField label="Nightly rate (₵)">
                       <input
                         type="number"
                         min={0}
                         value={editNightlyRate}
                         onChange={(e) => setEditNightlyRate(e.target.value)}
-                        className={fieldClass}
+                        className={APP_FIELD_CLASS}
                       />
-                    </Field>
+                    </FormField>
                   ) : (
-                    <Field label="Monthly rate (₵)">
+                    <FormField label="Monthly rate (₵)">
                       <input
                         type="number"
                         min={0}
                         value={editMonthlyRate}
                         onChange={(e) => setEditMonthlyRate(e.target.value)}
-                        className={fieldClass}
+                        className={APP_FIELD_CLASS}
                       />
-                    </Field>
+                    </FormField>
                   )}
                   <div className="flex items-center justify-between rounded-xl bg-white px-3 py-2 text-sm shadow-elevation-1">
                     <span className="text-muted-foreground">{editNights} nights</span>
@@ -1154,32 +1155,31 @@ function ReservationDrawer({
               {canCheckInNow && checkingIn && (
                 <div className="space-y-3 rounded-xl surface-inset p-4">
                   <p className="text-sm font-semibold text-foreground">Guest check-in</p>
-                  <Field label="Guest name">
+                  <FormField label="Guest name">
                     <input value={guestName} onChange={(e) => {
                       setGuestName(e.target.value)
                       setSelectedGuestId(null)
-                    }} className={fieldClass} />
-                  </Field>
-                  <Field label="Phone (required)">
+                    }} className={APP_FIELD_CLASS} />
+                  </FormField>
+                  <FormField label="Phone (required)">
                     <input
                       type="tel"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
                       placeholder="+233 XX XXX XXXX"
-                      className={fieldClass}
+                      className={APP_FIELD_CLASS}
                     />
-                  </Field>
-                  <Field label="Email (optional)">
+                  </FormField>
+                  <FormField label="Email (optional)">
                     <input
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className={fieldClass}
+                      className={APP_FIELD_CLASS}
                     />
-                  </Field>
+                  </FormField>
                   <GuestSearchField
                     label="Find returning guest"
-                    fieldClass={fieldClass}
                     selectedGuestId={selectedGuestId}
                     onSelectGuest={(g) => {
                       if (g) {
@@ -1346,15 +1346,15 @@ function ReservationDrawer({
                       This extension came from a guest request. After saving the new date, go back and mark the request as completed.
                     </p>
                   )}
-                  <Field label="New check-out date">
+                  <FormField label="New check-out date">
                     <input
                       type="date"
                       value={newCheckOut}
                       min={reservation.checkOutDate}
                       onChange={(e) => setNewCheckOut(e.target.value)}
-                      className={fieldClass}
+                      className={APP_FIELD_CLASS}
                     />
-                  </Field>
+                  </FormField>
                   <div className="flex gap-2">
                     <button type="button" onClick={() => setExtending(false)} className="flex-1 rounded-xl bg-white py-2.5 text-sm font-semibold shadow-elevation-1">
                       Cancel
@@ -1374,15 +1374,15 @@ function ReservationDrawer({
               {moving && (
                 <div className="space-y-3 rounded-xl surface-inset p-4">
                   <p className="text-sm font-semibold">Move to another room</p>
-                  <Field label="New room">
-                    <select value={newRoomId} onChange={(e) => setNewRoomId(e.target.value)} className={fieldClass}>
+                  <FormField label="New room">
+                    <select value={newRoomId} onChange={(e) => setNewRoomId(e.target.value)} className={APP_FIELD_CLASS}>
                       {roomOptions.map((r) => (
                         <option key={r.id} value={r.id}>
                           Room {r.number}
                         </option>
                       ))}
                     </select>
-                  </Field>
+                  </FormField>
                   <div className="flex gap-2">
                     <button type="button" onClick={() => setMoving(false)} className="flex-1 rounded-xl bg-white py-2.5 text-sm font-semibold shadow-elevation-1">
                       Cancel
@@ -1428,7 +1428,7 @@ function ReservationDrawer({
                   <select
                     value={paymentMethod}
                     onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
-                    className={fieldClass}
+                    className={APP_FIELD_CLASS}
                   >
                     {PAYMENT_METHODS.map((m) => (
                       <option key={m} value={m}>
@@ -1769,7 +1769,7 @@ function ReservationFormModal({
   }
 
   return (
-    <CenteredModal open onClose={onClose} aria-label="New reservation">
+    <CenteredModal open onClose={onClose} className="max-w-lg" aria-label="New reservation">
       <ModalHeader onClose={onClose}>
         <h3 className="text-lg font-semibold text-foreground">New reservation</h3>
         <p className="mt-0.5 text-sm text-muted-foreground">
@@ -1778,31 +1778,31 @@ function ReservationFormModal({
       </ModalHeader>
 
       <ModalBody className="space-y-4">
-        <div className="grid grid-cols-2 gap-2">
+        <div className="rooms-view-toggle w-full" role="tablist" aria-label="Reservation flow">
           <button
             type="button"
+            role="tab"
+            aria-selected={flowMode === 'book_later'}
             onClick={() => setFlowMode('book_later')}
-            className={`rounded-xl px-3 py-2.5 text-sm font-semibold transition-all ${
-              flowMode === 'book_later'
-                ? 'bg-primary text-primary-foreground shadow-elevation-1'
-                : 'bg-secondary text-foreground'
+            className={`rooms-view-toggle__btn flex-1 justify-center py-2.5 ${
+              flowMode === 'book_later' ? 'rooms-view-toggle__btn--active' : ''
             }`}
           >
             Book for later
           </button>
           <button
             type="button"
+            role="tab"
+            aria-selected={flowMode === 'check_in_now'}
             onClick={() => setFlowMode('check_in_now')}
-            className={`rounded-xl px-3 py-2.5 text-sm font-semibold transition-all ${
-              flowMode === 'check_in_now'
-                ? 'bg-[#D4A62E] text-gray-900 shadow-elevation-1'
-                : 'bg-secondary text-foreground'
+            className={`rooms-view-toggle__btn flex-1 justify-center py-2.5 ${
+              flowMode === 'check_in_now' ? 'rooms-view-toggle__btn--active' : ''
             }`}
           >
             Check in now
           </button>
         </div>
-        <Field label="Guest name">
+        <FormField label="Guest name">
           <input
             value={guestName}
             onChange={(e) => {
@@ -1810,13 +1810,12 @@ function ReservationFormModal({
               setSelectedGuestId(null)
             }}
             placeholder="Full name"
-            className={fieldClass}
+            className={APP_FIELD_CLASS}
           />
-        </Field>
+        </FormField>
 
         <GuestSearchField
           label="Find existing guest (optional)"
-          fieldClass={fieldClass}
           selectedGuestId={selectedGuestId}
           onSelectGuest={(g) => {
             if (g) {
@@ -1830,7 +1829,7 @@ function ReservationFormModal({
           }}
         />
 
-        <Field label="Room">
+        <FormField label="Room">
           {roomOptions.length === 0 ? (
             <p className="rounded-xl bg-amber-50 px-3 py-2.5 text-sm text-amber-800">
               No rooms available. Add a room first.
@@ -1839,7 +1838,7 @@ function ReservationFormModal({
             <select
               value={roomId}
               onChange={(e) => setRoomId(e.target.value)}
-              className={fieldClass}
+              className={APP_FIELD_CLASS}
             >
               {roomOptions.map((room) => {
                 const booked = occupiedRoomIds.has(room.id)
@@ -1881,57 +1880,57 @@ function ReservationFormModal({
               )}
             </div>
           )}
-        </Field>
+        </FormField>
 
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Check-in">
+          <FormField label="Check-in">
             <input
               type="date"
               value={checkIn}
               onChange={(e) => setCheckIn(e.target.value)}
               disabled={flowMode === 'check_in_now'}
-              className={fieldClass}
+              className={APP_FIELD_CLASS}
             />
-          </Field>
-          <Field label="Check-out">
+          </FormField>
+          <FormField label="Check-out">
             <input
               type="date"
               value={checkOut}
               onChange={(e) => setCheckOut(e.target.value)}
-              className={fieldClass}
+              className={APP_FIELD_CLASS}
             />
-          </Field>
+          </FormField>
         </div>
 
         {flowMode === 'check_in_now' && (
           <>
-            <Field label="Phone (required)">
+            <FormField label="Phone (required)">
               <input
                 type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="+233 XX XXX XXXX"
-                className={fieldClass}
+                className={APP_FIELD_CLASS}
               />
-            </Field>
-            <Field label="Email (optional)">
+            </FormField>
+            <FormField label="Email (optional)">
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className={fieldClass}
+                className={APP_FIELD_CLASS}
               />
-            </Field>
+            </FormField>
           </>
         )}
 
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Channel">
+          <FormField label="Channel">
             <select
               value={channel}
               onChange={(e) => setChannel(e.target.value as ReservationChannel)}
               disabled={flowMode === 'check_in_now'}
-              className={fieldClass}
+              className={APP_FIELD_CLASS}
             >
               {(Object.keys(CHANNEL_LABELS) as ReservationChannel[]).map((c) => (
                 <option key={c} value={c}>
@@ -1939,39 +1938,39 @@ function ReservationFormModal({
                 </option>
               ))}
             </select>
-          </Field>
-          <Field label="Rate type">
+          </FormField>
+          <FormField label="Rate type">
             <select
               value={rateType}
               onChange={(e) => setRateType(e.target.value as RateType)}
-              className={fieldClass}
+              className={APP_FIELD_CLASS}
             >
               <option value="nightly">Nightly</option>
               <option value="monthly">Monthly (prorated)</option>
             </select>
-          </Field>
+          </FormField>
         </div>
 
         {rateType === 'nightly' ? (
-          <Field label="Nightly rate (₵)">
+          <FormField label="Nightly rate (₵)">
             <input
               type="number"
               value={nightlyRate}
               onChange={(e) => setNightlyRate(e.target.value)}
               min={0}
-              className={fieldClass}
+              className={APP_FIELD_CLASS}
             />
-          </Field>
+          </FormField>
         ) : (
-          <Field label="Monthly rate (₵)">
+          <FormField label="Monthly rate (₵)">
             <input
               type="number"
               value={monthlyRate}
               onChange={(e) => setMonthlyRate(e.target.value)}
               min={0}
-              className={fieldClass}
+              className={APP_FIELD_CLASS}
             />
-          </Field>
+          </FormField>
         )}
 
         <div className="flex items-center justify-between rounded-xl surface-inset px-4 py-3 text-sm">
@@ -2011,19 +2010,5 @@ function ReservationFormModal({
         </button>
       </ModalFooter>
     </CenteredModal>
-  )
-}
-
-const fieldClass =
-  'w-full appearance-none rounded-xl border-0 bg-white px-4 py-3 text-sm text-foreground shadow-elevation-1 outline-none transition-[box-shadow] focus:shadow-elevation-2 focus:ring-2 focus:ring-[#3C216C]/10'
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="block">
-      <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        {label}
-      </span>
-      {children}
-    </label>
   )
 }

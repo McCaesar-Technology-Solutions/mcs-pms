@@ -32,7 +32,8 @@ You are locked to **one property** (no property switcher).
 | Rooms | `/manager/rooms` |
 | Housekeeping | `/manager/housekeeping` |
 | Complaints | `/manager/complaints` |
-| Guest portal | `/manager/dashboard#guest-portal` |
+| Guest portal settings | `/manager/dashboard#guest-portal` |
+| Guest links & QR | `/manager/guests` |
 | Inventory | `/manager/inventory` |
 | Staff | `/manager/staff` |
 

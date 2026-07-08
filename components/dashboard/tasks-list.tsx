@@ -135,7 +135,7 @@ export function TasksList({
           </div>
 
           <div className="task-summary-queue">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <p className="mb-3 text-xs font-medium text-muted-foreground">
               {queue.length > 0 ? 'Up next' : 'All caught up'}
             </p>
             {queue.length === 0 ? (
@@ -162,7 +162,7 @@ export function TasksList({
                     </span>
                   </span>
                   <span
-                    className={`shrink-0 rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${priorityClass(task.priority)}`}
+                    className={`shrink-0 rounded-md px-2 py-0.5 text-xs font-semibold ${priorityClass(task.priority)}`}
                   >
                     {priorityLabel(task.priority)}
                   </span>

@@ -31,7 +31,7 @@ export function ComplaintInvoiceFileLink({ complaintId, fileName }: ComplaintInv
 
   return (
     <div className="rounded-xl bg-white px-3 py-2.5 shadow-sm">
-      <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+      <p className="text-xs font-semibold text-muted-foreground">
         Uploaded invoice
       </p>
       <div className="mt-2 flex flex-wrap items-center gap-2">

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Moon, CheckCircle2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { runNightAudit } from '@/app/actions/night-audit'
+import { formatGhs, MONEY_CLASS } from '@/lib/format/money'
 import { TablePagination } from '@/components/dashboard/table-pagination'
 import { usePagination } from '@/lib/hooks/use-pagination'
 
@@ -23,10 +24,6 @@ interface NightAuditRow {
 interface NightAuditPanelProps {
   audits: NightAuditRow[]
   todayClosed: boolean
-}
-
-function money(value: number) {
-  return `₵${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
 function formatDate(value: string) {
@@ -114,7 +111,38 @@ export function NightAuditPanel({ audits, todayClosed }: NightAuditPanelProps) {
 
       {audits.length > 0 ? (
         <>
-          <div className="data-table-wrap overflow-x-auto px-4 sm:px-6">
+          <div className="space-y-3 p-4 md:hidden">
+            {pagination.paginatedItems.map((row) => (
+              <div key={row.id} className="elevated-list-item p-4">
+                <p className="font-semibold text-foreground">{formatDate(row.business_date)}</p>
+                {row.notes && (
+                  <p className="mt-1 text-sm text-muted-foreground">{row.notes}</p>
+                )}
+                <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Occupied</p>
+                    <p className="font-semibold tabular-nums">{row.rooms_occupied}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Arrivals</p>
+                    <p className="font-semibold tabular-nums">{row.arrivals}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Departures</p>
+                    <p className="font-semibold tabular-nums">{row.departures}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Revenue</p>
+                    <p className={`font-semibold tabular-nums ${MONEY_CLASS}`}>
+                      {formatGhs(Number(row.revenue_posted))}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="hidden data-table-wrap overflow-x-auto px-4 sm:px-6 md:block">
             <table className="data-table w-full text-sm">
               <thead>
                 <tr>
@@ -139,8 +167,8 @@ export function NightAuditPanel({ audits, todayClosed }: NightAuditPanelProps) {
                     <td className="tabular-nums">{row.rooms_occupied}</td>
                     <td className="tabular-nums">{row.arrivals}</td>
                     <td className="tabular-nums">{row.departures}</td>
-                    <td className="text-right font-semibold tabular-nums">
-                      {money(Number(row.revenue_posted))}
+                    <td className={`text-right font-semibold tabular-nums ${MONEY_CLASS}`}>
+                      {formatGhs(Number(row.revenue_posted))}
                     </td>
                   </tr>
                 ))}

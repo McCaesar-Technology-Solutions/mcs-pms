@@ -70,7 +70,7 @@ export function GuestFeedbackPanel({ summary }: GuestFeedbackPanelProps) {
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="text-sm font-semibold text-foreground">{row.guestName}</p>
                   {row.roomNumber && (
-                    <span className="rounded-md bg-muted px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                    <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">
                       Room {row.roomNumber}
                     </span>
                   )}

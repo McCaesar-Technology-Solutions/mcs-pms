@@ -392,13 +392,13 @@ export function GuestsTable({
             <ModalBody className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div className="info-block info-block-blue p-4">
-                  <p className="modal-panel-subtle text-xs font-semibold uppercase tracking-wider">
+                  <p className="modal-panel-subtle text-xs font-medium text-muted-foreground">
                     Total Stays
                   </p>
                   <p className="text-3xl font-bold text-blue-600 mt-2">{selectedGuest.totalStays}</p>
                 </div>
                 <div className="info-block info-block-emerald p-4">
-                  <p className="modal-panel-subtle text-xs font-semibold uppercase tracking-wider">
+                  <p className="modal-panel-subtle text-xs font-medium text-muted-foreground">
                     Total Spent
                   </p>
                   <p className="text-2xl font-bold text-amber-600 mt-2">
@@ -697,9 +697,11 @@ function GuestAccessLink({ guest }: { guest: GuestRow }) {
     })
   }
 
-  const message = `Hi ${guest.name}, here is your guest portal access link${
-    guest.roomNumber ? ` for Room ${guest.roomNumber}` : ''
-  }: ${url}${pin ? ` — Your access PIN is ${pin}.` : ''}`
+  const message = pin
+    ? `Hi ${guest.name}, welcome to ${guest.roomNumber ? `Room ${guest.roomNumber}` : 'your stay'}. Open the property guest portal QR, then sign in with your room number and this PIN: ${pin}. You can also use this personal link: ${url}`
+    : `Hi ${guest.name}, here is your guest portal access link${
+        guest.roomNumber ? ` for Room ${guest.roomNumber}` : ''
+      }: ${url}`
   const phoneDigits = (guest.phone ?? '').replace(/[^0-9]/g, '')
   const waHref = phoneDigits
     ? `https://wa.me/${phoneDigits}?text=${encodeURIComponent(message)}`

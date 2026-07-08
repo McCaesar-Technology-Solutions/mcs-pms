@@ -125,7 +125,7 @@ export function ScheduledVisitDisplay({
         />
         <div>
           <p
-            className={`text-xs font-semibold uppercase tracking-wide ${
+            className={`text-xs font-semibold ${
               isDark ? 'text-white/80' : 'text-muted-foreground'
             }`}
           >

@@ -20,6 +20,7 @@ import { signOut } from '@/app/actions/auth'
 import { getDashboardPrimaryAction } from '@/lib/dashboard/primary-actions'
 import { hasPhoneNumber } from '@/lib/phone'
 import type { Profile } from '@/types'
+import { StaffThemeToggle } from '@/components/dashboard/staff-theme-toggle'
 
 interface TopbarProps {
   onMenuOpen?: () => void
@@ -110,6 +111,8 @@ export default function Topbar({ onMenuOpen, profile }: TopbarProps) {
               </button>
             )}
 
+            <StaffThemeToggle />
+
             <NotificationsMenu profile={profile} />
 
             <div className="relative">
@@ -141,7 +144,7 @@ export default function Topbar({ onMenuOpen, profile }: TopbarProps) {
                 anchorRef={userTriggerRef}
                 onClose={() => setShowUserMenu(false)}
                 width={224}
-                className="modal-panel surface-card overflow-hidden rounded-xl border border-[rgba(var(--glow-purple),0.1)] bg-white py-1 shadow-elevation-3"
+                className="modal-panel surface-card overflow-hidden rounded-xl border border-[rgba(var(--glow-purple),0.1)] bg-card py-1 shadow-elevation-3"
               >
                 <div className="surface-card-header px-4 py-3">
                   <p className="text-sm font-semibold">{user.name}</p>

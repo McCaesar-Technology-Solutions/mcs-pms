@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { CenteredModal, ModalBody, ModalFooter, ModalHeader } from '@/components/ui/centered-modal'
+import { APP_FIELD_CLASS, FormField } from '@/components/ui/form-field'
 import {
   createStaffComplaint,
   getComplaintFormOptions,
@@ -10,9 +11,6 @@ import {
   type ComplaintFormRoom,
 } from '@/app/actions/complaints'
 import type { ComplaintCategory, ComplaintPriority } from '@/types'
-
-const softField =
-  'mt-2 w-full appearance-none rounded-xl border-0 bg-white px-4 py-3 text-sm text-foreground shadow-elevation-1 outline-none transition-[box-shadow,transform] focus:shadow-elevation-2 focus:ring-2 focus:ring-[#3C216C]/10'
 
 const categories: ComplaintCategory[] = [
   'plumbing',
@@ -107,14 +105,11 @@ export function StaffComplaintModal({ open, onClose, onCreated }: StaffComplaint
       </ModalHeader>
 
       <ModalBody className="space-y-4">
-        <div>
-          <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Guest (optional)
-          </label>
+        <FormField label="Guest (optional)">
           <select
             value={guestId}
             onChange={(e) => handleGuestChange(e.target.value)}
-            className={softField}
+            className={APP_FIELD_CLASS}
           >
             <option value="">No specific guest</option>
             {guests.map((g) => (
@@ -124,13 +119,10 @@ export function StaffComplaintModal({ open, onClose, onCreated }: StaffComplaint
               </option>
             ))}
           </select>
-        </div>
+        </FormField>
 
-        <div>
-          <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Room
-          </label>
-          <select value={roomId} onChange={(e) => setRoomId(e.target.value)} className={softField}>
+        <FormField label="Room">
+          <select value={roomId} onChange={(e) => setRoomId(e.target.value)} className={APP_FIELD_CLASS}>
             <option value="">Select a room…</option>
             {rooms.map((r) => (
               <option key={r.id} value={r.id}>
@@ -138,17 +130,14 @@ export function StaffComplaintModal({ open, onClose, onCreated }: StaffComplaint
               </option>
             ))}
           </select>
-        </div>
+        </FormField>
 
         <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Category
-            </label>
+          <FormField label="Category">
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value as ComplaintCategory)}
-              className={`${softField} capitalize`}
+              className={`${APP_FIELD_CLASS} capitalize`}
             >
               {categories.map((c) => (
                 <option key={c} value={c} className="capitalize">
@@ -156,15 +145,12 @@ export function StaffComplaintModal({ open, onClose, onCreated }: StaffComplaint
                 </option>
               ))}
             </select>
-          </div>
-          <div>
-            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Priority
-            </label>
+          </FormField>
+          <FormField label="Priority">
             <select
               value={priority}
               onChange={(e) => setPriority(e.target.value as ComplaintPriority)}
-              className={`${softField} capitalize`}
+              className={`${APP_FIELD_CLASS} capitalize`}
             >
               {priorities.map((p) => (
                 <option key={p} value={p} className="capitalize">
@@ -172,20 +158,17 @@ export function StaffComplaintModal({ open, onClose, onCreated }: StaffComplaint
                 </option>
               ))}
             </select>
-          </div>
+          </FormField>
         </div>
 
-        <div>
-          <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Description
-          </label>
+        <FormField label="Description">
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Describe the issue the guest is experiencing…"
-            className={`${softField} min-h-28 resize-none`}
+            className={`${APP_FIELD_CLASS} min-h-28 resize-none`}
           />
-        </div>
+        </FormField>
       </ModalBody>
 
       <ModalFooter className="flex justify-end gap-3">

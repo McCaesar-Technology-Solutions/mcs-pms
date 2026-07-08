@@ -163,7 +163,7 @@ export function ComplaintsOverview({
 
               <div className="flex shrink-0 flex-col items-end">
                 <span
-                  className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${statusBadge(c.status)}`}
+                  className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusBadge(c.status)}`}
                 >
                   {statusLabels[c.status ?? 'open']}
                 </span>

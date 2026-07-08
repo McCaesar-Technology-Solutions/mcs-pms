@@ -18,6 +18,7 @@ import { ProfilePhoneEditor } from '@/components/dashboard/profile-phone-editor'
 import { ProfilePhotoUpload } from '@/components/profile/profile-photo-upload'
 import { clearMyProfilePhoto, uploadMyProfilePhoto } from '@/app/actions/profile-photo'
 import { MfaSettingsCard } from '@/components/dashboard/mfa-settings-card'
+import { AppearanceSettingsCard } from '@/components/dashboard/appearance-settings-card'
 
 const GHANA_REGIONS = [
   'Greater Accra',
@@ -162,6 +163,7 @@ export function SettingsPanel({ hotelSettings, staffHref = '/owner/staff', profi
               }}
             />
           </div>
+          <AppearanceSettingsCard />
           <Suspense
             fallback={<p className="text-sm text-muted-foreground">Checking sign-in verification…</p>}
           >

@@ -6,6 +6,7 @@ import { CalendarRange, CheckCircle2 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { PeriodAuditRow } from '@/app/actions/period-audit'
 import { currentCalendarMonth, currentCalendarYear, periodAuditLabel } from '@/lib/audits/period'
+import { formatGhs, MONEY_CLASS } from '@/lib/format/money'
 import { TablePagination } from '@/components/dashboard/table-pagination'
 import { usePagination } from '@/lib/hooks/use-pagination'
 
@@ -14,10 +15,6 @@ interface PeriodAuditPanelProps {
   audits: PeriodAuditRow[]
   periodClosed: boolean
   onRun: (notes?: string) => Promise<{ success: boolean; error?: string }>
-}
-
-function money(value: number) {
-  return `₵${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
 function formatPeriod(row: PeriodAuditRow): string {
@@ -113,7 +110,40 @@ export function PeriodAuditPanel({ type, audits, periodClosed, onRun }: PeriodAu
 
       {audits.length > 0 ? (
         <>
-          <div className="data-table-wrap overflow-x-auto px-4 sm:px-6">
+          <div className="space-y-3 p-4 md:hidden">
+            {pagination.paginatedItems.map((row) => (
+              <div key={row.id} className="elevated-list-item p-4">
+                <p className="font-semibold text-foreground">{formatPeriod(row)}</p>
+                {row.notes && <p className="mt-1 text-sm text-muted-foreground">{row.notes}</p>}
+                <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Occupied</p>
+                    <p className="font-semibold tabular-nums">{row.rooms_occupied}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Night audits</p>
+                    <p className="font-semibold tabular-nums text-muted-foreground">
+                      {row.night_audits_count}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Arrivals / departures</p>
+                    <p className="font-semibold tabular-nums">
+                      {row.arrivals} / {row.departures}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Revenue</p>
+                    <p className={`font-semibold tabular-nums ${MONEY_CLASS}`}>
+                      {formatGhs(Number(row.revenue_posted))}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="hidden data-table-wrap overflow-x-auto px-4 sm:px-6 md:block">
             <table className="data-table w-full text-sm">
               <thead>
                 <tr>
@@ -145,8 +175,8 @@ export function PeriodAuditPanel({ type, audits, periodClosed, onRun }: PeriodAu
                         ? ` / ${currentCalendarMonth(new Date(row.period_year, row.period_month - 1, 1)).daysInMonth}`
                         : ''}
                     </td>
-                    <td className="text-right font-semibold tabular-nums">
-                      {money(Number(row.revenue_posted))}
+                    <td className={`text-right font-semibold tabular-nums ${MONEY_CLASS}`}>
+                      {formatGhs(Number(row.revenue_posted))}
                     </td>
                   </tr>
                 ))}

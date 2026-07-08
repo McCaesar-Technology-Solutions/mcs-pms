@@ -254,7 +254,7 @@ export function GuestStayChat({
                     }`}
                   >
                     {!isGuest && (
-                      <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-[var(--brand-purple)]">
+                      <p className="mb-1 text-xs font-semibold text-[var(--brand-purple)]">
                         {m.authorName ?? 'Front desk'}
                       </p>
                     )}

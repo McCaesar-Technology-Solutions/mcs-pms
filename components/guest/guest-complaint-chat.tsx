@@ -186,7 +186,7 @@ export function GuestComplaintChat({ complaintId }: GuestComplaintChatProps) {
                     isGuest ? 'guest-bubble--guest' : 'guest-bubble--staff'
                   }`}
                 >
-                  <p className="text-[10px] font-bold uppercase tracking-wide opacity-70">
+                  <p className="text-xs font-semibold opacity-70">
                     {isGuest ? 'You' : (m.authorName ?? 'Staff')}
                   </p>
                   <EditableMessageContent

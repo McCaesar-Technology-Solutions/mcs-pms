@@ -19,11 +19,12 @@ export function RoleWayfindingPanel({ role }: RoleWayfindingPanelProps) {
     case 'manager':
       return (
         <WayfindingTip id="nav-basics" role={role} title="Where guest portal settings live">
-          Guest requests, feedback, and portal copy are under{' '}
-          <strong className="font-semibold text-foreground">Guest portal</strong> in the sidebar — or open the{' '}
-          <strong className="font-semibold text-foreground">Guest portal</strong> tab on your dashboard. Use{' '}
-          <kbd className="rounded bg-muted px-1.5 py-0.5 text-[11px] font-semibold">⌘K</kbd> to search across the
-          property.
+          Portal settings (Wi‑Fi, rules, requests) are on the dashboard{' '}
+          <strong className="font-semibold text-foreground">Guest portal</strong> tab. Share QR codes,
+          links, and PINs from <strong className="font-semibold text-foreground">Guests</strong> in the
+          sidebar. Press{' '}
+          <kbd className="rounded bg-muted px-1.5 py-0.5 text-[11px] font-semibold">⌘K</kbd> to search across
+          the property.
         </WayfindingTip>
       )
     case 'receptionist':

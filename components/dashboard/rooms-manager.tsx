@@ -21,6 +21,7 @@ import {
   ModalFooter,
   ModalHeader,
 } from '@/components/ui/centered-modal'
+import { APP_FIELD_CLASS, FormField } from '@/components/ui/form-field'
 import type { DbRoom, DbRoomStatus, RoomCategory } from '@/types'
 
 const STATUS_CONFIG: Record<DbRoomStatus, { label: string; dot: string; chip: string }> = {
@@ -460,30 +461,30 @@ function RoomModal({ room, categories, canDelete, statusOnly = false, onClose, o
 
         {!statusOnly && (
           <>
-            <Field label="Room number">
+            <FormField label="Room number">
               <input
                 value={number}
                 onChange={(e) => setNumber(e.target.value)}
                 placeholder="e.g. 204"
-                className={fieldClass}
+                className={APP_FIELD_CLASS}
               />
-            </Field>
+            </FormField>
 
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Floor">
+              <FormField label="Floor">
                 <input
                   type="number"
                   value={floor}
                   onChange={(e) => setFloor(e.target.value)}
                   min={0}
-                  className={fieldClass}
+                  className={APP_FIELD_CLASS}
                 />
-              </Field>
-              <Field label="Category">
+              </FormField>
+              <FormField label="Category">
                 <select
                   value={categoryId}
                   onChange={(e) => handleCategoryChange(e.target.value)}
-                  className={fieldClass}
+                  className={APP_FIELD_CLASS}
                 >
                   {categories.map((category) => (
                     <option key={category.id} value={category.id}>
@@ -491,21 +492,21 @@ function RoomModal({ room, categories, canDelete, statusOnly = false, onClose, o
                     </option>
                   ))}
                 </select>
-              </Field>
+              </FormField>
             </div>
 
-            <Field label="Nightly rate (₵)">
+            <FormField label="Nightly rate (₵)">
               <input
                 type="number"
                 min={0}
                 step="0.01"
                 value={nightlyRate}
                 onChange={(e) => setNightlyRate(e.target.value)}
-                className={fieldClass}
+                className={APP_FIELD_CLASS}
               />
-            </Field>
+            </FormField>
 
-            <Field label="Monthly rate (₵, optional)">
+            <FormField label="Monthly rate (₵, optional)">
               <input
                 type="number"
                 min={0}
@@ -513,14 +514,14 @@ function RoomModal({ room, categories, canDelete, statusOnly = false, onClose, o
                 value={monthlyRate}
                 onChange={(e) => setMonthlyRate(e.target.value)}
                 placeholder="Prorated ÷ 30 per night"
-                className={fieldClass}
+                className={APP_FIELD_CLASS}
               />
-            </Field>
+            </FormField>
           </>
         )}
 
         {isEdit && (
-          <Field label="Status">
+          <FormField label="Status">
             <div className="grid grid-cols-2 gap-2">
               {STATUS_ORDER.map((s) => (
                 <button
@@ -538,7 +539,7 @@ function RoomModal({ room, categories, canDelete, statusOnly = false, onClose, o
                 </button>
               ))}
             </div>
-          </Field>
+          </FormField>
         )}
 
         {error && (
@@ -580,19 +581,5 @@ function RoomModal({ room, categories, canDelete, statusOnly = false, onClose, o
         </div>
       </ModalFooter>
     </CenteredModal>
-  )
-}
-
-const fieldClass =
-  'w-full appearance-none rounded-xl border-0 bg-white px-4 py-3 text-sm text-foreground shadow-elevation-1 outline-none transition-[box-shadow] focus:shadow-elevation-2 focus:ring-2 focus:ring-[#3C216C]/10'
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="block">
-      <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        {label}
-      </span>
-      {children}
-    </label>
   )
 }

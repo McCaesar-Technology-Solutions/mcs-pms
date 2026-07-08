@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { enterGuestPortalByRoom } from '@/app/actions/guest-portal'
+import { GuestEntrySteps } from '@/components/guest/guest-entry-steps'
 
 interface GuestRoomEntryFormProps {
   slug: string
@@ -28,11 +29,14 @@ export function GuestRoomEntryForm({ slug, hotelName }: GuestRoomEntryFormProps)
   return (
     <div className="guest-auth-shell">
       <div className="mx-auto flex max-w-md flex-col gap-6">
+        <GuestEntrySteps current={2} />
+
         <div className="text-center">
           <p className="guest-auth-brand">MOJO APARTMENTS</p>
           <p className="mt-2 text-lg">{hotelName}</p>
           <p className="mt-2 text-sm leading-relaxed guest-text-muted">
-            Enter your room number and the 4-digit PIN you received at check-in.
+            Scan the property QR at the front desk, then enter your room number and 4-digit PIN
+            from check-in.
           </p>
         </div>
 
@@ -88,7 +92,7 @@ export function GuestRoomEntryForm({ slug, hotelName }: GuestRoomEntryFormProps)
 
           <p className="text-center text-xs guest-text-subtle">
             Checked-in guests only. Your PIN is on your check-in slip — ask the front desk if you
-            need it again.
+            need it again, or use your personal link if staff shared one.
           </p>
         </form>
       </div>

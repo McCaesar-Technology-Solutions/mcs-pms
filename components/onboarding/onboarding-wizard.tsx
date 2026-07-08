@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, useTransition, type ReactNode } from 'react'
+import { useEffect, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Building2,
@@ -30,6 +30,7 @@ import {
   type OnboardingStep,
 } from '@/lib/onboarding/state'
 import { cn } from '@/lib/utils'
+import { FormField } from '@/components/ui/form-field'
 
 const GHANA_REGIONS = [
   'Greater Accra',
@@ -143,7 +144,7 @@ export function OnboardingWizard({ step, ownerName, property, compliance }: Onbo
       <StepIndicator current={step} pending={pending} onStepClick={goBack} />
 
       <div className="mb-8">
-        <div className="mb-3 flex items-center justify-between text-xs font-semibold uppercase tracking-widest text-white/50">
+        <div className="mb-3 flex items-center justify-between text-xs font-medium tracking-wide text-white/50">
           <span>Setup · {ONBOARDING_STEP_LABELS[step]}</span>
           <span>{progress}%</span>
         </div>
@@ -449,7 +450,7 @@ function PropertyStep({
             : 'We create rooms and default rates automatically. You can refine categories later in Settings.'
         }
       />
-      <Field label="Property name">
+      <FormField label="Property name" labelClassName="text-sm font-medium text-white/90">
         <input
           className={inputClass}
           value={name}
@@ -457,8 +458,8 @@ function PropertyStep({
           required
           placeholder="MOJO Apartments Osu"
         />
-      </Field>
-      <Field label="Street address">
+      </FormField>
+      <FormField label="Street address" labelClassName="text-sm font-medium text-white/90">
         <input
           className={inputClass}
           value={address}
@@ -466,12 +467,12 @@ function PropertyStep({
           required
           placeholder="14 Oxford Street"
         />
-      </Field>
+      </FormField>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="City">
+        <FormField label="City" labelClassName="text-sm font-medium text-white/90">
           <input className={inputClass} value={city} onChange={(e) => setCity(e.target.value)} required />
-        </Field>
-        <Field label="Region">
+        </FormField>
+        <FormField label="Region" labelClassName="text-sm font-medium text-white/90">
           <select
             className={cn(inputClass, 'cursor-pointer')}
             value={region}
@@ -483,9 +484,9 @@ function PropertyStep({
               </option>
             ))}
           </select>
-        </Field>
+        </FormField>
       </div>
-      <Field label="Number of rooms">
+      <FormField label="Number of rooms" labelClassName="text-sm font-medium text-white/90">
         <input
           className={inputClass}
           type="number"
@@ -495,7 +496,7 @@ function PropertyStep({
           onChange={(e) => setTotalRooms(Number(e.target.value))}
           required
         />
-      </Field>
+      </FormField>
       <StepActions pending={pending} onBack={onBack}>
         <PrimaryButton type="submit" pending={pending} className="w-full sm:w-auto">
           {isEditing ? 'Save changes & continue' : 'Create property & continue'}
@@ -535,15 +536,15 @@ function ComplianceStep({
         title="Tax & invoicing"
         description="Optional now — add VAT details for GRA reports and invoice exports."
       />
-      <Field label="VAT registration (TIN)">
+      <FormField label="VAT registration (TIN)" labelClassName="text-sm font-medium text-white/90">
         <input
           className={inputClass}
           value={vatRegistrationNumber}
           onChange={(e) => setVatRegistrationNumber(e.target.value)}
           placeholder="C000XXXXXXX"
         />
-      </Field>
-      <Field label="VAT display on invoices">
+      </FormField>
+      <FormField label="VAT display on invoices" labelClassName="text-sm font-medium text-white/90">
         <select
           className={cn(inputClass, 'cursor-pointer')}
           value={vatMode}
@@ -556,7 +557,7 @@ function ComplianceStep({
             Inclusive — tax included in room rate
           </option>
         </select>
-      </Field>
+      </FormField>
       <StepActions pending={pending} onBack={onBack}>
         <PrimaryButton type="submit" pending={pending}>
           Save & continue
@@ -590,7 +591,7 @@ function TeamStep({
         title="Invite your manager"
         description="Managers run daily ops — reservations, housekeeping, and complaints. They won't see revenue or billing."
       />
-      <Field label="Manager email (optional)">
+      <FormField label="Manager email (optional)" labelClassName="text-sm font-medium text-white/90">
         <input
           className={inputClass}
           type="email"
@@ -598,7 +599,7 @@ function TeamStep({
           onChange={(e) => setEmail(e.target.value)}
           placeholder="manager@yourproperty.com"
         />
-      </Field>
+      </FormField>
       <StepActions pending={pending} onBack={onBack}>
         <PrimaryButton pending={pending || !email.trim()} onClick={() => onSubmit(email.trim())}>
           Send invite & continue
@@ -663,14 +664,5 @@ function StepHeader({
         <p className="mt-1 text-sm leading-relaxed text-white/65">{description}</p>
       </div>
     </div>
-  )
-}
-
-function Field({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <label className="block space-y-1.5">
-      <span className="text-sm font-medium text-white/90">{label}</span>
-      {children}
-    </label>
   )
 }

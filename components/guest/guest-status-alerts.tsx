@@ -84,7 +84,7 @@ export function GuestStatusAlerts({
             <Bell className="h-4 w-4" />
           </div>
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wide guest-text-subtle">Update</p>
+            <p className="text-xs font-semibold guest-text-subtle">Update</p>
             <p className="mt-0.5 text-sm font-semibold">{title}</p>
             <p className="mt-1 text-sm leading-relaxed guest-text-muted">{detail}</p>
           </div>

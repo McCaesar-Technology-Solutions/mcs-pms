@@ -78,7 +78,7 @@ export function ComplaintsSelectableList({
                 <p className="truncate text-sm text-muted-foreground">{c.description}</p>
               </div>
               <span
-                className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${statusBadge(c.status)}`}
+                className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${statusBadge(c.status)}`}
               >
                 {c.status?.replace('_', ' ')}
               </span>

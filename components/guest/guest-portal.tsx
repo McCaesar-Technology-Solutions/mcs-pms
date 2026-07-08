@@ -722,7 +722,7 @@ export function GuestPortal({
                     <span className="guest-text-muted">
                       {REQUEST_LABELS[req.requestType] ?? req.requestType.replace(/_/g, ' ')}
                     </span>
-                    <span className="text-xs font-semibold uppercase text-[var(--brand-purple)]">
+                    <span className="text-xs font-semibold text-[var(--brand-purple)]">
                       {req.status}
                     </span>
                   </div>

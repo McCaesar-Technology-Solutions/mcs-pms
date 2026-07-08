@@ -156,10 +156,19 @@ export function buildCommandItems(role?: Profile['role']): CommandItem[] {
       {
         id: 'action-guest-portal',
         label: 'Guest portal settings',
-        description: 'Requests, feedback, and portal copy',
+        description: 'Wi-Fi copy, rules, and request settings',
         href: '/manager/dashboard#guest-portal',
         kind: 'action',
-        keywords: ['guest', 'portal', 'requests', 'wifi'],
+        keywords: ['guest', 'portal', 'requests', 'wifi', 'settings'],
+        icon: Settings,
+      },
+      {
+        id: 'action-guest-links',
+        label: 'Guest portal links',
+        description: 'QR codes, PINs, and share links',
+        href: '/manager/guests',
+        kind: 'action',
+        keywords: ['guest', 'portal', 'qr', 'pin', 'whatsapp'],
         icon: Settings,
       },
       {

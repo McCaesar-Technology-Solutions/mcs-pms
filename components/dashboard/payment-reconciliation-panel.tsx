@@ -1,11 +1,17 @@
 'use client'
 
 import type { PaymentRecordRow, PaymentReconciliationSummary } from '@/lib/data/payments'
+import { formatGhs, MONEY_CLASS } from '@/lib/format/money'
 import { TablePagination } from '@/components/dashboard/table-pagination'
 import { usePagination } from '@/lib/hooks/use-pagination'
 
-function money(value: number) {
-  return `₵${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+function formatRowDate(completedAt: string | null) {
+  if (!completedAt) return '—'
+  return new Date(completedAt).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: '2-digit',
+  })
 }
 
 interface PaymentReconciliationPanelProps {
@@ -21,9 +27,9 @@ export function PaymentReconciliationPanel({ summary, records }: PaymentReconcil
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <StatTile label="Total collected" value={money(summary.totalCollected)} />
-        <StatTile label="Manual / front desk" value={money(summary.manualCollected)} />
-        <StatTile label="Outstanding AR" value={money(summary.pendingInvoiceBalance)} accent="amber" />
+        <StatTile label="Total collected" value={formatGhs(summary.totalCollected)} />
+        <StatTile label="Manual / front desk" value={formatGhs(summary.manualCollected)} />
+        <StatTile label="Outstanding AR" value={formatGhs(summary.pendingInvoiceBalance)} accent="amber" />
       </div>
 
       <div className="surface-card overflow-hidden">
@@ -37,7 +43,37 @@ export function PaymentReconciliationPanel({ summary, records }: PaymentReconcil
           <p className="px-6 py-8 text-sm text-muted-foreground">No payment records yet.</p>
         ) : (
           <>
-            <div className="data-table-wrap overflow-x-auto px-4 sm:px-6">
+            <div className="space-y-3 p-4 md:hidden">
+              {pagination.paginatedItems.map((row) => (
+                <div key={row.id} className="elevated-list-item p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-semibold text-foreground">{row.invoiceLabel ?? '—'}</p>
+                      <p className="mt-0.5 text-sm text-foreground">{row.guestName ?? '—'}</p>
+                      <p className="text-xs text-muted-foreground">{formatRowDate(row.completedAt)}</p>
+                    </div>
+                    <p
+                      className={`text-lg font-bold tabular-nums ${MONEY_CLASS} ${row.amount < 0 ? 'text-red-600' : 'text-foreground'}`}
+                    >
+                      {formatGhs(row.amount)}
+                    </p>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                    <span className="capitalize">{row.provider}</span>
+                    <span>·</span>
+                    <span className="capitalize">{row.status}</span>
+                    {row.providerReference && (
+                      <>
+                        <span>·</span>
+                        <span className="truncate">{row.providerReference}</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="hidden data-table-wrap overflow-x-auto px-4 sm:px-6 md:block">
               <table className="data-table w-full text-sm">
                 <thead>
                   <tr>
@@ -54,13 +90,7 @@ export function PaymentReconciliationPanel({ summary, records }: PaymentReconcil
                   {pagination.paginatedItems.map((row) => (
                     <tr key={row.id}>
                       <td className="whitespace-nowrap">
-                        {row.completedAt
-                          ? new Date(row.completedAt).toLocaleDateString('en-GB', {
-                              day: 'numeric',
-                              month: 'short',
-                              year: '2-digit',
-                            })
-                          : '—'}
+                        {formatRowDate(row.completedAt)}
                       </td>
                       <td className="font-medium">{row.invoiceLabel ?? '—'}</td>
                       <td>{row.guestName ?? '—'}</td>
@@ -69,9 +99,9 @@ export function PaymentReconciliationPanel({ summary, records }: PaymentReconcil
                         {row.providerReference ?? '—'}
                       </td>
                       <td
-                        className={`text-right font-semibold tabular-nums ${row.amount < 0 ? 'text-red-600' : ''}`}
+                        className={`text-right font-semibold tabular-nums ${MONEY_CLASS} ${row.amount < 0 ? 'text-red-600' : ''}`}
                       >
-                        {money(row.amount)}
+                        {formatGhs(row.amount)}
                       </td>
                       <td className="capitalize">{row.status}</td>
                     </tr>
@@ -112,8 +142,8 @@ function StatTile({
 
   return (
     <div className={`surface-card ${accentClass} p-5`}>
-      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
-      <p className="mt-2 text-2xl font-bold text-foreground">{value}</p>
+      <p className="text-xs font-medium text-muted-foreground">{label}</p>
+      <p className={`mt-2 text-2xl font-bold text-foreground ${MONEY_CLASS}`}>{value}</p>
     </div>
   )
 }

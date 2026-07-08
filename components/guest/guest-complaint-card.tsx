@@ -152,7 +152,7 @@ export function GuestComplaintCard({
 
       {activity.length > 0 && (
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-widest guest-text-subtle">
+          <p className="text-xs font-medium guest-text-subtle">
             Recent updates
           </p>
           <ul className="mt-2 space-y-2">

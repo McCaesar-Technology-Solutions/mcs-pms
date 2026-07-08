@@ -67,7 +67,7 @@ export function GuestContextRail({ context, reservationsHref }: GuestContextRail
           <div className="staff-messenger__context-row">
             <CalendarDays className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Stay</p>
+              <p className="text-xs font-medium text-muted-foreground">Stay</p>
               <p className="text-sm text-foreground">
                 {formatDate(context.checkInDate) ?? 'TBD'} - {formatDate(context.checkOutDate) ?? 'TBD'}
               </p>
@@ -86,7 +86,7 @@ export function GuestContextRail({ context, reservationsHref }: GuestContextRail
           <div className="staff-messenger__context-row">
             <CreditCard className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Payment</p>
+              <p className="text-xs font-medium text-muted-foreground">Payment</p>
               <p className="text-sm capitalize text-foreground">{statusLabel(context.paymentStatus)}</p>
             </div>
           </div>

@@ -215,7 +215,7 @@ export function StaffComplaintMessageThread({
                 {guestDoNotDisturb && <GuestDndBadge compact />}
               </p>
               {roomNumber && (
-                <span className="rounded-md bg-[#3C216C]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#3C216C]">
+                <span className="rounded-md bg-[#3C216C]/10 px-2 py-0.5 text-xs font-semibold text-[#3C216C]">
                   Room {roomNumber}
                 </span>
               )}
@@ -274,7 +274,7 @@ export function StaffComplaintMessageThread({
               <div key={m.id}>
                 {showDay && (
                   <div className="mb-3 flex justify-center">
-                    <span className="rounded-full bg-muted px-3 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    <span className="rounded-full bg-muted px-3 py-0.5 text-xs font-semibold text-muted-foreground">
                       {dayLabel(m.createdAt)}
                     </span>
                   </div>
@@ -295,7 +295,7 @@ export function StaffComplaintMessageThread({
                     } ${isPending ? 'opacity-70' : ''}`}
                   >
                     <p
-                      className={`text-[10px] font-bold uppercase tracking-wide ${
+                      className={`text-xs font-semibold ${
                         isStaff ? 'text-white/65' : 'text-muted-foreground'
                       }`}
                     >

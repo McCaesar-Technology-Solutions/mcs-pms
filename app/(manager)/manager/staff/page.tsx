@@ -1,5 +1,6 @@
 import { PageHeader } from '@/components/dashboard/page-header'
 import { StaffManager } from '@/components/dashboard/staff-manager'
+import { AppearanceSettingsCard } from '@/components/dashboard/appearance-settings-card'
 import { getStaffData } from '@/lib/data/staff'
 
 export default async function ManagerStaffPage() {
@@ -12,6 +13,7 @@ export default async function ManagerStaffPage() {
         title="Team"
         description="Invite technicians and manage their access."
       />
+      <AppearanceSettingsCard />
       {profile ? (
         <StaffManager currentProfile={profile} staff={staff} invites={invites} />
       ) : (

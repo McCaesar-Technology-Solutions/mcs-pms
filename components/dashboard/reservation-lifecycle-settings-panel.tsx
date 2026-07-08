@@ -5,6 +5,7 @@ import { CalendarClock } from 'lucide-react'
 import { updateReservationLifecycleSettings } from '@/app/actions/settings'
 import type { HotelSettings } from '@/lib/data/settings'
 import type { NoShowChargePolicy } from '@/types'
+import { FormField } from '@/components/ui/form-field'
 
 interface ReservationLifecycleSettingsPanelProps {
   hotelSettings: HotelSettings
@@ -119,7 +120,7 @@ export function ReservationLifecycleSettingsPanel({
             </p>
           </div>
           <div className="grid gap-4 sm:grid-cols-3">
-            <Field label="Online booking" hint="Minutes">
+            <FormField label="Online booking" hint="Minutes">
               <input
                 type="number"
                 min={5}
@@ -127,8 +128,8 @@ export function ReservationLifecycleSettingsPanel({
                 onChange={(e) => setHoldOnline(e.target.value)}
                 className="input-soft"
               />
-            </Field>
-            <Field label="Phone booking" hint="Minutes">
+            </FormField>
+            <FormField label="Phone booking" hint="Minutes">
               <input
                 type="number"
                 min={15}
@@ -136,8 +137,8 @@ export function ReservationLifecycleSettingsPanel({
                 onChange={(e) => setHoldPhone(e.target.value)}
                 className="input-soft"
               />
-            </Field>
-            <Field label="Agent / walk-in" hint="Minutes">
+            </FormField>
+            <FormField label="Agent / walk-in" hint="Minutes">
               <input
                 type="number"
                 min={60}
@@ -145,7 +146,7 @@ export function ReservationLifecycleSettingsPanel({
                 onChange={(e) => setHoldAgent(e.target.value)}
                 className="input-soft"
               />
-            </Field>
+            </FormField>
           </div>
         </section>
 
@@ -157,7 +158,7 @@ export function ReservationLifecycleSettingsPanel({
             </p>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="No-show cutoff time" hint="e.g. 23:59 or 11:00 PM">
+            <FormField label="No-show cutoff time" hint="e.g. 23:59 or 11:00 PM">
               <input
                 type="text"
                 value={noShowTime}
@@ -165,8 +166,8 @@ export function ReservationLifecycleSettingsPanel({
                 placeholder="23:59"
                 className="input-soft"
               />
-            </Field>
-            <Field label="Archive delay" hint="Days after checkout before archiving">
+            </FormField>
+            <FormField label="Archive delay" hint="Days after checkout before archiving">
               <input
                 type="number"
                 min={1}
@@ -174,7 +175,7 @@ export function ReservationLifecycleSettingsPanel({
                 onChange={(e) => setArchiveDays(e.target.value)}
                 className="input-soft"
               />
-            </Field>
+            </FormField>
           </div>
 
           <div>
@@ -232,23 +233,5 @@ export function ReservationLifecycleSettingsPanel({
         </div>
       </form>
     </div>
-  )
-}
-
-function Field({
-  label,
-  hint,
-  children,
-}: {
-  label: string
-  hint?: string
-  children: React.ReactNode
-}) {
-  return (
-    <label className="block">
-      <span className="text-sm font-semibold text-foreground">{label}</span>
-      {hint && <span className="mt-0.5 block text-xs text-muted-foreground">{hint}</span>}
-      <div className="mt-2">{children}</div>
-    </label>
   )
 }

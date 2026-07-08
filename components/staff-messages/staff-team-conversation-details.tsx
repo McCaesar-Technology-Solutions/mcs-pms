@@ -103,7 +103,7 @@ export function StaffTeamConversationDetails({
       <div className="staff-messenger__details-panel">
         <header className="staff-messenger__details-header">
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <p className="text-xs font-medium text-muted-foreground">
               {isGroup ? 'Group chat' : 'Direct message'}
             </p>
             <h2 className="truncate text-base font-semibold text-foreground">
