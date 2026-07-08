@@ -103,21 +103,24 @@ export function GuestRequestsPanel({
   function scheduleCleaning(id: string) {
     startTransition(async () => {
       const result = await scheduleGuestHousekeepingRequest(id)
-      if (result.success && result.data) {
+      if (!result.success) {
+        toast.error(result.error ?? 'Could not schedule cleaning.')
+        return
+      }
+      const taskId = result.data?.taskId
+      if (taskId) {
         setRequests((prev) =>
           prev.map((r) =>
             r.id === id
               ? {
                   ...r,
-                  housekeepingTaskId: result.data!.taskId,
+                  housekeepingTaskId: taskId,
                   housekeepingTaskStatus: 'todo',
                 }
               : r,
           ),
         )
         toast.success('Cleaning task scheduled.')
-      } else {
-        toast.error(result.error ?? 'Could not schedule cleaning.')
       }
     })
   }
