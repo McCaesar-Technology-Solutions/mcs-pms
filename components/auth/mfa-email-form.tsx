@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -23,6 +23,8 @@ export function MfaEmailForm({ nextPath, mode }: MfaEmailFormProps) {
   const [loading, setLoading] = useState(false)
   const [sending, setSending] = useState(false)
   const [bootstrapping, setBootstrapping] = useState(true)
+  const verifyInFlight = useRef(false)
+  const codeInputRef = useRef<HTMLInputElement>(null)
 
   const deliverCode = useCallback(async () => {
     setSending(true)
@@ -41,7 +43,7 @@ export function MfaEmailForm({ nextPath, mode }: MfaEmailFormProps) {
   }, [])
 
   useEffect(() => {
-    const cancelled = false
+    let cancelled = false
 
     async function init() {
       try {
@@ -68,12 +70,15 @@ export function MfaEmailForm({ nextPath, mode }: MfaEmailFormProps) {
         }
 
         setMaskedEmail(masked)
-        setBootstrapping(false)
 
         if (mode === 'verify' || hasEmail) {
           if (!sessionVerified) {
             await deliverCode()
           }
+        }
+
+        if (!cancelled) {
+          setBootstrapping(false)
         }
       } catch (err) {
         if (!cancelled) {
@@ -85,28 +90,55 @@ export function MfaEmailForm({ nextPath, mode }: MfaEmailFormProps) {
       }
     }
 
-    init()
+    void init()
+
+    return () => {
+      cancelled = true
+    }
   }, [mode, deliverCode, destination, router])
 
   async function handleResend() {
     await deliverCode()
   }
 
-  async function handleVerify(e: React.FormEvent) {
-    e.preventDefault()
-    setLoading(true)
-    setError(null)
+  const submitVerification = useCallback(
+    async (rawCode: string) => {
+      const trimmed = rawCode.replace(/\D/g, '').slice(0, 6)
+      if (trimmed.length !== 6 || verifyInFlight.current) return
 
-    const result = await verifyMfaEmailCode(code, destination)
-    setLoading(false)
+      verifyInFlight.current = true
+      setLoading(true)
+      setError(null)
 
-    if (!result.success) {
-      setError(result.error)
-      return
+      try {
+        const result = await verifyMfaEmailCode(trimmed, destination)
+        if (!result.success) {
+          setError(result.error)
+          return
+        }
+
+        window.location.assign(result.data?.redirectTo ?? destination)
+      } finally {
+        verifyInFlight.current = false
+        setLoading(false)
+      }
+    },
+    [destination],
+  )
+
+  function syncCodeFromInput(next: string) {
+    const trimmed = next.replace(/\D/g, '').slice(0, 6)
+    setCode(trimmed)
+    if (trimmed.length === 6) {
+      void submitVerification(trimmed)
     }
+    return trimmed
+  }
 
-    router.push(result.data?.redirectTo ?? destination)
-    router.refresh()
+  async function handleVerify(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    const inputValue = codeInputRef.current?.value ?? code
+    await submitVerification(inputValue)
   }
 
   if (bootstrapping) {
@@ -133,11 +165,18 @@ export function MfaEmailForm({ nextPath, mode }: MfaEmailFormProps) {
           Verification code
         </Label>
         <Input
+          ref={codeInputRef}
           id="mfa-email-code"
+          name="code"
           inputMode="numeric"
           autoComplete="one-time-code"
           value={code}
-          onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+          onChange={(e) => {
+            syncCodeFromInput(e.target.value)
+          }}
+          onInput={(e) => {
+            syncCodeFromInput(e.currentTarget.value)
+          }}
           placeholder="000000"
           required
           minLength={6}
@@ -155,7 +194,7 @@ export function MfaEmailForm({ nextPath, mode }: MfaEmailFormProps) {
 
       <Button
         type="submit"
-        disabled={loading || code.length !== 6}
+        disabled={loading || sending}
         className="auth-submit-btn"
       >
         {loading ? 'Verifying…' : 'Verify and continue'}

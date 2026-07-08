@@ -25,6 +25,15 @@ describe('content security policy', () => {
     process.env.CSP_REPORT_ONLY = prev
   })
 
+  it('allows unsafe-eval only outside production', () => {
+    const prev = process.env.NODE_ENV
+    process.env.NODE_ENV = 'production'
+    expect(buildContentSecurityPolicy()).not.toContain("'unsafe-eval'")
+    process.env.NODE_ENV = 'development'
+    expect(buildContentSecurityPolicy()).toContain("'unsafe-eval'")
+    process.env.NODE_ENV = prev
+  })
+
   it('returns security headers bundle with CSP', () => {
     const names = getSecurityHeaders().map((h) => h.key.toLowerCase())
     expect(names).toContain('content-security-policy')

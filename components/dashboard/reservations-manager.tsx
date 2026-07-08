@@ -25,6 +25,7 @@ import {
 } from '@/app/actions/stays'
 import { GuestSearchField } from '@/components/dashboard/guest-search-field'
 import { APP_FIELD_CLASS, FormField } from '@/components/ui/form-field'
+import { formatGhs, MONEY_CLASS } from '@/lib/format/money'
 import { GuestDndBadge } from '@/components/ui/guest-dnd-badge'
 import { PortalLinkPanel } from '@/components/dashboard/portal-link-panel'
 import { ReservationsBulkBar } from '@/components/dashboard/reservations-bulk-bar'
@@ -423,7 +424,7 @@ export function ReservationsManager({
                       {formatPaymentStatus(res.paymentStatus)}
                     </span>
                   </div>
-                  <span className={`font-semibold tabular-nums text-foreground ${MONEY_CLASS}`}>₵{res.totalPrice}</span>
+                  <span className={`font-semibold text-foreground ${MONEY_CLASS}`}>{formatGhs(res.totalPrice)}</span>
                 </div>
                 </button>
               </div>

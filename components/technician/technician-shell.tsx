@@ -23,9 +23,6 @@ import { hasPhoneNumber } from '@/lib/phone'
 import type { StaffContact } from '@/lib/data/contacts'
 import type { Profile } from '@/types'
 import type { ReactNode } from 'react'
-import { StaffThemeInitScript } from '@/components/providers/staff-theme-init-script'
-import { StaffThemeProvider } from '@/components/providers/staff-theme-provider'
-import { StaffThemeToggle } from '@/components/dashboard/staff-theme-toggle'
 
 interface TechnicianShellProps {
   profile: Profile
@@ -51,8 +48,6 @@ export function TechnicianShell({
   const unreadMessages = useMessagesNavBadge('/technician/messages')
 
   return (
-    <StaffThemeProvider>
-    <StaffThemeInitScript />
     <TechnicianRealtime userId={profile.id}>
     <CommandPaletteProvider profile={profile}>
     <div className="technician-portal-shell technician-portal-shell--with-nav">
@@ -84,7 +79,6 @@ export function TechnicianShell({
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <StaffThemeToggle className="technician-portal-icon-btn" />
             <TechnicianSearchButton />
             <Link
               href="/technician/messages"
@@ -174,6 +168,5 @@ export function TechnicianShell({
     </div>
     </CommandPaletteProvider>
     </TechnicianRealtime>
-    </StaffThemeProvider>
   )
 }

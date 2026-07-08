@@ -20,7 +20,6 @@ import { signOut } from '@/app/actions/auth'
 import { getDashboardPrimaryAction } from '@/lib/dashboard/primary-actions'
 import { hasPhoneNumber } from '@/lib/phone'
 import type { Profile } from '@/types'
-import { StaffThemeToggle } from '@/components/dashboard/staff-theme-toggle'
 
 interface TopbarProps {
   onMenuOpen?: () => void
@@ -110,8 +109,6 @@ export default function Topbar({ onMenuOpen, profile }: TopbarProps) {
                 Add phone
               </button>
             )}
-
-            <StaffThemeToggle />
 
             <NotificationsMenu profile={profile} />
 

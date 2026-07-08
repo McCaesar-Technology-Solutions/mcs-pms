@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { MessageSquare, Smartphone } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -37,6 +37,8 @@ export function MfaSmsForm({ nextPath, mode }: MfaSmsFormProps) {
   const [loading, setLoading] = useState(false)
   const [sending, setSending] = useState(false)
   const [bootstrapping, setBootstrapping] = useState(true)
+  const verifyInFlight = useRef(false)
+  const codeInputRef = useRef<HTMLInputElement>(null)
 
   const deliverCode = useCallback(
     async (channel: MfaPhoneChannel, send: () => Promise<{ success: boolean; error?: string; data?: { maskedPhone: string; devCode?: string; deliveryChannel?: MfaPhoneChannel } }>) => {
@@ -68,7 +70,7 @@ export function MfaSmsForm({ nextPath, mode }: MfaSmsFormProps) {
   )
 
   useEffect(() => {
-    const cancelled = false
+    let cancelled = false
 
     async function init() {
       try {
@@ -99,10 +101,13 @@ export function MfaSmsForm({ nextPath, mode }: MfaSmsFormProps) {
 
         setNeedsPhone(false)
         setMaskedPhone(masked)
-        setBootstrapping(false)
 
         if ((mode === 'verify' || hasPhone) && !sessionVerified && channels.length === 1) {
           await deliverCode(channels[0]!, () => sendMfaSmsCode(channels[0]))
+        }
+
+        if (!cancelled) {
+          setBootstrapping(false)
         }
       } catch (err) {
         if (!cancelled) {
@@ -114,7 +119,11 @@ export function MfaSmsForm({ nextPath, mode }: MfaSmsFormProps) {
       }
     }
 
-    init()
+    void init()
+
+    return () => {
+      cancelled = true
+    }
   }, [mode, deliverCode, destination, router])
 
   async function handleSavePhone(e: React.FormEvent) {
@@ -151,21 +160,44 @@ export function MfaSmsForm({ nextPath, mode }: MfaSmsFormProps) {
     await sendViaChannel(channel)
   }
 
-  async function handleVerify(e: React.FormEvent) {
-    e.preventDefault()
-    setLoading(true)
-    setError(null)
+  const submitVerification = useCallback(
+    async (rawCode: string) => {
+      const trimmed = rawCode.replace(/\D/g, '').slice(0, 6)
+      if (trimmed.length !== 6 || verifyInFlight.current) return
 
-    const result = await verifyMfaSmsCode(code, destination)
-    setLoading(false)
+      verifyInFlight.current = true
+      setLoading(true)
+      setError(null)
 
-    if (!result.success) {
-      setError(result.error)
-      return
+      try {
+        const result = await verifyMfaSmsCode(trimmed, destination)
+        if (!result.success) {
+          setError(result.error)
+          return
+        }
+
+        window.location.assign(result.data?.redirectTo ?? destination)
+      } finally {
+        verifyInFlight.current = false
+        setLoading(false)
+      }
+    },
+    [destination],
+  )
+
+  function syncCodeFromInput(next: string) {
+    const trimmed = next.replace(/\D/g, '').slice(0, 6)
+    setCode(trimmed)
+    if (trimmed.length === 6) {
+      void submitVerification(trimmed)
     }
+    return trimmed
+  }
 
-    router.push(result.data?.redirectTo ?? destination)
-    router.refresh()
+  async function handleVerify(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    const inputValue = codeInputRef.current?.value ?? code
+    await submitVerification(inputValue)
   }
 
   const alternateChannel = phoneChannels.find((c) => c !== deliveryChannel)
@@ -277,11 +309,18 @@ export function MfaSmsForm({ nextPath, mode }: MfaSmsFormProps) {
           Verification code
         </Label>
         <Input
+          ref={codeInputRef}
           id="mfa-sms-code"
+          name="code"
           inputMode="numeric"
           autoComplete="one-time-code"
           value={code}
-          onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+          onChange={(e) => {
+            syncCodeFromInput(e.target.value)
+          }}
+          onInput={(e) => {
+            syncCodeFromInput(e.currentTarget.value)
+          }}
           placeholder="000000"
           required
           minLength={6}
@@ -299,7 +338,7 @@ export function MfaSmsForm({ nextPath, mode }: MfaSmsFormProps) {
 
       <Button
         type="submit"
-        disabled={loading || code.length !== 6}
+        disabled={loading || sending}
         className="auth-submit-btn"
       >
         {loading ? 'Verifying…' : 'Verify and continue'}
