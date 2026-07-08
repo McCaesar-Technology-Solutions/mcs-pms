@@ -42,6 +42,7 @@ import {
   canCheckIn,
   canCancelReservationStatus,
   canUpdateReservationFields,
+  reservationStatusLabel,
 } from '@/lib/reservations/lifecycle'
 import type { RoomOption } from '@/lib/data/dashboard'
 import type { OccupancySpan } from '@/lib/data/occupancy'
@@ -82,7 +83,7 @@ const CHANNEL_LABELS: Record<ReservationChannel, string> = {
 }
 
 function formatStatus(status: string) {
-  return status.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+  return reservationStatusLabel(status)
 }
 
 function statusBadge(status: string) {

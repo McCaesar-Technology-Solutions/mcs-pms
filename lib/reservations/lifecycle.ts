@@ -116,6 +116,14 @@ export function canCancelReservationStatus(status: string | null | undefined): b
   )
 }
 
+export function reservationStatusLabel(status: string | null | undefined): string {
+  if (status === 'checked_in') return 'In house'
+  if (status === 'checkout_in_progress') return 'Checking out'
+  if (status === 'overstay') return 'Overstay'
+  if (!status) return ''
+  return status.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
 export function canUpdateReservationFields(status: string | null | undefined): boolean {
   return EDITABLE_STATUSES.includes(status as ReservationStatus)
 }

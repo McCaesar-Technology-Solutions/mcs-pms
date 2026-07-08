@@ -5,7 +5,10 @@ import Link from 'next/link'
 import { Bell } from 'lucide-react'
 import { GuestDndBadge } from '@/components/ui/guest-dnd-badge'
 import { toast } from 'sonner'
-import { updateGuestRequestStatus } from '@/app/actions/guest-portal-staff'
+import {
+  scheduleGuestHousekeepingRequest,
+  updateGuestRequestStatus,
+} from '@/app/actions/guest-portal-staff'
 
 export interface GuestRequestRow {
   id: string
@@ -19,6 +22,8 @@ export interface GuestRequestRow {
   roomNumber: string | null
   doNotDisturb: boolean
   reservationId: string | null
+  housekeepingTaskId?: string | null
+  housekeepingTaskStatus?: string | null
 }
 
 const REQUEST_LABELS: Record<string, string> = {
@@ -28,10 +33,17 @@ const REQUEST_LABELS: Record<string, string> = {
   self_checkout: 'Self check-out',
 }
 
+const HOUSEKEEPING_TASK_LABELS: Record<string, string> = {
+  todo: 'Cleaning scheduled',
+  in_progress: 'Cleaning in progress',
+  done: 'Cleaning complete',
+}
+
 interface GuestRequestsPanelProps {
   hotelId: string
   initialRequests?: GuestRequestRow[]
   reservationsHrefBase?: string
+  housekeepingHrefBase?: string | null
 }
 
 function formatRequestedDate(date: string) {
@@ -42,9 +54,20 @@ function formatRequestedDate(date: string) {
   })
 }
 
+function isEditableRequestStatus(status: string) {
+  return status === 'pending' || status === 'acknowledged'
+}
+
+function statusActions(status: string): Array<'acknowledged' | 'completed' | 'declined'> {
+  if (status === 'pending') return ['acknowledged', 'completed', 'declined']
+  if (status === 'acknowledged') return ['completed', 'declined']
+  return []
+}
+
 export function GuestRequestsPanel({
   initialRequests = [],
   reservationsHrefBase = '/manager/reservations',
+  housekeepingHrefBase = '/manager/housekeeping',
 }: GuestRequestsPanelProps) {
   const [requests, setRequests] = useState(initialRequests)
   const [pending, startTransition] = useTransition()
@@ -58,11 +81,43 @@ export function GuestRequestsPanel({
       const result = await updateGuestRequestStatus(id, status)
       if (result.success) {
         setRequests((prev) =>
-          prev.map((r) => (r.id === id ? { ...r, status } : r)),
+          prev.map((r) => {
+            if (r.id !== id) return r
+            const taskId = result.data?.housekeepingTaskId ?? r.housekeepingTaskId ?? null
+            return {
+              ...r,
+              status,
+              housekeepingTaskId: taskId,
+              housekeepingTaskStatus:
+                taskId && !r.housekeepingTaskStatus ? 'todo' : r.housekeepingTaskStatus,
+            }
+          }),
         )
         toast.success(`Request marked as ${status}.`)
       } else {
         toast.error(result.error ?? 'Could not update request.')
+      }
+    })
+  }
+
+  function scheduleCleaning(id: string) {
+    startTransition(async () => {
+      const result = await scheduleGuestHousekeepingRequest(id)
+      if (result.success && result.data) {
+        setRequests((prev) =>
+          prev.map((r) =>
+            r.id === id
+              ? {
+                  ...r,
+                  housekeepingTaskId: result.data!.taskId,
+                  housekeepingTaskStatus: 'todo',
+                }
+              : r,
+          ),
+        )
+        toast.success('Cleaning task scheduled.')
+      } else {
+        toast.error(result.error ?? 'Could not schedule cleaning.')
       }
     })
   }
@@ -129,8 +184,14 @@ export function GuestRequestsPanel({
                     Requested checkout time: {req.requestedTime}
                   </p>
                 )}
+                {req.requestType === 'housekeeping' && req.housekeepingTaskStatus && (
+                  <p className="mt-1 text-xs font-medium text-foreground">
+                    {HOUSEKEEPING_TASK_LABELS[req.housekeepingTaskStatus] ??
+                      `Task · ${req.housekeepingTaskStatus.replace(/_/g, ' ')}`}
+                  </p>
+                )}
               </div>
-              {req.status === 'pending' ? (
+              {isEditableRequestStatus(req.status) ? (
                 <div className="flex flex-wrap gap-1.5">
                   {req.requestType === 'extension' && req.reservationId && req.requestedDate && (
                     <Link
@@ -140,7 +201,27 @@ export function GuestRequestsPanel({
                       Extend stay
                     </Link>
                   )}
-                  {(['acknowledged', 'completed', 'declined'] as const).map((status) => (
+                  {req.requestType === 'housekeeping' &&
+                    housekeepingHrefBase &&
+                    req.housekeepingTaskId && (
+                      <Link
+                        href={`${housekeepingHrefBase}?task=${encodeURIComponent(req.housekeepingTaskId)}&guestRequest=${encodeURIComponent(req.id)}`}
+                        className="rounded-lg bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary hover:bg-primary/15"
+                      >
+                        View task
+                      </Link>
+                    )}
+                  {req.requestType === 'housekeeping' && !req.housekeepingTaskId && (
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() => scheduleCleaning(req.id)}
+                      className="rounded-lg bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary hover:bg-primary/15 disabled:opacity-50"
+                    >
+                      Schedule cleaning
+                    </button>
+                  )}
+                  {statusActions(req.status).map((status) => (
                     <button
                       key={status}
                       type="button"

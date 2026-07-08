@@ -14,6 +14,8 @@ export type GuestPortalStaffResult<T = void> =
   | { success: true; data?: T }
   | { success: false; error: string }
 
+export type GuestRequestStatusResult = { housekeepingTaskId?: string }
+
 async function requirePortalEditor(hotelId: string) {
   const result = await requireVerifiedStaff({ roles: ['owner', 'manager'] })
   if (!result.ok) return { ok: false as const, error: consumeStaffAuthError(result.error) }
@@ -263,7 +265,7 @@ const requestStatusSchema = z.enum(['acknowledged', 'completed', 'declined'])
 export async function updateGuestRequestStatus(
   requestId: string,
   status: z.infer<typeof requestStatusSchema>,
-): Promise<GuestPortalStaffResult> {
+): Promise<GuestPortalStaffResult<GuestRequestStatusResult>> {
   const auth = await requireVerifiedStaff({ roles: ['owner', 'manager', 'receptionist'] })
   if (!auth.ok) return { success: false, error: consumeStaffAuthError(auth.error) }
 
@@ -282,12 +284,21 @@ export async function updateGuestRequestStatus(
     .maybeSingle()
 
   if (!request) return { success: false, error: 'Request not found.' }
+  if (request.status === 'completed' || request.status === 'declined') {
+    return { success: false, error: 'This request is already closed.' }
+  }
   if (request.status !== 'pending' && parsed.data === 'acknowledged') {
     return { success: false, error: 'Request is no longer pending.' }
   }
 
-  if (parsed.data === 'acknowledged' && request.request_type === 'housekeeping' && request.room_id) {
-    await createGuestHousekeepingTask(admin, {
+  let housekeepingTaskId: string | undefined
+  if (
+    parsed.data === 'acknowledged' &&
+    request.status === 'pending' &&
+    request.request_type === 'housekeeping' &&
+    request.room_id
+  ) {
+    const scheduled = await createGuestHousekeepingTask(admin, {
       hotelId: profile.hotel_id,
       roomId: request.room_id,
       guestId: request.guest_id,
@@ -295,6 +306,10 @@ export async function updateGuestRequestStatus(
       createdBy: userId,
       guestRequestId: request.id,
     })
+    if (!scheduled.taskId) {
+      return { success: false, error: 'Could not schedule housekeeping for this room.' }
+    }
+    housekeepingTaskId = scheduled.taskId
   }
 
   let fulfillmentDetail: string | undefined
@@ -332,11 +347,65 @@ export async function updateGuestRequestStatus(
   void notifyRequestStatus(requestId, parsed.data, fulfillmentDetail)
 
   revalidatePath('/manager/dashboard')
+  revalidatePath('/receptionist/dashboard')
   revalidatePath('/manager/housekeeping')
   revalidatePath('/owner/housekeeping')
   revalidatePath('/technician/tasks')
   revalidatePath('/guest')
-  return { success: true }
+  return {
+    success: true,
+    data: housekeepingTaskId ? { housekeepingTaskId } : undefined,
+  }
+}
+
+export async function scheduleGuestHousekeepingRequest(
+  requestId: string,
+): Promise<GuestPortalStaffResult<{ taskId: string }>> {
+  const auth = await requireVerifiedStaff({ roles: ['owner', 'manager', 'receptionist'] })
+  if (!auth.ok) return { success: false, error: consumeStaffAuthError(auth.error) }
+
+  const { profile, userId } = auth
+  if (!profile.hotel_id) return { success: false, error: 'Not authorized.' }
+
+  const admin = createAdminClient()
+  const { data: request } = await admin
+    .from('guest_requests')
+    .select('id, hotel_id, guest_id, room_id, request_type, note, status')
+    .eq('id', requestId)
+    .eq('hotel_id', profile.hotel_id)
+    .maybeSingle()
+
+  if (!request) return { success: false, error: 'Request not found.' }
+  if (request.request_type !== 'housekeeping') {
+    return { success: false, error: 'This action only applies to housekeeping requests.' }
+  }
+  if (request.status === 'completed' || request.status === 'declined') {
+    return { success: false, error: 'This request is already closed.' }
+  }
+  if (!request.room_id) {
+    return { success: false, error: 'No room linked to this request.' }
+  }
+
+  const scheduled = await createGuestHousekeepingTask(admin, {
+    hotelId: profile.hotel_id,
+    roomId: request.room_id,
+    guestId: request.guest_id,
+    note: request.note,
+    createdBy: userId,
+    guestRequestId: request.id,
+  })
+
+  if (!scheduled.taskId) {
+    return { success: false, error: 'Could not schedule housekeeping for this room.' }
+  }
+
+  revalidatePath('/manager/dashboard')
+  revalidatePath('/receptionist/dashboard')
+  revalidatePath('/manager/housekeeping')
+  revalidatePath('/owner/housekeeping')
+  revalidatePath('/technician/tasks')
+
+  return { success: true, data: { taskId: scheduled.taskId } }
 }
 
 export async function getStaffComplaintPhotoUrl(

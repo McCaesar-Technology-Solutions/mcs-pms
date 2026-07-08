@@ -2,6 +2,55 @@ import type { createAdminClient } from '@/lib/supabase/admin'
 
 type AdminClient = ReturnType<typeof createAdminClient>
 
+export function guestRequestTaskMarker(guestRequestId: string): string {
+  return `[guest-request:${guestRequestId}]`
+}
+
+export function parseGuestRequestIdFromNotes(notes: string | null | undefined): string | null {
+  const match = notes?.match(/\[guest-request:([^\]]+)\]/)
+  return match?.[1] ?? null
+}
+
+export type GuestRequestHousekeepingTask = { id: string; status: string }
+
+export async function findGuestHousekeepingTask(
+  admin: AdminClient,
+  hotelId: string,
+  guestRequestId: string,
+): Promise<GuestRequestHousekeepingTask | null> {
+  const marker = guestRequestTaskMarker(guestRequestId)
+  const { data } = await admin
+    .from('housekeeping_tasks')
+    .select('id, status')
+    .eq('hotel_id', hotelId)
+    .ilike('notes', `%${marker}%`)
+    .order('created_at', { ascending: false })
+    .limit(1)
+
+  return data?.[0] ?? null
+}
+
+/** Map guest request id → linked housekeeping task for a property. */
+export async function loadGuestRequestHousekeepingTasks(
+  admin: AdminClient,
+  hotelId: string,
+): Promise<Map<string, GuestRequestHousekeepingTask>> {
+  const { data } = await admin
+    .from('housekeeping_tasks')
+    .select('id, status, notes, created_at')
+    .eq('hotel_id', hotelId)
+    .ilike('notes', '%[guest-request:%')
+    .order('created_at', { ascending: false })
+
+  const map = new Map<string, GuestRequestHousekeepingTask>()
+  for (const task of data ?? []) {
+    const requestId = parseGuestRequestIdFromNotes(task.notes)
+    if (!requestId || map.has(requestId)) continue
+    map.set(requestId, { id: task.id, status: task.status })
+  }
+  return map
+}
+
 /** Create a housekeeping task from a guest portal request (idempotent per request). */
 export async function createGuestHousekeepingTask(
   admin: AdminClient,
@@ -15,17 +64,9 @@ export async function createGuestHousekeepingTask(
   },
 ): Promise<{ created: boolean; taskId?: string }> {
   if (input.guestRequestId) {
-    const marker = `[guest-request:${input.guestRequestId}]`
-    const { data: existing } = await admin
-      .from('housekeeping_tasks')
-      .select('id')
-      .eq('hotel_id', input.hotelId)
-      .eq('room_id', input.roomId)
-      .ilike('notes', `%${marker}%`)
-      .limit(1)
-
-    if (existing && existing.length > 0) {
-      return { created: false, taskId: existing[0].id }
+    const existing = await findGuestHousekeepingTask(admin, input.hotelId, input.guestRequestId)
+    if (existing) {
+      return { created: false, taskId: existing.id }
     }
   }
 
@@ -38,7 +79,7 @@ export async function createGuestHousekeepingTask(
   const noteParts = [
     input.note?.trim(),
     guest?.do_not_disturb ? 'Guest has Do Not Disturb on — call before entering.' : null,
-    input.guestRequestId ? `[guest-request:${input.guestRequestId}]` : null,
+    input.guestRequestId ? guestRequestTaskMarker(input.guestRequestId) : null,
   ].filter(Boolean)
 
   const { data: inserted, error } = await admin

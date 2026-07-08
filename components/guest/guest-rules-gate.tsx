@@ -55,14 +55,16 @@ export function GuestRulesGate({ hotelName, rules, mode, slug }: GuestRulesGateP
           </p>
         </div>
 
-        <ol className="guest-portal-card max-h-[50dvh] space-y-3 overflow-y-auto">
-          {rules.map((rule, index) => (
-            <li key={rule.id} className="flex gap-3 text-sm leading-relaxed">
-              <span className="shrink-0 font-semibold text-[var(--brand-gold-dark)]">{index + 1}.</span>
-              <span>{rule.ruleText}</span>
-            </li>
-          ))}
-        </ol>
+        <div className="guest-portal-card guest-rules-scroll" role="region" aria-label="House rules">
+          <ol className="space-y-3">
+            {rules.map((rule, index) => (
+              <li key={rule.id} className="flex gap-3 text-sm leading-relaxed">
+                <span className="shrink-0 font-semibold text-[var(--brand-gold-dark)]">{index + 1}.</span>
+                <span>{rule.ruleText}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
 
         <label className="guest-portal-card flex cursor-pointer items-start gap-3">
           <input

@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { isPendingCompletion, needsGuestCompletionApproval } from '@/lib/complaints/workflow'
 import { loadGuestConversations } from '@/lib/data/guest-conversations'
+import { loadGuestRequestHousekeepingTasks } from '@/lib/housekeeping/guest-task'
 import type { Complaint } from '@/types'
 
 export type OpsInboxKind =
@@ -115,6 +116,7 @@ export async function loadOpsInbox(hotelId: string, limit = 12): Promise<OpsInbo
     ),
   )
   const requestReservationIds = new Map<string, string>()
+  const housekeepingTasks = await loadGuestRequestHousekeepingTasks(admin, hotelId)
   if (requestGuestIds.length > 0) {
     const { data: activeReservations } = await admin
       .from('reservations')
@@ -133,10 +135,15 @@ export async function loadOpsInbox(hotelId: string, limit = 12): Promise<OpsInbo
     const guest = r.guests as { name?: string } | null
     const room = r.rooms as { number?: string } | null
     const reservationId = 'guest_id' in r && r.guest_id ? requestReservationIds.get(r.guest_id) : null
-    const extensionHref =
-      r.request_type === 'extension' && reservationId && 'requested_date' in r && r.requested_date
-        ? `/manager/reservations?open=${encodeURIComponent(reservationId)}&extend=1&extendDate=${encodeURIComponent(r.requested_date)}&guestRequest=${encodeURIComponent(r.id)}`
-        : '/manager/dashboard#guest-requests'
+    const hkTask = housekeepingTasks.get(r.id)
+    let requestHref = '/manager/dashboard#guest-requests'
+    if (r.request_type === 'extension' && reservationId && 'requested_date' in r && r.requested_date) {
+      requestHref = `/manager/reservations?open=${encodeURIComponent(reservationId)}&extend=1&extendDate=${encodeURIComponent(r.requested_date)}&guestRequest=${encodeURIComponent(r.id)}`
+    } else if (r.request_type === 'housekeeping' && hkTask) {
+      requestHref = `/manager/housekeeping?task=${encodeURIComponent(hkTask.id)}&guestRequest=${encodeURIComponent(r.id)}`
+    } else if (r.request_type === 'housekeeping') {
+      requestHref = '/manager/dashboard#guest-portal'
+    }
     items.push({
       id: r.id,
       kind: 'guest_request',
@@ -145,9 +152,11 @@ export async function loadOpsInbox(hotelId: string, limit = 12): Promise<OpsInbo
         `${guest?.name ?? 'Guest'}${room?.number ? ` · Room ${room.number}` : ''}` +
         (r.request_type === 'extension' && 'requested_date' in r && r.requested_date
           ? ` · wants ${r.requested_date}`
-          : ''),
+          : r.request_type === 'housekeeping' && hkTask
+            ? ` · ${hkTask.status === 'done' ? 'ready to close' : hkTask.status.replace(/_/g, ' ')}`
+            : ''),
       priority: r.request_type === 'self_checkout' ? 1 : 2,
-      href: extensionHref,
+      href: requestHref,
       createdAt: r.created_at ?? new Date(0).toISOString(),
     })
   }

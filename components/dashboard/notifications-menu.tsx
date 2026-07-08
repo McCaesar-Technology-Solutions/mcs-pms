@@ -83,13 +83,13 @@ export function NotificationsMenu({ profile }: NotificationsMenuProps) {
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-label={totalCount > 0 ? `Notifications, ${totalCount} items` : 'Notifications'}
-        className="topbar-icon-btn relative"
+        className="topbar-icon-btn topbar-icon-btn--badged relative"
       >
         <Bell className="h-5 w-5" />
         {totalCount > 0 && (
           <span
-            className={`absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-white px-1 text-[10px] font-bold tabular-nums text-white ${
-              urgentCount > 0 ? 'bg-[var(--brand-orange)]' : 'bg-primary'
+            className={`topbar-notification-badge ${
+              urgentCount > 0 ? 'topbar-notification-badge--urgent' : ''
             }`}
           >
             {totalCount > 9 ? '9+' : totalCount}

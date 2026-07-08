@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getHotelGuestRules, type GuestRuleRow } from '@/lib/data/guest-rules'
 import { getHotelLocalGuide, type LocalGuideRow } from '@/lib/data/local-guide'
+import { loadGuestRequestHousekeepingTasks } from '@/lib/housekeeping/guest-task'
 import { propertyImagePublicUrl } from '@/lib/properties/image-storage'
 import { roomImagePublicUrl } from '@/lib/rooms/image-storage'
 import type { Guest } from '@/types'
@@ -45,6 +46,8 @@ export interface GuestRequestPanelRow extends GuestPortalRequest {
   roomNumber: string | null
   doNotDisturb: boolean
   reservationId: string | null
+  housekeepingTaskId: string | null
+  housekeepingTaskStatus: string | null
 }
 
 export interface GuestPortalContext {
@@ -179,6 +182,8 @@ export async function loadHotelGuestRequests(hotelId: string): Promise<GuestRequ
 
   if (error) return []
 
+  const housekeepingTasks = await loadGuestRequestHousekeepingTasks(admin, hotelId)
+
   const guestIds = Array.from(
     new Set((data ?? []).map((row) => row.guest_id).filter((guestId): guestId is string => Boolean(guestId))),
   )
@@ -208,6 +213,8 @@ export async function loadHotelGuestRequests(hotelId: string): Promise<GuestRequ
       row.rooms && typeof row.rooms === 'object' && 'number' in row.rooms
         ? (row.rooms as { number: string }).number
         : null
+    const hkTask =
+      row.request_type === 'housekeeping' ? (housekeepingTasks.get(row.id) ?? null) : null
     return {
       id: row.id,
       requestType: row.request_type as GuestPortalRequest['requestType'],
@@ -220,6 +227,8 @@ export async function loadHotelGuestRequests(hotelId: string): Promise<GuestRequ
       roomNumber: room,
       doNotDisturb: Boolean(guestRow?.do_not_disturb),
       reservationId: reservationIdsByGuest.get(row.guest_id) ?? null,
+      housekeepingTaskId: hkTask?.id ?? null,
+      housekeepingTaskStatus: hkTask?.status ?? null,
     }
   })
 }

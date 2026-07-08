@@ -3,10 +3,9 @@ import {
   type TodayOperations,
 } from '@/lib/data/overview'
 import { isOpsDateToday } from '@/lib/dates/ops-date'
-import { OPEN_BOOKING_STATUSES } from '@/lib/reservations/lifecycle'
+import { OPEN_BOOKING_STATUSES, ARRIVING_STATUSES, DEPARTING_STATUSES } from '@/lib/reservations/lifecycle'
 import type { DbRoom, DbRoomStatus, Reservation, ReservationPaymentStatus } from '@/types'
 
-const ARRIVING_FOR_OPS = ['provisional', 'confirmed', 'pre_arrival', 'checked_in'] as const
 const IN_HOUSE_NOW = ['checked_in', 'overstay', 'checkout_in_progress'] as const
 
 export interface ExtendedTodayOperations extends TodayOperations {
@@ -84,7 +83,7 @@ export function getArrivalsForDate(reservations: Reservation[], date: string): R
     .filter(
       (r) =>
         r.checkInDate === date &&
-        (ARRIVING_FOR_OPS as readonly string[]).includes(r.status),
+        (ARRIVING_STATUSES as readonly string[]).includes(r.status),
     )
     .sort((a, b) => a.guestName.localeCompare(b.guestName))
 }

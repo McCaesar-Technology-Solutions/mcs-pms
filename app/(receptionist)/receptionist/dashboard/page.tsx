@@ -118,10 +118,11 @@ export default async function ReceptionistDashboardPage({
               hotelId ? (
                 <section id="guest-requests" className="dashboard-section scroll-mt-24">
                   <GuestRequestsPanel
-                    hotelId={hotelId}
-                    initialRequests={guestRequests}
-                    reservationsHrefBase="/receptionist/reservations"
-                  />
+                  hotelId={hotelId}
+                  initialRequests={guestRequests}
+                  reservationsHrefBase="/receptionist/reservations"
+                  housekeepingHrefBase={null}
+                />
                 </section>
               ) : (
                 <p className="text-sm text-muted-foreground">No property linked.</p>

@@ -65,7 +65,7 @@ export const managerNavigation: NavItem[] = [
   { name: 'Housekeeping', href: '/manager/housekeeping', icon: 'briefcase' },
   { name: 'Complaints', href: '/manager/complaints', icon: 'wrench' },
   { name: 'Billing', href: '/manager/invoices', icon: 'banknote' },
-  { name: 'Guest portal', href: '/manager/guests', icon: 'globe' },
+  { name: 'Guest portal', href: '/manager/dashboard#guest-portal', icon: 'globe' },
   { name: 'Inventory', href: '/manager/inventory', icon: 'package' },
   { name: 'Staff', href: '/manager/staff', icon: 'user-cog' },
 ]
