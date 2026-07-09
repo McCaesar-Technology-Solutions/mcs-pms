@@ -197,14 +197,14 @@ export async function loadInventoryMovements(
     id: row.id,
     itemId: row.item_id,
     itemName: nameById!.get(row.item_id) ?? 'Item',
-    delta: row.delta,
-    quantityAfter: row.quantity_after,
-    reason: row.reason as InventoryMovementReason,
-    note: row.note,
+    delta: row.delta ?? 0,
+    quantityAfter: row.quantity_after ?? 0,
+    reason: (row.reason ?? 'adjusted') as InventoryMovementReason,
+    note: row.note ?? null,
     createdByName: null,
-    createdAt: row.created_at,
-    housekeepingTaskId: row.housekeeping_task_id,
-    complaintId: row.complaint_id,
+    createdAt: row.created_at ?? new Date(0).toISOString(),
+    housekeepingTaskId: row.housekeeping_task_id ?? null,
+    complaintId: row.complaint_id ?? null,
   }))
 }
 

@@ -2,7 +2,6 @@
 
 import Link from 'next/link'
 import {
-  Suspense,
   useCallback,
   useEffect,
   useMemo,
@@ -95,22 +94,6 @@ const SORT_OPTIONS: { value: InventorySort; label: string }[] = [
 
 const ICON_BTN =
   'inline-flex h-11 min-w-11 items-center justify-center rounded-lg transition-colors duration-150'
-
-export function InventoryManagerShell(props: InventoryManagerProps) {
-  return (
-    <Suspense fallback={<InventoryManagerFallback />}>
-      <InventoryManager {...props} />
-    </Suspense>
-  )
-}
-
-function InventoryManagerFallback() {
-  return (
-    <div className="surface-card p-8 text-center text-sm text-muted-foreground">
-      Loading inventory…
-    </div>
-  )
-}
 
 export function InventoryManager({
   items,

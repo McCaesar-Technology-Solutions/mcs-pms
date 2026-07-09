@@ -18,14 +18,24 @@ export interface InventoryRow {
 export type InventorySort = 'name' | 'low_stock' | 'category'
 
 export async function loadInventoryItems(hotelId: string): Promise<InventoryRow[]> {
-  const admin = createAdminClient()
-  const { data } = await admin
-    .from('inventory_items')
-    .select('id, name, category, quantity_in_stock, reorder_level, unit, notes, updated_at')
-    .eq('hotel_id', hotelId)
-    .order('name')
+  try {
+    const admin = createAdminClient()
+    const { data, error } = await admin
+      .from('inventory_items')
+      .select('id, name, category, quantity_in_stock, reorder_level, unit, notes, updated_at')
+      .eq('hotel_id', hotelId)
+      .order('name')
 
-  return (data ?? []).map(mapInventoryRow)
+    if (error) {
+      console.error('[inventory] loadInventoryItems failed:', error.message)
+      return []
+    }
+
+    return (data ?? []).map(mapInventoryRow)
+  } catch (err) {
+    console.error('[inventory] loadInventoryItems failed:', err)
+    return []
+  }
 }
 
 export function sortInventoryItems(items: InventoryRow[], sort: InventorySort): InventoryRow[] {
@@ -81,17 +91,27 @@ export async function loadRecentInventoryMovements(
   hotelId: string,
   itemId?: string,
 ): Promise<InventoryMovementRow[]> {
-  const admin = createAdminClient()
-  const { data: items } = await admin
-    .from('inventory_items')
-    .select('id, name')
-    .eq('hotel_id', hotelId)
-  const itemNames = new Map((items ?? []).map((item) => [item.id, item.name]))
-  return loadInventoryMovements(admin, hotelId, {
-    itemId,
-    limit: itemId ? 30 : 20,
-    itemNames,
-  })
+  try {
+    const admin = createAdminClient()
+    const { data: items, error: itemsError } = await admin
+      .from('inventory_items')
+      .select('id, name')
+      .eq('hotel_id', hotelId)
+
+    if (itemsError) {
+      console.error('[inventory] loadRecentInventoryMovements items failed:', itemsError.message)
+    }
+
+    const itemNames = new Map((items ?? []).map((item) => [item.id, item.name]))
+    return loadInventoryMovements(admin, hotelId, {
+      itemId,
+      limit: itemId ? 30 : 20,
+      itemNames,
+    })
+  } catch (err) {
+    console.error('[inventory] loadRecentInventoryMovements failed:', err)
+    return []
+  }
 }
 
 function mapInventoryRow(row: {

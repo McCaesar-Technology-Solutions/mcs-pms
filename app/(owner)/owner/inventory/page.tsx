@@ -1,8 +1,17 @@
+import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
-import { InventoryManagerShell } from '@/components/dashboard/inventory-manager'
+import { InventoryManager } from '@/components/dashboard/inventory-manager'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { getProfile } from '@/lib/auth/get-profile'
 import { loadInventoryItems, loadRecentInventoryMovements } from '@/lib/data/inventory'
+
+function InventoryLoadingFallback() {
+  return (
+    <div className="surface-card p-8 text-center text-sm text-muted-foreground">
+      Loading inventory…
+    </div>
+  )
+}
 
 export default async function OwnerInventoryPage() {
   const profile = await getProfile()
@@ -20,13 +29,15 @@ export default async function OwnerInventoryPage() {
         title="Inventory"
         description="Track stock, receive supplies, and monitor reorder levels with a full movement history."
       />
-      <InventoryManagerShell
-        items={items}
-        movements={movements}
-        staffRole="owner"
-        canDelete
-        canRecordExpense
-      />
+      <Suspense fallback={<InventoryLoadingFallback />}>
+        <InventoryManager
+          items={items}
+          movements={movements}
+          staffRole="owner"
+          canDelete
+          canRecordExpense
+        />
+      </Suspense>
     </div>
   )
 }
