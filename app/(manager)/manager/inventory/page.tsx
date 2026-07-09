@@ -20,7 +20,7 @@ export default async function ManagerInventoryPage() {
         title="Inventory"
         description="Update stock, receive deliveries, and monitor low-inventory alerts."
       />
-      <InventoryManager items={items} movements={movements} />
+      <InventoryManager items={items} movements={movements} staffRole="manager" />
     </div>
   )
 }

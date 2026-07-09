@@ -33,6 +33,19 @@ const receiveStockSchema = z.object({
   createExpense: z.boolean().optional(),
 })
 
+const issueStockSchema = z.object({
+  itemId: z.string().uuid(),
+  quantity: z.number().int().positive(),
+  note: z.string().max(300).optional(),
+})
+
+const adjustStockSchema = z.object({
+  itemId: z.string().uuid(),
+  newQuantity: z.number().int().min(0),
+  reason: z.enum(['adjusted', 'wasted']),
+  note: z.string().max(300).optional(),
+})
+
 async function requireInventoryStaff(options?: { includeTechnician?: boolean }) {
   const roles = options?.includeTechnician
     ? (['owner', 'manager', 'receptionist', 'technician'] as const)
@@ -226,6 +239,75 @@ export async function receiveInventoryStock(
     note: parsed.data.note?.trim() || (expenseId ? 'Stock received — expense recorded' : 'Stock received'),
     createdBy: profile.id,
     expenseId: expenseId ?? null,
+  })
+
+  if (!movement.ok) return { success: false, error: movement.error }
+
+  revalidateInventory()
+  return { success: true }
+}
+
+export async function issueInventoryStock(
+  input: z.infer<typeof issueStockSchema>,
+): Promise<InventoryActionResult> {
+  const parsed = issueStockSchema.safeParse(input)
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid issue.' }
+  }
+
+  const profile = await requireInventoryStaff()
+  if (!profile?.hotel_id) return { success: false, error: 'Not authorized.' }
+
+  const admin = createAdminClient()
+  const movement = await recordInventoryMovement(admin, {
+    hotelId: profile.hotel_id,
+    itemId: parsed.data.itemId,
+    delta: -parsed.data.quantity,
+    reason: 'used',
+    note: parsed.data.note?.trim() || 'Stock issued',
+    createdBy: profile.id,
+  })
+
+  if (!movement.ok) return { success: false, error: movement.error }
+
+  revalidateInventory()
+  return { success: true }
+}
+
+export async function adjustInventoryStock(
+  input: z.infer<typeof adjustStockSchema>,
+): Promise<InventoryActionResult> {
+  const parsed = adjustStockSchema.safeParse(input)
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid adjustment.' }
+  }
+
+  const profile = await requireInventoryStaff()
+  if (!profile?.hotel_id) return { success: false, error: 'Not authorized.' }
+
+  const admin = createAdminClient()
+  const { data: existing } = await admin
+    .from('inventory_items')
+    .select('quantity_in_stock')
+    .eq('id', parsed.data.itemId)
+    .eq('hotel_id', profile.hotel_id)
+    .maybeSingle()
+
+  if (!existing) return { success: false, error: 'Item not found.' }
+
+  const delta = parsed.data.newQuantity - existing.quantity_in_stock
+  if (delta === 0) {
+    revalidateInventory()
+    return { success: true }
+  }
+
+  const movement = await recordInventoryMovement(admin, {
+    hotelId: profile.hotel_id,
+    itemId: parsed.data.itemId,
+    delta,
+    reason: parsed.data.reason,
+    note: parsed.data.note?.trim() || undefined,
+    createdBy: profile.id,
   })
 
   if (!movement.ok) return { success: false, error: movement.error }

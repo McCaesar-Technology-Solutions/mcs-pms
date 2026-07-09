@@ -20,7 +20,14 @@ export default async function ReceptionistInventoryPage() {
         title="Inventory"
         description="Log stock usage and check supply levels for front desk and housekeeping."
       />
-      <InventoryManager items={items} movements={movements} />
+      <InventoryManager
+        items={items}
+        movements={movements}
+        staffRole="receptionist"
+        canCreate={false}
+        canEditMetadata={false}
+        emphasizeIssue
+      />
     </div>
   )
 }

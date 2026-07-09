@@ -20,7 +20,13 @@ export default async function OwnerInventoryPage() {
         title="Inventory"
         description="Track stock, receive supplies, and monitor reorder levels with a full movement history."
       />
-      <InventoryManager items={items} movements={movements} canDelete canRecordExpense />
+      <InventoryManager
+        items={items}
+        movements={movements}
+        staffRole="owner"
+        canDelete
+        canRecordExpense
+      />
     </div>
   )
 }

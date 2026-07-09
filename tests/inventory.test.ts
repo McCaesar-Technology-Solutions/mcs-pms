@@ -3,6 +3,11 @@ import { inventoryCategoryLabel, normalizeInventoryCategory } from '@/lib/invent
 import { suggestCleanConsumption } from '@/lib/inventory/clean-consumption'
 import { filterInventoryItems, sortInventoryItems } from '@/lib/data/inventory'
 import type { InventoryRow } from '@/lib/data/inventory'
+import {
+  buildInventorySummary,
+  inventoryStockStatus,
+  stockLevelPercent,
+} from '@/lib/inventory/stock-ui'
 
 const sampleItems: InventoryRow[] = [
   {
@@ -45,9 +50,44 @@ describe('inventory list helpers', () => {
     expect(filtered[0]?.name).toBe('Bath towel')
   })
 
+  it('filters low stock only', () => {
+    const filtered = filterInventoryItems(sampleItems, '', 'all', { lowStockOnly: true })
+    expect(filtered).toHaveLength(1)
+    expect(filtered[0]?.name).toBe('Bath towel')
+  })
+
   it('sorts low stock first', () => {
     const sorted = sortInventoryItems(sampleItems, 'low_stock')
     expect(sorted[0]?.lowStock).toBe(true)
+  })
+})
+
+describe('inventory stock ui', () => {
+  it('computes summary counts', () => {
+    const summary = buildInventorySummary(sampleItems, [
+      {
+        id: 'm1',
+        itemId: '1',
+        itemName: 'Bath towel',
+        delta: -1,
+        quantityAfter: 1,
+        reason: 'used',
+        note: null,
+        createdByName: null,
+        createdAt: new Date().toISOString(),
+        housekeepingTaskId: null,
+        complaintId: null,
+      },
+    ])
+    expect(summary.totalSkus).toBe(2)
+    expect(summary.lowStockCount).toBe(1)
+    expect(summary.movementsThisWeek).toBe(1)
+  })
+
+  it('derives stock status and percent', () => {
+    expect(inventoryStockStatus(sampleItems[0]!)).toBe('low')
+    expect(stockLevelPercent(sampleItems[0]!)).toBe(40)
+    expect(inventoryStockStatus({ quantityInStock: 0, lowStock: true })).toBe('out')
   })
 })
 

@@ -45,13 +45,19 @@ export function sortInventoryItems(items: InventoryRow[], sort: InventorySort): 
   return copy.sort((a, b) => a.name.localeCompare(b.name))
 }
 
+export interface InventoryFilterOptions {
+  lowStockOnly?: boolean
+}
+
 export function filterInventoryItems(
   items: InventoryRow[],
   query: string,
   category: string,
+  options?: InventoryFilterOptions,
 ): InventoryRow[] {
   const q = query.trim().toLowerCase()
   return items.filter((item) => {
+    if (options?.lowStockOnly && !item.lowStock) return false
     if (category !== 'all' && item.category !== category) return false
     if (!q) return true
     return (
