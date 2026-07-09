@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { loadNavBadgeMap } from '@/app/actions/alert-counts'
+import { handleBackgroundRefreshError } from '@/lib/client/stale-deployment'
 import { useRealtimeRefresh } from '@/components/realtime/realtime-refresh-context'
 import type { NavGroup, NavItem } from '@/lib/navigation'
 
@@ -31,19 +32,23 @@ export function useNavBadges(
   }, [initialNavGroups])
 
   const refreshBadges = useCallback(async () => {
-    const badges = await loadNavBadgeMap()
-    setNavItems((prev) => {
-      const base = prev.length > 0 ? prev : (initialNavigation ?? [])
-      return applyBadgeMap(base, badges)
-    })
-    setNavGroups((prev) => {
-      const base = prev ?? initialNavGroups
-      if (!base) return prev
-      return base.map((group) => ({
-        ...group,
-        items: applyBadgeMap(group.items, badges),
-      }))
-    })
+    try {
+      const badges = await loadNavBadgeMap()
+      setNavItems((prev) => {
+        const base = prev.length > 0 ? prev : (initialNavigation ?? [])
+        return applyBadgeMap(base, badges)
+      })
+      setNavGroups((prev) => {
+        const base = prev ?? initialNavGroups
+        if (!base) return prev
+        return base.map((group) => ({
+          ...group,
+          items: applyBadgeMap(group.items, badges),
+        }))
+      })
+    } catch (err) {
+      handleBackgroundRefreshError('nav-badges', err)
+    }
   }, [initialNavigation, initialNavGroups])
 
   useRealtimeRefresh('layout', refreshBadges)

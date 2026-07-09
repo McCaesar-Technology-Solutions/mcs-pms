@@ -21,8 +21,12 @@ export function ComplaintsOverviewLive({
   const [complaints, setComplaints] = useState(initialComplaints)
 
   const refresh = useCallback(async () => {
-    const result = await getHotelComplaints()
-    if (result.success && result.data) setComplaints(result.data)
+    try {
+      const result = await getHotelComplaints()
+      if (result.success && result.data) setComplaints(result.data)
+    } catch (err) {
+      console.error('[complaints-overview] refresh failed:', err)
+    }
   }, [])
 
   useRealtimeRefresh('complaints', refresh)

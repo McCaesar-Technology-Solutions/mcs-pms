@@ -17,6 +17,7 @@ import {
   Wrench,
 } from 'lucide-react'
 import { loadNotifications } from '@/app/actions/notifications'
+import { handleBackgroundRefreshError } from '@/lib/client/stale-deployment'
 import { HeaderDropdownPanel } from '@/components/dashboard/header-dropdown-panel'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useRealtimeRefresh } from '@/components/realtime/realtime-refresh-context'
@@ -52,8 +53,14 @@ export function NotificationsMenu({ profile }: NotificationsMenuProps) {
   const fetchNotifications = useCallback(() => {
     if (!profile?.hotel_id) return
     startTransition(async () => {
-      const data = await loadNotifications()
-      setItems(data)
+      try {
+        const data = await loadNotifications()
+        setItems(data)
+      } catch (err) {
+        // Transient server-action failures (redeploys, network blips) must not
+        // bubble into the shell error boundary — keep showing stale items.
+        handleBackgroundRefreshError('notifications', err)
+      }
     })
   }, [profile?.hotel_id])
 

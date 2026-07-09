@@ -25,7 +25,13 @@ export function LivePageTabShell({
   }, [initialTabs])
 
   const refreshBadges = useCallback(async () => {
-    const counts = await loadManagerTabBadges()
+    let counts: Awaited<ReturnType<typeof loadManagerTabBadges>>
+    try {
+      counts = await loadManagerTabBadges()
+    } catch (err) {
+      console.error('[live-tabs] badge refresh failed:', err)
+      return
+    }
     setTabs((prev) =>
       prev.map((tab) => {
         if (tab.id === 'overview') {

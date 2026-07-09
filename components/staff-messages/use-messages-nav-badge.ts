@@ -8,8 +8,12 @@ export function useMessagesNavBadge(messagesHref: string) {
   const [count, setCount] = useState(0)
 
   const refresh = useCallback(async () => {
-    const badges = await loadNavBadgeMap()
-    setCount(badges[messagesHref] ?? 0)
+    try {
+      const badges = await loadNavBadgeMap()
+      setCount(badges[messagesHref] ?? 0)
+    } catch (err) {
+      console.error('[messages-nav-badge] refresh failed:', err)
+    }
   }, [messagesHref])
 
   useEffect(() => {

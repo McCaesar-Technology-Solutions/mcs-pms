@@ -135,22 +135,28 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
     }
 
     const supabase = createClient()
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
-      if (!user) {
-        setLoading(false)
-        return
-      }
+    supabase.auth
+      .getUser()
+      .then(async ({ data: { user } }) => {
+        if (!user) {
+          setLoading(false)
+          return
+        }
 
-      const { data: prof } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
-      if (!prof) {
-        setLoading(false)
-        return
-      }
+        const { data: prof } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
+        if (!prof) {
+          setLoading(false)
+          return
+        }
 
-      setProfile(prof as Profile)
-      await loadProperties(prof as Profile)
-      setLoading(false)
-    })
+        setProfile(prof as Profile)
+        await loadProperties(prof as Profile)
+        setLoading(false)
+      })
+      .catch((err) => {
+        console.error('[property-context] initial load failed:', err)
+        setLoading(false)
+      })
   }, [loadProperties, skipPropertyLoad])
 
   const activeProperty = useMemo(() => {
@@ -158,12 +164,16 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
   }, [propertiesList, activePropertyId])
 
   const refreshOwnerProperties = useCallback(async (activeHotelId: string) => {
-    const result = await fetchOwnerProperties()
-    if (result.success && result.data && result.data.length > 0) {
-      setPropertiesList(result.data)
-      const active =
-        result.data.find((p) => p.id === activeHotelId) ?? result.data[0]
-      setActivePropertyIdState(active.id)
+    try {
+      const result = await fetchOwnerProperties()
+      if (result.success && result.data && result.data.length > 0) {
+        setPropertiesList(result.data)
+        const active =
+          result.data.find((p) => p.id === activeHotelId) ?? result.data[0]
+        setActivePropertyIdState(active.id)
+      }
+    } catch (err) {
+      console.error('[property-context] refreshOwnerProperties failed:', err)
     }
   }, [])
 
@@ -172,12 +182,17 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
       if (!canSwitchProperty) return false
       if (id === activePropertyId) return true
 
-      const result = await switchActiveProperty(id)
-      if (!result.success) return false
+      try {
+        const result = await switchActiveProperty(id)
+        if (!result.success) return false
 
-      setProfile((prev) => (prev ? { ...prev, hotel_id: id } : prev))
-      await refreshOwnerProperties(id)
-      return true
+        setProfile((prev) => (prev ? { ...prev, hotel_id: id } : prev))
+        await refreshOwnerProperties(id)
+        return true
+      } catch (err) {
+        console.error('[property-context] switchProperty failed:', err)
+        return false
+      }
     },
     [canSwitchProperty, activePropertyId, refreshOwnerProperties],
   )

@@ -28,8 +28,12 @@ export function FrontDeskOpsStripLive({
   }, [initialOps])
 
   const refresh = useCallback(async () => {
-    const snapshot = await loadFrontDeskOpsSnapshot(opsDate)
-    if (snapshot) setOps(snapshot.ops)
+    try {
+      const snapshot = await loadFrontDeskOpsSnapshot(opsDate)
+      if (snapshot) setOps(snapshot.ops)
+    } catch (err) {
+      console.error('[front-desk-ops] refresh failed:', err)
+    }
   }, [opsDate])
 
   useEffect(() => {

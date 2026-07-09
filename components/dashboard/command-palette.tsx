@@ -102,11 +102,17 @@ function CommandPaletteDialog({
     const gen = ++searchGen.current
     setSearching(true)
     const timer = window.setTimeout(() => {
-      void searchGlobalAction(trimmed).then((results) => {
-        if (gen !== searchGen.current) return
-        setRecordItems(globalResultsToCommandItems(results))
-        setSearching(false)
-      })
+      searchGlobalAction(trimmed)
+        .then((results) => {
+          if (gen !== searchGen.current) return
+          setRecordItems(globalResultsToCommandItems(results))
+          setSearching(false)
+        })
+        .catch((err) => {
+          if (gen !== searchGen.current) return
+          console.error('[command-palette] search failed:', err)
+          setSearching(false)
+        })
     }, 220)
 
     return () => window.clearTimeout(timer)

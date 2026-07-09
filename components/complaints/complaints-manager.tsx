@@ -186,34 +186,42 @@ function ComplaintsManagerContent() {
   selectedRef.current = selected
 
   const load = useCallback(async () => {
-    const [cResult, tResult] = await Promise.all([getHotelComplaints(), getTechnicians()])
-    if (cResult.success && cResult.data) setComplaints(cResult.data)
-    if (tResult.success && tResult.data) setTechnicians(tResult.data)
+    try {
+      const [cResult, tResult] = await Promise.all([getHotelComplaints(), getTechnicians()])
+      if (cResult.success && cResult.data) setComplaints(cResult.data)
+      if (tResult.success && tResult.data) setTechnicians(tResult.data)
+    } catch (err) {
+      console.error('[complaints] load failed:', err)
+    }
   }, [])
 
   const refreshFromRealtime = useCallback(async () => {
-    const [cResult, tResult] = await Promise.all([getHotelComplaints(), getTechnicians()])
-    if (cResult.success && cResult.data) {
-      setComplaints(cResult.data)
-      const current = selectedRef.current
-      if (current) {
-        const updated = cResult.data.find((c) => c.id === current.id)
-        if (updated) {
-          setSelected(updated)
-          const [evResult, estResult] = await Promise.all([
-            getComplaintEvents(updated.id),
-            fetchComplaintEstimate(updated.id),
-          ])
-          if (evResult.success && evResult.data) setEvents(evResult.data)
-          if (estResult.success) setEstimate(estResult.data ?? null)
-        } else {
-          setSelected(null)
-          setEvents([])
-          setEstimate(null)
+    try {
+      const [cResult, tResult] = await Promise.all([getHotelComplaints(), getTechnicians()])
+      if (cResult.success && cResult.data) {
+        setComplaints(cResult.data)
+        const current = selectedRef.current
+        if (current) {
+          const updated = cResult.data.find((c) => c.id === current.id)
+          if (updated) {
+            setSelected(updated)
+            const [evResult, estResult] = await Promise.all([
+              getComplaintEvents(updated.id),
+              fetchComplaintEstimate(updated.id),
+            ])
+            if (evResult.success && evResult.data) setEvents(evResult.data)
+            if (estResult.success) setEstimate(estResult.data ?? null)
+          } else {
+            setSelected(null)
+            setEvents([])
+            setEstimate(null)
+          }
         }
       }
+      if (tResult.success && tResult.data) setTechnicians(tResult.data)
+    } catch (err) {
+      console.error('[complaints] realtime refresh failed:', err)
     }
-    if (tResult.success && tResult.data) setTechnicians(tResult.data)
   }, [])
 
   useEffect(() => {
