@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { loadVerifiedStaffProfile, consumeStaffAuthError } from '@/lib/auth/staff-session'
 import { applyHousekeepingSideEffects } from '@/lib/housekeeping/side-effects'
+import { recordInventoryUsageLines, validateInventoryUsageLines } from '@/lib/inventory/movements'
 import { canTransition, statusUpdateFields } from '@/lib/housekeeping/task-flow'
 import { createHousekeepingTaskSchema } from '@/lib/validations'
 import type { HousekeepingTaskType, Profile, TaskPriority, TaskStatus } from '@/types'
@@ -152,7 +153,10 @@ export async function claimHousekeepingTask(taskId: string): Promise<Housekeepin
 export async function setHousekeepingTaskStatus(
   taskId: string,
   status: TaskStatus,
-  options?: { managerOverride?: boolean },
+  options?: {
+    managerOverride?: boolean
+    inventoryLines?: { itemId: string; quantity: number }[]
+  },
 ): Promise<HousekeepingActionResult> {
   const profile = await requireStaff()
   if (!profile?.hotel_id) return { success: false, error: 'Not authorized.' }
@@ -191,6 +195,17 @@ export async function setHousekeepingTaskStatus(
     ...extraFields,
   }
 
+  const admin = createAdminClient()
+  if (
+    status === 'done' &&
+    options?.inventoryLines &&
+    options.inventoryLines.length > 0 &&
+    (task.task_type === 'clean' || task.task_type === 'restock')
+  ) {
+    const validation = await validateInventoryUsageLines(admin, hotelId, options.inventoryLines)
+    if (!validation.ok) return { success: false, error: validation.error }
+  }
+
   const { error } = await supabase
     .from('housekeeping_tasks')
     .update(updatePayload)
@@ -200,7 +215,6 @@ export async function setHousekeepingTaskStatus(
   if (error) return { success: false, error: 'Could not update the task.' }
 
   if (status === 'done') {
-    const admin = createAdminClient()
     const sideEffect = await applyHousekeepingSideEffects(admin, {
       hotelId,
       taskId: task.id,
@@ -209,6 +223,30 @@ export async function setHousekeepingTaskStatus(
       newStatus: status,
       actorId: profile.id,
     })
+
+    if (
+      options?.inventoryLines &&
+      options.inventoryLines.length > 0 &&
+      (task.task_type === 'clean' || task.task_type === 'restock')
+    ) {
+      const usage = await recordInventoryUsageLines(admin, {
+        hotelId,
+        lines: options.inventoryLines,
+        reason: task.task_type === 'clean' ? 'clean' : 'restock',
+        createdBy: profile.id,
+        housekeepingTaskId: task.id,
+        note:
+          task.task_type === 'clean'
+            ? 'Supplies used on room turnover'
+            : 'Items restocked to room',
+      })
+      if (!usage.ok) {
+        return { success: false, error: usage.error }
+      }
+      revalidatePath('/owner/inventory')
+      revalidatePath('/manager/inventory')
+      revalidatePath('/receptionist/inventory')
+    }
 
     if (task.task_type === 'clean') {
       void import('@/lib/notifications/housekeeping').then(({ notifyHousekeepingCleanCompleted }) =>

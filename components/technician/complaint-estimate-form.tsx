@@ -7,6 +7,7 @@ import {
   fetchComplaintEstimate,
   submitComplaintEstimateWithFile,
 } from '@/app/actions/complaint-estimates'
+import { loadInventoryItemsForStaff } from '@/app/actions/inventory'
 import { APP_FIELD_CLASS, FormField } from '@/components/ui/form-field'
 import { formatGhs, MONEY_CLASS } from '@/lib/format/money'
 import type { ComplaintEstimate } from '@/types'
@@ -16,6 +17,7 @@ interface MaterialRow {
   materialName: string
   quantity: string
   unitCost: string
+  inventoryItemId?: string
 }
 
 function emptyRow(): MaterialRow {
@@ -52,6 +54,17 @@ export function ComplaintEstimateForm({
   const [hasExisting, setHasExisting] = useState(false)
   const [existingFileName, setExistingFileName] = useState<string | null>(null)
   const [invoiceFile, setInvoiceFile] = useState<File | null>(null)
+  const [stockItems, setStockItems] = useState<
+    { id: string; name: string; unit: string; quantityInStock: number }[]
+  >([])
+
+  useEffect(() => {
+    void loadInventoryItemsForStaff().then((result) => {
+      if (result.success && result.data) {
+        setStockItems(result.data.filter((i) => i.category === 'maintenance' || i.category === 'general'))
+      }
+    })
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -72,6 +85,7 @@ export function ComplaintEstimateForm({
               materialName: item.material_name,
               quantity: String(item.quantity),
               unitCost: String(item.unit_cost),
+              inventoryItemId: item.inventory_item_id ?? undefined,
             })),
           )
         } else {
@@ -124,6 +138,7 @@ export function ComplaintEstimateForm({
         materialName: r.materialName.trim(),
         quantity: parseFloat(r.quantity) || 0,
         unitCost: parseFloat(r.unitCost) || 0,
+        inventoryItemId: r.inventoryItemId,
       }))
 
     const formData = new FormData()
@@ -235,6 +250,28 @@ export function ComplaintEstimateForm({
                 return (
                   <tr key={row.key} className="border-t border-[#E9ECEF]">
                     <td className="px-2 py-1.5">
+                      {stockItems.length > 0 && (
+                        <select
+                          value={row.inventoryItemId ?? ''}
+                          onChange={(e) => {
+                            const id = e.target.value || undefined
+                            const item = stockItems.find((s) => s.id === id)
+                            updateRow(row.key, {
+                              inventoryItemId: id,
+                              materialName: item?.name ?? row.materialName,
+                            })
+                          }}
+                          disabled={disabled || saving}
+                          className="mb-1 w-full rounded-md border-0 bg-[#F7F4FB] px-2 py-1 text-xs outline-none"
+                        >
+                          <option value="">Link stock item (optional)</option>
+                          {stockItems.map((item) => (
+                            <option key={item.id} value={item.id}>
+                              {item.name} ({item.quantityInStock} {item.unit})
+                            </option>
+                          ))}
+                        </select>
+                      )}
                       <input
                         type="text"
                         value={row.materialName}

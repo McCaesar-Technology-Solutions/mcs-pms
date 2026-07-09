@@ -20,6 +20,8 @@ import { ComplaintsOverviewLive } from '@/components/complaints/complaints-overv
 import { fetchHotelComplaints } from '@/lib/data/complaints'
 import { getDashboardData } from '@/lib/data/dashboard'
 import { getHousekeepingTasks } from '@/lib/data/housekeeping'
+import { countOverdueTasks } from '@/lib/housekeeping/task-view'
+import { countLowStockForHotel } from '@/lib/data/inventory'
 import { getNotificationLog } from '@/lib/data/notification-log'
 import { getAuditLog } from '@/lib/data/audit-log'
 import { FrontDeskOpsSection } from '@/components/dashboard/front-desk-ops-section'
@@ -89,6 +91,8 @@ export default async function ManagerDashboardPage({
       maintenanceRooms: 0,
     } as const)
   const bookingsSparkline = computeBookingsSparkline(reservations)
+  const overdueTasks = countOverdueTasks(tasks.filter((t) => t.status !== 'done'))
+  const lowStockCount = hotelId ? await countLowStockForHotel(hotelId) : 0
 
   let propertyName = 'Property'
   let guestRequests: Awaited<ReturnType<typeof loadHotelGuestRequests>> = []
@@ -138,8 +142,11 @@ export default async function ManagerDashboardPage({
         <DashboardAttention
           today={todayOps}
           metrics={metrics}
+          overdueTasks={overdueTasks}
+          lowStockCount={lowStockCount}
           reservationsHref="/manager/reservations"
           billingHref="/manager/reservations"
+          inventoryHref="/manager/inventory"
         />
       </DashboardHero>
 

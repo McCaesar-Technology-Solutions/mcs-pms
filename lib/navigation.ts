@@ -77,6 +77,7 @@ export const receptionistNavigation: NavItem[] = [
   { name: 'Guests', href: '/receptionist/guests', icon: 'users' },
   { name: 'Rooms', href: '/receptionist/rooms', icon: 'bed-double' },
   { name: 'Complaints', href: '/receptionist/complaints', icon: 'wrench' },
+  { name: 'Inventory', href: '/receptionist/inventory', icon: 'package' },
 ]
 
 export const technicianNavigation: NavItem[] = [

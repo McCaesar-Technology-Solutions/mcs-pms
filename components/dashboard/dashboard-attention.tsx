@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   Briefcase,
   ChevronRight,
+  Package,
 } from 'lucide-react'
 import type { TodayOperations } from '@/lib/data/overview'
 import type { KPIMetrics } from '@/types'
@@ -14,18 +15,22 @@ interface DashboardAttentionProps {
   today: TodayOperations
   metrics?: KPIMetrics
   overdueTasks?: number
+  lowStockCount?: number
   billingHref?: string
   reservationsHref?: string
   housekeepingHref?: string
+  inventoryHref?: string
 }
 
 export function DashboardAttention({
   today,
   metrics,
   overdueTasks = 0,
+  lowStockCount = 0,
   billingHref = '/owner/billing',
   reservationsHref = '/owner/reservations',
   housekeepingHref = '/owner/housekeeping',
+  inventoryHref = '/owner/inventory',
 }: DashboardAttentionProps) {
   const items: {
     key: string
@@ -72,6 +77,16 @@ export function DashboardAttention({
       tone: 'warning',
       message: `${overdueTasks} overdue task${overdueTasks === 1 ? '' : 's'}`,
       href: housekeepingHref,
+    })
+  }
+
+  if (lowStockCount > 0) {
+    items.push({
+      key: 'inventory',
+      icon: Package,
+      tone: 'warning',
+      message: `${lowStockCount} inventory item${lowStockCount === 1 ? '' : 's'} low on stock`,
+      href: inventoryHref,
     })
   }
 

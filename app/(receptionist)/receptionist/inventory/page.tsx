@@ -4,7 +4,7 @@ import { PageHeader } from '@/components/dashboard/page-header'
 import { getProfile } from '@/lib/auth/get-profile'
 import { loadInventoryItems, loadRecentInventoryMovements } from '@/lib/data/inventory'
 
-export default async function ManagerInventoryPage() {
+export default async function ReceptionistInventoryPage() {
   const profile = await getProfile()
   if (!profile?.hotel_id) redirect('/login')
 
@@ -18,7 +18,7 @@ export default async function ManagerInventoryPage() {
       <PageHeader
         badge="Operations"
         title="Inventory"
-        description="Update stock, receive deliveries, and monitor low-inventory alerts."
+        description="Log stock usage and check supply levels for front desk and housekeeping."
       />
       <InventoryManager items={items} movements={movements} />
     </div>

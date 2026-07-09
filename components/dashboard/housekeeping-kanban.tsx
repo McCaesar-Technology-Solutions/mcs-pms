@@ -36,6 +36,10 @@ import {
   setHousekeepingTaskStatus,
 } from '@/app/actions/housekeeping'
 import {
+  HousekeepingInventoryModal,
+  type InventoryUsageLine,
+} from '@/components/dashboard/housekeeping-inventory-modal'
+import {
   CenteredModal,
   ModalBody,
   ModalFooter,
@@ -202,6 +206,10 @@ function DbKanban({
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [adding, setAdding] = useState(false)
+  const [inventoryPrompt, setInventoryPrompt] = useState<{
+    task: HousekeepingTaskView
+    managerOverride?: boolean
+  } | null>(null)
 
   const refreshFromRealtime = useCallback(() => {
     router.refresh()
@@ -255,6 +263,40 @@ function DbKanban({
         toast.error(result.error ?? 'Update failed')
       }
     })
+  }
+
+  function handleStatusChange(
+    task: HousekeepingTaskView,
+    status: TaskStatus,
+    managerOverride?: boolean,
+  ) {
+    if (status === 'done' && (task.taskType === 'clean' || task.taskType === 'restock')) {
+      setInventoryPrompt({ task, managerOverride })
+      return
+    }
+    run(() => setHousekeepingTaskStatus(task.id, status, { managerOverride }),
+      status === 'done' && task.taskType === 'inspect'
+        ? 'Inspection approved — room available'
+        : 'Task updated',
+    )
+  }
+
+  function completeWithInventory(
+    task: HousekeepingTaskView,
+    managerOverride: boolean | undefined,
+    lines: InventoryUsageLine[],
+  ) {
+    setInventoryPrompt(null)
+    run(
+      () =>
+        setHousekeepingTaskStatus(task.id, 'done', {
+          managerOverride,
+          inventoryLines: lines.map((l) => ({ itemId: l.itemId, quantity: l.quantity })),
+        }),
+      task.taskType === 'clean'
+        ? 'Clean done — room sent for inspection'
+        : 'Restock complete',
+    )
   }
 
   return (
@@ -405,14 +447,7 @@ function DbKanban({
                               currentUserId={currentUserId}
                               isPending={isPending}
                               onStatusChange={(status, managerOverride) =>
-                                run(() =>
-                                  setHousekeepingTaskStatus(task.id, status, { managerOverride }),
-                                  status === 'done' && task.taskType === 'clean'
-                                    ? 'Clean done — room sent for inspection'
-                                    : status === 'done' && task.taskType === 'inspect'
-                                      ? 'Inspection approved — room available'
-                                      : 'Task updated',
-                                )
+                                handleStatusChange(task, status, managerOverride)
                               }
                             />
                             <div className="mt-2 flex items-center gap-2">
@@ -473,6 +508,22 @@ function DbKanban({
             setAdding(false)
             router.refresh()
           }}
+        />
+      )}
+
+      {inventoryPrompt && (
+        <HousekeepingInventoryModal
+          open
+          taskType={inventoryPrompt.task.taskType}
+          roomNumber={inventoryPrompt.task.roomNumber}
+          onClose={() => setInventoryPrompt(null)}
+          onConfirm={(lines) =>
+            completeWithInventory(
+              inventoryPrompt.task,
+              inventoryPrompt.managerOverride,
+              lines,
+            )
+          }
         />
       )}
     </div>

@@ -24,6 +24,7 @@ import {
   computeTodayOperations,
 } from '@/lib/data/overview'
 import { getOccupancyToday } from '@/lib/data/occupancy'
+import { countLowStockForHotel } from '@/lib/data/inventory'
 import { getRecentNightAudits } from '@/app/actions/night-audit'
 import {
   getPeriodAudits,
@@ -68,9 +69,10 @@ export default async function DashboardPage({
     : []
 
   const supabase = await createClient()
-  const [guestFeedback, occupancyToday] = await Promise.all([
+  const [guestFeedback, occupancyToday, lowStockCount] = await Promise.all([
     hotelId ? loadHotelGuestFeedback(hotelId) : null,
     hotelId ? getOccupancyToday(supabase, hotelId) : undefined,
+    hotelId ? countLowStockForHotel(hotelId) : 0,
   ])
 
   const todayOps =
@@ -104,6 +106,7 @@ export default async function DashboardPage({
           today={todayOps}
           metrics={metrics}
           overdueTasks={overdueTasks}
+          lowStockCount={lowStockCount}
         />
       </DashboardHero>
 

@@ -315,6 +315,7 @@ export interface ComplaintEstimateItem {
   unit_cost: number
   line_total: number
   sort_order: number
+  inventory_item_id?: string | null
 }
 
 export interface ComplaintEstimate {

@@ -93,6 +93,7 @@ type MaterialRow = {
   unit_cost: number
   line_total: number
   sort_order: number
+  inventory_item_id?: string | null
 }
 
 async function persistComplaintEstimate(input: {
@@ -234,7 +235,7 @@ export async function submitComplaintEstimate(input: {
   complaintId: string
   note?: string
   labourCost: number
-  materials: { materialName: string; quantity: number; unitCost: number }[]
+  materials: { materialName: string; quantity: number; unitCost: number; inventoryItemId?: string }[]
 }): Promise<EstimateActionResult<ComplaintEstimate>> {
   const parsed = submitComplaintEstimateSchema.safeParse(input)
   if (!parsed.success) {
@@ -252,6 +253,7 @@ export async function submitComplaintEstimate(input: {
       unit_cost: m.unitCost,
       line_total: lineTotal,
       sort_order: i,
+      inventory_item_id: m.inventoryItemId ?? null,
     }
   })
 
@@ -285,7 +287,12 @@ export async function submitComplaintEstimateWithFile(
   const materialsRaw = String(formData.get('materials') ?? '[]')
   const fileEntry = formData.get('invoiceFile')
 
-  let materialsInput: { materialName: string; quantity: number; unitCost: number }[] = []
+  let materialsInput: {
+    materialName: string
+    quantity: number
+    unitCost: number
+    inventoryItemId?: string
+  }[] = []
   try {
     materialsInput = JSON.parse(materialsRaw)
   } catch {
@@ -313,6 +320,7 @@ export async function submitComplaintEstimateWithFile(
       unit_cost: m.unitCost,
       line_total: lineTotal,
       sort_order: i,
+      inventory_item_id: m.inventoryItemId ?? null,
     }
   })
 

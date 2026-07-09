@@ -339,7 +339,7 @@ export async function approveComplaint(
   const supabase = await createClient()
   const { data: complaint } = await supabase
     .from('complaints')
-    .select('room_id, status, approval_stage, assigned_to, guest_id, guest_completion_approved_at')
+    .select('room_id, hotel_id, status, approval_stage, assigned_to, guest_id, guest_completion_approved_at')
     .eq('id', complaintId)
     .maybeSingle()
 
@@ -414,9 +414,20 @@ export async function approveComplaint(
         .update({ status: roomStatus, updated_by: profile.id })
         .eq('id', complaint.room_id)
     }
+
+    if (complaint.hotel_id) {
+      const { deductInventoryForComplaint } = await import('@/lib/inventory/complaint-deduct')
+      const deduct = await deductInventoryForComplaint(complaintId, complaint.hotel_id, profile.id)
+      if (!deduct.ok) {
+        return { success: false, error: deduct.error }
+      }
+    }
   }
 
   revalidatePath('/manager/complaints')
+  revalidatePath('/owner/complaints')
+  revalidatePath('/owner/inventory')
+  revalidatePath('/manager/inventory')
   revalidatePath('/technician/tasks')
   return { success: true }
 }

@@ -1092,6 +1092,7 @@ export type Database = {
           unit_cost: number
           line_total: number
           sort_order: number
+          inventory_item_id: string | null
         }
         Insert: {
           id?: string
@@ -1101,6 +1102,7 @@ export type Database = {
           unit_cost?: number
           line_total?: number
           sort_order?: number
+          inventory_item_id?: string | null
         }
         Update: {
           id?: string
@@ -1110,6 +1112,7 @@ export type Database = {
           unit_cost?: number
           line_total?: number
           sort_order?: number
+          inventory_item_id?: string | null
         }
         Relationships: [
           {
@@ -1913,6 +1916,8 @@ export type Database = {
           created_by: string | null
           created_at: string
           updated_at: string
+          inventory_item_id: string | null
+          quantity_received: number | null
         }
         Insert: {
           id?: string
@@ -1926,6 +1931,8 @@ export type Database = {
           created_by?: string | null
           created_at?: string
           updated_at?: string
+          inventory_item_id?: string | null
+          quantity_received?: number | null
         }
         Update: {
           id?: string
@@ -1939,6 +1946,8 @@ export type Database = {
           created_by?: string | null
           created_at?: string
           updated_at?: string
+          inventory_item_id?: string | null
+          quantity_received?: number | null
         }
         Relationships: []
       }
@@ -1978,6 +1987,51 @@ export type Database = {
           notes?: string | null
           created_at?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      inventory_movements: {
+        Row: {
+          id: string
+          hotel_id: string
+          item_id: string
+          delta: number
+          quantity_after: number
+          reason: string
+          note: string | null
+          created_by: string | null
+          housekeeping_task_id: string | null
+          complaint_id: string | null
+          expense_id: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          hotel_id: string
+          item_id: string
+          delta: number
+          quantity_after: number
+          reason: string
+          note?: string | null
+          created_by?: string | null
+          housekeeping_task_id?: string | null
+          complaint_id?: string | null
+          expense_id?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          hotel_id?: string
+          item_id?: string
+          delta?: number
+          quantity_after?: number
+          reason?: string
+          note?: string | null
+          created_by?: string | null
+          housekeeping_task_id?: string | null
+          complaint_id?: string | null
+          expense_id?: string | null
+          created_at?: string
         }
         Relationships: []
       }

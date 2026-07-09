@@ -1,4 +1,5 @@
 import { getProfile } from '@/lib/auth/get-profile'
+import { countLowStockForHotel } from '@/lib/data/inventory'
 import { isPendingCompletion, needsGuestCompletionApproval } from '@/lib/complaints/workflow'
 import { loadGuestConversations } from '@/lib/data/guest-conversations'
 import { loadStaffConversations } from '@/lib/data/staff-conversations'
@@ -408,6 +409,11 @@ export async function getNavBadgeMap(): Promise<Record<string, number>> {
   const urgentCount = alerts.filter((a) => a.urgent).length
   if (urgentCount > 0) {
     map[dashboardHref] = urgentCount
+  }
+
+  const lowStock = await countLowStockForHotel(profile.hotel_id)
+  if (lowStock > 0) {
+    map[`${prefix}/inventory`] = lowStock
   }
 
   return map

@@ -19,6 +19,7 @@ import {
   getTodayDepartures,
 } from '@/lib/data/overview'
 import { getOccupancyToday } from '@/lib/data/occupancy'
+import { countLowStockForHotel } from '@/lib/data/inventory'
 import { OpsCalendarPanel } from '@/components/dashboard/ops-calendar-panel'
 import { loadOpsCalendarEvents, opsCalendarWeekRange } from '@/lib/data/ops-calendar'
 import { createClient } from '@/lib/supabase/server'
@@ -43,6 +44,7 @@ export default async function ReceptionistDashboardPage({
 
   const supabase = await createClient()
   const occupancyToday = hotelId ? await getOccupancyToday(supabase, hotelId) : undefined
+  const lowStockCount = hotelId ? await countLowStockForHotel(hotelId) : 0
   const todayOps =
     frontDesk?.ops ??
     ({
@@ -77,8 +79,10 @@ export default async function ReceptionistDashboardPage({
         <DashboardAttention
           today={todayOps}
           metrics={metrics}
+          lowStockCount={lowStockCount}
           reservationsHref="/receptionist/reservations"
           billingHref="/receptionist/reservations"
+          inventoryHref="/receptionist/inventory"
         />
       </DashboardHero>
 

@@ -228,6 +228,7 @@ const estimateMaterialRowSchema = z.object({
   materialName: z.string().min(1, 'Material name is required').max(120),
   quantity: z.coerce.number().positive('Quantity must be greater than 0'),
   unitCost: z.coerce.number().min(0, 'Unit cost cannot be negative'),
+  inventoryItemId: z.string().uuid().optional(),
 })
 
 export const submitComplaintEstimateSchema = z.object({
