@@ -42,6 +42,8 @@ export interface InventoryMovementRow {
   complaintId: string | null
 }
 
+const MAX_MOVEMENT_ATTEMPTS = 3
+
 export async function recordInventoryMovement(
   admin: AdminClient,
   input: RecordMovementInput,
@@ -50,57 +52,72 @@ export async function recordInventoryMovement(
     return { ok: false, error: 'Quantity change cannot be zero.' }
   }
 
-  const { data: item, error: fetchError } = await admin
-    .from('inventory_items')
-    .select('id, quantity_in_stock')
-    .eq('id', input.itemId)
-    .eq('hotel_id', input.hotelId)
-    .maybeSingle()
-
-  if (fetchError || !item) {
-    return { ok: false, error: 'Inventory item not found.' }
-  }
-
-  const nextQty = item.quantity_in_stock + input.delta
-  if (nextQty < 0) {
-    return { ok: false, error: 'Not enough stock for this movement.' }
-  }
-
-  const { error: updateError } = await admin
-    .from('inventory_items')
-    .update({
-      quantity_in_stock: nextQty,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', input.itemId)
-    .eq('hotel_id', input.hotelId)
-
-  if (updateError) {
-    return { ok: false, error: updateError.message }
-  }
-
-  const { error: insertError } = await admin.from('inventory_movements').insert({
-    hotel_id: input.hotelId,
-    item_id: input.itemId,
-    delta: input.delta,
-    quantity_after: nextQty,
-    reason: input.reason,
-    note: input.note?.trim() || null,
-    created_by: input.createdBy ?? null,
-    housekeeping_task_id: input.housekeepingTaskId ?? null,
-    complaint_id: input.complaintId ?? null,
-    expense_id: input.expenseId ?? null,
-  })
-
-  if (insertError) {
-    await admin
+  for (let attempt = 0; attempt < MAX_MOVEMENT_ATTEMPTS; attempt++) {
+    const { data: item, error: fetchError } = await admin
       .from('inventory_items')
-      .update({ quantity_in_stock: item.quantity_in_stock })
+      .select('id, quantity_in_stock')
       .eq('id', input.itemId)
-    return { ok: false, error: insertError.message }
+      .eq('hotel_id', input.hotelId)
+      .maybeSingle()
+
+    if (fetchError || !item) {
+      return { ok: false, error: 'Inventory item not found.' }
+    }
+
+    const nextQty = item.quantity_in_stock + input.delta
+    if (nextQty < 0) {
+      return { ok: false, error: 'Not enough stock for this movement.' }
+    }
+
+    // Compare-and-swap: only apply the write if stock hasn't changed since we
+    // read it, so concurrent movements can't silently overwrite each other.
+    const { data: updated, error: updateError } = await admin
+      .from('inventory_items')
+      .update({
+        quantity_in_stock: nextQty,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', input.itemId)
+      .eq('hotel_id', input.hotelId)
+      .eq('quantity_in_stock', item.quantity_in_stock)
+      .select('id')
+
+    if (updateError) {
+      return { ok: false, error: updateError.message }
+    }
+    if (!updated || updated.length === 0) {
+      // Another movement landed between our read and write — retry with fresh data.
+      continue
+    }
+
+    const { error: insertError } = await admin.from('inventory_movements').insert({
+      hotel_id: input.hotelId,
+      item_id: input.itemId,
+      delta: input.delta,
+      quantity_after: nextQty,
+      reason: input.reason,
+      note: input.note?.trim() || null,
+      created_by: input.createdBy ?? null,
+      housekeeping_task_id: input.housekeepingTaskId ?? null,
+      complaint_id: input.complaintId ?? null,
+      expense_id: input.expenseId ?? null,
+    })
+
+    if (insertError) {
+      // Roll back the stock change, but only if nothing else has moved it since.
+      await admin
+        .from('inventory_items')
+        .update({ quantity_in_stock: item.quantity_in_stock })
+        .eq('id', input.itemId)
+        .eq('hotel_id', input.hotelId)
+        .eq('quantity_in_stock', nextQty)
+      return { ok: false, error: insertError.message }
+    }
+
+    return { ok: true, quantityAfter: nextQty }
   }
 
-  return { ok: true, quantityAfter: nextQty }
+  return { ok: false, error: 'Stock changed while saving. Please try again.' }
 }
 
 export async function validateInventoryUsageLines(
@@ -166,7 +183,7 @@ export async function loadInventoryMovements(
   let query = admin
     .from('inventory_movements')
     .select(
-      'id, item_id, delta, quantity_after, reason, note, created_at, housekeeping_task_id, complaint_id',
+      'id, item_id, delta, quantity_after, reason, note, created_at, created_by, housekeeping_task_id, complaint_id',
     )
     .eq('hotel_id', hotelId)
     .order('created_at', { ascending: false })
@@ -193,6 +210,20 @@ export async function loadInventoryMovements(
     nameById = new Map((items ?? []).map((item) => [item.id, item.name]))
   }
 
+  const actorIds = [
+    ...new Set((data ?? []).map((row) => row.created_by).filter((id): id is string => !!id)),
+  ]
+  const actorNameById = new Map<string, string>()
+  if (actorIds.length > 0) {
+    const { data: actors } = await admin
+      .from('profiles')
+      .select('id, name')
+      .in('id', actorIds)
+    for (const actor of actors ?? []) {
+      if (actor.name) actorNameById.set(actor.id, actor.name)
+    }
+  }
+
   return (data ?? []).map((row) => ({
     id: row.id,
     itemId: row.item_id,
@@ -201,7 +232,7 @@ export async function loadInventoryMovements(
     quantityAfter: row.quantity_after ?? 0,
     reason: (row.reason ?? 'adjusted') as InventoryMovementReason,
     note: row.note ?? null,
-    createdByName: null,
+    createdByName: row.created_by ? (actorNameById.get(row.created_by) ?? null) : null,
     createdAt: row.created_at ?? new Date(0).toISOString(),
     housekeepingTaskId: row.housekeeping_task_id ?? null,
     complaintId: row.complaint_id ?? null,

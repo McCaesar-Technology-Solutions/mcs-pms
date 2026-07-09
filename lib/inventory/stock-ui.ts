@@ -61,7 +61,7 @@ export const STOCK_STATUS_LABEL: Record<InventoryStockStatus, string> = {
 export const STOCK_STATUS_PILL: Record<InventoryStockStatus, string> = {
   ok: 'status-pill status-pill--success',
   low: 'status-pill status-pill--warm',
-  out: 'status-pill status-pill--info',
+  out: 'status-pill status-pill--coral',
 }
 
 export const MOVEMENT_REASON_FILTERS = [

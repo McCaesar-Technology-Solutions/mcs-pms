@@ -59,11 +59,17 @@ export function ComplaintEstimateForm({
   >([])
 
   useEffect(() => {
-    void loadInventoryItemsForStaff().then((result) => {
-      if (result.success && result.data) {
-        setStockItems(result.data.filter((i) => i.category === 'maintenance' || i.category === 'general'))
-      }
-    })
+    void loadInventoryItemsForStaff()
+      .then((result) => {
+        if (result.success && result.data) {
+          setStockItems(
+            result.data.filter((i) => i.category === 'maintenance' || i.category === 'general'),
+          )
+        }
+      })
+      .catch((err) => {
+        console.error('[complaints] loadInventoryItemsForStaff failed:', err)
+      })
   }, [])
 
   useEffect(() => {

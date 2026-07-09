@@ -1393,6 +1393,11 @@
     color: var(--brand-gold-dark);
   }
 
+  .status-pill--coral {
+    background: var(--comp-coral-soft);
+    color: var(--comp-coral-ink);
+  }
+
   .status-pill--teal {
     background: var(--comp-teal-soft);
     color: var(--comp-teal-ink);

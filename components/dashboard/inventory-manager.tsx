@@ -190,11 +190,17 @@ export function InventoryManager({
     if (!selectedItemId) return
     let cancelled = false
     setMovementsLoading(true)
-    void fetchInventoryMovements(selectedItemId).then((result) => {
-      if (cancelled) return
-      if (result.success && result.data) setMovements(result.data)
-      setMovementsLoading(false)
-    })
+    void fetchInventoryMovements(selectedItemId)
+      .then((result) => {
+        if (cancelled) return
+        if (result.success && result.data) setMovements(result.data)
+      })
+      .catch((err) => {
+        console.error('[inventory] fetchInventoryMovements failed:', err)
+      })
+      .finally(() => {
+        if (!cancelled) setMovementsLoading(false)
+      })
     return () => {
       cancelled = true
     }
@@ -1545,7 +1551,7 @@ function DeleteConfirmModal({
       <ModalBody>
         <p className="text-sm text-muted-foreground">
           <span className="font-semibold text-foreground">{item.name}</span> will be removed from
-          inventory. Movement history for this item is kept.
+          inventory along with its movement history. This cannot be undone.
         </p>
       </ModalBody>
       <ModalFooter>

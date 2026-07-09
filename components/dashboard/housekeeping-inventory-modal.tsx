@@ -51,23 +51,27 @@ export function HousekeepingInventoryModal({
   useEffect(() => {
     if (!open) return
     setLoading(true)
-    void loadInventoryItemsForStaff().then((result) => {
-      if (result.success && result.data) {
-        setItems(result.data)
-        if (taskType === 'clean') {
-          setLines(
-            suggestCleanConsumption(result.data).map((s) => ({
-              itemId: s.itemId,
-              name: s.name,
-              quantity: s.quantity,
-            })),
-          )
-        } else {
-          setLines([])
+    void loadInventoryItemsForStaff()
+      .then((result) => {
+        if (result.success && result.data) {
+          setItems(result.data)
+          if (taskType === 'clean') {
+            setLines(
+              suggestCleanConsumption(result.data).map((s) => ({
+                itemId: s.itemId,
+                name: s.name,
+                quantity: s.quantity,
+              })),
+            )
+          } else {
+            setLines([])
+          }
         }
-      }
-      setLoading(false)
-    })
+      })
+      .catch((err) => {
+        console.error('[housekeeping] loadInventoryItemsForStaff failed:', err)
+      })
+      .finally(() => setLoading(false))
   }, [open, taskType])
 
   function addLine() {

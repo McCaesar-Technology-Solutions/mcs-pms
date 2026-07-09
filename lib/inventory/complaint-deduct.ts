@@ -30,15 +30,17 @@ export async function deductInventoryForComplaint(
     .not('inventory_item_id', 'is', null)
 
   const lines = (items ?? [])
-    .filter((row) => row.inventory_item_id && row.quantity > 0)
+    .filter((row) => row.inventory_item_id && Number(row.quantity) > 0)
     .map((row) => ({
       itemId: row.inventory_item_id as string,
-      quantity: Number(row.quantity),
+      // Estimates allow fractional quantities (e.g. 0.5 tin), but stock is
+      // tracked in whole units — deduct the whole unit taken from stores.
+      quantity: Math.ceil(Number(row.quantity)),
     }))
 
   if (lines.length === 0) return { ok: true }
 
-  return recordInventoryUsageLines(admin, {
+  const result = await recordInventoryUsageLines(admin, {
     hotelId,
     lines,
     reason: 'maintenance',
@@ -46,4 +48,22 @@ export async function deductInventoryForComplaint(
     complaintId,
     note: 'Parts used on resolved complaint',
   })
+
+  // If the movement log isn't provisioned yet, don't block complaint resolution.
+  if (!result.ok && isMissingMovementsInfra(result.error)) {
+    console.warn('[inventory] skipping complaint deduction — movements table missing')
+    return { ok: true }
+  }
+
+  return result
+}
+
+function isMissingMovementsInfra(message: string): boolean {
+  const lower = message.toLowerCase()
+  return (
+    lower.includes('inventory_movements') ||
+    lower.includes('does not exist') ||
+    lower.includes('schema cache') ||
+    lower.includes('could not find the table')
+  )
 }

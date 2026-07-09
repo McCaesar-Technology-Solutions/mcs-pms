@@ -103,7 +103,7 @@ export async function createInventoryItem(
     }
 
     const profile = await requireInventoryStaff()
-    if (!profile) return { success: false, error: 'Not authorized.' }
+    if (!profile) return { success: false, error: consumeStaffAuthError() }
 
     const admin = createAdminClient()
     const category = normalizeInventoryCategory(parsed.data.category)
@@ -175,7 +175,7 @@ export async function updateInventoryItem(
     }
 
     const profile = await requireInventoryStaff()
-    if (!profile) return { success: false, error: 'Not authorized.' }
+    if (!profile) return { success: false, error: consumeStaffAuthError() }
 
     const admin = createAdminClient()
     const { data: existing } = await admin
@@ -253,7 +253,7 @@ export async function receiveInventoryStock(
     }
 
     const profile = await requireInventoryStaff()
-    if (!profile?.hotel_id) return { success: false, error: 'Not authorized.' }
+    if (!profile?.hotel_id) return { success: false, error: consumeStaffAuthError() }
 
     const admin = createAdminClient()
     const { data: item } = await admin
@@ -308,7 +308,13 @@ export async function receiveInventoryStock(
       expenseId: expenseId ?? null,
     })
 
-    if (!movement.ok) return { success: false, error: movement.error }
+    if (!movement.ok) {
+      // Don't leave a purchase expense behind when the stock was never received.
+      if (expenseId) {
+        await admin.from('expenses').delete().eq('id', expenseId).eq('hotel_id', profile.hotel_id)
+      }
+      return { success: false, error: movement.error }
+    }
 
     revalidateInventory()
     return { success: true }
@@ -325,7 +331,7 @@ export async function issueInventoryStock(
     }
 
     const profile = await requireInventoryStaff()
-    if (!profile?.hotel_id) return { success: false, error: 'Not authorized.' }
+    if (!profile?.hotel_id) return { success: false, error: consumeStaffAuthError() }
 
     const admin = createAdminClient()
     const movement = await recordInventoryMovement(admin, {
@@ -354,7 +360,7 @@ export async function adjustInventoryStock(
     }
 
     const profile = await requireInventoryStaff()
-    if (!profile?.hotel_id) return { success: false, error: 'Not authorized.' }
+    if (!profile?.hotel_id) return { success: false, error: consumeStaffAuthError() }
 
     const admin = createAdminClient()
     const { data: existing } = await admin
@@ -391,7 +397,7 @@ export async function adjustInventoryStock(
 export async function fetchInventoryMovements(itemId?: string) {
   return safeInventoryAction('fetchInventoryMovements', async () => {
     const profile = await requireInventoryStaff()
-    if (!profile?.hotel_id) return { success: false as const, error: 'Not authorized.' }
+    if (!profile?.hotel_id) return { success: false as const, error: consumeStaffAuthError() }
 
     const admin = createAdminClient()
     const movements = await loadInventoryMovements(admin, profile.hotel_id, {
@@ -427,7 +433,7 @@ export async function loadInventoryItemsForStaff(): Promise<
 > {
   return safeInventoryAction('loadInventoryItemsForStaff', async () => {
     const profile = await requireInventoryStaff({ includeTechnician: true })
-    if (!profile?.hotel_id) return { success: false, error: 'Not authorized.' }
+    if (!profile?.hotel_id) return { success: false, error: consumeStaffAuthError() }
 
     const admin = createAdminClient()
     const { data } = await admin
