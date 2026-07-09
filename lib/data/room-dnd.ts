@@ -1,10 +1,13 @@
-import { createAdminClient } from '@/lib/supabase/admin'
+import { tryCreateAdminClient } from '@/lib/supabase/admin'
 import { todayISO } from '@/lib/stays/helpers'
 
 /** Room IDs where an in-house guest currently has Do Not Disturb enabled. */
 export async function loadActiveDndRoomIds(hotelId: string): Promise<Set<string>> {
-  const admin = createAdminClient()
-  const today = todayISO()
+  try {
+    const admin = tryCreateAdminClient()
+    if (!admin) return new Set()
+
+    const today = todayISO()
   const { data } = await admin
     .from('guests')
     .select('room_id')
@@ -19,4 +22,8 @@ export async function loadActiveDndRoomIds(hotelId: string): Promise<Set<string>
       .map((row) => row.room_id)
       .filter((id): id is string => Boolean(id)),
   )
+  } catch (err) {
+    console.error('[room-dnd] loadActiveDndRoomIds failed:', err)
+    return new Set()
+  }
 }

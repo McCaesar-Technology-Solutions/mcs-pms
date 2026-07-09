@@ -1,4 +1,4 @@
-import { createAdminClient } from '@/lib/supabase/admin'
+import { tryCreateAdminClient } from '@/lib/supabase/admin'
 import { isPendingCompletion, needsGuestCompletionApproval } from '@/lib/complaints/workflow'
 import { loadGuestConversations } from '@/lib/data/guest-conversations'
 import { loadGuestRequestHousekeepingTasks } from '@/lib/housekeeping/guest-task'
@@ -37,8 +37,11 @@ function complaintPriority(c: Complaint): number {
 }
 
 export async function loadOpsInbox(hotelId: string, limit = 12): Promise<OpsInboxItem[]> {
-  const admin = createAdminClient()
-  const items: OpsInboxItem[] = []
+  try {
+    const admin = tryCreateAdminClient()
+    if (!admin) return []
+
+    const items: OpsInboxItem[] = []
 
   const [complaintsRes, requestsRes, housekeepingRes, stayConversations, complaintIdsRes] =
     await Promise.all([
@@ -222,4 +225,8 @@ export async function loadOpsInbox(hotelId: string, limit = 12): Promise<OpsInbo
   return items
     .sort((a, b) => a.priority - b.priority || b.createdAt.localeCompare(a.createdAt))
     .slice(0, limit)
+  } catch (err) {
+    console.error('[ops-inbox] loadOpsInbox failed:', err)
+    return []
+  }
 }

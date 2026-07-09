@@ -83,8 +83,16 @@ async function seedRooms(hotelId: string, totalRooms: number, ownerId: string) {
 }
 
 export async function fetchOwnerProperties(): Promise<PropertyActionResult<Property[]>> {
-  const properties = await getOwnerProperties()
-  return { success: true, data: properties }
+  try {
+    const properties = await getOwnerProperties()
+    return { success: true, data: properties }
+  } catch (err) {
+    console.error('[properties] fetchOwnerProperties failed:', err)
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'Could not load properties.',
+    }
+  }
 }
 
 export async function createProperty(input: {

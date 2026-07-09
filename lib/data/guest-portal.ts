@@ -1,4 +1,4 @@
-import { createAdminClient } from '@/lib/supabase/admin'
+import { tryCreateAdminClient } from '@/lib/supabase/admin'
 import { getHotelGuestRules, type GuestRuleRow } from '@/lib/data/guest-rules'
 import { getHotelLocalGuide, type LocalGuideRow } from '@/lib/data/local-guide'
 import { loadGuestRequestHousekeepingTasks } from '@/lib/housekeeping/guest-task'
@@ -70,8 +70,11 @@ interface HotelPortalExtras {
 
 /** Loads portal-specific hotel columns when migration 036 is applied; otherwise null. */
 async function loadHotelPortalExtras(hotelId: string): Promise<HotelPortalExtras | null> {
-  const admin = createAdminClient()
-  const { data, error } = await admin
+  try {
+    const admin = tryCreateAdminClient()
+    if (!admin) return null
+
+    const { data, error } = await admin
     .from('hotels')
     .select(
       'guest_portal_wifi_ssid, guest_portal_wifi_password, guest_portal_parking, guest_portal_emergency_phone, guest_portal_check_out_time, guest_portal_welcome',
@@ -81,12 +84,18 @@ async function loadHotelPortalExtras(hotelId: string): Promise<HotelPortalExtras
 
   if (error || !data) return null
   return data as HotelPortalExtras
+  } catch (err) {
+    console.error('[guest-portal] loadHotelPortalExtras failed:', err)
+    return null
+  }
 }
 
 export async function loadGuestPortalContext(guest: Guest): Promise<GuestPortalContext | null> {
-  const admin = createAdminClient()
+  try {
+    const admin = tryCreateAdminClient()
+    if (!admin) return null
 
-  const { data: hotel, error: hotelError } = await admin
+    const { data: hotel, error: hotelError } = await admin
     .from('hotels')
     .select('id, name, address, city, region, profile_image_path')
     .eq('id', guest.hotel_id)
@@ -167,11 +176,18 @@ export async function loadGuestPortalContext(guest: Guest): Promise<GuestPortalC
         })),
     hasFeedback: feedbackRes.error ? false : (feedbackRes.data?.length ?? 0) > 0,
   }
+  } catch (err) {
+    console.error('[guest-portal] loadGuestPortalContext failed:', err)
+    return null
+  }
 }
 
 export async function loadHotelGuestRequests(hotelId: string): Promise<GuestRequestPanelRow[]> {
-  const admin = createAdminClient()
-  const { data, error } = await admin
+  try {
+    const admin = tryCreateAdminClient()
+    if (!admin) return []
+
+    const { data, error } = await admin
     .from('guest_requests')
     .select(
       'id, guest_id, request_type, note, requested_date, requested_time, status, created_at, guests(name, do_not_disturb), rooms(number)',
@@ -231,4 +247,8 @@ export async function loadHotelGuestRequests(hotelId: string): Promise<GuestRequ
       housekeepingTaskStatus: hkTask?.status ?? null,
     }
   })
+  } catch (err) {
+    console.error('[guest-portal] loadHotelGuestRequests failed:', err)
+    return []
+  }
 }

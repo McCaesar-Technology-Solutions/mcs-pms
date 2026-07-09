@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { getProfile } from '@/lib/auth/get-profile'
 import { AppShell } from '@/components/dashboard/app-shell'
+import { StaffShellErrorBoundary } from '@/components/errors/staff-shell-error-boundary'
 import { receptionistNavigation } from '@/lib/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getOccupancyToday, type OccupancyToday } from '@/lib/data/occupancy'
@@ -19,31 +20,38 @@ function applyBadges<T extends { href: string; badge?: number }>(
 export default async function ReceptionistLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const profile = await getProfile()
-  if (!profile || profile.role !== 'receptionist') {
+  try {
+    const profile = await getProfile()
+    if (!profile || profile.role !== 'receptionist') {
+      redirect('/login')
+    }
+
+    let navigation = receptionistNavigation.map((item) => ({ ...item }))
+    let occupancyToday: OccupancyToday | undefined
+
+    if (profile.hotel_id) {
+      try {
+        const supabase = await createClient()
+        const [badges, occupancy] = await Promise.all([
+          getNavBadgeMap(),
+          getOccupancyToday(supabase, profile.hotel_id),
+        ])
+        navigation = applyBadges(navigation, badges)
+        occupancyToday = occupancy
+      } catch (err) {
+        console.error('[receptionist layout] badge/occupancy load failed:', err)
+      }
+    }
+
+    return (
+      <StaffShellErrorBoundary boundary="receptionist/shell" homeHref="/receptionist/dashboard">
+        <AppShell navigation={navigation} profile={profile} enableRealtime occupancyToday={occupancyToday}>
+          {children}
+        </AppShell>
+      </StaffShellErrorBoundary>
+    )
+  } catch (err) {
+    console.error('[receptionist layout] failed:', err)
     redirect('/login')
   }
-
-  let navigation = receptionistNavigation.map((item) => ({ ...item }))
-  let occupancyToday: OccupancyToday | undefined
-
-  if (profile.hotel_id) {
-    try {
-      const supabase = await createClient()
-      const [badges, occupancy] = await Promise.all([
-        getNavBadgeMap(),
-        getOccupancyToday(supabase, profile.hotel_id),
-      ])
-      navigation = applyBadges(navigation, badges)
-      occupancyToday = occupancy
-    } catch (err) {
-      console.error('[receptionist layout] badge/occupancy load failed:', err)
-    }
-  }
-
-  return (
-    <AppShell navigation={navigation} profile={profile} enableRealtime occupancyToday={occupancyToday}>
-      {children}
-    </AppShell>
-  )
 }

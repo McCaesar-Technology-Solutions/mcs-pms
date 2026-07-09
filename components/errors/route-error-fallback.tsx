@@ -49,6 +49,9 @@ export function RouteErrorFallback({
             {error.message}
           </p>
         )}
+        {error.digest && (
+          <p className="mt-3 text-xs text-white/45">Reference: {error.digest}</p>
+        )}
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
           <button
             type="button"

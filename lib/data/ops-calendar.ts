@@ -1,4 +1,4 @@
-import { createAdminClient } from '@/lib/supabase/admin'
+import { tryCreateAdminClient } from '@/lib/supabase/admin'
 import { OPS_EVENT_LABELS } from '@/lib/ops-calendar/categories'
 
 export { OPS_EVENT_LABELS }
@@ -27,8 +27,11 @@ export async function loadOpsCalendarEvents(
   fromIso: string,
   toIso: string,
 ): Promise<OpsCalendarEventRow[]> {
-  const admin = createAdminClient()
-  const { data } = await admin
+  try {
+    const admin = tryCreateAdminClient()
+    if (!admin) return []
+
+    const { data } = await admin
     .from('ops_calendar_events')
     .select('id, title, category, starts_at, ends_at, all_day, notes, rooms(number)')
     .eq('hotel_id', hotelId)
@@ -46,4 +49,8 @@ export async function loadOpsCalendarEvents(
     roomNumber: (row.rooms as { number?: string } | null)?.number ?? null,
     notes: row.notes,
   }))
+  } catch (err) {
+    console.error('[ops-calendar] loadOpsCalendarEvents failed:', err)
+    return []
+  }
 }

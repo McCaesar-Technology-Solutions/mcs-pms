@@ -1,4 +1,4 @@
-import { createAdminClient } from '@/lib/supabase/admin'
+import { tryCreateAdminClient } from '@/lib/supabase/admin'
 
 export interface GuestFeedbackRow {
   id: string
@@ -20,8 +20,18 @@ export async function loadHotelGuestFeedback(
   hotelId: string,
   limit = 15,
 ): Promise<GuestFeedbackSummary> {
-  const admin = createAdminClient()
-  const { data, error } = await admin
+  const empty: GuestFeedbackSummary = {
+    averageRating: null,
+    totalCount: 0,
+    lowRatingCount: 0,
+    rows: [],
+  }
+
+  try {
+    const admin = tryCreateAdminClient()
+    if (!admin) return empty
+
+    const { data, error } = await admin
     .from('guest_feedback')
     .select('id, rating, comment, created_at, guests(name, rooms(number))')
     .eq('hotel_id', hotelId)
@@ -67,5 +77,9 @@ export async function loadHotelGuestFeedback(
     totalCount: count ?? rows.length,
     lowRatingCount: lowCount ?? 0,
     rows,
+  }
+  } catch (err) {
+    console.error('[guest-feedback] loadHotelGuestFeedback failed:', err)
+    return empty
   }
 }

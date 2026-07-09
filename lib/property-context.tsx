@@ -80,42 +80,46 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
   const canSwitchProperty = profile ? profile.role === 'owner' : false
 
   const loadProperties = useCallback(async (prof: Profile) => {
-    if (prof.role === 'owner') {
-      const result = await fetchOwnerProperties()
-      if (result.success && result.data && result.data.length > 0) {
-        setPropertiesList(result.data)
-        const active = prof.hotel_id
-          ? (result.data.find((p) => p.id === prof.hotel_id) ?? result.data[0])
-          : result.data[0]
-        setActivePropertyIdState(active.id)
-        return
-      }
-    }
-
-    if (prof.hotel_id) {
-      const supabase = createClient()
-      const [{ data: hotel }, { count: roomCount }] = await Promise.all([
-        supabase.from('hotels').select('*').eq('id', prof.hotel_id).maybeSingle(),
-        supabase
-          .from('rooms')
-          .select('id', { count: 'exact', head: true })
-          .eq('hotel_id', prof.hotel_id),
-      ])
-
-      if (hotel) {
-        const mapped: Property = {
-          id: hotel.id,
-          name: hotel.name,
-          code: hotel.name.slice(0, 4).toUpperCase(),
-          address: hotel.address ?? '',
-          city: hotel.city ?? 'Accra',
-          region: hotel.region ?? 'Greater Accra',
-          totalRooms: roomCount ?? 0,
-          imageUrl: propertyImagePublicUrl(hotel.profile_image_path),
+    try {
+      if (prof.role === 'owner') {
+        const result = await fetchOwnerProperties()
+        if (result.success && result.data && result.data.length > 0) {
+          setPropertiesList(result.data)
+          const active = prof.hotel_id
+            ? (result.data.find((p) => p.id === prof.hotel_id) ?? result.data[0])
+            : result.data[0]
+          setActivePropertyIdState(active.id)
+          return
         }
-        setPropertiesList([mapped])
-        setActivePropertyIdState(mapped.id)
       }
+
+      if (prof.hotel_id) {
+        const supabase = createClient()
+        const [{ data: hotel }, { count: roomCount }] = await Promise.all([
+          supabase.from('hotels').select('*').eq('id', prof.hotel_id).maybeSingle(),
+          supabase
+            .from('rooms')
+            .select('id', { count: 'exact', head: true })
+            .eq('hotel_id', prof.hotel_id),
+        ])
+
+        if (hotel) {
+          const mapped: Property = {
+            id: hotel.id,
+            name: hotel.name,
+            code: hotel.name.slice(0, 4).toUpperCase(),
+            address: hotel.address ?? '',
+            city: hotel.city ?? 'Accra',
+            region: hotel.region ?? 'Greater Accra',
+            totalRooms: roomCount ?? 0,
+            imageUrl: propertyImagePublicUrl(hotel.profile_image_path),
+          }
+          setPropertiesList([mapped])
+          setActivePropertyIdState(mapped.id)
+        }
+      }
+    } catch (err) {
+      console.error('[property-context] loadProperties failed:', err)
     }
   }, [])
 

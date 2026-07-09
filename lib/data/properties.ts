@@ -1,11 +1,12 @@
 import { createClient } from '@/lib/supabase/server'
-import { createAdminClient } from '@/lib/supabase/admin'
+import { tryCreateAdminClient } from '@/lib/supabase/admin'
 import { getProfile } from '@/lib/auth/get-profile'
 import { propertyImagePublicUrl } from '@/lib/properties/image-storage'
 import type { Hotel, Property } from '@/types'
 
 async function getRoomCount(hotelId: string): Promise<number> {
-  const admin = createAdminClient()
+  const admin = tryCreateAdminClient()
+  if (!admin) return 0
   const { count } = await admin
     .from('rooms')
     .select('id', { count: 'exact', head: true })
@@ -36,10 +37,12 @@ function hotelToProperty(hotel: Hotel, roomCount: number): Property {
 
 /** Hotels owned by the signed-in owner, with live room counts. */
 export async function getOwnerProperties(): Promise<Property[]> {
-  const profile = await getProfile()
-  if (!profile || profile.role !== 'owner') return []
+  try {
+    const profile = await getProfile()
+    if (!profile || profile.role !== 'owner') return []
 
-  const admin = createAdminClient()
+    const admin = tryCreateAdminClient()
+    if (!admin) return []
   const { data: owned } = await admin
     .from('hotels')
     .select('*, rooms(count)')
@@ -71,6 +74,10 @@ export async function getOwnerProperties(): Promise<Property[]> {
   const hotels = Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name))
   const counts = await Promise.all(hotels.map((h) => getRoomCount(h.id)))
   return hotels.map((hotel, i) => hotelToProperty(hotel, counts[i]))
+  } catch (err) {
+    console.error('[properties] getOwnerProperties failed:', err)
+    return []
+  }
 }
 
 /** Single assigned hotel for managers/technicians. */
@@ -87,7 +94,8 @@ export async function getAssignedProperty(): Promise<Property | null> {
 }
 
 export async function ownerOwnsHotel(ownerId: string, hotelId: string): Promise<boolean> {
-  const admin = createAdminClient()
+  const admin = tryCreateAdminClient()
+  if (!admin) return false
   const { data: hotel } = await admin
     .from('hotels')
     .select('id, owner_id')
