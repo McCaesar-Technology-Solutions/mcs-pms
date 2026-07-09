@@ -161,12 +161,12 @@ export async function recordInventoryUsageLines(
 export async function loadInventoryMovements(
   admin: AdminClient,
   hotelId: string,
-  options?: { itemId?: string; limit?: number },
+  options?: { itemId?: string; limit?: number; itemNames?: Map<string, string> },
 ): Promise<InventoryMovementRow[]> {
   let query = admin
     .from('inventory_movements')
     .select(
-      'id, item_id, delta, quantity_after, reason, note, created_at, housekeeping_task_id, complaint_id, inventory_items(name)',
+      'id, item_id, delta, quantity_after, reason, note, created_at, housekeeping_task_id, complaint_id',
     )
     .eq('hotel_id', hotelId)
     .order('created_at', { ascending: false })
@@ -176,24 +176,46 @@ export async function loadInventoryMovements(
     query = query.eq('item_id', options.itemId)
   }
 
-  const { data } = await query
+  const { data, error } = await query
 
-  return (data ?? []).map((row) => {
-    const item = row.inventory_items as { name?: string } | null
-    return {
-      id: row.id,
-      itemId: row.item_id,
-      itemName: item?.name ?? 'Item',
-      delta: row.delta,
-      quantityAfter: row.quantity_after,
-      reason: row.reason as InventoryMovementReason,
-      note: row.note,
-      createdByName: null,
-      createdAt: row.created_at,
-      housekeepingTaskId: row.housekeeping_task_id,
-      complaintId: row.complaint_id,
-    }
-  })
+  if (error) {
+    if (isMissingMovementsTable(error.message)) return []
+    console.error('[inventory] loadInventoryMovements failed:', error.message)
+    return []
+  }
+
+  let nameById = options?.itemNames
+  if (!nameById) {
+    const { data: items } = await admin
+      .from('inventory_items')
+      .select('id, name')
+      .eq('hotel_id', hotelId)
+    nameById = new Map((items ?? []).map((item) => [item.id, item.name]))
+  }
+
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    itemId: row.item_id,
+    itemName: nameById!.get(row.item_id) ?? 'Item',
+    delta: row.delta,
+    quantityAfter: row.quantity_after,
+    reason: row.reason as InventoryMovementReason,
+    note: row.note,
+    createdByName: null,
+    createdAt: row.created_at,
+    housekeepingTaskId: row.housekeeping_task_id,
+    complaintId: row.complaint_id,
+  }))
+}
+
+function isMissingMovementsTable(message: string): boolean {
+  const lower = message.toLowerCase()
+  return (
+    lower.includes('inventory_movements') ||
+    lower.includes('does not exist') ||
+    lower.includes('schema cache') ||
+    lower.includes('could not find the table')
+  )
 }
 
 export async function hasComplaintInventoryDeduction(

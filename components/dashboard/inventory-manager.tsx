@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import {
+  Suspense,
   useCallback,
   useEffect,
   useMemo,
@@ -94,6 +95,22 @@ const SORT_OPTIONS: { value: InventorySort; label: string }[] = [
 
 const ICON_BTN =
   'inline-flex h-11 min-w-11 items-center justify-center rounded-lg transition-colors duration-150'
+
+export function InventoryManagerShell(props: InventoryManagerProps) {
+  return (
+    <Suspense fallback={<InventoryManagerFallback />}>
+      <InventoryManager {...props} />
+    </Suspense>
+  )
+}
+
+function InventoryManagerFallback() {
+  return (
+    <div className="surface-card p-8 text-center text-sm text-muted-foreground">
+      Loading inventory…
+    </div>
+  )
+}
 
 export function InventoryManager({
   items,
@@ -325,25 +342,22 @@ export function InventoryManager({
 
       <div className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
-          <div className="relative min-w-[200px] flex-1">
-            <Search
-              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-              aria-hidden
-            />
+          <div className="app-search-field min-w-[200px] flex-1">
+            <Search className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
             <input
               ref={searchRef}
               type="search"
               placeholder="Search items… (press /)"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="app-field w-full pl-9 pr-9"
+              className="min-w-0 flex-1 bg-transparent text-foreground outline-none placeholder:text-muted-foreground"
               aria-label="Search inventory"
             />
             {query && (
               <button
                 type="button"
                 onClick={() => setQuery('')}
-                className={`${ICON_BTN} absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground hover:bg-secondary`}
+                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors duration-150 hover:bg-secondary hover:text-foreground"
                 aria-label="Clear search"
               >
                 <X className="h-4 w-4" />
@@ -1080,27 +1094,34 @@ function ItemFormModal({
   function save() {
     setError(null)
     startTransition(async () => {
-      const result = item
-        ? await updateInventoryItem(item.id, {
-            name,
-            category,
-            reorderLevel: Number(reorderLevel),
-            unit,
-            notes: notes || undefined,
-          })
-        : await createInventoryItem({
-            name,
-            category,
-            quantityInStock: Number(quantityInStock),
-            reorderLevel: Number(reorderLevel),
-            unit,
-            notes: notes || undefined,
-          })
-      if (result.success) {
-        toast.success(item ? 'Item updated' : 'Item added')
-        onClose()
-      } else {
-        setError(result.error ?? 'Could not save item')
+      try {
+        const result = item
+          ? await updateInventoryItem(item.id, {
+              name,
+              category,
+              reorderLevel: Number(reorderLevel),
+              unit,
+              notes: notes || undefined,
+            })
+          : await createInventoryItem({
+              name,
+              category,
+              quantityInStock: Number(quantityInStock),
+              reorderLevel: Number(reorderLevel),
+              unit,
+              notes: notes || undefined,
+            })
+        if (result.success) {
+          toast.success(item ? 'Item updated' : 'Item added')
+          onClose()
+        } else {
+          setError(result.error ?? 'Could not save item')
+          toast.error(result.error ?? 'Could not save item')
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Could not save item.'
+        setError(message)
+        toast.error(message)
       }
     })
   }

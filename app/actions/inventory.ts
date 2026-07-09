@@ -16,13 +16,23 @@ export type InventoryActionResult<T = void> =
   | { success: false; error: string }
 
 const itemSchema = z.object({
-  name: z.string().min(1).max(120),
+  name: z.string().trim().min(1, 'Item name is required.').max(120),
   category: z.string().min(1).max(60),
-  quantityInStock: z.number().int().min(0),
-  reorderLevel: z.number().int().min(0),
-  unit: z.string().min(1).max(30),
+  quantityInStock: z.coerce.number().int().min(0),
+  reorderLevel: z.coerce.number().int().min(0),
+  unit: z.string().trim().min(1).max(30),
   notes: z.string().max(300).optional(),
 })
+
+function isMissingMovementsTable(message: string): boolean {
+  const lower = message.toLowerCase()
+  return (
+    lower.includes('inventory_movements') ||
+    lower.includes('does not exist') ||
+    lower.includes('schema cache') ||
+    lower.includes('could not find the table')
+  )
+}
 
 const receiveStockSchema = z.object({
   itemId: z.string().uuid(),
@@ -69,50 +79,78 @@ function revalidateInventory() {
 export async function createInventoryItem(
   input: z.infer<typeof itemSchema>,
 ): Promise<InventoryActionResult> {
-  const parsed = itemSchema.safeParse(input)
-  if (!parsed.success) {
-    return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid item.' }
-  }
+  try {
+    const parsed = itemSchema.safeParse(input)
+    if (!parsed.success) {
+      return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid item.' }
+    }
 
-  const profile = await requireInventoryStaff()
-  if (!profile) return { success: false, error: 'Not authorized.' }
+    const profile = await requireInventoryStaff()
+    if (!profile) return { success: false, error: 'Not authorized.' }
 
-  const admin = createAdminClient()
-  const category = normalizeInventoryCategory(parsed.data.category)
-  const openingQty = parsed.data.quantityInStock
-  const { data: inserted, error } = await admin
-    .from('inventory_items')
-    .insert({
-      hotel_id: profile.hotel_id!,
-      name: parsed.data.name.trim(),
-      category,
-      quantity_in_stock: 0,
-      reorder_level: parsed.data.reorderLevel,
-      unit: parsed.data.unit.trim(),
-      notes: parsed.data.notes?.trim() || null,
-    })
-    .select('id')
-    .single()
+    const admin = createAdminClient()
+    const category = normalizeInventoryCategory(parsed.data.category)
+    const openingQty = parsed.data.quantityInStock
+    const { data: inserted, error } = await admin
+      .from('inventory_items')
+      .insert({
+        hotel_id: profile.hotel_id!,
+        name: parsed.data.name,
+        category,
+        quantity_in_stock: 0,
+        reorder_level: parsed.data.reorderLevel,
+        unit: parsed.data.unit,
+        notes: parsed.data.notes?.trim() || null,
+      })
+      .select('id')
+      .single()
 
-  if (error || !inserted) return { success: false, error: error?.message ?? 'Could not create item.' }
+    if (error || !inserted) {
+      return { success: false, error: error?.message ?? 'Could not create item.' }
+    }
 
-  if (openingQty > 0) {
-    const movement = await recordInventoryMovement(admin, {
-      hotelId: profile.hotel_id!,
-      itemId: inserted.id,
-      delta: openingQty,
-      reason: 'received',
-      note: 'Opening stock',
-      createdBy: profile.id,
-    })
-    if (!movement.ok) {
-      await admin.from('inventory_items').delete().eq('id', inserted.id)
-      return { success: false, error: movement.error }
+    if (openingQty > 0) {
+      const movement = await recordInventoryMovement(admin, {
+        hotelId: profile.hotel_id!,
+        itemId: inserted.id,
+        delta: openingQty,
+        reason: 'received',
+        note: 'Opening stock',
+        createdBy: profile.id,
+      })
+      if (!movement.ok) {
+        if (isMissingMovementsTable(movement.error)) {
+          const { error: qtyError } = await admin
+            .from('inventory_items')
+            .update({
+              quantity_in_stock: openingQty,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', inserted.id)
+          if (qtyError) {
+            await admin.from('inventory_items').delete().eq('id', inserted.id)
+            return {
+              success: false,
+              error:
+                'Inventory movement log is not set up yet. Apply migration 055_inventory_movements.sql, then try again.',
+            }
+          }
+        } else {
+          await admin.from('inventory_items').delete().eq('id', inserted.id)
+          return { success: false, error: movement.error }
+        }
+      }
+    }
+
+    revalidateInventory()
+    return { success: true }
+  } catch (err) {
+    console.error('[inventory] createInventoryItem failed:', err)
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'Could not create item.',
     }
   }
-
-  revalidateInventory()
-  return { success: true }
 }
 
 export async function updateInventoryItem(

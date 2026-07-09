@@ -25,14 +25,15 @@ import {
 import { writeAuditLog, logRoomStatusChange } from '@/lib/audit/log'
 import { canCheckIn, canCheckOut } from '@/lib/reservations/lifecycle'
 import { runNotifyTask } from '@/lib/notifications/notify-task'
-import { validateCheckoutBalance } from '@/lib/reservations/checkout-validation'
-import { appendReservationEvent, transitionReservation } from '@/lib/reservations/state-machine'
-import { normalizeActorRole } from '@/lib/reservations/transitions'
+import { buildCheckoutInvoicePreview } from '@/lib/billing/checkout-invoice-export'
 import {
   buildCheckoutInvoicePaymentState,
   finalizeReservationCheckoutPayment,
   refreshPreCheckoutPaymentStatus,
 } from '@/lib/billing/reservation-payment'
+import { appendReservationEvent, transitionReservation } from '@/lib/reservations/state-machine'
+import { normalizeActorRole } from '@/lib/reservations/transitions'
+import type { InvoiceExportRow } from '@/lib/export/types'
 import { requireVerifiedStaff } from '@/lib/auth/staff-session'
 import type { PaymentMethod, ReservationChannel } from '@/types'
 import { z } from 'zod'
@@ -489,7 +490,7 @@ async function executeStayCheckout(
     includeTax: boolean
     departureStatus: StayDepartureStatus
   },
-): Promise<StayActionResult<{ invoiceId: string | null }>> {
+): Promise<StayActionResult<{ invoiceId: string | null; invoicePreview?: InvoiceExportRow }>> {
   const { reservation, profile, userId } = input
   const today = todayISO()
   const actorRole = normalizeActorRole(profile.role)
@@ -497,6 +498,7 @@ async function executeStayCheckout(
   const paidNow = !isWalkout && input.markAsPaid !== false
 
   let guestPhone: string | null = null
+  let roomNumber: string | null = null
   if (reservation.guest_id) {
     const { data: guestRow } = await admin
       .from('guests')
@@ -504,6 +506,14 @@ async function executeStayCheckout(
       .eq('id', reservation.guest_id)
       .maybeSingle()
     guestPhone = guestRow?.phone?.trim() ?? null
+  }
+  if (reservation.room_id) {
+    const { data: roomRow } = await admin
+      .from('rooms')
+      .select('number')
+      .eq('id', reservation.room_id)
+      .maybeSingle()
+    roomNumber = roomRow?.number ?? null
   }
 
   const effectiveCheckOut = input.earlyCheckout ? today : reservation.check_out
@@ -538,14 +548,6 @@ async function executeStayCheckout(
     : { taxes: roomTaxes, folioCharges: [], folioSubtotal: 0 }
 
   const priorDeposit = Number(reservation.amount_paid ?? 0)
-  const balanceCheck = validateCheckoutBalance({
-    invoiceTotal: taxes.total,
-    priorDeposit,
-    markAsPaid: paidNow,
-  })
-  if (!balanceCheck.ok) {
-    return { success: false, error: balanceCheck.error }
-  }
 
   const now = new Date().toISOString()
   const dueAt = paidNow
@@ -564,6 +566,7 @@ async function executeStayCheckout(
     .maybeSingle()
 
   let invoiceId: string | null = existingInvoice?.id ?? null
+  let invoicePreview: InvoiceExportRow | undefined
 
   if (!existingInvoice) {
     const invoiceNumber = await allocateInvoiceNumber(reservation.hotel_id)
@@ -602,6 +605,24 @@ async function executeStayCheckout(
 
     if (invoiceRow?.id) {
       invoiceId = invoiceRow.id
+      invoicePreview = buildCheckoutInvoicePreview({
+        invoiceId: invoiceRow.id,
+        invoiceNumber,
+        guestName: reservation.guest_name,
+        roomNumber,
+        checkIn: reservation.check_in,
+        checkOut: effectiveCheckOut,
+        issuedAt: now,
+        subtotal: taxes.subtotal,
+        nhil: taxes.nhil,
+        getfund: taxes.getfund,
+        covid: taxes.covid,
+        vat: taxes.vat,
+        elevy: taxes.elevy,
+        total: taxes.total,
+        paymentMethod: input.paymentMethod,
+        paymentStatus: checkoutPayment.paymentStatus,
+      })
       await finalizeReservationCheckoutPayment(admin, {
         reservationId: reservation.id,
         invoiceId: invoiceRow.id,
@@ -732,7 +753,7 @@ async function executeStayCheckout(
       : `${reservation.guest_name} checked out — ₵${taxes.total.toLocaleString()} (${input.paymentMethod.replace(/_/g, ' ')}, ${paidNow ? 'paid' : 'pending'})${folioSubtotal > 0 ? ` incl. ₵${folioSubtotal} folio` : ''}`,
   })
 
-  return { success: true, data: { invoiceId } }
+  return { success: true, data: { invoiceId, invoicePreview } }
 }
 
 export async function beginCheckoutStay(reservationId: string): Promise<StayActionResult> {
@@ -786,7 +807,7 @@ export async function completeCheckoutStay(input: {
   earlyCheckout?: boolean
   markAsPaid?: boolean
   includeTax?: boolean
-}): Promise<StayActionResult<{ invoiceId: string | null }>> {
+}): Promise<StayActionResult<{ invoiceId: string | null; invoicePreview?: InvoiceExportRow }>> {
   const { profile, userId } = await requireManager()
   if (!profile?.hotel_id || !userId || !['owner', 'manager', 'receptionist'].includes(profile.role)) {
     return { success: false, error: 'Not authorized.' }
@@ -831,7 +852,7 @@ export async function checkOutStay(input: {
   earlyCheckout?: boolean
   markAsPaid?: boolean
   includeTax?: boolean
-}): Promise<StayActionResult<{ invoiceId: string | null }>> {
+}): Promise<StayActionResult<{ invoiceId: string | null; invoicePreview?: InvoiceExportRow }>> {
   const { profile, userId } = await requireManager()
   if (!profile?.hotel_id || !userId || !['owner', 'manager', 'receptionist'].includes(profile.role)) {
     return { success: false, error: 'Not authorized.' }

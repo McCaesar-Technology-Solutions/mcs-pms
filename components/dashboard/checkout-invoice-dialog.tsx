@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Download, Printer } from 'lucide-react'
+import { Download, Loader2, Printer } from 'lucide-react'
 import { toast } from 'sonner'
 import { getStaffInvoiceExport } from '@/app/actions/invoices'
 import { CenteredModal, ModalBody, ModalFooter, ModalHeader } from '@/components/ui/centered-modal'
@@ -12,6 +12,7 @@ import type { ExportHotelInfo, InvoiceExportRow } from '@/lib/export/types'
 interface CheckoutInvoiceDialogProps {
   invoiceId: string
   guestName?: string
+  initialInvoice?: InvoiceExportRow
   onClose: () => void
 }
 
@@ -24,47 +25,63 @@ function formatMethod(method: string | null | undefined) {
   return PAYMENT_METHOD_LABELS[method] ?? method.replace(/_/g, ' ')
 }
 
-export function CheckoutInvoiceDialog({ invoiceId, guestName, onClose }: CheckoutInvoiceDialogProps) {
-  const [loading, setLoading] = useState(true)
+export function CheckoutInvoiceDialog({
+  invoiceId,
+  guestName,
+  initialInvoice,
+  onClose,
+}: CheckoutInvoiceDialogProps) {
+  const [loadingExport, setLoadingExport] = useState(!initialInvoice)
   const [error, setError] = useState<string | null>(null)
   const [hotel, setHotel] = useState<ExportHotelInfo | null>(null)
-  const [invoice, setInvoice] = useState<InvoiceExportRow | null>(null)
+  const [invoice, setInvoice] = useState<InvoiceExportRow | null>(initialInvoice ?? null)
 
   useEffect(() => {
     let cancelled = false
-    setLoading(true)
-    setError(null)
+    if (initialInvoice) {
+      setLoadingExport(true)
+    } else {
+      setLoadingExport(true)
+      setError(null)
+    }
 
     void getStaffInvoiceExport(invoiceId).then((result) => {
       if (cancelled) return
       if (!result.success) {
-        setError(result.error)
-        setLoading(false)
+        if (!initialInvoice) setError(result.error)
+        setLoadingExport(false)
         return
       }
       setHotel(result.data.hotel)
-      setInvoice(result.data.invoice)
-      setLoading(false)
+      if (!initialInvoice) setInvoice(result.data.invoice)
+      setLoadingExport(false)
     })
 
     return () => {
       cancelled = true
     }
-  }, [invoiceId])
+  }, [invoiceId, initialInvoice])
 
   function handleDownload() {
-    if (!hotel || !invoice) return
+    if (!hotel || !invoice) {
+      toast.error('Preparing invoice for download…')
+      return
+    }
     downloadInvoicePdf(hotel, invoice)
     toast.success('Invoice downloaded')
   }
 
   function handlePrint() {
-    if (!hotel || !invoice) return
+    if (!hotel || !invoice) {
+      toast.error('Preparing invoice for print…')
+      return
+    }
     printInvoicePdf(hotel, invoice)
     toast.success('Opening print dialog…')
   }
 
   const showTax = invoice ? invoiceHasTaxBreakdown(invoice) : false
+  const pdfReady = Boolean(hotel && invoice)
 
   return (
     <CenteredModal open onClose={onClose} className="max-w-md" aria-label="Checkout invoice">
@@ -76,8 +93,11 @@ export function CheckoutInvoiceDialog({ invoiceId, guestName, onClose }: Checkou
       </ModalHeader>
 
       <ModalBody className="space-y-4">
-        {loading && (
-          <p className="py-6 text-center text-sm text-muted-foreground">Loading invoice…</p>
+        {loadingExport && !invoice && (
+          <p className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+            Loading invoice…
+          </p>
         )}
 
         {error && (
@@ -86,7 +106,7 @@ export function CheckoutInvoiceDialog({ invoiceId, guestName, onClose }: Checkou
           </p>
         )}
 
-        {!loading && !error && invoice && (
+        {invoice && (
           <>
             <div className="rounded-xl surface-inset p-4">
               <div className="flex items-start justify-between gap-3">
@@ -158,18 +178,20 @@ export function CheckoutInvoiceDialog({ invoiceId, guestName, onClose }: Checkou
               <button
                 type="button"
                 onClick={handlePrint}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground"
+                disabled={!pdfReady && loadingExport}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
               >
                 <Printer className="h-4 w-4" />
-                Print invoice
+                {pdfReady ? 'Print invoice' : 'Preparing…'}
               </button>
               <button
                 type="button"
                 onClick={handleDownload}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-secondary px-4 py-2.5 text-sm font-semibold text-foreground"
+                disabled={!pdfReady && loadingExport}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-secondary px-4 py-2.5 text-sm font-semibold text-foreground disabled:opacity-60"
               >
                 <Download className="h-4 w-4" />
-                Download PDF
+                {pdfReady ? 'Download PDF' : 'Preparing…'}
               </button>
             </div>
           </>

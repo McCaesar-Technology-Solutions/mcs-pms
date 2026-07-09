@@ -82,29 +82,41 @@ export async function loadRecentInventoryMovements(
   itemId?: string,
 ): Promise<InventoryMovementRow[]> {
   const admin = createAdminClient()
-  return loadInventoryMovements(admin, hotelId, { itemId, limit: itemId ? 30 : 20 })
+  const { data: items } = await admin
+    .from('inventory_items')
+    .select('id, name')
+    .eq('hotel_id', hotelId)
+  const itemNames = new Map((items ?? []).map((item) => [item.id, item.name]))
+  return loadInventoryMovements(admin, hotelId, {
+    itemId,
+    limit: itemId ? 30 : 20,
+    itemNames,
+  })
 }
 
 function mapInventoryRow(row: {
   id: string
   name: string
-  category: string
-  quantity_in_stock: number
-  reorder_level: number
-  unit: string
+  category: string | null
+  quantity_in_stock: number | null
+  reorder_level: number | null
+  unit: string | null
   notes: string | null
   updated_at: string | null
 }): InventoryRow {
+  const category = row.category ?? 'general'
+  const quantityInStock = row.quantity_in_stock ?? 0
+  const reorderLevel = row.reorder_level ?? 0
   return {
     id: row.id,
     name: row.name,
-    category: row.category,
-    categoryLabel: inventoryCategoryLabel(row.category),
-    quantityInStock: row.quantity_in_stock,
-    reorderLevel: row.reorder_level,
-    unit: row.unit,
+    category,
+    categoryLabel: inventoryCategoryLabel(category),
+    quantityInStock,
+    reorderLevel,
+    unit: row.unit ?? 'unit',
     notes: row.notes,
-    lowStock: row.quantity_in_stock <= row.reorder_level,
+    lowStock: quantityInStock <= reorderLevel,
     updatedAt: row.updated_at,
   }
 }

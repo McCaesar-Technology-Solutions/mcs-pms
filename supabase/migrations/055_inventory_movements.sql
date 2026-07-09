@@ -36,6 +36,8 @@ ALTER TABLE complaint_estimate_items
 
 ALTER TABLE inventory_movements ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS inventory_movements_staff ON inventory_movements;
+
 CREATE POLICY inventory_movements_staff ON inventory_movements
   FOR ALL
   USING (

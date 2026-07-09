@@ -36,6 +36,7 @@ import {
   ModalFooter,
   ModalHeader,
 } from '@/components/ui/centered-modal'
+import type { InvoiceExportRow } from '@/lib/export/types'
 import type { PaymentMethod, Reservation, ReservationChannel, ReservationPaymentStatus, RateType, UserRole } from '@/types'
 import type { DepositDisposition } from '@/lib/billing/deposit-disposition'
 import {
@@ -212,9 +213,11 @@ export function ReservationsManager({
   const [paymentSecuredFilter, setPaymentSecuredFilter] = useState(initialPaymentSecured)
   const [creating, setCreating] = useState(Boolean(initialNewFlow))
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
-  const [checkoutInvoice, setCheckoutInvoice] = useState<{ id: string; guestName: string } | null>(
-    null,
-  )
+  const [checkoutInvoice, setCheckoutInvoice] = useState<{
+    id: string
+    guestName: string
+    preview?: InvoiceExportRow
+  } | null>(null)
   const [activeGuestRequestId, setActiveGuestRequestId] = useState<string | null>(
     initialGuestRequestId ?? null,
   )
@@ -574,8 +577,8 @@ export function ReservationsManager({
             setActiveGuestRequestId(null)
             clearReservationDeepLink(true)
           }}
-          onCheckoutInvoice={(invoiceId, guestName) => {
-            setCheckoutInvoice({ id: invoiceId, guestName })
+          onCheckoutInvoice={(invoiceId, guestName, preview) => {
+            setCheckoutInvoice({ id: invoiceId, guestName, preview })
             router.refresh()
           }}
         />
@@ -585,6 +588,7 @@ export function ReservationsManager({
         <CheckoutInvoiceDialog
           invoiceId={checkoutInvoice.id}
           guestName={checkoutInvoice.guestName}
+          initialInvoice={checkoutInvoice.preview}
           onClose={() => {
             setCheckoutInvoice(null)
             setSelectedId(null)
@@ -625,7 +629,7 @@ interface ReservationDrawerProps {
   guestRequestId?: string | null
   onClose: () => void
   onMutated: () => void
-  onCheckoutInvoice?: (invoiceId: string, guestName: string) => void
+  onCheckoutInvoice?: (invoiceId: string, guestName: string, preview?: InvoiceExportRow) => void
   onGuestRequestHandled?: () => void
 }
 
@@ -694,7 +698,12 @@ function ReservationDrawer({
   }, [initialExtendStay])
 
   function run(
-    action: () => Promise<{ success: boolean; error?: string; invoiceId?: string }>,
+    action: () => Promise<{
+      success: boolean
+      error?: string
+      invoiceId?: string
+      invoicePreview?: InvoiceExportRow
+    }>,
     onSuccess?: () => void,
   ) {
     setError(null)
@@ -704,7 +713,7 @@ function ReservationDrawer({
         if (result.invoiceId && onCheckoutInvoice) {
           toast.success('Checked out — invoice ready')
           setCheckingOut(false)
-          onCheckoutInvoice(result.invoiceId, reservation.guestName)
+          onCheckoutInvoice(result.invoiceId, reservation.guestName, result.invoicePreview)
         } else {
           toast.success('Saved')
           if (onSuccess) onSuccess()

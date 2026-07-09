@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { InventoryManager } from '@/components/dashboard/inventory-manager'
+import { InventoryManagerShell } from '@/components/dashboard/inventory-manager'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { getProfile } from '@/lib/auth/get-profile'
 import { loadInventoryItems, loadRecentInventoryMovements } from '@/lib/data/inventory'
@@ -20,7 +20,7 @@ export default async function ManagerInventoryPage() {
         title="Inventory"
         description="Update stock, receive deliveries, and monitor low-inventory alerts."
       />
-      <InventoryManager items={items} movements={movements} staffRole="manager" />
+      <InventoryManagerShell items={items} movements={movements} staffRole="manager" />
     </div>
   )
 }

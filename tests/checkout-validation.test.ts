@@ -12,16 +12,14 @@ describe('validateCheckoutBalance', () => {
     ).toBe(true)
   })
 
-  it('blocks marking paid when deposit does not cover total', () => {
-    const result = validateCheckoutBalance({
-      invoiceTotal: 600,
-      priorDeposit: 200,
-      markAsPaid: true,
-    })
-    expect(result.ok).toBe(false)
-    if (!result.ok) {
-      expect(result.code).toBe('OUTSTANDING_BALANCE')
-    }
+  it('allows payment received now even when deposit does not cover total', () => {
+    expect(
+      validateCheckoutBalance({
+        invoiceTotal: 600,
+        priorDeposit: 200,
+        markAsPaid: true,
+      }).ok,
+    ).toBe(true)
   })
 
   it('allows full payment when deposit covers total', () => {
