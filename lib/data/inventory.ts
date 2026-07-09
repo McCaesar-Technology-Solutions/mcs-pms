@@ -1,4 +1,4 @@
-import { createAdminClient } from '@/lib/supabase/admin'
+import { tryCreateAdminClient } from '@/lib/supabase/admin'
 import { inventoryCategoryLabel } from '@/lib/inventory/categories'
 import { loadInventoryMovements, type InventoryMovementRow } from '@/lib/inventory/movements'
 
@@ -19,7 +19,8 @@ export type InventorySort = 'name' | 'low_stock' | 'category'
 
 export async function loadInventoryItems(hotelId: string): Promise<InventoryRow[]> {
   try {
-    const admin = createAdminClient()
+    const admin = tryCreateAdminClient()
+    if (!admin) return []
     const { data, error } = await admin
       .from('inventory_items')
       .select('id, name, category, quantity_in_stock, reorder_level, unit, notes, updated_at')
@@ -92,7 +93,8 @@ export async function loadRecentInventoryMovements(
   itemId?: string,
 ): Promise<InventoryMovementRow[]> {
   try {
-    const admin = createAdminClient()
+    const admin = tryCreateAdminClient()
+    if (!admin) return []
     const { data: items, error: itemsError } = await admin
       .from('inventory_items')
       .select('id, name')

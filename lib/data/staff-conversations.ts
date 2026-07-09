@@ -60,7 +60,8 @@ export async function loadStaffConversations(
   hotelId: string,
   currentUserId: string,
 ): Promise<StaffConversationListItem[]> {
-  const admin = createAdminClient()
+  try {
+    const admin = createAdminClient()
 
   const { data: memberships } = await admin
     .from('staff_conversation_members')
@@ -156,6 +157,10 @@ export async function loadStaffConversations(
       unread,
     }
   })
+  } catch (err) {
+    console.error('[staff-conversations] loadStaffConversations failed:', err)
+    return []
+  }
 }
 
 export async function loadStaffConversationDetails(

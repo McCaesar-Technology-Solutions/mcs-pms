@@ -87,33 +87,34 @@ function guestRequestsHref(prefix: string): string {
 }
 
 export async function fetchStaffAlerts(limit = 30): Promise<StaffAlert[]> {
-  const profile = await getProfile()
-  if (!profile?.hotel_id || !STAFF_ALERT_ROLES.has(profile.role)) {
-    return []
-  }
+  try {
+    const profile = await getProfile()
+    if (!profile?.hotel_id || !STAFF_ALERT_ROLES.has(profile.role)) {
+      return []
+    }
 
-  const supabase = await createClient()
-  const hotelId = profile.hotel_id
-  const role = profile.role
-  const prefix = basePath(role)
-  const today = todayISO()
-  const items: StaffAlert[] = []
+    const supabase = await createClient()
+    const hotelId = profile.hotel_id
+    const role = profile.role
+    const prefix = basePath(role)
+    const today = todayISO()
+    const items: StaffAlert[] = []
 
-  const includeBilling = role === 'owner'
-  const includeGuestPortal = role === 'owner' || role === 'manager' || role === 'receptionist'
-  const includeGuestMessages = includeGuestPortal
-  const includeTeamMessages = STAFF_ALERT_ROLES.has(role)
+    const includeBilling = role === 'owner'
+    const includeGuestPortal = role === 'owner' || role === 'manager' || role === 'receptionist'
+    const includeGuestMessages = includeGuestPortal
+    const includeTeamMessages = STAFF_ALERT_ROLES.has(role)
 
-  const [
-    invoicesRes,
-    checkoutsRes,
-    checkinsRes,
-    complaintsRes,
-    requestsRes,
-    housekeepingRes,
-    stayConversations,
-    teamConversations,
-  ] = await Promise.all([
+    const [
+      invoicesRes,
+      checkoutsRes,
+      checkinsRes,
+      complaintsRes,
+      requestsRes,
+      housekeepingRes,
+      stayConversations,
+      teamConversations,
+    ] = await Promise.all([
     includeBilling
       ? supabase
           .from('invoices')
@@ -388,35 +389,44 @@ export async function fetchStaffAlerts(limit = 30): Promise<StaffAlert[]> {
   }
 
   return items.sort((a, b) => a.sort - b.sort || Number(b.urgent) - Number(a.urgent)).slice(0, limit)
+  } catch (err) {
+    console.error('[staff-alerts] fetchStaffAlerts failed:', err)
+    return []
+  }
 }
 
 /** Sidebar badge counts keyed by nav href */
 export async function getNavBadgeMap(): Promise<Record<string, number>> {
-  const profile = await getProfile()
-  if (!profile?.hotel_id || !STAFF_ALERT_ROLES.has(profile.role)) {
+  try {
+    const profile = await getProfile()
+    if (!profile?.hotel_id || !STAFF_ALERT_ROLES.has(profile.role)) {
+      return {}
+    }
+
+    const alerts = await fetchStaffAlerts(50)
+    const map: Record<string, number> = {}
+
+    for (const alert of alerts) {
+      map[alert.badgeHref] = (map[alert.badgeHref] ?? 0) + 1
+    }
+
+    const prefix = basePath(profile.role)
+    const dashboardHref = `${prefix}/dashboard`
+    const urgentCount = alerts.filter((a) => a.urgent).length
+    if (urgentCount > 0) {
+      map[dashboardHref] = urgentCount
+    }
+
+    const lowStock = await countLowStockForHotel(profile.hotel_id)
+    if (lowStock > 0) {
+      map[`${prefix}/inventory`] = lowStock
+    }
+
+    return map
+  } catch (err) {
+    console.error('[staff-alerts] getNavBadgeMap failed:', err)
     return {}
   }
-
-  const alerts = await fetchStaffAlerts(50)
-  const map: Record<string, number> = {}
-
-  for (const alert of alerts) {
-    map[alert.badgeHref] = (map[alert.badgeHref] ?? 0) + 1
-  }
-
-  const prefix = basePath(profile.role)
-  const dashboardHref = `${prefix}/dashboard`
-  const urgentCount = alerts.filter((a) => a.urgent).length
-  if (urgentCount > 0) {
-    map[dashboardHref] = urgentCount
-  }
-
-  const lowStock = await countLowStockForHotel(profile.hotel_id)
-  if (lowStock > 0) {
-    map[`${prefix}/inventory`] = lowStock
-  }
-
-  return map
 }
 
 /** Manager dashboard tab badge counts */

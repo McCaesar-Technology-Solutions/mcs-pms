@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { createAdminClient } from '@/lib/supabase/admin'
+import { tryCreateAdminClient } from '@/lib/supabase/admin'
 import { getProfile } from '@/lib/auth/get-profile'
 import { getOccupancySpans, type OccupancySpan } from '@/lib/data/occupancy'
 import {
@@ -273,59 +273,68 @@ export async function getDashboardData(): Promise<DashboardData> {
   const profile = await getProfile()
   if (!profile?.hotel_id) return empty
 
-  const supabase = await createClient()
-  const admin = createAdminClient()
-  const hotelId = profile.hotel_id
+  try {
+    const supabase = await createClient()
+    const admin = tryCreateAdminClient()
+    const hotelId = profile.hotel_id
 
-  await reconcileHotelBillingState(admin, hotelId)
+    if (admin) {
+      await reconcileHotelBillingState(admin, hotelId)
+    }
 
-  const [roomsRes, reservationsRes, invoicesRes, occupancySpans, timeline] = await Promise.all([
-    supabase
-      .from('rooms')
-      .select('*, room_categories(name, default_nightly_rate, default_monthly_rate)')
-      .eq('hotel_id', hotelId)
-      .order('number'),
-    supabase
-      .from('reservations')
-      .select('*, rooms(number), guests(email, phone, do_not_disturb)')
-      .eq('hotel_id', hotelId)
-      .order('check_in', { ascending: false }),
-    supabase.from('invoices').select('*').eq('hotel_id', hotelId),
-    getOccupancySpans(supabase, hotelId),
-    getOccupancyTimelineBars(supabase, hotelId),
-  ])
+    const [roomsRes, reservationsRes, invoicesRes, occupancySpans, timeline] = await Promise.all([
+      supabase
+        .from('rooms')
+        .select('*, room_categories(name, default_nightly_rate, default_monthly_rate)')
+        .eq('hotel_id', hotelId)
+        .order('number'),
+      supabase
+        .from('reservations')
+        .select('*, rooms(number), guests(email, phone, do_not_disturb)')
+        .eq('hotel_id', hotelId)
+        .order('check_in', { ascending: false }),
+      supabase.from('invoices').select('*').eq('hotel_id', hotelId),
+      getOccupancySpans(supabase, hotelId),
+      getOccupancyTimelineBars(supabase, hotelId),
+    ])
 
-  const dbRooms = (roomsRes.data ?? []) as DbRoom[]
-  const reservationRows = (reservationsRes.data ?? []) as unknown as ReservationRow[]
-  const inHouseGuestIds = reservationRows
-    .filter((r) => r.status === 'checked_in' && r.guest_id)
-    .map((r) => r.guest_id as string)
-  const folioMap = await loadFolioSubtotalMap(admin, hotelId, inHouseGuestIds)
-  const reservations = reservationRows.map((row) => mapReservation(row, folioMap))
-  const invoices = (invoicesRes.data ?? []) as DbInvoice[]
+    const dbRooms = (roomsRes.data ?? []) as DbRoom[]
+    const reservationRows = (reservationsRes.data ?? []) as unknown as ReservationRow[]
+    const inHouseGuestIds = reservationRows
+      .filter((r) => r.status === 'checked_in' && r.guest_id)
+      .map((r) => r.guest_id as string)
+    const folioMap = admin
+      ? await loadFolioSubtotalMap(admin, hotelId, inHouseGuestIds)
+      : new Map<string, number>()
+    const reservations = reservationRows.map((row) => mapReservation(row, folioMap))
+    const invoices = (invoicesRes.data ?? []) as DbInvoice[]
 
-  return {
-    hotelId,
-    rooms: dbRooms.map(mapRoom),
-    dbRooms,
-    reservations,
-    invoices,
-    metrics: computeMetrics(dbRooms, reservations, invoices, occupancySpans),
-    availability: computeAvailability(dbRooms, reservations),
-    roomOptions: dbRooms.map((r) => ({
-      id: r.id,
-      number: r.number,
-      nightlyRate:
-        r.nightly_rate != null
-          ? Number(r.nightly_rate)
-          : Number(r.room_categories?.default_nightly_rate ?? 0),
-      monthlyRate:
-        r.monthly_rate != null
-          ? Number(r.monthly_rate)
-          : Number(r.room_categories?.default_monthly_rate ?? 0),
-    })),
-    occupancySpans,
-    timelineRooms: timeline.rooms,
-    timelineBars: timeline.bars,
+    return {
+      hotelId,
+      rooms: dbRooms.map(mapRoom),
+      dbRooms,
+      reservations,
+      invoices,
+      metrics: computeMetrics(dbRooms, reservations, invoices, occupancySpans),
+      availability: computeAvailability(dbRooms, reservations),
+      roomOptions: dbRooms.map((r) => ({
+        id: r.id,
+        number: r.number,
+        nightlyRate:
+          r.nightly_rate != null
+            ? Number(r.nightly_rate)
+            : Number(r.room_categories?.default_nightly_rate ?? 0),
+        monthlyRate:
+          r.monthly_rate != null
+            ? Number(r.monthly_rate)
+            : Number(r.room_categories?.default_monthly_rate ?? 0),
+      })),
+      occupancySpans,
+      timelineRooms: timeline.rooms,
+      timelineBars: timeline.bars,
+    }
+  } catch (err) {
+    console.error('[dashboard] getDashboardData failed:', err)
+    return { ...empty, hotelId: profile.hotel_id }
   }
 }

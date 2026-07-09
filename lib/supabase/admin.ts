@@ -16,3 +16,13 @@ export function createAdminClient() {
     },
   })
 }
+
+/** SSR-safe admin client — returns null instead of throwing when env is misconfigured. */
+export function tryCreateAdminClient(): ReturnType<typeof createAdminClient> | null {
+  try {
+    return createAdminClient()
+  } catch (err) {
+    console.error('[supabase] admin client unavailable:', err)
+    return null
+  }
+}

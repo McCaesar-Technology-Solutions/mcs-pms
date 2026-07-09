@@ -242,14 +242,20 @@ export function InventoryManager({
   function handleDelete(item: InventoryRow) {
     markPending(item.id, true)
     startTransition(async () => {
-      const result = await deleteInventoryItem(item.id)
-      markPending(item.id, false)
-      if (result.success) {
-        toast.success('Item removed')
-        setDeleteTarget(null)
-        if (selectedItemId === item.id) setSelectedItemId(null)
-      } else {
-        toast.error(result.error ?? 'Delete failed')
+      try {
+        const result = await deleteInventoryItem(item.id)
+        if (result.success) {
+          toast.success('Item removed')
+          setDeleteTarget(null)
+          if (selectedItemId === item.id) setSelectedItemId(null)
+          router.refresh()
+        } else {
+          toast.error(result.error ?? 'Delete failed')
+        }
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Delete failed')
+      } finally {
+        markPending(item.id, false)
       }
     })
   }
@@ -1065,6 +1071,7 @@ function ItemFormModal({
   onAdjust?: () => void
   canEditMetadata?: boolean
 }) {
+  const router = useRouter()
   const [name, setName] = useState(item?.name ?? '')
   const [category, setCategory] = useState(item?.category ?? 'general')
   const [quantityInStock, setQuantityInStock] = useState(String(item?.quantityInStock ?? 0))
@@ -1097,6 +1104,7 @@ function ItemFormModal({
         if (result.success) {
           toast.success(item ? 'Item updated' : 'Item added')
           onClose()
+          router.refresh()
         } else {
           setError(result.error ?? 'Could not save item')
           toast.error(result.error ?? 'Could not save item')
@@ -1234,6 +1242,7 @@ function ReceiveStockModal({
   canRecordExpense: boolean
   onClose: () => void
 }) {
+  const router = useRouter()
   const [quantity, setQuantity] = useState('1')
   const [unitCost, setUnitCost] = useState('')
   const [vendor, setVendor] = useState('')
@@ -1249,19 +1258,26 @@ function ReceiveStockModal({
   function save() {
     setError(null)
     startTransition(async () => {
-      const result = await receiveInventoryStock({
-        itemId: item.id,
-        quantity: Number(quantity),
-        unitCost: unitCost ? Number(unitCost) : undefined,
-        vendor: vendor || undefined,
-        note: note || undefined,
-        createExpense: createExpense && canRecordExpense,
-      })
-      if (result.success) {
-        toast.success('Stock received')
-        onClose()
-      } else {
-        setError(result.error ?? 'Could not receive stock')
+      try {
+        const result = await receiveInventoryStock({
+          itemId: item.id,
+          quantity: Number(quantity),
+          unitCost: unitCost ? Number(unitCost) : undefined,
+          vendor: vendor || undefined,
+          note: note || undefined,
+          createExpense: createExpense && canRecordExpense,
+        })
+        if (result.success) {
+          toast.success('Stock received')
+          onClose()
+          router.refresh()
+        } else {
+          setError(result.error ?? 'Could not receive stock')
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Could not receive stock.'
+        setError(message)
+        toast.error(message)
       }
     })
   }
@@ -1351,6 +1367,7 @@ function ReceiveStockModal({
 }
 
 function IssueStockModal({ item, onClose }: { item: InventoryRow; onClose: () => void }) {
+  const router = useRouter()
   const [quantity, setQuantity] = useState('1')
   const [note, setNote] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -1362,16 +1379,23 @@ function IssueStockModal({ item, onClose }: { item: InventoryRow; onClose: () =>
   function save() {
     setError(null)
     startTransition(async () => {
-      const result = await issueInventoryStock({
-        itemId: item.id,
-        quantity: Number(quantity),
-        note: note || undefined,
-      })
-      if (result.success) {
-        toast.success('Stock issued')
-        onClose()
-      } else {
-        setError(result.error ?? 'Could not issue stock')
+      try {
+        const result = await issueInventoryStock({
+          itemId: item.id,
+          quantity: Number(quantity),
+          note: note || undefined,
+        })
+        if (result.success) {
+          toast.success('Stock issued')
+          onClose()
+          router.refresh()
+        } else {
+          setError(result.error ?? 'Could not issue stock')
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Could not issue stock.'
+        setError(message)
+        toast.error(message)
       }
     })
   }
@@ -1419,6 +1443,7 @@ function IssueStockModal({ item, onClose }: { item: InventoryRow; onClose: () =>
 }
 
 function AdjustStockModal({ item, onClose }: { item: InventoryRow; onClose: () => void }) {
+  const router = useRouter()
   const [newQuantity, setNewQuantity] = useState(String(item.quantityInStock))
   const [reason, setReason] = useState<'adjusted' | 'wasted'>('adjusted')
   const [note, setNote] = useState('')
@@ -1428,17 +1453,24 @@ function AdjustStockModal({ item, onClose }: { item: InventoryRow; onClose: () =
   function save() {
     setError(null)
     startTransition(async () => {
-      const result = await adjustInventoryStock({
-        itemId: item.id,
-        newQuantity: Number(newQuantity),
-        reason,
-        note: note || undefined,
-      })
-      if (result.success) {
-        toast.success('Stock adjusted')
-        onClose()
-      } else {
-        setError(result.error ?? 'Could not adjust stock')
+      try {
+        const result = await adjustInventoryStock({
+          itemId: item.id,
+          newQuantity: Number(newQuantity),
+          reason,
+          note: note || undefined,
+        })
+        if (result.success) {
+          toast.success('Stock adjusted')
+          onClose()
+          router.refresh()
+        } else {
+          setError(result.error ?? 'Could not adjust stock')
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Could not adjust stock.'
+        setError(message)
+        toast.error(message)
       }
     })
   }

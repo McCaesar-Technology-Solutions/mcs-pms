@@ -25,6 +25,14 @@ export function RouteErrorFallback({
     captureException(error, { digest: error.digest, boundary })
   }, [error, boundary])
 
+  const isConfigError =
+    error.message.includes('Missing Supabase admin credentials') ||
+    error.message.includes('Service misconfigured')
+
+  const description = isConfigError
+    ? 'Server configuration is incomplete. Ask your administrator to set SUPABASE_SERVICE_ROLE_KEY in the deployment environment (e.g. Vercel project settings).'
+    : 'An unexpected error occurred. Try again, or contact support if the problem continues.'
+
   return (
     <div className="relative flex min-h-dvh flex-col items-center justify-center bg-[var(--brand-purple-ink)] px-6 text-center text-white">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -35,9 +43,12 @@ export function RouteErrorFallback({
           <AlertTriangle className="h-7 w-7 text-[var(--brand-gold)]" strokeWidth={1.75} />
         </div>
         <h1 className="font-display text-2xl font-semibold text-white">Something went wrong</h1>
-        <p className="mt-3 text-sm leading-relaxed text-white/70">
-          An unexpected error occurred. Try again, or contact support if the problem continues.
-        </p>
+        <p className="mt-3 text-sm leading-relaxed text-white/70">{description}</p>
+        {process.env.NODE_ENV === 'development' && error.message && !isConfigError && (
+          <p className="mt-3 rounded-lg bg-white/10 px-3 py-2 text-left font-mono text-xs text-white/80">
+            {error.message}
+          </p>
+        )}
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
           <button
             type="button"

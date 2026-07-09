@@ -30,7 +30,7 @@ import { parseOpsDate } from '@/lib/dates/ops-date'
 import { loadFrontDeskOpsContext } from '@/lib/data/load-front-desk-ops'
 import { computeBookingsSparkline, computeTodayOperations } from '@/lib/data/overview'
 import { getOccupancyToday } from '@/lib/data/occupancy'
-import { createAdminClient } from '@/lib/supabase/admin'
+import { tryCreateAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { getRecentNightAudits } from '@/app/actions/night-audit'
 import {
@@ -102,27 +102,36 @@ export default async function ManagerDashboardPage({
   let guestFeedback: Awaited<ReturnType<typeof loadHotelGuestFeedback>> | null = null
   let opsCalendarEvents: Awaited<ReturnType<typeof loadOpsCalendarEvents>> = []
   if (hotelId) {
-    const { fromIso, toIso } = opsCalendarWeekRange()
-    const admin = createAdminClient()
-    const [{ data: hotel }, requests, inbox, feedback, hotelPrefs, calendarEvents] = await Promise.all([
-      admin.from('hotels').select('name').eq('id', hotelId).maybeSingle(),
-      loadHotelGuestRequests(hotelId),
-      loadOpsInbox(hotelId),
-      loadHotelGuestFeedback(hotelId),
-      admin
-        .from('hotels')
-        .select('notification_sms_prefs, notification_email_prefs')
-        .eq('id', hotelId)
-        .maybeSingle(),
-      loadOpsCalendarEvents(hotelId, fromIso, toIso),
-    ])
-    propertyName = hotel?.name ?? propertyName
-    guestRequests = requests
-    opsInbox = inbox
-    guestFeedback = feedback
-    opsCalendarEvents = calendarEvents
-    smsPrefs = (hotelPrefs.data?.notification_sms_prefs as Record<string, boolean>) ?? null
-    emailPrefs = (hotelPrefs.data?.notification_email_prefs as Record<string, boolean>) ?? null
+    try {
+      const { fromIso, toIso } = opsCalendarWeekRange()
+      const admin = tryCreateAdminClient()
+      const [{ data: hotel }, requests, inbox, feedback, hotelPrefs, calendarEvents] =
+        await Promise.all([
+          admin
+            ? admin.from('hotels').select('name').eq('id', hotelId).maybeSingle()
+            : Promise.resolve({ data: null }),
+          loadHotelGuestRequests(hotelId),
+          loadOpsInbox(hotelId),
+          loadHotelGuestFeedback(hotelId),
+          admin
+            ? admin
+                .from('hotels')
+                .select('notification_sms_prefs, notification_email_prefs')
+                .eq('id', hotelId)
+                .maybeSingle()
+            : Promise.resolve({ data: null }),
+          loadOpsCalendarEvents(hotelId, fromIso, toIso),
+        ])
+      propertyName = hotel?.name ?? propertyName
+      guestRequests = requests
+      opsInbox = inbox
+      guestFeedback = feedback
+      opsCalendarEvents = calendarEvents
+      smsPrefs = (hotelPrefs.data?.notification_sms_prefs as Record<string, boolean>) ?? null
+      emailPrefs = (hotelPrefs.data?.notification_email_prefs as Record<string, boolean>) ?? null
+    } catch (err) {
+      console.error('[manager dashboard] hotel context load failed:', err)
+    }
   }
 
   const tabBadges = await getManagerTabBadges()

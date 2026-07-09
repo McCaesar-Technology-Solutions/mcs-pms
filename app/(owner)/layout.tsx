@@ -41,14 +41,18 @@ export default async function OwnerLayout({
   let occupancyToday: OccupancyToday | undefined
 
   if (profile.hotel_id) {
-    const supabase = await createClient()
-    const [badges, occupancy] = await Promise.all([
-      getNavBadgeMap(),
-      getOccupancyToday(supabase, profile.hotel_id),
-    ])
-    navigation = applyBadges(navigation, badges)
-    navGroups = applyBadgesToGroups(navGroups, badges)
-    occupancyToday = occupancy
+    try {
+      const supabase = await createClient()
+      const [badges, occupancy] = await Promise.all([
+        getNavBadgeMap(),
+        getOccupancyToday(supabase, profile.hotel_id),
+      ])
+      navigation = applyBadges(navigation, badges)
+      navGroups = applyBadgesToGroups(navGroups, badges)
+      occupancyToday = occupancy
+    } catch (err) {
+      console.error('[owner layout] badge/occupancy load failed:', err)
+    }
   }
 
   return (
