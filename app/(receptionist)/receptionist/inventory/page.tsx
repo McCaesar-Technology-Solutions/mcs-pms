@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import { InventoryManager } from '@/components/dashboard/inventory-manager'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { getProfile } from '@/lib/auth/get-profile'
-import { loadInventoryItems, loadRecentInventoryMovements } from '@/lib/data/inventory'
+import { loadInventoryItems, loadRecentInventoryMovements, countInventoryMovementsThisWeek } from '@/lib/data/inventory'
 
 function InventoryLoadingFallback() {
   return (
@@ -17,9 +17,10 @@ export default async function ReceptionistInventoryPage() {
   const profile = await getProfile()
   if (!profile?.hotel_id) redirect('/login')
 
-  const [items, movements] = await Promise.all([
+  const [items, movements, movementsThisWeek] = await Promise.all([
     loadInventoryItems(profile.hotel_id),
     loadRecentInventoryMovements(profile.hotel_id),
+    countInventoryMovementsThisWeek(profile.hotel_id),
   ])
 
   return (
@@ -33,6 +34,7 @@ export default async function ReceptionistInventoryPage() {
         <InventoryManager
           items={items}
           movements={movements}
+          movementsThisWeek={movementsThisWeek}
           staffRole="receptionist"
           canCreate={false}
           canEditMetadata={false}

@@ -64,21 +64,7 @@ describe('inventory list helpers', () => {
 
 describe('inventory stock ui', () => {
   it('computes summary counts', () => {
-    const summary = buildInventorySummary(sampleItems, [
-      {
-        id: 'm1',
-        itemId: '1',
-        itemName: 'Bath towel',
-        delta: -1,
-        quantityAfter: 1,
-        reason: 'used',
-        note: null,
-        createdByName: null,
-        createdAt: new Date().toISOString(),
-        housekeepingTaskId: null,
-        complaintId: null,
-      },
-    ])
+    const summary = buildInventorySummary(sampleItems, 1)
     expect(summary.totalSkus).toBe(2)
     expect(summary.lowStockCount).toBe(1)
     expect(summary.movementsThisWeek).toBe(1)

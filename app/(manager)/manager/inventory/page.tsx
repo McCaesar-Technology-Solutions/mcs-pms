@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import { InventoryManager } from '@/components/dashboard/inventory-manager'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { getProfile } from '@/lib/auth/get-profile'
-import { loadInventoryItems, loadRecentInventoryMovements } from '@/lib/data/inventory'
+import { loadInventoryItems, loadRecentInventoryMovements, countInventoryMovementsThisWeek } from '@/lib/data/inventory'
 
 function InventoryLoadingFallback() {
   return (
@@ -17,9 +17,10 @@ export default async function ManagerInventoryPage() {
   const profile = await getProfile()
   if (!profile?.hotel_id) redirect('/login')
 
-  const [items, movements] = await Promise.all([
+  const [items, movements, movementsThisWeek] = await Promise.all([
     loadInventoryItems(profile.hotel_id),
     loadRecentInventoryMovements(profile.hotel_id),
+    countInventoryMovementsThisWeek(profile.hotel_id),
   ])
 
   return (
@@ -30,7 +31,7 @@ export default async function ManagerInventoryPage() {
         description="Update stock, receive deliveries, and monitor low-inventory alerts."
       />
       <Suspense fallback={<InventoryLoadingFallback />}>
-        <InventoryManager items={items} movements={movements} staffRole="manager" />
+        <InventoryManager items={items} movements={movements} movementsThisWeek={movementsThisWeek} staffRole="manager" />
       </Suspense>
     </div>
   )

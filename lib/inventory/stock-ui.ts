@@ -20,6 +20,12 @@ export function stockLevelPercent(
   return Math.min(100, Math.round((item.quantityInStock / item.reorderLevel) * 100))
 }
 
+export const INVENTORY_WEEK_MS = 7 * 24 * 60 * 60 * 1000
+
+export function inventoryWeekStart(now = Date.now()): Date {
+  return new Date(now - INVENTORY_WEEK_MS)
+}
+
 export interface InventorySummary {
   totalSkus: number
   lowStockCount: number
@@ -29,16 +35,13 @@ export interface InventorySummary {
 
 export function buildInventorySummary(
   items: InventoryRow[],
-  movements: InventoryMovementRow[],
+  movementsThisWeek: number,
 ): InventorySummary {
-  const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
   return {
     totalSkus: items.length,
     lowStockCount: items.filter((i) => i.lowStock && i.quantityInStock > 0).length,
     outOfStockCount: items.filter((i) => i.quantityInStock === 0).length,
-    movementsThisWeek: movements.filter(
-      (m) => new Date(m.createdAt).getTime() >= weekAgo,
-    ).length,
+    movementsThisWeek,
   }
 }
 

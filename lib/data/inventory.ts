@@ -1,6 +1,11 @@
 import { tryCreateAdminClient } from '@/lib/supabase/admin'
 import { inventoryCategoryLabel } from '@/lib/inventory/categories'
-import { loadInventoryMovements, type InventoryMovementRow } from '@/lib/inventory/movements'
+import { inventoryWeekStart } from '@/lib/inventory/stock-ui'
+import {
+  countInventoryMovementsSince,
+  loadInventoryMovements,
+  type InventoryMovementRow,
+} from '@/lib/inventory/movements'
 
 export interface InventoryRow {
   id: string
@@ -86,6 +91,17 @@ export function countLowStockItems(items: InventoryRow[]): number {
 export async function countLowStockForHotel(hotelId: string): Promise<number> {
   const items = await loadInventoryItems(hotelId)
   return countLowStockItems(items)
+}
+
+export async function countInventoryMovementsThisWeek(hotelId: string): Promise<number> {
+  try {
+    const admin = tryCreateAdminClient()
+    if (!admin) return 0
+    return countInventoryMovementsSince(admin, hotelId, inventoryWeekStart())
+  } catch (err) {
+    console.error('[inventory] countInventoryMovementsThisWeek failed:', err)
+    return 0
+  }
 }
 
 export async function loadRecentInventoryMovements(

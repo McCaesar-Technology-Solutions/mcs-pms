@@ -67,6 +67,7 @@ export type InventoryStaffRole = 'owner' | 'manager' | 'receptionist'
 interface InventoryManagerProps {
   items: InventoryRow[]
   movements: InventoryMovementRow[]
+  movementsThisWeek: number
   staffRole?: InventoryStaffRole
   canCreate?: boolean
   canEditMetadata?: boolean
@@ -98,6 +99,7 @@ const ICON_BTN =
 export function InventoryManager({
   items,
   movements: initialMovements,
+  movementsThisWeek,
   staffRole = 'manager',
   canCreate = true,
   canEditMetadata = true,
@@ -224,8 +226,8 @@ export function InventoryManager({
   }, [items, query, category, sort, lowStockOnly])
 
   const summary = useMemo(
-    () => buildInventorySummary(items, initialMovements),
-    [items, initialMovements],
+    () => buildInventorySummary(items, movementsThisWeek),
+    [items, movementsThisWeek],
   )
 
   const lowStock = useMemo(() => items.filter((i) => i.lowStock), [items])

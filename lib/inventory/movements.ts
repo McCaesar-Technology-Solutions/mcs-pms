@@ -249,6 +249,26 @@ function isMissingMovementsTable(message: string): boolean {
   )
 }
 
+export async function countInventoryMovementsSince(
+  admin: AdminClient,
+  hotelId: string,
+  since: Date,
+): Promise<number> {
+  const { count, error } = await admin
+    .from('inventory_movements')
+    .select('id', { count: 'exact', head: true })
+    .eq('hotel_id', hotelId)
+    .gte('created_at', since.toISOString())
+
+  if (error) {
+    if (isMissingMovementsTable(error.message)) return 0
+    console.error('[inventory] countInventoryMovementsSince failed:', error.message)
+    return 0
+  }
+
+  return count ?? 0
+}
+
 export async function hasComplaintInventoryDeduction(
   admin: AdminClient,
   complaintId: string,
