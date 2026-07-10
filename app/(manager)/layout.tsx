@@ -20,38 +20,40 @@ function applyBadges<T extends { href: string; badge?: number }>(
 export default async function ManagerLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  let profile
   try {
-    const profile = await getProfile()
-    if (!profile || profile.role !== 'manager') {
-      redirect('/login')
-    }
-
-    let navigation = managerNavigation.map((item) => ({ ...item }))
-    let occupancyToday: OccupancyToday | undefined
-
-    if (profile.hotel_id) {
-      try {
-        const supabase = await createClient()
-        const [badges, occupancy] = await Promise.all([
-          getNavBadgeMap(),
-          getOccupancyToday(supabase, profile.hotel_id),
-        ])
-        navigation = applyBadges(navigation, badges)
-        occupancyToday = occupancy
-      } catch (err) {
-        console.error('[manager layout] badge/occupancy load failed:', err)
-      }
-    }
-
-    return (
-      <StaffShellErrorBoundary boundary="manager/shell" homeHref="/manager/dashboard">
-        <AppShell navigation={navigation} profile={profile} enableRealtime occupancyToday={occupancyToday}>
-          {children}
-        </AppShell>
-      </StaffShellErrorBoundary>
-    )
+    profile = await getProfile()
   } catch (err) {
-    console.error('[manager layout] failed:', err)
+    console.error('[manager layout] getProfile failed:', err)
     redirect('/login')
   }
+
+  if (!profile || profile.role !== 'manager') {
+    redirect('/login')
+  }
+
+  let navigation = managerNavigation.map((item) => ({ ...item }))
+  let occupancyToday: OccupancyToday | undefined
+
+  if (profile.hotel_id) {
+    try {
+      const supabase = await createClient()
+      const [badges, occupancy] = await Promise.all([
+        getNavBadgeMap(),
+        getOccupancyToday(supabase, profile.hotel_id),
+      ])
+      navigation = applyBadges(navigation, badges)
+      occupancyToday = occupancy
+    } catch (err) {
+      console.error('[manager layout] badge/occupancy load failed:', err)
+    }
+  }
+
+  return (
+    <StaffShellErrorBoundary boundary="manager/shell" homeHref="/manager/dashboard">
+      <AppShell navigation={navigation} profile={profile} enableRealtime occupancyToday={occupancyToday}>
+        {children}
+      </AppShell>
+    </StaffShellErrorBoundary>
+  )
 }

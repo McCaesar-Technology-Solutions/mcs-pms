@@ -28,50 +28,52 @@ function applyBadgesToGroups(groups: NavGroup[], badges: Record<string, number>)
 export default async function OwnerLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  let profile
   try {
-    const profile = await getProfile()
-    if (!profile || profile.role !== 'owner') {
-      redirect('/login')
-    }
-
-    if (requiresOnboarding(profile)) {
-      redirect('/get-started')
-    }
-
-    let navigation = ownerNavigation.map((item) => ({ ...item }))
-    let navGroups = ownerNavGroups.map((g) => ({ ...g, items: g.items.map((i) => ({ ...i })) }))
-    let occupancyToday: OccupancyToday | undefined
-
-    if (profile.hotel_id) {
-      try {
-        const supabase = await createClient()
-        const [badges, occupancy] = await Promise.all([
-          getNavBadgeMap(),
-          getOccupancyToday(supabase, profile.hotel_id),
-        ])
-        navigation = applyBadges(navigation, badges)
-        navGroups = applyBadgesToGroups(navGroups, badges)
-        occupancyToday = occupancy
-      } catch (err) {
-        console.error('[owner layout] badge/occupancy load failed:', err)
-      }
-    }
-
-    return (
-      <StaffShellErrorBoundary boundary="owner/shell" homeHref="/owner/dashboard">
-        <AppShell
-          navigation={navigation}
-          navGroups={navGroups}
-          profile={profile}
-          enableRealtime
-          occupancyToday={occupancyToday}
-        >
-          {children}
-        </AppShell>
-      </StaffShellErrorBoundary>
-    )
+    profile = await getProfile()
   } catch (err) {
-    console.error('[owner layout] failed:', err)
+    console.error('[owner layout] getProfile failed:', err)
     redirect('/login')
   }
+
+  if (!profile || profile.role !== 'owner') {
+    redirect('/login')
+  }
+
+  if (requiresOnboarding(profile)) {
+    redirect('/get-started')
+  }
+
+  let navigation = ownerNavigation.map((item) => ({ ...item }))
+  let navGroups = ownerNavGroups.map((g) => ({ ...g, items: g.items.map((i) => ({ ...i })) }))
+  let occupancyToday: OccupancyToday | undefined
+
+  if (profile.hotel_id) {
+    try {
+      const supabase = await createClient()
+      const [badges, occupancy] = await Promise.all([
+        getNavBadgeMap(),
+        getOccupancyToday(supabase, profile.hotel_id),
+      ])
+      navigation = applyBadges(navigation, badges)
+      navGroups = applyBadgesToGroups(navGroups, badges)
+      occupancyToday = occupancy
+    } catch (err) {
+      console.error('[owner layout] badge/occupancy load failed:', err)
+    }
+  }
+
+  return (
+    <StaffShellErrorBoundary boundary="owner/shell" homeHref="/owner/dashboard">
+      <AppShell
+        navigation={navigation}
+        navGroups={navGroups}
+        profile={profile}
+        enableRealtime
+        occupancyToday={occupancyToday}
+      >
+        {children}
+      </AppShell>
+    </StaffShellErrorBoundary>
+  )
 }
