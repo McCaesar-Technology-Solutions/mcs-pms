@@ -1,9 +1,10 @@
 'use server'
 
+import { after } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { requireVerifiedStaff, consumeStaffAuthError } from '@/lib/auth/staff-session'
-import { createAdminClient } from '@/lib/supabase/admin'
+import { tryCreateAdminClient } from '@/lib/supabase/admin'
 import { normalizeInventoryCategory } from '@/lib/inventory/categories'
 import {
   loadInventoryMovements,
@@ -67,13 +68,39 @@ async function requireInventoryStaff(options?: { includeTechnician?: boolean }) 
 }
 
 function revalidateInventory() {
-  revalidatePath('/owner/inventory')
-  revalidatePath('/manager/inventory')
-  revalidatePath('/receptionist/inventory')
-  revalidatePath('/owner/dashboard')
-  revalidatePath('/manager/dashboard')
-  revalidatePath('/receptionist/dashboard')
-  revalidatePath('/owner/expenses')
+  // Page-only revalidation avoids re-running the full staff layout during
+  // server-action responses (a common source of "Server Components render" errors).
+  revalidatePath('/owner/inventory', 'page')
+  revalidatePath('/manager/inventory', 'page')
+  revalidatePath('/receptionist/inventory', 'page')
+}
+
+function scheduleInventoryRevalidation() {
+  after(() => {
+    try {
+      revalidateInventory()
+    } catch (err) {
+      console.error('[inventory] revalidate failed:', err)
+    }
+  })
+}
+
+type InventoryAdminClient = NonNullable<ReturnType<typeof tryCreateAdminClient>>
+
+type InventoryAdminResult =
+  | { ok: true; admin: InventoryAdminClient }
+  | { ok: false; error: string }
+
+function requireInventoryAdmin(): InventoryAdminResult {
+  const admin = tryCreateAdminClient()
+  if (!admin) {
+    return {
+      ok: false,
+      error:
+        'Inventory saves are unavailable — server admin credentials are not configured. Set SUPABASE_SERVICE_ROLE_KEY in production.',
+    }
+  }
+  return { ok: true, admin }
 }
 
 async function safeInventoryAction<T = void>(
@@ -105,7 +132,9 @@ export async function createInventoryItem(
     const profile = await requireInventoryStaff()
     if (!profile) return { success: false, error: consumeStaffAuthError() }
 
-    const admin = createAdminClient()
+    const adminResult = requireInventoryAdmin()
+    if (!adminResult.ok) return { success: false, error: adminResult.error }
+    const admin = adminResult.admin
     const category = normalizeInventoryCategory(parsed.data.category)
     const openingQty = parsed.data.quantityInStock
     const { data: inserted, error } = await admin
@@ -159,7 +188,7 @@ export async function createInventoryItem(
       }
     }
 
-    revalidateInventory()
+    scheduleInventoryRevalidation()
     return { success: true }
   })
 }
@@ -177,7 +206,9 @@ export async function updateInventoryItem(
     const profile = await requireInventoryStaff()
     if (!profile) return { success: false, error: consumeStaffAuthError() }
 
-    const admin = createAdminClient()
+    const adminResult = requireInventoryAdmin()
+    if (!adminResult.ok) return { success: false, error: adminResult.error }
+    const admin = adminResult.admin
     const { data: existing } = await admin
       .from('inventory_items')
       .select('quantity_in_stock')
@@ -227,7 +258,7 @@ export async function updateInventoryItem(
     }
 
     if (Object.keys(payload).length <= 1) {
-      revalidateInventory()
+      scheduleInventoryRevalidation()
       return { success: true }
     }
 
@@ -238,7 +269,7 @@ export async function updateInventoryItem(
       .eq('hotel_id', profile.hotel_id!)
 
     if (error) return { success: false, error: error.message }
-    revalidateInventory()
+    scheduleInventoryRevalidation()
     return { success: true }
   })
 }
@@ -255,7 +286,9 @@ export async function receiveInventoryStock(
     const profile = await requireInventoryStaff()
     if (!profile?.hotel_id) return { success: false, error: consumeStaffAuthError() }
 
-    const admin = createAdminClient()
+    const adminResult = requireInventoryAdmin()
+    if (!adminResult.ok) return { success: false, error: adminResult.error }
+    const admin = adminResult.admin
     const { data: item } = await admin
       .from('inventory_items')
       .select('id, name')
@@ -316,7 +349,7 @@ export async function receiveInventoryStock(
       return { success: false, error: movement.error }
     }
 
-    revalidateInventory()
+    scheduleInventoryRevalidation()
     return { success: true }
   })
 }
@@ -333,7 +366,9 @@ export async function issueInventoryStock(
     const profile = await requireInventoryStaff()
     if (!profile?.hotel_id) return { success: false, error: consumeStaffAuthError() }
 
-    const admin = createAdminClient()
+    const adminResult = requireInventoryAdmin()
+    if (!adminResult.ok) return { success: false, error: adminResult.error }
+    const admin = adminResult.admin
     const movement = await recordInventoryMovement(admin, {
       hotelId: profile.hotel_id,
       itemId: parsed.data.itemId,
@@ -345,7 +380,7 @@ export async function issueInventoryStock(
 
     if (!movement.ok) return { success: false, error: movement.error }
 
-    revalidateInventory()
+    scheduleInventoryRevalidation()
     return { success: true }
   })
 }
@@ -362,7 +397,9 @@ export async function adjustInventoryStock(
     const profile = await requireInventoryStaff()
     if (!profile?.hotel_id) return { success: false, error: consumeStaffAuthError() }
 
-    const admin = createAdminClient()
+    const adminResult = requireInventoryAdmin()
+    if (!adminResult.ok) return { success: false, error: adminResult.error }
+    const admin = adminResult.admin
     const { data: existing } = await admin
       .from('inventory_items')
       .select('quantity_in_stock')
@@ -374,7 +411,7 @@ export async function adjustInventoryStock(
 
     const delta = parsed.data.newQuantity - existing.quantity_in_stock
     if (delta === 0) {
-      revalidateInventory()
+      scheduleInventoryRevalidation()
       return { success: true }
     }
 
@@ -389,7 +426,7 @@ export async function adjustInventoryStock(
 
     if (!movement.ok) return { success: false, error: movement.error }
 
-    revalidateInventory()
+    scheduleInventoryRevalidation()
     return { success: true }
   })
 }
@@ -399,7 +436,9 @@ export async function fetchInventoryMovements(itemId?: string) {
     const profile = await requireInventoryStaff()
     if (!profile?.hotel_id) return { success: false as const, error: consumeStaffAuthError() }
 
-    const admin = createAdminClient()
+    const adminResult = requireInventoryAdmin()
+    if (!adminResult.ok) return { success: false, error: adminResult.error }
+    const admin = adminResult.admin
     const movements = await loadInventoryMovements(admin, profile.hotel_id, {
       itemId,
       limit: itemId ? 30 : 25,
@@ -415,7 +454,9 @@ export async function deleteInventoryItem(id: string): Promise<InventoryActionRe
       return { success: false, error: 'Only owners can delete inventory items.' }
     }
 
-    const admin = createAdminClient()
+    const adminResult = requireInventoryAdmin()
+    if (!adminResult.ok) return { success: false, error: adminResult.error }
+    const admin = adminResult.admin
     const { error } = await admin
       .from('inventory_items')
       .delete()
@@ -423,7 +464,7 @@ export async function deleteInventoryItem(id: string): Promise<InventoryActionRe
       .eq('hotel_id', profile.hotel_id!)
 
     if (error) return { success: false, error: error.message }
-    revalidateInventory()
+    scheduleInventoryRevalidation()
     return { success: true }
   })
 }
@@ -435,7 +476,9 @@ export async function loadInventoryItemsForStaff(): Promise<
     const profile = await requireInventoryStaff({ includeTechnician: true })
     if (!profile?.hotel_id) return { success: false, error: consumeStaffAuthError() }
 
-    const admin = createAdminClient()
+    const adminResult = requireInventoryAdmin()
+    if (!adminResult.ok) return { success: false, error: adminResult.error }
+    const admin = adminResult.admin
     const { data } = await admin
       .from('inventory_items')
       .select('id, name, category, unit, quantity_in_stock')

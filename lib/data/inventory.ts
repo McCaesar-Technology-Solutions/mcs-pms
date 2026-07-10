@@ -132,6 +132,24 @@ export async function loadRecentInventoryMovements(
   }
 }
 
+export async function loadInventoryPageData(hotelId: string): Promise<{
+  items: InventoryRow[]
+  movements: InventoryMovementRow[]
+  movementsThisWeek: number
+}> {
+  try {
+    const [items, movements, movementsThisWeek] = await Promise.all([
+      loadInventoryItems(hotelId),
+      loadRecentInventoryMovements(hotelId),
+      countInventoryMovementsThisWeek(hotelId),
+    ])
+    return { items, movements, movementsThisWeek }
+  } catch (err) {
+    console.error('[inventory] loadInventoryPageData failed:', err)
+    return { items: [], movements: [], movementsThisWeek: 0 }
+  }
+}
+
 function mapInventoryRow(row: {
   id: string
   name: string

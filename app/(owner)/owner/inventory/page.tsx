@@ -3,7 +3,9 @@ import { redirect } from 'next/navigation'
 import { InventoryManager } from '@/components/dashboard/inventory-manager'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { getProfile } from '@/lib/auth/get-profile'
-import { loadInventoryItems, loadRecentInventoryMovements, countInventoryMovementsThisWeek } from '@/lib/data/inventory'
+import { loadInventoryPageData } from '@/lib/data/inventory'
+
+export const dynamic = 'force-dynamic'
 
 function InventoryLoadingFallback() {
   return (
@@ -14,14 +16,17 @@ function InventoryLoadingFallback() {
 }
 
 export default async function OwnerInventoryPage() {
-  const profile = await getProfile()
+  let profile
+  try {
+    profile = await getProfile()
+  } catch (err) {
+    console.error('[owner/inventory] getProfile failed:', err)
+    redirect('/login')
+  }
+
   if (!profile?.hotel_id) redirect('/login')
 
-  const [items, movements, movementsThisWeek] = await Promise.all([
-    loadInventoryItems(profile.hotel_id),
-    loadRecentInventoryMovements(profile.hotel_id),
-    countInventoryMovementsThisWeek(profile.hotel_id),
-  ])
+  const { items, movements, movementsThisWeek } = await loadInventoryPageData(profile.hotel_id)
 
   return (
     <div className="page-shell page-content-stack">

@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
   useTransition,
+  Suspense,
 } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import {
@@ -55,6 +56,10 @@ import {
   type MovementReasonFilter,
 } from '@/lib/inventory/stock-ui'
 import {
+  handleBackgroundRefreshError,
+  isStaleDeploymentError,
+} from '@/lib/client/stale-deployment'
+import {
   CenteredModal,
   ModalBody,
   ModalFooter,
@@ -96,7 +101,34 @@ const SORT_OPTIONS: { value: InventorySort; label: string }[] = [
 const ICON_BTN =
   'inline-flex h-11 min-w-11 items-center justify-center rounded-lg transition-colors duration-150'
 
-export function InventoryManager({
+function refreshInventoryList(router: ReturnType<typeof useRouter>) {
+  // Defer so the server-action response finishes before we re-fetch RSC data.
+  window.setTimeout(() => {
+    try {
+      router.refresh()
+    } catch (err) {
+      handleBackgroundRefreshError('inventory', err)
+    }
+  }, 100)
+}
+
+function InventoryManagerFallback() {
+  return (
+    <div className="surface-card p-8 text-center text-sm text-muted-foreground">
+      Loading inventory…
+    </div>
+  )
+}
+
+export function InventoryManager(props: InventoryManagerProps) {
+  return (
+    <Suspense fallback={<InventoryManagerFallback />}>
+      <InventoryManagerInner {...props} />
+    </Suspense>
+  )
+}
+
+function InventoryManagerInner({
   items,
   movements: initialMovements,
   movementsThisWeek,
@@ -256,7 +288,7 @@ export function InventoryManager({
           toast.success('Item removed')
           setDeleteTarget(null)
           if (selectedItemId === item.id) setSelectedItemId(null)
-          router.refresh()
+          refreshInventoryList(router)
         } else {
           toast.error(result.error ?? 'Delete failed')
         }
@@ -1112,12 +1144,16 @@ function ItemFormModal({
         if (result.success) {
           toast.success(item ? 'Item updated' : 'Item added')
           onClose()
-          router.refresh()
+          refreshInventoryList(router)
         } else {
           setError(result.error ?? 'Could not save item')
           toast.error(result.error ?? 'Could not save item')
         }
       } catch (err) {
+        if (isStaleDeploymentError(err)) {
+          handleBackgroundRefreshError('inventory-save', err)
+          return
+        }
         const message = err instanceof Error ? err.message : 'Could not save item.'
         setError(message)
         toast.error(message)
@@ -1278,7 +1314,7 @@ function ReceiveStockModal({
         if (result.success) {
           toast.success('Stock received')
           onClose()
-          router.refresh()
+          refreshInventoryList(router)
         } else {
           setError(result.error ?? 'Could not receive stock')
         }
@@ -1396,7 +1432,7 @@ function IssueStockModal({ item, onClose }: { item: InventoryRow; onClose: () =>
         if (result.success) {
           toast.success('Stock issued')
           onClose()
-          router.refresh()
+          refreshInventoryList(router)
         } else {
           setError(result.error ?? 'Could not issue stock')
         }
@@ -1471,7 +1507,7 @@ function AdjustStockModal({ item, onClose }: { item: InventoryRow; onClose: () =
         if (result.success) {
           toast.success('Stock adjusted')
           onClose()
-          router.refresh()
+          refreshInventoryList(router)
         } else {
           setError(result.error ?? 'Could not adjust stock')
         }
