@@ -35,6 +35,7 @@ CREATE INDEX IF NOT EXISTS idx_period_audits_hotel_closed
 
 ALTER TABLE period_audits ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS period_audits_owner_manager_read ON period_audits;
 CREATE POLICY period_audits_owner_manager_read ON period_audits
   FOR SELECT
   USING (
@@ -42,6 +43,7 @@ CREATE POLICY period_audits_owner_manager_read ON period_audits
     AND hotel_id = auth_hotel_id()
   );
 
+DROP POLICY IF EXISTS period_audits_owner_manager_insert ON period_audits;
 CREATE POLICY period_audits_owner_manager_insert ON period_audits
   FOR INSERT
   WITH CHECK (
