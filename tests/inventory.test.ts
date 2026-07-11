@@ -8,6 +8,10 @@ import {
   inventoryStockStatus,
   stockLevelPercent,
 } from '@/lib/inventory/stock-ui'
+import {
+  filterMovementsForDisplay,
+  groupMovementsByDay,
+} from '@/lib/inventory/movement-ui'
 
 const sampleItems: InventoryRow[] = [
   {
@@ -85,5 +89,53 @@ describe('clean consumption suggestions', () => {
     ])
     expect(suggestions.some((s) => s.itemId === '1')).toBe(true)
     expect(suggestions.some((s) => s.itemId === '2')).toBe(true)
+  })
+})
+
+describe('inventory movement ui', () => {
+  const now = new Date('2026-07-11T12:00:00.000Z').getTime()
+  const movements = [
+    {
+      id: 'm1',
+      itemId: '1',
+      itemName: 'Towel',
+      delta: 5,
+      quantityAfter: 10,
+      reason: 'received' as const,
+      note: null,
+      createdByName: 'Sam',
+      createdAt: '2026-07-11T10:00:00.000Z',
+      housekeepingTaskId: null,
+      complaintId: null,
+    },
+    {
+      id: 'm2',
+      itemId: '1',
+      itemName: 'Towel',
+      delta: -2,
+      quantityAfter: 8,
+      reason: 'used' as const,
+      note: 'Front desk',
+      createdByName: null,
+      createdAt: '2026-07-10T10:00:00.000Z',
+      housekeepingTaskId: null,
+      complaintId: null,
+    },
+  ]
+
+  it('groups movements by day with today and yesterday labels', () => {
+    const groups = groupMovementsByDay(movements, now)
+    expect(groups).toHaveLength(2)
+    expect(groups[0]?.label).toBe('Today')
+    expect(groups[1]?.label).toBe('Yesterday')
+  })
+
+  it('filters by direction and reason', () => {
+    expect(
+      filterMovementsForDisplay(movements, { direction: 'in' }).map((m) => m.id),
+    ).toEqual(['m1'])
+    expect(
+      filterMovementsForDisplay(movements, { reason: 'used' }).map((m) => m.id),
+    ).toEqual(['m2'])
   })
 })

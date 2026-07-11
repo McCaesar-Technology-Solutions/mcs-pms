@@ -16,13 +16,15 @@ import {
   ArrowDownCircle,
   ArrowUpCircle,
   History,
-  Loader2,
   MinusCircle,
   Package,
   Pencil,
   Plus,
   Search,
+  SlidersHorizontal,
+  Sparkles,
   Trash2,
+  Wrench,
   X,
 } from 'lucide-react'
 import { DataEmptyState } from '@/components/dashboard/data-empty-state'
@@ -43,11 +45,21 @@ import {
   type InventorySort,
 } from '@/lib/data/inventory'
 import { INVENTORY_CATEGORIES } from '@/lib/inventory/categories'
-import type { InventoryMovementRow } from '@/lib/inventory/movements'
+import type { InventoryMovementReason, InventoryMovementRow } from '@/lib/inventory/movements'
+import {
+  countMovementsByReason,
+  filterMovementsForDisplay,
+  formatMovementRelative,
+  formatMovementWhen,
+  groupMovementsByDay,
+  movementDeltaLabel,
+  movementDeltaTone,
+  movementReasonMeta,
+  type MovementDirectionFilter,
+} from '@/lib/inventory/movement-ui'
 import {
   inventoryStockStatus,
   buildInventorySummary,
-  filterMovements,
   lastReceivedMovement,
   MOVEMENT_REASON_FILTERS,
   STOCK_STATUS_LABEL,
@@ -83,14 +95,17 @@ interface InventoryManagerProps {
   emphasizeIssue?: boolean
 }
 
-const REASON_LABELS: Record<string, string> = {
-  received: 'Received',
-  used: 'Used',
-  adjusted: 'Adjusted',
-  wasted: 'Wasted',
-  restock: 'Room restock',
-  clean: 'Turnover clean',
-  maintenance: 'Maintenance',
+const MOVEMENT_REASON_ICON: Record<
+  InventoryMovementReason,
+  React.ComponentType<{ className?: string }>
+> = {
+  received: ArrowDownCircle,
+  used: ArrowUpCircle,
+  adjusted: SlidersHorizontal,
+  wasted: Trash2,
+  restock: Package,
+  clean: Sparkles,
+  maintenance: Wrench,
 }
 
 const SORT_OPTIONS: { value: InventorySort; label: string }[] = [
@@ -157,6 +172,7 @@ function InventoryManagerInner({
 
   const [movements, setMovements] = useState(initialMovements)
   const [movementsLoading, setMovementsLoading] = useState(false)
+  const [movementDirection, setMovementDirection] = useState<MovementDirectionFilter>('all')
 
   const query = searchParams.get('q') ?? ''
   const category = searchParams.get('category') ?? 'all'
@@ -266,10 +282,32 @@ function InventoryManagerInner({
   const lowStock = useMemo(() => items.filter((i) => i.lowStock), [items])
   const selectedItem = selectedItemId ? items.find((i) => i.id === selectedItemId) : null
 
+  const movementSource = selectedItemId ? movements : initialMovements
+
   const displayedMovements = useMemo(() => {
-    const source = selectedItemId ? movements : initialMovements
-    return filterMovements(source, { itemId: selectedItemId, reason: movementReason })
-  }, [initialMovements, movementReason, movements, selectedItemId])
+    return filterMovementsForDisplay(movementSource, {
+      itemId: selectedItemId,
+      reason: movementReason,
+      direction: movementDirection,
+    })
+  }, [movementDirection, movementReason, movementSource, selectedItemId])
+
+  const movementGroups = useMemo(
+    () => groupMovementsByDay(displayedMovements),
+    [displayedMovements],
+  )
+
+  const reasonCounts = useMemo(
+    () =>
+      countMovementsByReason(movementSource, {
+        itemId: selectedItemId,
+        direction: movementDirection,
+      }),
+    [movementDirection, movementSource, selectedItemId],
+  )
+
+  const movementFiltersActive =
+    movementReason !== 'all' || movementDirection !== 'all' || !!selectedItemId
 
   function markPending(id: string, active: boolean) {
     setPendingIds((prev) => {
@@ -552,12 +590,23 @@ function InventoryManagerInner({
               <h3 className="text-lg font-semibold text-foreground">Movement history</h3>
               <p className="text-sm text-muted-foreground">
                 {selectedItem
-                  ? `Showing changes for ${selectedItem.name}`
-                  : 'Who changed stock and why'}
+                  ? `${displayedMovements.length} change${displayedMovements.length === 1 ? '' : 's'} for ${selectedItem.name}`
+                  : movementFiltersActive
+                    ? `${displayedMovements.length} of ${movementSource.length} recent movements`
+                    : 'Recent stock changes across all items'}
               </p>
             </div>
           </div>
-          {selectedItemId && (
+          {!selectedItem && (
+            <p className="text-xs text-muted-foreground">Select an item above for its full log</p>
+          )}
+        </div>
+
+        {selectedItem && (
+          <div className="flex items-center justify-between gap-3 border-b border-border bg-primary/5 px-4 py-2.5">
+            <p className="text-sm text-foreground">
+              Filtered to <span className="font-semibold">{selectedItem.name}</span>
+            </p>
             <button
               type="button"
               onClick={() => {
@@ -568,26 +617,58 @@ function InventoryManagerInner({
             >
               Clear item filter
             </button>
-          )}
-        </div>
+          </div>
+        )}
 
-        <div className="flex flex-wrap gap-2 border-b border-border px-4 py-3">
-          {MOVEMENT_REASON_FILTERS.map((reason) => (
+        <div className="flex flex-col gap-3 border-b border-border px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-wrap items-center gap-2">
             <FilterPill
-              key={reason}
-              active={movementReason === reason}
-              onClick={() => setMovementReason(reason)}
+              active={movementDirection === 'all'}
+              onClick={() => setMovementDirection('all')}
             >
-              {reason === 'all' ? 'All reasons' : (REASON_LABELS[reason] ?? reason)}
+              All changes
+              {reasonCounts.all != null ? ` (${reasonCounts.all})` : ''}
             </FilterPill>
-          ))}
+            <FilterPill
+              active={movementDirection === 'in'}
+              onClick={() => setMovementDirection('in')}
+            >
+              Stock in
+            </FilterPill>
+            <FilterPill
+              active={movementDirection === 'out'}
+              onClick={() => setMovementDirection('out')}
+            >
+              Stock out
+            </FilterPill>
+          </div>
+          <label className="flex min-w-[200px] items-center gap-2 text-sm">
+            <span className="shrink-0 text-muted-foreground">Reason</span>
+            <select
+              value={movementReason}
+              onChange={(e) => setMovementReason(e.target.value as MovementReasonFilter)}
+              className="app-field min-w-0 flex-1"
+              aria-label="Filter movements by reason"
+            >
+              {MOVEMENT_REASON_FILTERS.map((reason) => {
+                const count = reasonCounts[reason]
+                const label =
+                  reason === 'all'
+                    ? 'All reasons'
+                    : movementReasonMeta(reason as InventoryMovementReason).label
+                return (
+                  <option key={reason} value={reason}>
+                    {label}
+                    {count != null ? ` (${count})` : ''}
+                  </option>
+                )
+              })}
+            </select>
+          </label>
         </div>
 
         {movementsLoading ? (
-          <div className="flex items-center justify-center gap-2 py-12 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-            Loading movements…
-          </div>
+          <MovementHistorySkeleton />
         ) : displayedMovements.length === 0 ? (
           <DataEmptyState
             borderless
@@ -596,18 +677,48 @@ function InventoryManagerInner({
             message={
               selectedItem
                 ? 'No stock changes recorded for this item with the current filters.'
-                : 'Receive stock or issue supplies to start the audit log.'
+                : movementFiltersActive
+                  ? 'Try clearing filters or choose a different reason.'
+                  : 'Receive stock or issue supplies to start the audit log.'
+            }
+            action={
+              movementFiltersActive ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMovementReason('all')
+                    setMovementDirection('all')
+                    if (selectedItemId) {
+                      setSelectedItemId(null)
+                      setMovements(initialMovements)
+                    }
+                  }}
+                  className="app-btn app-btn-secondary"
+                >
+                  Clear filters
+                </button>
+              ) : undefined
             }
           />
         ) : (
-          <div className="list-stack max-h-96 overflow-y-auto">
-            {displayedMovements.map((m) => (
-              <MovementRow
-                key={m.id}
-                movement={m}
-                complaintsHref={complaintsHref}
-                housekeepingHref={housekeepingHref}
-              />
+          <div className="max-h-[32rem] overflow-y-auto px-4 py-4">
+            {movementGroups.map((group) => (
+              <div key={group.key} className="mb-5 last:mb-0">
+                <p className="sticky top-0 z-[1] bg-card/95 py-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground backdrop-blur-sm">
+                  {group.label}
+                </p>
+                <div className="relative mt-2 space-y-2 border-l border-border/80 pl-4 ml-2">
+                  {group.items.map((m) => (
+                    <MovementRow
+                      key={m.id}
+                      movement={m}
+                      complaintsHref={complaintsHref}
+                      housekeepingHref={housekeepingHref}
+                      showItemName={!selectedItemId}
+                    />
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         )}
@@ -1051,63 +1162,101 @@ function InventoryCard({
   )
 }
 
-function formatMovementWhen(iso: string): string {
-  return new Date(iso).toLocaleString('en-GB', {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: 'UTC',
-  })
+function MovementHistorySkeleton() {
+  return (
+    <div className="space-y-4 px-4 py-4" aria-hidden>
+      {[0, 1, 2].map((row) => (
+        <div key={row} className="flex animate-pulse gap-3 rounded-xl border border-border/60 p-3">
+          <div className="h-9 w-9 shrink-0 rounded-lg bg-secondary" />
+          <div className="min-w-0 flex-1 space-y-2">
+            <div className="h-4 w-2/3 rounded bg-secondary" />
+            <div className="h-3 w-1/2 rounded bg-secondary" />
+          </div>
+          <div className="h-6 w-12 rounded-full bg-secondary" />
+        </div>
+      ))}
+    </div>
+  )
 }
 
 function MovementRow({
   movement: m,
   complaintsHref,
   housekeepingHref,
+  showItemName,
 }: {
   movement: InventoryMovementRow
   complaintsHref: string
   housekeepingHref: string | null
+  showItemName: boolean
 }) {
+  const meta = movementReasonMeta(m.reason)
+  const Icon = MOVEMENT_REASON_ICON[m.reason] ?? SlidersHorizontal
+
   return (
-    <div className="list-row flex-wrap items-center justify-between gap-2">
-      <div className="min-w-0">
-        <p className="text-sm font-semibold text-foreground">
-          {m.itemName}
-          <span
-            className={`ml-2 tabular-nums ${m.delta > 0 ? 'text-emerald-700' : 'text-amber-800'}`}
-          >
-            {m.delta > 0 ? '+' : ''}
-            {m.delta}
-          </span>
-        </p>
-        <p className="text-xs text-muted-foreground">
-          {REASON_LABELS[m.reason] ?? m.reason}
-          {m.createdByName ? ` · ${m.createdByName}` : ''}
-          {' · '}
-          {formatMovementWhen(m.createdAt)}
-        </p>
-        {m.note && <p className="mt-0.5 text-xs text-muted-foreground">{m.note}</p>}
-        {(m.complaintId || m.housekeepingTaskId) && (
-          <p className="mt-1 flex flex-wrap gap-2 text-xs">
-            {m.complaintId && (
-              <Link href={complaintsHref} className="font-semibold text-primary hover:underline">
-                View complaint
-              </Link>
-            )}
-            {m.housekeepingTaskId && housekeepingHref && (
-              <Link href={housekeepingHref} className="font-semibold text-primary hover:underline">
-                View housekeeping
-              </Link>
-            )}
-          </p>
-        )}
+    <article className="relative rounded-xl border border-border/70 bg-card/50 p-3 shadow-sm sm:p-3.5">
+      <div className="absolute -left-[1.125rem] top-4 h-2.5 w-2.5 rounded-full border-2 border-card bg-primary/70" aria-hidden />
+      <div className="flex gap-3">
+        <span
+          className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-lg', meta.iconWellClass)}
+          aria-hidden
+        >
+          <Icon className="h-4 w-4" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0 space-y-1.5">
+              {showItemName && <p className="text-sm font-semibold text-foreground">{m.itemName}</p>}
+              <div className="flex flex-wrap items-center gap-2">
+                <span className={meta.pillClass}>{meta.label}</span>
+                {m.createdByName && (
+                  <span className="text-xs text-muted-foreground">by {m.createdByName}</span>
+                )}
+                <time
+                  className="text-xs text-muted-foreground"
+                  dateTime={m.createdAt}
+                  title={formatMovementWhen(m.createdAt)}
+                >
+                  {formatMovementRelative(m.createdAt)}
+                </time>
+              </div>
+            </div>
+            <div className="flex shrink-0 flex-col items-end gap-1">
+              <span
+                className={cn(
+                  'rounded-full px-2.5 py-0.5 text-xs font-bold tabular-nums ring-1 ring-inset',
+                  movementDeltaTone(m.delta),
+                )}
+              >
+                {movementDeltaLabel(m.delta)}
+              </span>
+              <span className="text-[11px] font-medium text-muted-foreground tabular-nums">
+                → {m.quantityAfter} in stock
+              </span>
+            </div>
+          </div>
+          {m.note && (
+            <p className="mt-2 rounded-lg bg-secondary/40 px-2.5 py-1.5 text-xs text-muted-foreground">
+              {m.note}
+            </p>
+          )}
+          {(m.complaintId || m.housekeepingTaskId) && (
+            <p className="mt-2 flex flex-wrap gap-2 text-xs">
+              {m.complaintId && (
+                <Link href={complaintsHref} className="font-semibold text-primary hover:underline">
+                  View complaint
+                </Link>
+              )}
+              {m.housekeepingTaskId && housekeepingHref && (
+                <Link href={housekeepingHref} className="font-semibold text-primary hover:underline">
+                  View housekeeping
+                </Link>
+              )}
+            </p>
+          )}
+        </div>
       </div>
-      <span className="text-xs font-medium text-muted-foreground tabular-nums">
-        → {m.quantityAfter} in stock
-      </span>
-    </div>
+    </article>
   )
 }
 
