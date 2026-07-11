@@ -16,6 +16,7 @@ import {
   ArrowDownCircle,
   ArrowUpCircle,
   History,
+  Loader2,
   MinusCircle,
   Package,
   Pencil,
@@ -114,6 +115,41 @@ const SORT_OPTIONS: { value: InventorySort; label: string }[] = [
   { value: 'category', label: 'Category' },
 ]
 
+type InventoryFilters = {
+  category: string
+  sort: InventorySort
+  lowStockOnly: boolean
+  movementReason: MovementReasonFilter
+  selectedItemId: string | null
+}
+
+function filtersFromSearchParams(searchParams: URLSearchParams): InventoryFilters {
+  return {
+    category: searchParams.get('category') ?? 'all',
+    sort: (searchParams.get('sort') as InventorySort) || 'low_stock',
+    lowStockOnly: searchParams.get('low') === '1',
+    movementReason: (searchParams.get('reason') as MovementReasonFilter) || 'all',
+    selectedItemId: searchParams.get('item'),
+  }
+}
+
+function writeFiltersToParams(params: URLSearchParams, filters: InventoryFilters) {
+  if (filters.category !== 'all') params.set('category', filters.category)
+  else params.delete('category')
+
+  if (filters.sort !== 'low_stock') params.set('sort', filters.sort)
+  else params.delete('sort')
+
+  if (filters.lowStockOnly) params.set('low', '1')
+  else params.delete('low')
+
+  if (filters.movementReason !== 'all') params.set('reason', filters.movementReason)
+  else params.delete('reason')
+
+  if (filters.selectedItemId) params.set('item', filters.selectedItemId)
+  else params.delete('item')
+}
+
 const ICON_BTN =
   'inline-flex h-11 min-w-11 items-center justify-center rounded-lg transition-colors duration-150'
 
@@ -169,17 +205,24 @@ function InventoryManagerInner({
   const [deleteTarget, setDeleteTarget] = useState<InventoryRow | null>(null)
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set())
   const [pending, startTransition] = useTransition()
+  const [isFilterPending, startFilterTransition] = useTransition()
 
   const [movements, setMovements] = useState(initialMovements)
   const [movementsLoading, setMovementsLoading] = useState(false)
   const [movementDirection, setMovementDirection] = useState<MovementDirectionFilter>('all')
+  const [filters, setFilters] = useState<InventoryFilters>(() =>
+    filtersFromSearchParams(searchParams),
+  )
+  const [pendingFilterId, setPendingFilterId] = useState<string | null>(null)
+  const filtersRef = useRef(filters)
+  filtersRef.current = filters
 
   const query = searchParams.get('q') ?? ''
-  const category = searchParams.get('category') ?? 'all'
-  const sort = (searchParams.get('sort') as InventorySort) || 'low_stock'
-  const lowStockOnly = searchParams.get('low') === '1'
-  const selectedItemId = searchParams.get('item')
-  const movementReason = (searchParams.get('reason') as MovementReasonFilter) || 'all'
+
+  useEffect(() => {
+    setFilters(filtersFromSearchParams(searchParams))
+    setPendingFilterId(null)
+  }, [searchParams])
 
   useEffect(() => {
     setMovements(initialMovements)
@@ -195,6 +238,18 @@ function InventoryManagerInner({
     [pathname, router, searchParams],
   )
 
+  const applyFiltersToUrl = useCallback(
+    (partial: Partial<InventoryFilters>, pendingId?: string | null) => {
+      const next = { ...filtersRef.current, ...partial }
+      setFilters(next)
+      if (pendingId) setPendingFilterId(pendingId)
+      startFilterTransition(() => {
+        replaceParams((params) => writeFiltersToParams(params, next))
+      })
+    },
+    [replaceParams],
+  )
+
   const setQuery = (value: string) => {
     replaceParams((params) => {
       if (value.trim()) params.set('q', value)
@@ -203,45 +258,32 @@ function InventoryManagerInner({
   }
 
   const setCategory = (value: string) => {
-    replaceParams((params) => {
-      if (value !== 'all') params.set('category', value)
-      else params.delete('category')
-    })
+    applyFiltersToUrl({ category: value }, `category:${value}`)
   }
 
   const setSort = (value: InventorySort) => {
-    replaceParams((params) => {
-      if (value !== 'low_stock') params.set('sort', value)
-      else params.delete('sort')
-    })
+    applyFiltersToUrl({ sort: value }, `sort:${value}`)
   }
 
   const setLowStockOnly = (value: boolean) => {
-    replaceParams((params) => {
-      if (value) params.set('low', '1')
-      else params.delete('low')
-    })
+    applyFiltersToUrl({ lowStockOnly: value }, value ? 'low:1' : 'low:0')
   }
 
   const setSelectedItemId = (id: string | null) => {
-    replaceParams((params) => {
-      if (id) params.set('item', id)
-      else params.delete('item')
-    })
+    if (id) setMovementsLoading(true)
+    else setMovements(initialMovements)
+    applyFiltersToUrl({ selectedItemId: id }, id ? `item:${id}` : 'item:clear')
   }
 
   const setMovementReason = (value: MovementReasonFilter) => {
-    replaceParams((params) => {
-      if (value !== 'all') params.set('reason', value)
-      else params.delete('reason')
-    })
+    applyFiltersToUrl({ movementReason: value }, `reason:${value}`)
   }
 
   useEffect(() => {
-    if (!selectedItemId) return
+    if (!filters.selectedItemId) return
     let cancelled = false
     setMovementsLoading(true)
-    void fetchInventoryMovements(selectedItemId)
+    void fetchInventoryMovements(filters.selectedItemId)
       .then((result) => {
         if (cancelled) return
         if (result.success && result.data) setMovements(result.data)
@@ -255,7 +297,7 @@ function InventoryManagerInner({
     return () => {
       cancelled = true
     }
-  }, [selectedItemId])
+  }, [filters.selectedItemId])
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -270,9 +312,11 @@ function InventoryManagerInner({
   }, [])
 
   const filtered = useMemo(() => {
-    const list = filterInventoryItems(items, query, category, { lowStockOnly })
-    return sortInventoryItems(list, sort)
-  }, [items, query, category, sort, lowStockOnly])
+    const list = filterInventoryItems(items, query, filters.category, {
+      lowStockOnly: filters.lowStockOnly,
+    })
+    return sortInventoryItems(list, filters.sort)
+  }, [items, query, filters.category, filters.sort, filters.lowStockOnly])
 
   const summary = useMemo(
     () => buildInventorySummary(items, movementsThisWeek),
@@ -280,17 +324,19 @@ function InventoryManagerInner({
   )
 
   const lowStock = useMemo(() => items.filter((i) => i.lowStock), [items])
-  const selectedItem = selectedItemId ? items.find((i) => i.id === selectedItemId) : null
+  const selectedItem = filters.selectedItemId
+    ? items.find((i) => i.id === filters.selectedItemId)
+    : null
 
-  const movementSource = selectedItemId ? movements : initialMovements
+  const movementSource = filters.selectedItemId ? movements : initialMovements
 
   const displayedMovements = useMemo(() => {
     return filterMovementsForDisplay(movementSource, {
-      itemId: selectedItemId,
-      reason: movementReason,
+      itemId: filters.selectedItemId,
+      reason: filters.movementReason,
       direction: movementDirection,
     })
-  }, [movementDirection, movementReason, movementSource, selectedItemId])
+  }, [movementDirection, filters.movementReason, movementSource, filters.selectedItemId])
 
   const movementGroups = useMemo(
     () => groupMovementsByDay(displayedMovements),
@@ -300,14 +346,29 @@ function InventoryManagerInner({
   const reasonCounts = useMemo(
     () =>
       countMovementsByReason(movementSource, {
-        itemId: selectedItemId,
+        itemId: filters.selectedItemId,
         direction: movementDirection,
       }),
-    [movementDirection, movementSource, selectedItemId],
+    [movementDirection, movementSource, filters.selectedItemId],
   )
 
   const movementFiltersActive =
-    movementReason !== 'all' || movementDirection !== 'all' || !!selectedItemId
+    filters.movementReason !== 'all' ||
+    movementDirection !== 'all' ||
+    !!filters.selectedItemId
+
+  const inventoryListPending =
+    isFilterPending &&
+    (pendingFilterId?.startsWith('category:') ||
+      pendingFilterId?.startsWith('low:') ||
+      pendingFilterId?.startsWith('sort:') ||
+      pendingFilterId?.startsWith('item:'))
+
+  const movementFilterUrlPending =
+    isFilterPending &&
+    (pendingFilterId?.startsWith('reason:') || pendingFilterId?.startsWith('item:'))
+
+  const movementListPending = movementsLoading
 
   function markPending(id: string, active: boolean) {
     setPendingIds((prev) => {
@@ -326,7 +387,7 @@ function InventoryManagerInner({
         if (result.success) {
           toast.success('Item removed')
           setDeleteTarget(null)
-          if (selectedItemId === item.id) setSelectedItemId(null)
+          if (filters.selectedItemId === item.id) setSelectedItemId(null)
           refreshInventoryList(router)
         } else {
           toast.error(result.error ?? 'Delete failed')
@@ -350,20 +411,16 @@ function InventoryManagerInner({
           label="Low stock"
           value={String(summary.lowStockCount)}
           emphasis={summary.lowStockCount > 0}
-          onClick={() => setLowStockOnly(!lowStockOnly)}
-          active={lowStockOnly}
+          onClick={() => setLowStockOnly(!filters.lowStockOnly)}
+          active={filters.lowStockOnly}
         />
         <SummaryCard
           label="Out of stock"
           value={String(summary.outOfStockCount)}
           emphasis={summary.outOfStockCount > 0}
-          onClick={() => {
-            setLowStockOnly(true)
-            replaceParams((params) => {
-              params.set('low', '1')
-              params.set('sort', 'low_stock')
-            })
-          }}
+          onClick={() =>
+            applyFiltersToUrl({ lowStockOnly: true, sort: 'low_stock' }, 'low:1')
+          }
         />
         <SummaryCard label="Moves this week" value={String(summary.movementsThisWeek)} />
       </div>
@@ -399,10 +456,13 @@ function InventoryManagerInner({
             </div>
             <button
               type="button"
-              onClick={() => setLowStockOnly(!lowStockOnly)}
-              className={`app-btn shrink-0 text-xs ${lowStockOnly ? 'app-btn-primary' : 'app-btn-secondary'}`}
+              onClick={() => setLowStockOnly(!filters.lowStockOnly)}
+              className={cn(
+                'app-btn shrink-0 text-xs',
+                filters.lowStockOnly ? 'app-btn-primary' : 'app-btn-secondary',
+              )}
             >
-              {lowStockOnly ? 'Show all items' : 'Show low stock only'}
+              {filters.lowStockOnly ? 'Show all items' : 'Show low stock only'}
             </button>
           </div>
         </div>
@@ -433,9 +493,9 @@ function InventoryManagerInner({
             )}
           </div>
           <select
-            value={sort}
+            value={filters.sort}
             onChange={(e) => setSort(e.target.value as InventorySort)}
-            className="app-field"
+            className={cn('app-field', inventoryListPending && pendingFilterId?.startsWith('sort:') && 'opacity-70')}
             aria-label="Sort items"
           >
             {SORT_OPTIONS.map((opt) => (
@@ -457,21 +517,31 @@ function InventoryManagerInner({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <FilterPill active={category === 'all'} onClick={() => setCategory('all')}>
+          <FilterPill
+            active={filters.category === 'all'}
+            pending={pendingFilterId === 'category:all'}
+            onClick={() => setCategory('all')}
+          >
             All
           </FilterPill>
           {INVENTORY_CATEGORIES.map((c) => (
             <FilterPill
               key={c.id}
-              active={category === c.id}
+              active={filters.category === c.id}
+              pending={pendingFilterId === `category:${c.id}`}
               onClick={() => setCategory(c.id)}
             >
               {c.label}
             </FilterPill>
           ))}
-          <FilterPill active={lowStockOnly} onClick={() => setLowStockOnly(!lowStockOnly)}>
+          <FilterPill
+            active={filters.lowStockOnly}
+            pending={pendingFilterId === 'low:1' || pendingFilterId === 'low:0'}
+            onClick={() => setLowStockOnly(!filters.lowStockOnly)}
+          >
             Low stock
           </FilterPill>
+          <FilterToolbarStatus pending={!!inventoryListPending} />
         </div>
 
         {items.length > 0 && (
@@ -482,7 +552,12 @@ function InventoryManagerInner({
         )}
       </div>
 
-      <div className="surface-card overflow-hidden">
+      <div
+        className={cn(
+          'surface-card relative overflow-hidden transition-opacity duration-150',
+          inventoryListPending && 'opacity-70',
+        )}
+      >
         {filtered.length === 0 ? (
           <DataEmptyState
             borderless
@@ -491,7 +566,7 @@ function InventoryManagerInner({
             message={
               items.length === 0
                 ? 'Track linens, amenities, and supplies with reorder alerts and a full movement history.'
-                : lowStockOnly
+                : filters.lowStockOnly
                   ? 'No items are currently at or below reorder level.'
                   : 'Try a different search or category filter.'
             }
@@ -505,7 +580,7 @@ function InventoryManagerInner({
                   <Plus className="h-4 w-4" />
                   Add first item
                 </button>
-              ) : lowStockOnly ? (
+              ) : filters.lowStockOnly ? (
                 <button
                   type="button"
                   onClick={() => setLowStockOnly(false)}
@@ -523,14 +598,14 @@ function InventoryManagerInner({
                 <InventoryCard
                   key={item.id}
                   item={item}
-                  selected={selectedItemId === item.id}
+                  selected={filters.selectedItemId === item.id}
                   pending={pendingIds.has(item.id) || pending}
                   canDelete={canDelete}
                   canEditMetadata={canEditMetadata}
                   canIssueStock={canIssueStock}
                   emphasizeIssue={emphasizeIssue}
                   onSelect={() =>
-                    setSelectedItemId(selectedItemId === item.id ? null : item.id)
+                    setSelectedItemId(filters.selectedItemId === item.id ? null : item.id)
                   }
                   onEdit={() => setEditing(item)}
                   onReceive={() => setReceiving(item)}
@@ -558,14 +633,14 @@ function InventoryManagerInner({
                       <InventoryTableRow
                         key={item.id}
                         item={item}
-                        selected={selectedItemId === item.id}
+                        selected={filters.selectedItemId === item.id}
                         pending={pendingIds.has(item.id) || pending}
                         canDelete={canDelete}
                         canEditMetadata={canEditMetadata}
                         canIssueStock={canIssueStock}
                         emphasizeIssue={emphasizeIssue}
                         onSelect={() =>
-                          setSelectedItemId(selectedItemId === item.id ? null : item.id)
+                          setSelectedItemId(filters.selectedItemId === item.id ? null : item.id)
                         }
                         onEdit={() => setEditing(item)}
                         onReceive={() => setReceiving(item)}
@@ -609,10 +684,7 @@ function InventoryManagerInner({
             </p>
             <button
               type="button"
-              onClick={() => {
-                setSelectedItemId(null)
-                setMovements(initialMovements)
-              }}
+              onClick={() => setSelectedItemId(null)}
               className="app-btn app-btn-ghost text-xs"
             >
               Clear item filter
@@ -641,13 +713,17 @@ function InventoryManagerInner({
             >
               Stock out
             </FilterPill>
+            <FilterToolbarStatus pending={movementListPending || !!movementFilterUrlPending} />
           </div>
           <label className="flex min-w-[200px] items-center gap-2 text-sm">
             <span className="shrink-0 text-muted-foreground">Reason</span>
             <select
-              value={movementReason}
+              value={filters.movementReason}
               onChange={(e) => setMovementReason(e.target.value as MovementReasonFilter)}
-              className="app-field min-w-0 flex-1"
+              className={cn(
+                'app-field min-w-0 flex-1',
+                movementListPending && pendingFilterId?.startsWith('reason:') && 'opacity-70',
+              )}
               aria-label="Filter movements by reason"
             >
               {MOVEMENT_REASON_FILTERS.map((reason) => {
@@ -667,7 +743,7 @@ function InventoryManagerInner({
           </label>
         </div>
 
-        {movementsLoading ? (
+        {movementListPending ? (
           <MovementHistorySkeleton />
         ) : displayedMovements.length === 0 ? (
           <DataEmptyState
@@ -688,9 +764,8 @@ function InventoryManagerInner({
                   onClick={() => {
                     setMovementReason('all')
                     setMovementDirection('all')
-                    if (selectedItemId) {
+                    if (filters.selectedItemId) {
                       setSelectedItemId(null)
-                      setMovements(initialMovements)
                     }
                   }}
                   className="app-btn app-btn-secondary"
@@ -701,21 +776,31 @@ function InventoryManagerInner({
             }
           />
         ) : (
-          <div className="max-h-[32rem] overflow-y-auto px-4 py-4">
+          <div
+            className={cn(
+              'max-h-[32rem] overflow-y-auto px-4 py-4 transition-opacity duration-150',
+              movementFilterUrlPending && !movementListPending && 'opacity-60',
+            )}
+          >
             {movementGroups.map((group) => (
               <div key={group.key} className="mb-5 last:mb-0">
                 <p className="sticky top-0 z-[1] bg-card/95 py-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground backdrop-blur-sm">
                   {group.label}
                 </p>
-                <div className="relative mt-2 space-y-2 border-l border-border/80 pl-4 ml-2">
+                <div className="relative mt-2 ml-2 space-y-2 border-l border-border/80 pl-4">
                   {group.items.map((m) => (
-                    <MovementRow
-                      key={m.id}
-                      movement={m}
-                      complaintsHref={complaintsHref}
-                      housekeepingHref={housekeepingHref}
-                      showItemName={!selectedItemId}
-                    />
+                    <div key={m.id} className="relative">
+                      <div
+                        className="absolute left-[calc(-1rem-0.5px)] top-[1.125rem] z-[1] h-2.5 w-2.5 -translate-x-1/2 rounded-full bg-primary/70 shadow-sm ring-2 ring-card"
+                        aria-hidden
+                      />
+                      <MovementRow
+                        movement={m}
+                        complaintsHref={complaintsHref}
+                        housekeepingHref={housekeepingHref}
+                        showItemName={!filters.selectedItemId}
+                      />
+                    </div>
                   ))}
                 </div>
               </div>
@@ -802,12 +887,28 @@ function SummaryCard({
   return <div className={className}>{inner}</div>
 }
 
+function FilterToolbarStatus({ pending, label = 'Updating…' }: { pending: boolean; label?: string }) {
+  if (!pending) return null
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 rounded-full bg-secondary/90 px-2.5 py-1 text-[11px] font-medium text-muted-foreground"
+      role="status"
+      aria-live="polite"
+    >
+      <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
+      {label}
+    </span>
+  )
+}
+
 function FilterPill({
   active,
+  pending = false,
   onClick,
   children,
 }: {
   active: boolean
+  pending?: boolean
   onClick: () => void
   children: React.ReactNode
 }) {
@@ -815,12 +916,16 @@ function FilterPill({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors duration-150 ${
+      aria-pressed={active}
+      className={cn(
+        'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-all duration-150',
         active
-          ? 'bg-primary text-primary-foreground'
-          : 'bg-secondary text-muted-foreground hover:bg-secondary/80 hover:text-foreground'
-      }`}
+          ? 'bg-primary text-primary-foreground shadow-sm ring-2 ring-primary/30 ring-offset-1 ring-offset-background'
+          : 'bg-secondary text-muted-foreground hover:bg-secondary/80 hover:text-foreground',
+        pending && 'opacity-90',
+      )}
     >
+      {pending && <Loader2 className="h-3 w-3 animate-spin shrink-0" aria-hidden />}
       {children}
     </button>
   )
@@ -1194,8 +1299,7 @@ function MovementRow({
   const Icon = MOVEMENT_REASON_ICON[m.reason] ?? SlidersHorizontal
 
   return (
-    <article className="relative rounded-xl border border-border/70 bg-card/50 p-3 shadow-sm sm:p-3.5">
-      <div className="absolute -left-[1.125rem] top-4 h-2.5 w-2.5 rounded-full border-2 border-card bg-primary/70" aria-hidden />
+    <article className="rounded-xl bg-card p-3 shadow-elevation-2 sm:p-3.5">
       <div className="flex gap-3">
         <span
           className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-lg', meta.iconWellClass)}
