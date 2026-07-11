@@ -9,7 +9,6 @@ import { normalizeInventoryCategory } from '@/lib/inventory/categories'
 import {
   loadInventoryMovements,
   recordInventoryMovement,
-  type InventoryMovementReason,
 } from '@/lib/inventory/movements'
 
 export type InventoryActionResult<T = void> =
@@ -498,4 +497,3 @@ export async function loadInventoryItemsForStaff(): Promise<
   })
 }
 
-export type { InventoryMovementReason }
