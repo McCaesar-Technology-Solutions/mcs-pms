@@ -66,6 +66,7 @@ import {
   ModalHeader,
 } from '@/components/ui/centered-modal'
 import { FormField } from '@/components/ui/form-field'
+import { cn } from '@/lib/utils'
 
 export type InventoryStaffRole = 'owner' | 'manager' | 'receptionist'
 
@@ -663,14 +664,17 @@ function SummaryCard({
   active?: boolean
   onClick?: () => void
 }) {
-  const className = `surface-card p-4 text-left transition-colors duration-150 ${
-    onClick ? 'cursor-pointer hover:bg-secondary/40' : ''
-  } ${active ? 'ring-2 ring-primary/30' : ''} ${emphasis ? 'border-amber-200 bg-amber-50/50' : ''}`
+  const className = cn(
+    'surface-card p-4 text-left transition-colors duration-150',
+    onClick && 'cursor-pointer hover:bg-secondary/40',
+    active && 'ring-2 ring-primary/30',
+    emphasis && 'border-amber-200 bg-amber-50/50',
+  )
 
   const inner = (
     <>
       <p className="text-xs font-medium text-muted-foreground">{label}</p>
-      <p className={`mt-1 text-2xl font-semibold tabular-nums ${emphasis ? 'text-amber-900' : 'text-foreground'}`}>
+      <p className={cn('mt-1 text-2xl font-semibold tabular-nums', emphasis ? 'text-amber-900' : 'text-foreground')}>
         {value}
       </p>
     </>
@@ -928,9 +932,11 @@ function InventoryTableRow({
 }) {
   return (
     <tr
-      className={`cursor-pointer transition-colors duration-150 ${
-        selected ? 'bg-primary/5' : item.lowStock ? 'bg-amber-50/40' : undefined
-      } ${pending ? 'opacity-60' : ''}`}
+      className={cn(
+        'cursor-pointer transition-colors duration-150',
+        selected ? 'bg-primary/5' : item.lowStock ? 'bg-amber-50/40' : null,
+        pending && 'opacity-60',
+      )}
       onClick={onSelect}
     >
       <td>
@@ -1006,9 +1012,11 @@ function InventoryCard({
           onSelect()
         }
       }}
-      className={`elevated-list-item p-4 transition-opacity duration-150 ${
-        selected ? 'ring-2 ring-primary/30' : item.lowStock ? 'ring-1 ring-amber-200' : ''
-      } ${pending ? 'opacity-60' : ''}`}
+      className={cn(
+        'elevated-list-item p-4 transition-opacity duration-150',
+        selected ? 'ring-2 ring-primary/30' : item.lowStock ? 'ring-1 ring-amber-200' : null,
+        pending && 'opacity-60',
+      )}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
@@ -1043,6 +1051,16 @@ function InventoryCard({
   )
 }
 
+function formatMovementWhen(iso: string): string {
+  return new Date(iso).toLocaleString('en-GB', {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'UTC',
+  })
+}
+
 function MovementRow({
   movement: m,
   complaintsHref,
@@ -1068,12 +1086,7 @@ function MovementRow({
           {REASON_LABELS[m.reason] ?? m.reason}
           {m.createdByName ? ` · ${m.createdByName}` : ''}
           {' · '}
-          {new Date(m.createdAt).toLocaleString('en-GB', {
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-          })}
+          {formatMovementWhen(m.createdAt)}
         </p>
         {m.note && <p className="mt-0.5 text-xs text-muted-foreground">{m.note}</p>}
         {(m.complaintId || m.housekeepingTaskId) && (
