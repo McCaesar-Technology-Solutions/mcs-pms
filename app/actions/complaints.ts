@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
-import { loadVerifiedStaffProfile, consumeStaffAuthError } from '@/lib/auth/staff-session'
+import { loadVerifiedStaffProfile, consumeStaffAuthError, requireVerifiedStaff } from '@/lib/auth/staff-session'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { writeAuditLog } from '@/lib/audit/log'
@@ -21,6 +21,12 @@ export type ComplaintActionResult<T = void> =
 
 async function requireStaffProfile() {
   return loadVerifiedStaffProfile()
+}
+
+async function requireTechnician() {
+  const result = await requireVerifiedStaff({ roles: ['technician'] })
+  if (!result.ok) return null
+  return { supabase: result.supabase, userId: result.userId, profile: result.profile }
 }
 
 async function assertComplaintStaffAccess(
@@ -227,30 +233,16 @@ export async function getPendingComplaintApprovalsCount(): Promise<number> {
 export async function getTechnicianComplaints(
   includeCompleted = false,
 ): Promise<ComplaintActionResult<Complaint[]>> {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return { success: false, error: 'Not authorized.' }
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .maybeSingle()
-
-  if (profile?.role !== 'technician') {
-    return { success: false, error: 'Not authorized.' }
-  }
+  const auth = await requireTechnician()
+  if (!auth) return { success: false, error: consumeStaffAuthError() }
 
   // Admin client so we can join guest contact details (guests are hidden from
   // technicians by RLS). Scoped to jobs assigned to this technician only.
-  const { createAdminClient } = await import('@/lib/supabase/admin')
   const admin = createAdminClient()
   let query = admin
     .from('complaints')
     .select('*, rooms(number), guests(name, phone)')
-    .eq('assigned_to', user.id)
+    .eq('assigned_to', auth.userId)
     .order('priority', { ascending: true })
 
   if (includeCompleted) {
@@ -435,21 +427,8 @@ export async function approveComplaint(
 export async function scheduleTechnicianComplaintVisit(
   input: unknown,
 ): Promise<ComplaintActionResult> {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return { success: false, error: 'Not authorized.' }
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .maybeSingle()
-
-  if (profile?.role !== 'technician') {
-    return { success: false, error: 'Not authorized.' }
-  }
+  const auth = await requireTechnician()
+  if (!auth) return { success: false, error: consumeStaffAuthError() }
 
   const parsed = scheduleComplaintVisitSchema.safeParse(input)
   if (!parsed.success) {
@@ -464,11 +443,11 @@ export async function scheduleTechnicianComplaintVisit(
     return { success: false, error: 'Visit must be at least 30 minutes from now.' }
   }
 
-  const { data: complaint } = await supabase
+  const { data: complaint } = await auth.supabase
     .from('complaints')
     .select('status')
     .eq('id', parsed.data.complaintId)
-    .eq('assigned_to', user.id)
+    .eq('assigned_to', auth.userId)
     .maybeSingle()
 
   if (!complaint || !canTechnicianScheduleVisit(complaint)) {
@@ -485,13 +464,13 @@ export async function scheduleTechnicianComplaintVisit(
       scheduled_visit_by: 'technician',
     })
     .eq('id', parsed.data.complaintId)
-    .eq('assigned_to', user.id)
+    .eq('assigned_to', auth.userId)
 
   if (error) return { success: false, error: error.message }
 
   await admin.from('complaint_events').insert({
     complaint_id: parsed.data.complaintId,
-    actor_id: user.id,
+    actor_id: auth.userId,
     actor_role: 'technician',
     event_type: 'visit_scheduled',
     note: visitIso,
@@ -566,44 +545,31 @@ export async function rejectComplaint(
 }
 
 export async function startTechnicianComplaint(complaintId: string): Promise<ComplaintActionResult> {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return { success: false, error: 'Not authorized.' }
+  const auth = await requireTechnician()
+  if (!auth) return { success: false, error: consumeStaffAuthError() }
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .maybeSingle()
-
-  if (profile?.role !== 'technician') {
-    return { success: false, error: 'Not authorized.' }
-  }
-
-  const { data: complaint } = await supabase
+  const { data: complaint } = await auth.supabase
     .from('complaints')
     .select('status')
     .eq('id', complaintId)
-    .eq('assigned_to', user.id)
+    .eq('assigned_to', auth.userId)
     .maybeSingle()
 
   if (!complaint || complaint.status !== 'assigned') {
     return { success: false, error: 'This job is not ready to start.' }
   }
 
-  const { error } = await supabase
+  const { error } = await auth.supabase
     .from('complaints')
     .update({ status: 'in_progress', rejection_note: null })
     .eq('id', complaintId)
-    .eq('assigned_to', user.id)
+    .eq('assigned_to', auth.userId)
 
   if (error) return { success: false, error: error.message }
 
-  await supabase.from('complaint_events').insert({
+  await auth.supabase.from('complaint_events').insert({
     complaint_id: complaintId,
-    actor_id: user.id,
+    actor_id: auth.userId,
     actor_role: 'technician',
     event_type: 'started',
   })
@@ -614,27 +580,14 @@ export async function startTechnicianComplaint(complaintId: string): Promise<Com
 }
 
 export async function markComplaintComplete(complaintId: string): Promise<ComplaintActionResult> {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return { success: false, error: 'Not authorized.' }
+  const auth = await requireTechnician()
+  if (!auth) return { success: false, error: consumeStaffAuthError() }
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .maybeSingle()
-
-  if (profile?.role !== 'technician') {
-    return { success: false, error: 'Not authorized.' }
-  }
-
-  const { data: complaint } = await supabase
+  const { data: complaint } = await auth.supabase
     .from('complaints')
     .select('status')
     .eq('id', complaintId)
-    .eq('assigned_to', user.id)
+    .eq('assigned_to', auth.userId)
     .maybeSingle()
 
   if (
@@ -645,25 +598,25 @@ export async function markComplaintComplete(complaintId: string): Promise<Compla
   }
 
   if (complaint.status === 'assigned') {
-    await supabase.from('complaint_events').insert({
+    await auth.supabase.from('complaint_events').insert({
       complaint_id: complaintId,
-      actor_id: user.id,
+      actor_id: auth.userId,
       actor_role: 'technician',
       event_type: 'started',
     })
   }
 
-  const { error } = await supabase
+  const { error } = await auth.supabase
     .from('complaints')
     .update({ status: 'pending_approval', approval_stage: 'completion', rejection_note: null })
     .eq('id', complaintId)
-    .eq('assigned_to', user.id)
+    .eq('assigned_to', auth.userId)
 
   if (error) return { success: false, error: error.message }
 
-  await supabase.from('complaint_events').insert({
+  await auth.supabase.from('complaint_events').insert({
     complaint_id: complaintId,
-    actor_id: user.id,
+    actor_id: auth.userId,
     actor_role: 'technician',
     event_type: 'completion_requested',
   })
@@ -903,28 +856,15 @@ export async function editStaffComplaintMessage(
 export async function getTechnicianComplaintPhotoUrl(
   complaintId: string,
 ): Promise<ComplaintActionResult<{ url: string }>> {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return { success: false, error: 'Not authorized.' }
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .maybeSingle()
-
-  if (profile?.role !== 'technician') {
-    return { success: false, error: 'Not authorized.' }
-  }
+  const auth = await requireTechnician()
+  if (!auth) return { success: false, error: consumeStaffAuthError() }
 
   const admin = createAdminClient()
   const { data } = await admin
     .from('complaints')
     .select('guest_photo_path')
     .eq('id', complaintId)
-    .eq('assigned_to', user.id)
+    .eq('assigned_to', auth.userId)
     .maybeSingle()
 
   if (!data?.guest_photo_path) return { success: false, error: 'No photo attached.' }

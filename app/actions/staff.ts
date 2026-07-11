@@ -4,6 +4,8 @@ import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
 import { loadVerifiedStaffProfile, consumeStaffAuthError } from '@/lib/auth/staff-session'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getClientIp } from '@/lib/auth/client-ip'
+import { assertRateLimit, ipRateKey, STAFF_RATE_LIMITS } from '@/lib/rate-limit'
 import { toE164 } from '@/lib/notifications/e164'
 import { inviteStaffSchema } from '@/lib/validations'
 import { phoneSchema } from '@/lib/phone'
@@ -101,6 +103,13 @@ export async function inviteStaff(
 
   const profile = await requireStaffProfile()
   if (!profile?.hotel_id) return { success: false, error: 'Not authorized.' }
+
+  const ip = await getClientIp()
+  const inviteLimit = await assertRateLimit(
+    ipRateKey('staff-invite', `${profile.id}:${ip}`),
+    STAFF_RATE_LIMITS.invite,
+  )
+  if (inviteLimit) return { success: false, error: inviteLimit }
 
   if (!allowedInviteRoles(profile.role).includes(parsed.data.role)) {
     return { success: false, error: `You cannot invite a ${parsed.data.role}.` }

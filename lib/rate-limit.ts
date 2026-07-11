@@ -80,6 +80,7 @@ export const GUEST_RATE_LIMITS = {
   complaint: { max: 10, windowMs: 60 * 60 * 1000, cooldownMs: 10_000 },
   message: { max: 60, windowMs: 15 * 60 * 1000, cooldownMs: 1_000 },
   request: { max: 20, windowMs: 60 * 60 * 1000, cooldownMs: 5_000 },
+  receiptEmail: { max: 3, windowMs: 60 * 60 * 1000, cooldownMs: 30_000 },
 } as const satisfies Record<string, RateLimitOptions>
 
 export const AUTH_RATE_LIMITS = {
@@ -87,7 +88,16 @@ export const AUTH_RATE_LIMITS = {
   signUp: { max: 10, windowMs: 60 * 60 * 1000, cooldownMs: 5_000 },
   passwordReset: { max: 10, windowMs: 60 * 60 * 1000, cooldownMs: 15_000 },
   acceptInvite: { max: 10, windowMs: 60 * 60 * 1000, cooldownMs: 3_000 },
+  authCallback: { max: 30, windowMs: 15 * 60 * 1000, cooldownMs: 500 },
   mfaVerify: { max: 15, windowMs: 15 * 60 * 1000, cooldownMs: 500 },
+} as const satisfies Record<string, RateLimitOptions>
+
+export const STAFF_RATE_LIMITS = {
+  invite: { max: 10, windowMs: 60 * 60 * 1000, cooldownMs: 5_000 },
+} as const satisfies Record<string, RateLimitOptions>
+
+export const SEARCH_RATE_LIMITS = {
+  global: { max: 30, windowMs: 60 * 1000, cooldownMs: 200 },
 } as const satisfies Record<string, RateLimitOptions>
 
 export function guestRateKey(scope: string, guestId: string): string {

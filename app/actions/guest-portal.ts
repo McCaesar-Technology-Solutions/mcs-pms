@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { after } from 'next/server'
 import { z } from 'zod'
-import { createClient } from '@/lib/supabase/server'
+import { loadVerifiedStaffProfile, consumeStaffAuthError } from '@/lib/auth/staff-session'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { findActiveGuestForRoom } from '@/lib/data/guest-room-access'
 import {
@@ -136,20 +136,11 @@ export async function enterGuestPortalByRoom(input: unknown): Promise<GuestPorta
 export async function getStaffPropertyPortalInfo(): Promise<
   GuestPortalActionResult<{ slug: string; joinUrl: string; hotelName: string }>
 > {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return { success: false, error: 'Not authorized.' }
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('hotel_id, role')
-    .eq('id', user.id)
-    .maybeSingle()
-
-  if (!profile?.hotel_id || !['owner', 'manager', 'receptionist'].includes(profile.role)) {
-    return { success: false, error: 'Not authorized.' }
+  const profile = await loadVerifiedStaffProfile({
+    roles: ['owner', 'manager', 'receptionist'],
+  })
+  if (!profile?.hotel_id) {
+    return { success: false, error: consumeStaffAuthError() }
   }
 
   const slug = await ensureGuestPortalSlug(profile.hotel_id)
@@ -693,6 +684,12 @@ export async function emailGuestInvoiceReceiptAction(
 ): Promise<GuestPortalActionResult> {
   const auth = await requireGuestWithRules()
   if (!auth.ok) return { success: false, error: auth.error }
+
+  const limit = await assertRateLimit(
+    guestRateKey('receipt-email', auth.guest.id),
+    GUEST_RATE_LIMITS.receiptEmail,
+  )
+  if (limit) return { success: false, error: limit }
 
   const receipt = await getGuestInvoiceReceiptExport(invoiceId)
   if (!receipt.success) {

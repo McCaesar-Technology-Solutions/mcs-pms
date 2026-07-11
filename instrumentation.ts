@@ -5,9 +5,8 @@ export async function register() {
   const { validateProductionEnv } = await import('@/lib/env')
   const result = validateProductionEnv()
   if (!result.ok) {
-    console.error(
-      '[startup] Production env validation failed — /api/ready will return 503 until fixed:',
-      result.errors.join('; '),
-    )
+    const message = `[startup] Production env validation failed: ${result.errors.join('; ')}`
+    console.error(message)
+    throw new Error(message)
   }
 }

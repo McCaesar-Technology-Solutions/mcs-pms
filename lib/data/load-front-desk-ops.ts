@@ -1,4 +1,4 @@
-import { getProfile } from '@/lib/auth/get-profile'
+import { getVerifiedProfile } from '@/lib/auth/get-profile'
 import { parseOpsDate } from '@/lib/dates/ops-date'
 import { countUnreadGuestConversations } from '@/lib/data/guest-conversations'
 import { countUnreadStaffConversations } from '@/lib/data/staff-conversations'
@@ -23,7 +23,7 @@ export interface FrontDeskOpsContext {
 export async function loadFrontDeskOpsContext(
   opsDateParam?: string | null,
 ): Promise<FrontDeskOpsContext | null> {
-  const profile = await getProfile()
+  const profile = await getVerifiedProfile()
   if (!profile?.hotel_id) return null
 
   const opsDate = parseOpsDate(opsDateParam)

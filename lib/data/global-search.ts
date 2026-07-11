@@ -1,4 +1,4 @@
-import { getProfile } from '@/lib/auth/get-profile'
+import { getVerifiedProfile } from '@/lib/auth/get-profile'
 import { staffRoutePrefix } from '@/lib/dashboard/search-hrefs'
 import { formatInvoiceNumber } from '@/lib/invoices/numbering'
 import { createClient } from '@/lib/supabase/server'
@@ -29,12 +29,16 @@ function prefixForRole(role: Profile['role']): string {
   return staffRoutePrefix(role)
 }
 
-export async function searchGlobal(query: string, limit = 8): Promise<GlobalSearchResult[]> {
-  const profile = await getProfile()
+export async function searchGlobal(
+  query: string,
+  limit = 8,
+  profileOverride?: Profile | null,
+): Promise<GlobalSearchResult[]> {
+  const profile = profileOverride ?? (await getVerifiedProfile())
   if (!profile?.hotel_id) return []
 
   const q = sanitizeQuery(query)
-  if (q.length < 2) return []
+  if (q.length < 2 || q.length > 100) return []
 
   const supabase = await createClient()
   const hotelId = profile.hotel_id

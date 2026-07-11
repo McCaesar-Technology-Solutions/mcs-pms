@@ -1,11 +1,9 @@
 /** Encrypt TOTP secrets at rest (AES-GCM, key derived from MFA_OTP_SECRET). */
 
+import { getMfaOtpSecret } from '@/lib/env'
+
 function secretMaterial(): string {
-  return (
-    process.env.MFA_OTP_SECRET ??
-    process.env.SUPABASE_SERVICE_ROLE_KEY ??
-    'dev-only-mfa-secret-change-me'
-  )
+  return getMfaOtpSecret()
 }
 
 async function deriveAesKey(): Promise<CryptoKey> {

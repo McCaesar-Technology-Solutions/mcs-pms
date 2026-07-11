@@ -318,20 +318,10 @@ export async function getEnrollmentRooms(): Promise<
     stays: { roomId: string; checkIn: string; checkOut: string }[]
   }>
 > {
-  const { createClient } = await import('@/lib/supabase/server')
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return { success: false, error: 'Not authorized.' }
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('hotel_id, role')
-    .eq('id', user.id)
-    .maybeSingle()
-
-  if (!profile?.hotel_id || !['owner', 'manager', 'receptionist'].includes(profile.role)) {
+  const profile = await loadVerifiedStaffProfile({
+    roles: ['owner', 'manager', 'receptionist'],
+  })
+  if (!profile?.hotel_id) {
     return { success: false, error: 'Not authorized.' }
   }
 

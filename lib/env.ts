@@ -91,8 +91,6 @@ export function getGuestSessionSecret(): string {
   const secret = process.env.GUEST_SESSION_SECRET?.trim()
   if (secret) return secret
   if (isProduction) {
-    const fallback = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
-    if (fallback) return fallback
     throw new Error('GUEST_SESSION_SECRET is required in production')
   }
   return 'dev-guest-session-secret-change-me'
@@ -102,14 +100,9 @@ export function getMfaOtpSecret(): string {
   const secret = process.env.MFA_OTP_SECRET?.trim()
   if (secret) return secret
   if (isProduction) {
-    // Session-key hashing fallback when Twilio Verify handles OTP delivery.
-    const twilioToken = process.env.TWILIO_AUTH_TOKEN?.trim()
-    if (twilioToken && process.env.TWILIO_VERIFY_SERVICE_SID?.trim()) {
-      return twilioToken
-    }
     throw new Error('MFA_OTP_SECRET is required in production')
   }
-  return process.env.SUPABASE_SERVICE_ROLE_KEY ?? 'dev-only-mfa-secret-change-me'
+  return 'dev-only-mfa-secret-change-me'
 }
 
 export function getAppOrigin(): string {

@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { requireVerifiedStaff } from '@/lib/auth/staff-session'
+import { requireVerifiedStaff, consumeStaffAuthError } from '@/lib/auth/staff-session'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { ensureGuestPortalSlug } from '@/lib/guest-portal'
 import { ensureDefaultGuestRules } from '@/lib/data/guest-rules'
@@ -83,6 +83,11 @@ async function seedRooms(hotelId: string, totalRooms: number, ownerId: string) {
 }
 
 export async function fetchOwnerProperties(): Promise<PropertyActionResult<Property[]>> {
+  const auth = await requireVerifiedStaff({ roles: ['owner'] })
+  if (!auth.ok) {
+    return { success: false, error: consumeStaffAuthError(auth.error) }
+  }
+
   try {
     const properties = await getOwnerProperties()
     return { success: true, data: properties }

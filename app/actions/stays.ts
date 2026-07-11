@@ -59,6 +59,17 @@ const checkInStaySchema = z.object({
   guestName: z.string().min(2).optional(),
 })
 
+const walkInCheckInSchema = z.object({
+  name: z.string().trim().min(2).max(120),
+  phone: phoneSchema,
+  email: z.string().email().optional().or(z.literal('')),
+  roomId: z.string().uuid(),
+  checkOut: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  rateType: z.enum(['nightly', 'monthly']).optional(),
+  nightlyRate: z.coerce.number().min(0).optional(),
+  monthlyRate: z.coerce.number().min(0).optional(),
+})
+
 async function requireManager() {
   const result = await requireVerifiedStaff()
   if (!result.ok) return { supabase: result.supabase, profile: null, userId: null }
@@ -332,16 +343,7 @@ export async function checkInStay(
   return { success: true, data: { loginUrl, token, guestId, portalPin } }
 }
 
-export async function walkInCheckIn(input: {
-  name: string
-  phone: string
-  email?: string
-  roomId: string
-  checkOut: string
-  rateType?: RateType
-  nightlyRate?: number
-  monthlyRate?: number
-}): Promise<
+export async function walkInCheckIn(input: unknown): Promise<
   StayActionResult<{
     loginUrl: string
     token: string
@@ -350,20 +352,28 @@ export async function walkInCheckIn(input: {
     portalPin: string
   }>
 > {
+  const parsed = walkInCheckInSchema.safeParse(input)
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Invalid walk-in check-in details.',
+    }
+  }
+
   const { profile, userId } = await requireManager()
   if (!profile?.hotel_id || !userId || !['owner', 'manager', 'receptionist'].includes(profile.role)) {
     return { success: false, error: 'Not authorized.' }
   }
 
   const checkIn = todayISO()
-  if (input.checkOut <= checkIn) {
+  if (parsed.data.checkOut <= checkIn) {
     return { success: false, error: 'Check-out must be a future date.' }
   }
 
   const admin = createAdminClient()
 
-  if (await roomHasClash(admin, profile.hotel_id, input.roomId, checkIn, input.checkOut)) {
-    const suggestions = await findAvailableRooms(admin, profile.hotel_id, checkIn, input.checkOut)
+  if (await roomHasClash(admin, profile.hotel_id, parsed.data.roomId, checkIn, parsed.data.checkOut)) {
+    const suggestions = await findAvailableRooms(admin, profile.hotel_id, checkIn, parsed.data.checkOut)
     return {
       success: false,
       error: 'That room is already occupied for these dates.',
@@ -371,22 +381,22 @@ export async function walkInCheckIn(input: {
     }
   }
 
-  const rateType = input.rateType ?? 'nightly'
-  const roomRates = await getRoomRates(admin, input.roomId)
+  const rateType = parsed.data.rateType ?? 'nightly'
+  const roomRates = await getRoomRates(admin, parsed.data.roomId)
   const nightlyRate =
-    rateType === 'nightly' ? (input.nightlyRate ?? roomRates.nightlyRate) : roomRates.nightlyRate
+    rateType === 'nightly' ? (parsed.data.nightlyRate ?? roomRates.nightlyRate) : roomRates.nightlyRate
   const monthlyRate =
-    rateType === 'monthly' ? (input.monthlyRate ?? roomRates.monthlyRate) : roomRates.monthlyRate
-  const total = calculateStayTotal(rateType, checkIn, input.checkOut, nightlyRate, monthlyRate)
+    rateType === 'monthly' ? (parsed.data.monthlyRate ?? roomRates.monthlyRate) : roomRates.monthlyRate
+  const total = calculateStayTotal(rateType, checkIn, parsed.data.checkOut, nightlyRate, monthlyRate)
 
   const { data: reservation, error: resError } = await admin
     .from('reservations')
     .insert({
       hotel_id: profile.hotel_id,
-      room_id: input.roomId,
-      guest_name: input.name.trim(),
+      room_id: parsed.data.roomId,
+      guest_name: parsed.data.name.trim(),
       check_in: checkIn,
-      check_out: input.checkOut,
+      check_out: parsed.data.checkOut,
       status: 'inquiry',
       channel: 'walk_in' as ReservationChannel,
       rate_type: rateType,
@@ -413,7 +423,7 @@ export async function walkInCheckIn(input: {
   if (!confirmed.success) {
     await admin.from('reservations').delete().eq('id', reservation.id)
     if (confirmed.code === 'ROOM_CONFLICT') {
-      const suggestions = await findAvailableRooms(admin, profile.hotel_id, checkIn, input.checkOut)
+      const suggestions = await findAvailableRooms(admin, profile.hotel_id, checkIn, parsed.data.checkOut)
       return {
         success: false,
         error: 'That room was just booked for these dates. Pick another room.',
@@ -426,7 +436,7 @@ export async function walkInCheckIn(input: {
   const { data: walkInRoom } = await admin
     .from('rooms')
     .select('number')
-    .eq('id', input.roomId)
+    .eq('id', parsed.data.roomId)
     .maybeSingle()
 
   void writeAuditLog({
@@ -436,13 +446,13 @@ export async function walkInCheckIn(input: {
     entityType: 'reservation',
     entityId: reservation.id,
     action: 'created',
-    summary: `Walk-in booking for ${input.name.trim()}${walkInRoom?.number ? ` — Room ${walkInRoom.number}` : ''} (${checkIn} → ${input.checkOut})`,
+    summary: `Walk-in booking for ${parsed.data.name.trim()}${walkInRoom?.number ? ` — Room ${walkInRoom.number}` : ''} (${checkIn} → ${parsed.data.checkOut})`,
   })
 
   const checkInResult = await checkInStay(reservation.id, {
-    phone: input.phone,
-    email: input.email,
-    guestName: input.name.trim(),
+    phone: parsed.data.phone,
+    email: parsed.data.email,
+    guestName: parsed.data.name.trim(),
   })
 
   if (!checkInResult.success || !checkInResult.data) {
