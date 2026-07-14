@@ -244,7 +244,7 @@ export async function getReservationsPage(
       return finalizePage(pageRows, totalCount, page, pageSize, hotelId, admin, options)
     }
 
-    let countQuery = await applyColumnFilters(
+    const countQuery = await applyColumnFilters(
       supabase.from('reservations').select('id', { count: 'exact', head: true }),
       filters,
       hotelId,

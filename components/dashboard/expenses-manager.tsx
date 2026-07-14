@@ -5,7 +5,7 @@ import { Plus, Receipt, Trash2 } from 'lucide-react'
 import { DataEmptyState } from '@/components/dashboard/data-empty-state'
 import { toast } from 'sonner'
 import { createExpense, deleteExpense } from '@/app/actions/expenses'
-import { expenseSummary, type ExpenseRow } from '@/lib/data/expenses'
+import { expenseSummary, type ExpenseRow } from '@/lib/expenses/summary'
 import { formatGhs, MONEY_CLASS } from '@/lib/format/money'
 import { FormField, APP_FIELD_CLASS } from '@/components/ui/form-field'
 import {

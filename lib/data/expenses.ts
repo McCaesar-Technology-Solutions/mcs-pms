@@ -1,16 +1,8 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { resolveHotelTenantAccess } from '@/lib/data/tenant-guard'
+import type { ExpenseRow } from '@/lib/expenses/summary'
 
-export interface ExpenseRow {
-  id: string
-  category: string
-  description: string
-  amount: number
-  expenseDate: string
-  vendor: string | null
-  paymentStatus: 'pending' | 'paid'
-  createdAt: string
-}
+export type { ExpenseRow }
 
 export async function loadExpenses(hotelId: string): Promise<ExpenseRow[]> {
   const access = await resolveHotelTenantAccess(hotelId, { roles: ['owner'] })
@@ -34,11 +26,4 @@ export async function loadExpenses(hotelId: string): Promise<ExpenseRow[]> {
     paymentStatus: row.payment_status as 'pending' | 'paid',
     createdAt: row.created_at ?? new Date().toISOString(),
   }))
-}
-
-export function expenseSummary(expenses: ExpenseRow[]) {
-  const total = expenses.reduce((sum, e) => sum + e.amount, 0)
-  const pending = expenses.filter((e) => e.paymentStatus === 'pending').reduce((s, e) => s + e.amount, 0)
-  const paid = total - pending
-  return { total, pending, paid, count: expenses.length }
 }
