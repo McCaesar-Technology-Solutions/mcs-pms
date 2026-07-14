@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { applyInvoicePaymentRecord } from '@/lib/billing/apply-payment'
+import { applyOnlineReservationDeposit } from '@/lib/payments/apply-deposit'
 import { writeAuditLog } from '@/lib/audit/log'
 import { paystackChannelToPaymentMethod } from '@/lib/payments/channel-to-method'
 import { pesewasToGhs } from '@/lib/payments/paystack'
@@ -116,15 +117,32 @@ export async function processPaystackWebhookEvent(
     if (!applyResult.ok) {
       return { handled: false, error: applyResult.error }
     }
+  } else if (existing.reservation_id) {
+    const depositResult = await applyOnlineReservationDeposit(admin, {
+      hotelId: existing.hotel_id,
+      reservationId: existing.reservation_id,
+      amount: Number(existing.amount),
+      paymentMethod,
+      providerReference: existing.provider_reference,
+      actorId: existing.initiated_by,
+    })
+
+    if (!depositResult.ok) {
+      return { handled: false, error: depositResult.error }
+    }
   }
 
   void writeAuditLog({
     hotelId: existing.hotel_id,
     actorId: existing.initiated_by,
     actorName: 'Paystack',
-    entityType: existing.invoice_id ? 'invoice' : 'payment',
-    entityId: existing.invoice_id ?? existing.id,
-    action: 'payment_online',
+    entityType: existing.invoice_id
+      ? 'invoice'
+      : existing.reservation_id
+        ? 'reservation'
+        : 'payment',
+    entityId: existing.invoice_id ?? existing.reservation_id ?? existing.id,
+    action: existing.invoice_id ? 'payment_online' : 'deposit_online',
     summary: `Online payment of GHS ${Number(existing.amount).toFixed(2)} received`,
     details: {
       paymentId: existing.id,

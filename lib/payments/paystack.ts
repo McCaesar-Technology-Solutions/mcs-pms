@@ -4,6 +4,8 @@ import type {
   PaymentInitializeInput,
   PaymentInitializeResult,
   PaymentProvider,
+  PaymentRefundInput,
+  PaymentRefundResult,
   PaymentWebhookEvent,
 } from '@/lib/payments/provider'
 
@@ -59,6 +61,52 @@ export function createPaystackProvider(): PaymentProvider {
         authorizationUrl: payload.data.authorization_url,
         reference: payload.data.reference,
         accessCode: payload.data.access_code,
+      }
+    },
+
+    async refund(input: PaymentRefundInput): Promise<PaymentRefundResult> {
+      const secret = requireSecret()
+      const res = await fetch(`${PAYSTACK_API}/refund`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${secret}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          transaction: input.transaction,
+          ...(input.amountKobo != null ? { amount: input.amountKobo } : {}),
+          ...(input.reason ? { customer_note: input.reason, merchant_note: input.reason } : {}),
+        }),
+      })
+
+      const payload = (await res.json()) as {
+        status?: boolean
+        message?: string
+        data?: {
+          id?: number | string
+          transaction?: { reference?: string } | number | string
+          amount?: number
+          status?: string
+        }
+      }
+
+      if (!res.ok || !payload.status) {
+        throw new Error(payload.message ?? 'Paystack refund failed')
+      }
+
+      const tx = payload.data?.transaction
+      const txRef =
+        typeof tx === 'object' && tx && 'reference' in tx
+          ? (tx.reference ?? input.transaction)
+          : tx != null
+            ? String(tx)
+            : input.transaction
+
+      return {
+        refundId: payload.data?.id != null ? String(payload.data.id) : null,
+        transaction: txRef,
+        amountKobo: typeof payload.data?.amount === 'number' ? payload.data.amount : null,
+        status: payload.data?.status ?? null,
       }
     },
 

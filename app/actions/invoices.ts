@@ -13,6 +13,7 @@ import {
 } from '@/lib/billing/invoice-payments'
 import { applyInvoicePaymentRecord } from '@/lib/billing/apply-payment'
 import { syncReservationPaymentFromInvoice } from '@/lib/billing/reservation-payment'
+import { refundOnlineInvoicePayments } from '@/lib/payments/refund-online'
 import { writeAuditLog } from '@/lib/audit/log'
 import { formatInvoiceNumber } from '@/lib/invoices/numbering'
 import { stayNights } from '@/lib/stays/helpers'
@@ -309,6 +310,17 @@ export async function refundInvoicePayment(input: unknown): Promise<InvoiceActio
     return { success: false, error: 'Refund amount exceeds amount paid.' }
   }
 
+  // Refund to source via Paystack when online charges exist; fail closed if PSP refund fails.
+  const online = await refundOnlineInvoicePayments(admin, {
+    hotelId: profile.hotel_id,
+    invoiceId: parsed.data.invoiceId,
+    amountGhs: refundAmount,
+    reason: parsed.data.reason,
+  })
+  if (!online.ok) {
+    return { success: false, error: online.error }
+  }
+
   const now = new Date().toISOString()
   const idempotencyKey = `refund:${parsed.data.invoiceId}:${randomUUID()}`
 
@@ -316,14 +328,19 @@ export async function refundInvoicePayment(input: unknown): Promise<InvoiceActio
     hotel_id: profile.hotel_id,
     invoice_id: parsed.data.invoiceId,
     guest_id: invoice.guest_id,
-    provider: 'manual',
-    provider_reference: parsed.data.reason ?? 'Refund',
+    provider: online.refundedOnlineGhs > 0.009 ? 'paystack' : 'manual',
+    provider_reference:
+      online.references[0] ?? parsed.data.reason ?? 'Refund',
     amount: -refundAmount,
     currency: 'GHS',
     status: 'refunded',
     idempotency_key: idempotencyKey,
     completed_at: now,
-    metadata: parsed.data.reason ? { reason: parsed.data.reason } : null,
+    metadata: {
+      reason: parsed.data.reason ?? null,
+      refunded_online_ghs: online.refundedOnlineGhs,
+      online_references: online.references,
+    },
   })
 
   const newPaid = Math.max(0, Math.round((paid - refundAmount) * 100) / 100)
@@ -353,7 +370,11 @@ export async function refundInvoicePayment(input: unknown): Promise<InvoiceActio
     entityId: parsed.data.invoiceId,
     action: 'refund',
     summary: `Refunded ₵${refundAmount} on ${invoice.guest_name} invoice`,
-    details: { reason: parsed.data.reason },
+    details: {
+      reason: parsed.data.reason,
+      refundedOnlineGhs: online.refundedOnlineGhs,
+      onlineReferences: online.references,
+    },
   })
 
   revalidateBilling()

@@ -17,6 +17,7 @@ import {
   recordReservationDeposit,
   updateReservation,
 } from '@/app/actions/reservations'
+import { initiateStaffDepositPayment } from '@/app/actions/payments'
 import {
   checkInStay,
   extendStay,
@@ -163,6 +164,7 @@ interface ReservationsManagerProps {
   initialPaymentStatus?: (typeof PAYMENT_FILTERS)[number]
   initialPaymentSecured?: boolean
   serverPagination?: ReservationsServerPagination
+  onlinePaymentsEnabled?: boolean
 }
 
 function isSecuredReservationPayment(res: Reservation): boolean {
@@ -186,6 +188,7 @@ export function ReservationsManager({
   initialPaymentStatus = 'all',
   initialPaymentSecured = false,
   serverPagination,
+  onlinePaymentsEnabled = false,
 }: ReservationsManagerProps) {
   const router = useRouter()
   const pathname = usePathname()
@@ -678,6 +681,7 @@ export function ReservationsManager({
           reservation={selected}
           roomOptions={roomOptions}
           staffRole={staffRole}
+          onlinePaymentsEnabled={onlinePaymentsEnabled}
           initialExtendStay={initialExtendStay && selected.id === openReservationId}
           initialExtendDate={selected.id === openReservationId ? initialExtendDate : undefined}
           guestRequestId={selected.id === openReservationId ? activeGuestRequestId : null}
@@ -741,6 +745,7 @@ interface ReservationDrawerProps {
   reservation: Reservation
   roomOptions: RoomOption[]
   staffRole: UserRole
+  onlinePaymentsEnabled?: boolean
   initialExtendStay?: boolean
   initialExtendDate?: string
   guestRequestId?: string | null
@@ -764,6 +769,7 @@ function ReservationDrawer({
   reservation,
   roomOptions,
   staffRole,
+  onlinePaymentsEnabled = false,
   initialExtendStay = false,
   initialExtendDate,
   guestRequestId,
@@ -1102,6 +1108,41 @@ function ReservationDrawer({
                     Save deposit
                   </button>
                 </div>
+                {onlinePaymentsEnabled && (
+                  <button
+                    type="button"
+                    disabled={pending || !depositAmount || Number(depositAmount) <= 0}
+                    onClick={() => {
+                      setError(null)
+                      startTransition(async () => {
+                        const result = await initiateStaffDepositPayment({
+                          reservationId: reservation.id,
+                          amount: Number(depositAmount),
+                        })
+                        if (!result.success) {
+                          setError(result.error)
+                          toast.error(result.error)
+                          return
+                        }
+                        window.open(
+                          result.data.authorizationUrl,
+                          '_blank',
+                          'noopener,noreferrer',
+                        )
+                        toast.success(
+                          result.data.reused
+                            ? 'Reopened existing deposit checkout'
+                            : 'Deposit checkout link ready — complete on the guest device',
+                        )
+                        setRecordingDeposit(false)
+                        setDepositAmount('')
+                      })
+                    }}
+                    className="w-full rounded-xl border border-primary bg-primary/5 py-2.5 text-sm font-semibold text-primary disabled:opacity-50"
+                  >
+                    Pay deposit online
+                  </button>
+                )}
               </div>
             )}
           </div>

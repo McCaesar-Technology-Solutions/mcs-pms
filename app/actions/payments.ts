@@ -9,12 +9,20 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { getGuestFromSession } from '@/app/actions/guest'
 import { guestNeedsRulesAcceptance } from '@/app/actions/guest-rules'
 import { isPaymentsEnabled } from '@/lib/payments/enabled'
-import { initiateInvoiceOnlinePayment } from '@/lib/payments/initiate'
+import {
+  initiateInvoiceOnlinePayment,
+  initiateReservationDepositOnlinePayment,
+} from '@/lib/payments/initiate'
 import { assertRateLimit, guestRateKey, GUEST_RATE_LIMITS } from '@/lib/rate-limit'
 
 const initiateSchema = z.object({
   invoiceId: z.string().uuid(),
   amount: z.coerce.number().positive().optional(),
+})
+
+const initiateDepositSchema = z.object({
+  reservationId: z.string().uuid(),
+  amount: z.coerce.number().positive(),
 })
 
 const markAbandonedSchema = z.object({
@@ -97,6 +105,66 @@ export async function initiateStaffPayment(input: unknown): Promise<PaymentActio
 
   revalidatePath('/owner/billing')
   revalidatePath('/manager/invoices')
+  return {
+    success: true,
+    data: {
+      authorizationUrl: result.authorizationUrl,
+      reference: result.reference,
+      paymentId: result.paymentId,
+      reused: result.reused,
+    },
+  }
+}
+
+/**
+ * Staff-initiated Paystack checkout for a pre-checkout reservation deposit.
+ * Amount is validated against the reservation balance server-side.
+ */
+export async function initiateStaffDepositPayment(input: unknown): Promise<PaymentActionResult> {
+  if (!isPaymentsEnabled()) return paymentsDisabledError()
+
+  const parsed = initiateDepositSchema.safeParse(input)
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid deposit request.' }
+  }
+
+  const profile = await getVerifiedProfile()
+  if (!profile?.hotel_id || !['owner', 'manager', 'receptionist'].includes(profile.role)) {
+    return { success: false, error: consumeStaffAuthError() }
+  }
+
+  const admin = createAdminClient()
+  const result = await initiateReservationDepositOnlinePayment(admin, {
+    hotelId: profile.hotel_id,
+    reservationId: parsed.data.reservationId,
+    amountGhs: parsed.data.amount,
+    initiatedBy: profile.id,
+    callbackPath: '/payments/complete',
+  })
+
+  if (!result.ok) return { success: false, error: result.error }
+
+  if (!result.reused) {
+    void writeAuditLog({
+      hotelId: profile.hotel_id,
+      actorId: profile.id,
+      actorName: profile.name,
+      entityType: 'payment',
+      entityId: result.paymentId,
+      action: 'deposit_initiated',
+      summary: `Started online deposit for reservation`,
+      details: {
+        reservationId: parsed.data.reservationId,
+        amount: parsed.data.amount,
+        reference: result.reference,
+      },
+    })
+  }
+
+  revalidatePath('/owner/reservations')
+  revalidatePath('/manager/reservations')
+  revalidatePath('/receptionist/reservations')
+  revalidatePath('/owner/billing')
   return {
     success: true,
     data: {

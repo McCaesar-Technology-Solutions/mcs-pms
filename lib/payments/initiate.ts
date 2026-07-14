@@ -4,6 +4,7 @@ import { getAppOrigin } from '@/lib/env'
 import { getPaymentProvider } from '@/lib/payments/get-provider'
 import { ghsToPesewas } from '@/lib/payments/paystack'
 import { invoiceBalanceDue } from '@/lib/billing/invoice-payments'
+import { reservationBalanceDue } from '@/lib/billing/reservation-payment'
 import type { Database } from '@/lib/supabase/types'
 
 type AdminClient = SupabaseClient<Database>
@@ -152,6 +153,148 @@ export async function initiateInvoiceOnlinePayment(
 
   if (error || !row) {
     return { ok: false, error: error?.message ?? 'Could not record payment attempt.' }
+  }
+
+  return {
+    ok: true,
+    authorizationUrl: initialized.authorizationUrl,
+    reference: initialized.reference,
+    paymentId: row.id,
+    reused: false,
+  }
+}
+
+export async function initiateReservationDepositOnlinePayment(
+  admin: AdminClient,
+  input: {
+    hotelId: string
+    reservationId: string
+    amountGhs: number
+    initiatedBy: string | null
+    callbackPath: string
+  },
+): Promise<InitiatePaymentResult> {
+  const amount = Math.round(input.amountGhs * 100) / 100
+  if (amount <= 0) return { ok: false, error: 'Invalid deposit amount.' }
+
+  const { data: reservation } = await admin
+    .from('reservations')
+    .select('id, hotel_id, guest_id, guest_name, status, total_amount, amount_paid')
+    .eq('id', input.reservationId)
+    .eq('hotel_id', input.hotelId)
+    .maybeSingle()
+
+  if (!reservation) return { ok: false, error: 'Reservation not found.' }
+  if (
+    reservation.status !== 'confirmed' &&
+    reservation.status !== 'checked_in' &&
+    reservation.status !== 'provisional'
+  ) {
+    return { ok: false, error: 'Deposits can only be taken before check-out.' }
+  }
+
+  const balance = reservationBalanceDue(
+    Number(reservation.total_amount ?? 0),
+    Number(reservation.amount_paid ?? 0),
+  )
+  if (amount > balance + 0.009) {
+    return { ok: false, error: `Deposit exceeds balance due (₵${balance}).` }
+  }
+
+  const since = new Date(Date.now() - DEDUPE_WINDOW_MS).toISOString()
+  const { data: recent } = await admin
+    .from('payments')
+    .select('id, status, authorization_url, provider_reference, amount')
+    .eq('hotel_id', input.hotelId)
+    .eq('reservation_id', input.reservationId)
+    .is('invoice_id', null)
+    .eq('amount', amount)
+    .in('status', ['pending', 'success'])
+    .gte('created_at', since)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (recent?.status === 'success') {
+    return { ok: false, error: 'A matching deposit was just completed. Refresh to confirm.' }
+  }
+
+  if (recent?.status === 'pending' && recent.authorization_url) {
+    return {
+      ok: true,
+      authorizationUrl: recent.authorization_url,
+      reference: recent.provider_reference,
+      paymentId: recent.id,
+      reused: true,
+    }
+  }
+
+  let email: string | null = null
+  if (reservation.guest_id) {
+    const { data: guest } = await admin
+      .from('guests')
+      .select('email')
+      .eq('id', reservation.guest_id)
+      .eq('hotel_id', input.hotelId)
+      .maybeSingle()
+    email = guest?.email?.trim() || null
+  }
+
+  if (!email) {
+    return {
+      ok: false,
+      error: 'Guest email is required for online deposit. Add an email on the guest profile first.',
+    }
+  }
+
+  const reference = `dep_${input.hotelId.slice(0, 8)}_${randomUUID()}`
+  const provider = getPaymentProvider('paystack')
+  const callbackUrl = `${getAppOrigin()}${input.callbackPath}`
+
+  let initialized: { authorizationUrl: string; reference: string }
+  try {
+    initialized = await provider.initialize({
+      amountKobo: ghsToPesewas(amount),
+      email,
+      reference,
+      callbackUrl,
+      currency: 'GHS',
+      metadata: {
+        hotel_id: input.hotelId,
+        reservation_id: reservation.id,
+        guest_id: reservation.guest_id,
+        type: 'deposit',
+      },
+    })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Could not start deposit payment.'
+    return { ok: false, error: message }
+  }
+
+  const now = new Date().toISOString()
+  const { data: row, error } = await admin
+    .from('payments')
+    .insert({
+      hotel_id: input.hotelId,
+      guest_id: reservation.guest_id,
+      reservation_id: reservation.id,
+      invoice_id: null,
+      provider: 'paystack',
+      provider_reference: initialized.reference,
+      amount,
+      currency: 'GHS',
+      status: 'pending',
+      initiated_by: input.initiatedBy,
+      guest_portal_initiated: false,
+      authorization_url: initialized.authorizationUrl,
+      created_at: now,
+      updated_at: now,
+    })
+    .select('id')
+    .single()
+
+  if (error || !row) {
+    return { ok: false, error: error?.message ?? 'Could not record deposit attempt.' }
   }
 
   return {

@@ -7,6 +7,7 @@ import {
 } from '@/lib/data/reservations-page'
 import { getProfile } from '@/lib/auth/get-profile'
 import { parseReservationSearchParams } from '@/lib/reservations/search-params'
+import { isPaymentsEnabled } from '@/lib/payments/enabled'
 
 interface StaffReservationsPageProps {
   badge: string
@@ -71,6 +72,7 @@ export async function StaffReservationsPage({
               totalItems: reservationsPage.totalCount,
               pageSize: reservationsPage.pageSize,
             }}
+            onlinePaymentsEnabled={isPaymentsEnabled()}
           />
         </div>
         <div className="order-2 md:order-1">
