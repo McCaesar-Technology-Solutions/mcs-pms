@@ -12,6 +12,7 @@ import {
   isTermiiWhatsAppConfigured,
   isWhatsAppNotificationsConfigured,
   sendTermiiWhatsApp,
+  sendTermiiWhatsAppOtp,
 } from '@/lib/notifications/termii'
 import { shouldSendHotelNotification } from '@/lib/notifications/recipients'
 
@@ -31,6 +32,11 @@ export interface NotifyOptions {
   includeWhatsApp?: boolean
   /** Send only on these channels (subset of enabled channels). */
   onlyChannels?: NotificationChannel[]
+  /**
+   * When set with WhatsApp + Termii, prefer an approved authentication template
+   * (TERMII_WHATSAPP_TEMPLATE_ID) instead of free-form session messaging.
+   */
+  whatsappOtpCode?: string
 }
 
 function channelsEnabled(): NotificationChannel[] {
@@ -55,8 +61,14 @@ function resolveTargetChannels(
   enabled: NotificationChannel[],
   opts: NotifyOptions,
 ): NotificationChannel[] {
+  // Explicit channel picks (e.g. MFA WhatsApp) use provider availability — do not
+  // silently drop them when NOTIFICATION_CHANNELS is sms-only for ops alerts.
   if (opts.onlyChannels?.length) {
-    return opts.onlyChannels.filter((c) => enabled.includes(c))
+    return opts.onlyChannels.filter((c) => {
+      if (c === 'sms') return isSmsConfigured()
+      if (c === 'whatsapp') return isWhatsAppNotificationsConfigured()
+      return false
+    })
   }
 
   const channels: NotificationChannel[] = []
@@ -187,9 +199,15 @@ async function sendTwilioSms(to: string, body: string): Promise<SendResult> {
   return { channel: 'sms', success: true, providerId: data.sid }
 }
 
-async function sendWhatsAppMessage(to: string, body: string): Promise<SendResult> {
+async function sendWhatsAppMessage(
+  to: string,
+  body: string,
+  otpCode?: string,
+): Promise<SendResult> {
   if (isTermiiWhatsAppConfigured()) {
-    const result = await sendTermiiWhatsApp(to, body)
+    const result = otpCode
+      ? await sendTermiiWhatsAppOtp(to, otpCode, body)
+      : await sendTermiiWhatsApp(to, body)
     return {
       channel: 'whatsapp',
       success: result.success,
@@ -370,7 +388,7 @@ export async function sendToPhone(
   }
 
   if (targetChannels.includes('whatsapp')) {
-    const waResult = await sendWhatsAppMessage(e164, body)
+    const waResult = await sendWhatsAppMessage(e164, body, opts.whatsappOtpCode)
     results.push(waResult)
     await logNotification(opts, e164, 'whatsapp', body, waResult)
   }

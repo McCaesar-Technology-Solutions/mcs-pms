@@ -3,6 +3,7 @@ import {
   isTermiiWhatsAppConfigured,
   resolvePhoneDeliveryChannel,
   sendTermiiWhatsApp,
+  sendTermiiWhatsAppOtp,
   shouldUseTwilioVerifyForPhone,
   toTermiiRecipient,
 } from '@/lib/notifications/termii'
@@ -102,6 +103,35 @@ describe('sendTermiiWhatsApp', () => {
       sms: 'Hello from MOJO',
       channel: 'whatsapp',
       type: 'plain',
+    })
+  })
+
+  it('uses the authentication template endpoint when template id is set', async () => {
+    process.env.TERMII_WHATSAPP_TEMPLATE_ID = 'tmpl-otp-1'
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          code: 'ok',
+          message_id_str: 'msg-otp',
+          message: 'Successfully Sent',
+        }),
+        { status: 200 },
+      ),
+    )
+
+    const result = await sendTermiiWhatsAppOtp('+233201234567', '123456', 'fallback body')
+    expect(result.success).toBe(true)
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.example.test/api/send/template',
+      expect.objectContaining({ method: 'POST' }),
+    )
+    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))
+    expect(body).toMatchObject({
+      api_key: 'test-key',
+      phone_number: '233201234567',
+      device_id: 'MOJO',
+      template_id: 'tmpl-otp-1',
+      data: { otp: '123456' },
     })
   })
 })

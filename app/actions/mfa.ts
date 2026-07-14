@@ -308,15 +308,21 @@ async function sendPhoneMfaCode(
     hotelId: profile.hotel_id ?? undefined,
     templateKey: 'mfa_otp',
     onlyChannels: [channel],
+    ...(channel === 'whatsapp' ? { whatsappOtpCode: code } : {}),
   })
 
-  const sent = results.some((r) => r.success && r.channel === channel)
+  const delivery = results.find((r) => r.channel === channel)
+  const sent = Boolean(delivery?.success)
   const isDev = process.env.NODE_ENV === 'development' && resolveMfaPhoneChannels().length === 0
 
   if (!sent && !isDev) {
+    const detail = delivery?.error?.trim()
+    console.error(`[mfa] ${channel} send failed:`, detail ?? 'unknown')
     return {
       success: false,
-      error: `Could not send the code via ${mfaPhoneChannelLabel(channel)}. Try the other option or try again shortly.`,
+      error: detail
+        ? `Could not send the code via ${mfaPhoneChannelLabel(channel)}: ${detail}`
+        : `Could not send the code via ${mfaPhoneChannelLabel(channel)}. Try the other option or try again shortly.`,
     }
   }
 

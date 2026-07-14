@@ -82,6 +82,12 @@ export function validateProductionEnv(): { ok: true } | { ok: false; errors: str
     if (!process.env.TERMII_WHATSAPP_SENDER?.trim()) {
       errors.push('TERMII_WHATSAPP_SENDER is required for WhatsApp notifications')
     }
+    // Soft requirement: MFA WhatsApp OTPs need an approved Auth template outside the 24h window.
+    if (!process.env.TERMII_WHATSAPP_TEMPLATE_ID?.trim()) {
+      console.warn(
+        '[env] TERMII_WHATSAPP_TEMPLATE_ID unset — WhatsApp MFA may fail outside a 24h chat session; use SMS or set an approved Termii Auth template',
+      )
+    }
   }
 
   const paymentsEnabled = process.env.PAYMENTS_ENABLED?.trim().toLowerCase() === 'true'

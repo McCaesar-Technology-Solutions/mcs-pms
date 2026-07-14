@@ -62,7 +62,15 @@ export function phoneVerifyChannelLabel(channel: 'sms' | 'whatsapp'): string {
   return channel === 'whatsapp' ? 'WhatsApp' : 'SMS'
 }
 
-/** Send a WhatsApp message via Termii (WhatsApp channel only — SMS uses Arkesel). */
+export function resolveTermiiWhatsAppTemplateId(): string {
+  return (process.env.TERMII_WHATSAPP_TEMPLATE_ID ?? '').trim()
+}
+
+/**
+ * WhatsApp session (free-form) send. Often rejected for business-initiated OTPs
+ * outside the 24h customer-care window — prefer sendTermiiWhatsAppOtp with an
+ * approved authentication template when available.
+ */
 export async function sendTermiiWhatsApp(e164: string, body: string): Promise<TermiiSendResult> {
   const apiKey = process.env.TERMII_API_KEY?.trim()
   const sender = resolveTermiiWhatsAppSender()
@@ -99,6 +107,58 @@ export async function sendTermiiWhatsApp(e164: string, body: string): Promise<Te
 
   if (!res.ok || data.code !== 'ok') {
     return { success: false, error: data.message ?? `Termii HTTP ${res.status}` }
+  }
+
+  return { success: true, messageId: data.message_id_str ?? data.message_id }
+}
+
+/**
+ * MFA OTP via Termii WhatsApp Authentication template (required for reliable OTPs).
+ * Falls back to free-form when TERMII_WHATSAPP_TEMPLATE_ID is unset.
+ */
+export async function sendTermiiWhatsAppOtp(
+  e164: string,
+  code: string,
+  freeFormBody: string,
+): Promise<TermiiSendResult> {
+  const templateId = resolveTermiiWhatsAppTemplateId()
+  if (!templateId) {
+    return sendTermiiWhatsApp(e164, freeFormBody)
+  }
+
+  const apiKey = process.env.TERMII_API_KEY?.trim()
+  const deviceId = resolveTermiiWhatsAppSender()
+  if (!apiKey) {
+    return { success: false, error: 'Termii not configured' }
+  }
+  if (!deviceId) {
+    return {
+      success: false,
+      error: 'Termii WhatsApp device not configured (set TERMII_WHATSAPP_SENDER to your device id)',
+    }
+  }
+
+  const res = await fetch(`${resolveTermiiBaseUrl()}/api/send/template`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      api_key: apiKey,
+      phone_number: toTermiiRecipient(e164),
+      device_id: deviceId,
+      template_id: templateId,
+      data: { otp: code },
+    }),
+  })
+
+  const data = (await res.json()) as {
+    code?: string
+    message?: string
+    message_id?: string
+    message_id_str?: string
+  }
+
+  if (!res.ok || data.code !== 'ok') {
+    return { success: false, error: data.message ?? `Termii template HTTP ${res.status}` }
   }
 
   return { success: true, messageId: data.message_id_str ?? data.message_id }
