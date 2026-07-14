@@ -20,15 +20,22 @@ export async function updateProfilePhone(phone: string): Promise<ProfileActionRe
 
   const result = await requireVerifiedStaff({
     roles: ['owner', 'manager', 'technician', 'receptionist'],
-    skipMfa: true,
   })
   if (!result.ok) return { success: false, error: consumeStaffAuthError(result.error) }
 
+  const existing = result.profile.phone?.trim()
+  const next = parsed.data.phone.trim()
+
+  if (existing && existing !== next) {
+    return {
+      success: false,
+      error:
+        'To change your phone number, verify the new number in two-factor authentication settings.',
+    }
+  }
+
   const admin = createAdminClient()
-  const { error } = await admin
-    .from('profiles')
-    .update({ phone: parsed.data.phone.trim() })
-    .eq('id', result.userId)
+  const { error } = await admin.from('profiles').update({ phone: next }).eq('id', result.userId)
 
   if (error) return { success: false, error: error.message }
 

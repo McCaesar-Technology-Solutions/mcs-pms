@@ -561,6 +561,7 @@ export type Database = {
           guest_rules_accepted_version: number | null
           do_not_disturb: boolean
           portal_pin: string | null
+          portal_pin_hash: string | null
           profile_image_path: string | null
           guest_photo_path: string | null
           guest_photo_mime: string | null
@@ -587,6 +588,7 @@ export type Database = {
           guest_rules_accepted_version?: number | null
           do_not_disturb?: boolean
           portal_pin?: string | null
+          portal_pin_hash?: string | null
           profile_image_path?: string | null
           guest_photo_path?: string | null
           guest_photo_mime?: string | null
@@ -613,6 +615,7 @@ export type Database = {
           guest_rules_accepted_version?: number | null
           do_not_disturb?: boolean
           portal_pin?: string | null
+          portal_pin_hash?: string | null
           profile_image_path?: string | null
           guest_photo_path?: string | null
           guest_photo_mime?: string | null
@@ -1348,6 +1351,7 @@ export type Database = {
           code_hash: string
           expires_at: string
           consumed_at: string | null
+          pending_phone: string | null
           created_at: string | null
         }
         Insert: {
@@ -1356,6 +1360,7 @@ export type Database = {
           code_hash: string
           expires_at: string
           consumed_at?: string | null
+          pending_phone?: string | null
           created_at?: string | null
         }
         Update: {
@@ -1364,6 +1369,7 @@ export type Database = {
           code_hash?: string
           expires_at?: string
           consumed_at?: string | null
+          pending_phone?: string | null
           created_at?: string | null
         }
         Relationships: [
@@ -1846,6 +1852,69 @@ export type Database = {
           idempotency_key?: string | null
           created_at?: string | null
           completed_at?: string | null
+        }
+        Relationships: []
+      }
+      payments: {
+        Row: {
+          id: string
+          hotel_id: string
+          guest_id: string | null
+          reservation_id: string | null
+          invoice_id: string | null
+          provider: 'paystack'
+          provider_reference: string
+          provider_transaction_id: string | null
+          amount: number
+          currency: string
+          channel: string | null
+          status: 'pending' | 'success' | 'failed' | 'abandoned' | 'refunded'
+          initiated_by: string | null
+          guest_portal_initiated: boolean
+          authorization_url: string | null
+          raw_webhook_payload: Json | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          hotel_id: string
+          guest_id?: string | null
+          reservation_id?: string | null
+          invoice_id?: string | null
+          provider: 'paystack'
+          provider_reference: string
+          provider_transaction_id?: string | null
+          amount: number
+          currency?: string
+          channel?: string | null
+          status?: 'pending' | 'success' | 'failed' | 'abandoned' | 'refunded'
+          initiated_by?: string | null
+          guest_portal_initiated?: boolean
+          authorization_url?: string | null
+          raw_webhook_payload?: Json | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          hotel_id?: string
+          guest_id?: string | null
+          reservation_id?: string | null
+          invoice_id?: string | null
+          provider?: 'paystack'
+          provider_reference?: string
+          provider_transaction_id?: string | null
+          amount?: number
+          currency?: string
+          channel?: string | null
+          status?: 'pending' | 'success' | 'failed' | 'abandoned' | 'refunded'
+          initiated_by?: string | null
+          guest_portal_initiated?: boolean
+          authorization_url?: string | null
+          raw_webhook_payload?: Json | null
+          created_at?: string
+          updated_at?: string
         }
         Relationships: []
       }

@@ -17,15 +17,16 @@ describe('production auth policy', () => {
     vi.resetModules()
   })
 
-  it('flags owner and manager roles for MFA policy messaging in production', async () => {
+  it('flags owner, manager, and receptionist for MFA in production', async () => {
     vi.stubEnv('NODE_ENV', 'production')
     const { roleRequiresMfa, userNeedsMfa } = await loadMfa()
     expect(roleRequiresMfa('owner')).toBe(true)
     expect(roleRequiresMfa('manager')).toBe(true)
-    expect(roleRequiresMfa('receptionist')).toBe(false)
+    expect(roleRequiresMfa('receptionist')).toBe(true)
     expect(roleRequiresMfa('technician')).toBe(false)
     expect(userNeedsMfa('owner', false)).toBe(true)
     expect(userNeedsMfa('manager', false)).toBe(true)
+    expect(userNeedsMfa('receptionist', false)).toBe(true)
     expect(userNeedsMfa('owner', true)).toBe(true)
   })
 
@@ -35,9 +36,16 @@ describe('production auth policy', () => {
     expect(roleRequiresMfa('owner')).toBe(false)
   })
 
-  it('allows public signup in production by default', async () => {
+  it('blocks public signup in production unless explicitly enabled', async () => {
     vi.stubEnv('NODE_ENV', 'production')
     delete process.env.DISABLE_PUBLIC_SIGNUP
+    const { isPublicSignupAllowed } = await loadEnv()
+    expect(isPublicSignupAllowed()).toBe(false)
+  })
+
+  it('allows public signup in production when DISABLE_PUBLIC_SIGNUP=false', async () => {
+    vi.stubEnv('NODE_ENV', 'production')
+    vi.stubEnv('DISABLE_PUBLIC_SIGNUP', 'false')
     const { isPublicSignupAllowed } = await loadEnv()
     expect(isPublicSignupAllowed()).toBe(true)
   })

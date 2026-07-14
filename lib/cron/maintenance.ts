@@ -1,10 +1,13 @@
+import { timingSafeEqual } from 'node:crypto'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getCronSecret } from '@/lib/env'
 
 export function authorizeCron(request: Request): boolean {
   const secret = getCronSecret()
-  const auth = request.headers.get('authorization')
-  return auth === `Bearer ${secret}`
+  const auth = request.headers.get('authorization') ?? ''
+  const expected = `Bearer ${secret}`
+  if (auth.length !== expected.length) return false
+  return timingSafeEqual(Buffer.from(auth), Buffer.from(expected))
 }
 
 export async function cleanupRateLimits(): Promise<number> {

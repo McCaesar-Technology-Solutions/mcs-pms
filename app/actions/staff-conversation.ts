@@ -68,24 +68,43 @@ async function assertMember(conversationId: string, profileId: string): Promise<
   return Boolean(data)
 }
 
+async function assertCanViewConversation(
+  conversationId: string,
+  profile: { id: string; role: string; hotel_id: string | null },
+): Promise<boolean> {
+  if (profile.role === 'owner' && profile.hotel_id) {
+    const admin = createAdminClient()
+    const { data } = await admin
+      .from('staff_conversations')
+      .select('id')
+      .eq('id', conversationId)
+      .eq('hotel_id', profile.hotel_id)
+      .maybeSingle()
+    return Boolean(data)
+  }
+  return assertMember(conversationId, profile.id)
+}
+
 export async function getStaffTeamMessages(
   conversationId: string,
 ): Promise<StaffConversationActionResult<StaffConversationMessage[]>> {
   const profile = await requireStaffMessenger()
   if (!profile) return { success: false, error: 'Not authorized.' }
 
-  if (!(await assertMember(conversationId, profile.id))) {
+  if (!(await assertCanViewConversation(conversationId, profile))) {
     return { success: false, error: 'Conversation not found.' }
   }
 
   const messages = await loadStaffConversationMessages(conversationId, profile.id)
 
   const admin = createAdminClient()
-  await admin
-    .from('staff_conversation_members')
-    .update({ last_read_at: new Date().toISOString() })
-    .eq('conversation_id', conversationId)
-    .eq('profile_id', profile.id)
+  if (await assertMember(conversationId, profile.id)) {
+    await admin
+      .from('staff_conversation_members')
+      .update({ last_read_at: new Date().toISOString() })
+      .eq('conversation_id', conversationId)
+      .eq('profile_id', profile.id)
+  }
 
   return { success: true, data: messages }
 }
@@ -96,7 +115,7 @@ export async function getStaffTeamConversationDetails(
   const profile = await requireStaffMessenger()
   if (!profile) return { success: false, error: 'Not authorized.' }
 
-  const details = await loadStaffConversationDetails(conversationId, profile.id)
+  const details = await loadStaffConversationDetails(conversationId, profile.id, profile)
   if (!details) return { success: false, error: 'Conversation not found.' }
 
   return { success: true, data: details }

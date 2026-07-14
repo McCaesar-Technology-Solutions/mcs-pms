@@ -1,7 +1,7 @@
 import { randomInt } from 'crypto'
 
 /** Digits in a guest portal access PIN. */
-export const PORTAL_PIN_LENGTH = 4
+export const PORTAL_PIN_LENGTH = 6
 
 /**
  * Generate a random numeric portal PIN (zero-padded). Combined with the room

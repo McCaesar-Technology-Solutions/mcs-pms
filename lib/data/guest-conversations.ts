@@ -1,4 +1,5 @@
 import { tryCreateAdminClient } from '@/lib/supabase/admin'
+import { resolveHotelTenantAccess } from '@/lib/data/tenant-guard'
 import { profilePhotoPublicUrl } from '@/lib/profile-photos/storage'
 
 export interface GuestConversationListItem {
@@ -16,6 +17,11 @@ export interface GuestConversationListItem {
 
 export async function loadGuestConversations(hotelId: string): Promise<GuestConversationListItem[]> {
   try {
+    const access = await resolveHotelTenantAccess(hotelId, {
+      roles: ['owner', 'manager', 'receptionist', 'technician'],
+    })
+    if (!access) return []
+
     const admin = tryCreateAdminClient()
     if (!admin) return []
     const { data: conversations } = await admin

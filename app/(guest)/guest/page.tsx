@@ -6,6 +6,7 @@ import { guestNeedsRulesAcceptance } from '@/app/actions/guest-rules'
 import { getGuestPropertyContacts } from '@/lib/data/contacts'
 import { getHotelGuestRules } from '@/lib/data/guest-rules'
 import { loadGuestPortalContext } from '@/lib/data/guest-portal'
+import { isPaymentsEnabled } from '@/lib/payments/enabled'
 
 export default async function GuestPage({
   searchParams,
@@ -54,6 +55,7 @@ export default async function GuestPage({
       propertyContacts={propertyContacts}
       context={context}
       initialTab={params.tab}
+      onlinePaymentsEnabled={isPaymentsEnabled()}
     />
   )
 }

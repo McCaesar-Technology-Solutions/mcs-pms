@@ -1,4 +1,5 @@
 import { tryCreateAdminClient } from '@/lib/supabase/admin'
+import { resolveHotelTenantAccess } from '@/lib/data/tenant-guard'
 import { isPendingCompletion, needsGuestCompletionApproval } from '@/lib/complaints/workflow'
 import { loadGuestConversations } from '@/lib/data/guest-conversations'
 import { loadGuestRequestHousekeepingTasks } from '@/lib/housekeeping/guest-task'
@@ -38,6 +39,11 @@ function complaintPriority(c: Complaint): number {
 
 export async function loadOpsInbox(hotelId: string, limit = 12): Promise<OpsInboxItem[]> {
   try {
+    const access = await resolveHotelTenantAccess(hotelId, {
+      roles: ['owner', 'manager', 'receptionist'],
+    })
+    if (!access) return []
+
     const admin = tryCreateAdminClient()
     if (!admin) return []
 

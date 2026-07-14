@@ -50,30 +50,15 @@ import type { OccupancySpan } from '@/lib/data/occupancy'
 import { PAYMENT_METHOD_LABELS } from '@/lib/tax'
 import { calculateStayTotal, rateTypeLabel } from '@/lib/pricing/stay-totals'
 import { usePagination } from '@/lib/hooks/use-pagination'
+import {
+  isSecuredPaymentStatus,
+  RESERVATION_PAYMENT_FILTERS,
+  RESERVATION_STATUS_FILTERS,
+} from '@/lib/reservations/search-params'
 
-const STATUS_FILTERS = [
-  'all',
-  'checked_in',
-  'confirmed',
-  'pre_arrival',
-  'provisional',
-  'checkout_in_progress',
-  'overstay',
-  'checked_out',
-  'post_stay',
-  'cancelled',
-  'no_show',
-  'released',
-] as const
+const STATUS_FILTERS = RESERVATION_STATUS_FILTERS
 
-const PAYMENT_FILTERS = [
-  'all',
-  'unpaid',
-  'deposit_paid',
-  'partial',
-  'paid',
-  'overdue',
-] as const
+const PAYMENT_FILTERS = RESERVATION_PAYMENT_FILTERS
 
 const CHANNEL_LABELS: Record<ReservationChannel, string> = {
   airbnb: 'Airbnb',
@@ -154,6 +139,13 @@ function sourceBadge(source: string) {
   return colors[source] || colors.other
 }
 
+interface ReservationsServerPagination {
+  page: number
+  totalPages: number
+  totalItems: number
+  pageSize: number
+}
+
 interface ReservationsManagerProps {
   reservations: Reservation[]
   roomOptions: RoomOption[]
@@ -168,15 +160,13 @@ interface ReservationsManagerProps {
   initialCheckInDate?: string
   initialCheckOutDate?: string
   initialStatus?: (typeof STATUS_FILTERS)[number]
+  initialPaymentStatus?: (typeof PAYMENT_FILTERS)[number]
   initialPaymentSecured?: boolean
+  serverPagination?: ReservationsServerPagination
 }
 
 function isSecuredReservationPayment(res: Reservation): boolean {
-  if (res.paymentStatus === 'paid' || res.paymentStatus === 'deposit_paid' || res.paymentStatus === 'complimentary') {
-    return true
-  }
-  if (res.paymentStatus === 'partial') return res.depositAmount > 0
-  return false
+  return isSecuredPaymentStatus(res.paymentStatus, res.depositAmount)
 }
 
 export function ReservationsManager({
@@ -193,7 +183,9 @@ export function ReservationsManager({
   initialCheckInDate,
   initialCheckOutDate,
   initialStatus,
+  initialPaymentStatus = 'all',
   initialPaymentSecured = false,
+  serverPagination,
 }: ReservationsManagerProps) {
   const router = useRouter()
   const pathname = usePathname()
@@ -204,10 +196,17 @@ export function ReservationsManager({
   useEffect(() => {
     if (openReservationId) setSelectedId(openReservationId)
   }, [openReservationId])
+
+  useEffect(() => {
+    setSearch(initialSearch)
+  }, [initialSearch])
+
   const [statusFilter, setStatusFilter] = useState<(typeof STATUS_FILTERS)[number]>(
     initialStatus ?? 'all',
   )
-  const [paymentFilter, setPaymentFilter] = useState<(typeof PAYMENT_FILTERS)[number]>('all')
+  const [paymentFilter, setPaymentFilter] = useState<(typeof PAYMENT_FILTERS)[number]>(
+    initialPaymentStatus,
+  )
   const [checkInDateFilter, setCheckInDateFilter] = useState(initialCheckInDate ?? '')
   const [checkOutDateFilter, setCheckOutDateFilter] = useState(initialCheckOutDate ?? '')
   const [paymentSecuredFilter, setPaymentSecuredFilter] = useState(initialPaymentSecured)
@@ -223,10 +222,83 @@ export function ReservationsManager({
   )
 
   useEffect(() => {
+    setStatusFilter(initialStatus ?? 'all')
+  }, [initialStatus])
+
+  useEffect(() => {
+    setPaymentFilter(initialPaymentStatus)
+  }, [initialPaymentStatus])
+
+  useEffect(() => {
+    setCheckInDateFilter(initialCheckInDate ?? '')
+  }, [initialCheckInDate])
+
+  useEffect(() => {
+    setCheckOutDateFilter(initialCheckOutDate ?? '')
+  }, [initialCheckOutDate])
+
+  useEffect(() => {
+    setPaymentSecuredFilter(initialPaymentSecured)
+  }, [initialPaymentSecured])
+
+  useEffect(() => {
     setActiveGuestRequestId(initialGuestRequestId ?? null)
   }, [initialGuestRequestId])
 
+  function buildListParams(overrides: Record<string, string | null | undefined> = {}) {
+    const next = new URLSearchParams(searchParams.toString())
+    const apply = (key: string, value: string | null | undefined) => {
+      if (value == null || value === '' || value === 'all') next.delete(key)
+      else next.set(key, value)
+    }
+
+    apply('q', 'q' in overrides ? overrides.q : search.trim() || null)
+    apply(
+      'status',
+      'status' in overrides ? overrides.status : statusFilter === 'all' ? null : statusFilter,
+    )
+    apply(
+      'pay',
+      'pay' in overrides ? overrides.pay : paymentFilter === 'all' ? null : paymentFilter,
+    )
+    apply('checkIn', 'checkIn' in overrides ? overrides.checkIn : checkInDateFilter || null)
+    apply('checkOut', 'checkOut' in overrides ? overrides.checkOut : checkOutDateFilter || null)
+
+    if ('payment' in overrides) {
+      apply('payment', overrides.payment)
+    } else if (paymentSecuredFilter) {
+      next.set('payment', 'secured')
+    } else {
+      next.delete('payment')
+    }
+
+    if ('page' in overrides) apply('page', overrides.page)
+    else next.delete('page')
+
+    return next
+  }
+
+  function pushListQuery(overrides: Record<string, string | null | undefined> = {}) {
+    const next = buildListParams(overrides)
+    const query = next.toString()
+    router.push(query ? `${pathname}?${query}` : pathname, { scroll: false })
+  }
+
+  useEffect(() => {
+    if (!serverPagination) return
+    const trimmed = search.trim()
+    if (trimmed === (initialSearch ?? '').trim()) return
+
+    const timeout = window.setTimeout(() => {
+      pushListQuery({ q: trimmed || null, page: null })
+    }, 400)
+    return () => window.clearTimeout(timeout)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- debounce search only
+  }, [search, initialSearch, serverPagination])
+
   const filtered = useMemo(() => {
+    if (serverPagination) return reservations
+
     const q = search.toLowerCase()
     return reservations.filter((res) => {
       const matchesSearch =
@@ -256,6 +328,7 @@ export function ReservationsManager({
     checkInDateFilter,
     checkOutDateFilter,
     paymentSecuredFilter,
+    serverPagination,
   ])
 
   const selected = selectedId ? reservations.find((r) => r.id === selectedId) ?? null : null
@@ -267,11 +340,37 @@ export function ReservationsManager({
   const allFilteredSelected =
     filtered.length > 0 && filtered.every((r) => selectedIds.has(r.id))
 
-  const pagination = usePagination(
+  const clientPagination = usePagination(
     filtered,
     10,
     `${search}|${statusFilter}|${paymentFilter}`,
   )
+
+  const displayReservations = serverPagination ? filtered : clientPagination.paginatedItems
+  const pagination = serverPagination
+    ? {
+        page: serverPagination.page,
+        totalPages: serverPagination.totalPages,
+        totalItems: serverPagination.totalItems,
+        rangeStart:
+          serverPagination.totalItems === 0
+            ? 0
+            : (serverPagination.page - 1) * serverPagination.pageSize + 1,
+        rangeEnd: Math.min(
+          serverPagination.page * serverPagination.pageSize,
+          serverPagination.totalItems,
+        ),
+        setPage: (nextPage: number) =>
+          pushListQuery({ page: nextPage > 1 ? String(nextPage) : null }),
+      }
+    : {
+        page: clientPagination.page,
+        totalPages: clientPagination.totalPages,
+        totalItems: clientPagination.totalItems,
+        rangeStart: clientPagination.rangeStart,
+        rangeEnd: clientPagination.rangeEnd,
+        setPage: clientPagination.setPage,
+      }
 
   function clearReservationDeepLink(closeReservation = false) {
     const next = new URLSearchParams(searchParams.toString())
@@ -304,6 +403,24 @@ export function ReservationsManager({
     })
   }
 
+  function onStatusFilterChange(status: (typeof STATUS_FILTERS)[number]) {
+    setStatusFilter(status)
+    if (serverPagination) {
+      pushListQuery({ status: status === 'all' ? null : status, page: null })
+    }
+  }
+
+  function onPaymentFilterChange(status: (typeof PAYMENT_FILTERS)[number]) {
+    setPaymentFilter(status)
+    if (serverPagination) {
+      pushListQuery({ pay: status === 'all' ? null : status, page: null })
+    }
+  }
+
+  const listCountLabel = serverPagination
+    ? `${pagination.rangeStart}–${pagination.rangeEnd} of ${pagination.totalItems} reservations`
+    : `${filtered.length} of ${reservations.length} reservations`
+
   return (
     <>
       <ReservationsBulkBar
@@ -318,7 +435,7 @@ export function ReservationsManager({
           <div>
             <h2 className="text-2xl font-semibold text-foreground">All Reservations</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              {filtered.length} of {reservations.length} reservations
+              {listCountLabel}
             </p>
           </div>
           <button
@@ -350,7 +467,7 @@ export function ReservationsManager({
                 key={status}
                 type="button"
                 aria-pressed={statusFilter === status}
-                onClick={() => setStatusFilter(status)}
+                onClick={() => onStatusFilterChange(status)}
                 className={`filter-pill ${statusFilter === status ? 'filter-pill--active' : ''}`}
               >
                 {status === 'all' ? 'All' : formatStatus(status)}
@@ -364,7 +481,7 @@ export function ReservationsManager({
                 key={status}
                 type="button"
                 aria-pressed={paymentFilter === status}
-                onClick={() => setPaymentFilter(status)}
+                onClick={() => onPaymentFilterChange(status)}
                 className={`filter-pill filter-pill--sm ${paymentFilter === status ? 'filter-pill--active' : ''}`}
               >
                 {status === 'all' ? 'Any payment' : formatPaymentStatus(status as ReservationPaymentStatus)}
@@ -375,12 +492,12 @@ export function ReservationsManager({
 
         {/* Mobile cards */}
         <div className="space-y-3 p-4 md:hidden">
-          {filtered.length === 0 ? (
+          {filtered.length === 0 && pagination.totalItems === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">
               No reservations match your filters.
             </p>
           ) : (
-            pagination.paginatedItems.map((res) => (
+            displayReservations.map((res) => (
               <div
                 key={res.id}
                 className={`elevated-list-item flex gap-3 p-4 ${
@@ -462,14 +579,14 @@ export function ReservationsManager({
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 ? (
+              {filtered.length === 0 && pagination.totalItems === 0 ? (
                 <tr>
                   <td colSpan={10} className="px-4 py-12 text-center text-muted-foreground">
                     No reservations match your filters.
                   </td>
                 </tr>
               ) : (
-                pagination.paginatedItems.map((res) => (
+                displayReservations.map((res) => (
                   <tr
                     key={res.id}
                     className={`cursor-pointer ${
@@ -544,7 +661,7 @@ export function ReservationsManager({
           </table>
         </div>
 
-        {filtered.length > 0 && (
+        {pagination.totalItems > 0 && (
           <TablePagination
             page={pagination.page}
             totalPages={pagination.totalPages}

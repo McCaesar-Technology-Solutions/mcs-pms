@@ -8,6 +8,7 @@ import { allocateInvoiceNumber } from '@/lib/invoices/numbering'
 import { createPostCheckoutCleanTask } from '@/lib/housekeeping/checkout-task'
 import { phoneSchema } from '@/lib/phone'
 import { generatePortalPin } from '@/lib/guest/portal-pin'
+import { storeGuestPortalPin } from '@/lib/data/guest-room-access'
 import { findAvailableRooms, roomHasClash } from '@/lib/data/occupancy'
 import { calculateStayTotal, type RateType } from '@/lib/pricing/stay-totals'
 import { getRoomRates } from '@/lib/pricing/room-rates'
@@ -251,11 +252,11 @@ export async function checkInStay(
         check_out: reservation.check_out,
         token,
         token_expires_at: tokenExpiresAt,
-        portal_pin: portalPin,
       })
       .eq('id', guestId)
 
     if (guestError) return { success: false, error: guestError.message }
+    await storeGuestPortalPin(guestId, portalPin)
   } else {
     const { data: newGuest, error: guestError } = await admin
       .from('guests')
@@ -269,7 +270,6 @@ export async function checkInStay(
         check_out: reservation.check_out,
         token,
         token_expires_at: tokenExpiresAt,
-        portal_pin: portalPin,
         enrolled_by: userId,
       })
       .select('id')
@@ -277,6 +277,7 @@ export async function checkInStay(
 
     if (guestError || !newGuest) return { success: false, error: 'Could not create guest record.' }
     guestId = newGuest.id
+    await storeGuestPortalPin(guestId, portalPin)
   }
 
   const { error: resError } = await admin

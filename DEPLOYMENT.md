@@ -342,7 +342,7 @@ Enabled automatically - view in Vercel Dashboard:
 
 ### Error Tracking
 
-Lightweight Sentry reporting is built in when `SENTRY_DSN` is set (`lib/monitoring/sentry.ts`). Full `@sentry/nextjs` integration is optional.
+Sentry is integrated via `@sentry/nextjs`. Set `SENTRY_DSN` (server) and `NEXT_PUBLIC_SENTRY_DSN` (browser — same value) in production. Optional: `SENTRY_ORG`, `SENTRY_PROJECT`, and `SENTRY_AUTH_TOKEN` on Vercel for source map uploads. Events are tunneled through `/monitoring` so ad blockers do not drop client reports.
 
 ### Logging
 
@@ -366,12 +366,13 @@ CI (`.github/workflows/ci.yml`) runs on every PR and `main` push:
 - `npm run build`
 - `npm run test:e2e` (Playwright smoke)
 
-Optional post-deploy smoke (manual): set GitHub secret `PRODUCTION_APP_URL`, then run the **Production smoke** workflow or:
+Optional post-deploy smoke: set GitHub secret `PRODUCTION_APP_URL`, then the **Production smoke** workflow runs automatically after CI succeeds on `main` (also available as Actions → Production smoke → Run workflow), or:
 
 ```bash
 PRODUCTION_APP_URL=https://your-app.vercel.app npm run smoke:prod
 ```
 
+The smoke script checks `/api/health`, retries `/api/ready` until the deployment is ready, and hits `/login`.
 No separate `deploy.yml` is required when Vercel Git integration handles deploys.
 
 ## Domain Configuration
@@ -414,16 +415,16 @@ git push origin v1.0.0
 
 ## Security Checklist
 
-- [ ] Apply migrations `001`–`051` on Supabase ([GO-LIVE.md](docs/GO-LIVE.md))
+- [ ] Apply migrations `001`–`059` on Supabase ([GO-LIVE.md](docs/GO-LIVE.md))
 - [ ] Set `MFA_OTP_SECRET`, `GUEST_SESSION_SECRET`, `CRON_SECRET`
 - [ ] Set `NEXT_PUBLIC_APP_URL` to production domain (no trailing spaces)
 - [ ] Configure SMS (Arkesel) or email (Resend with verified domain)
-- [ ] Set `DISABLE_PUBLIC_SIGNUP=true` after first owner exists
-- [ ] Configure GitHub secrets `CRON_SECRET` + `PRODUCTION_APP_URL`
+- [ ] Public owner signup is off by default in production; set `DISABLE_PUBLIC_SIGNUP=false` only if intentional
+- [ ] Configure GitHub secrets `CRON_SECRET` + `PRODUCTION_APP_URL` (enables automatic post-CI smoke on `main`)
 - [ ] Never run seed script against production database
 - [ ] Enable HTTPS (automatic on Vercel)
 - [ ] Configure `SENTRY_DSN` for error monitoring
-- [ ] Verify `/api/health` and `/api/ready` after deploy (`npm run smoke:prod`)
+- [ ] Verify `/api/health` and `/api/ready` after deploy (Production smoke workflow or `npm run smoke:prod`)
 
 ## Troubleshooting
 

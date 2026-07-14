@@ -73,14 +73,16 @@ export async function assertRateLimit(
 }
 
 export const GUEST_RATE_LIMITS = {
-  portalEntry: { max: 20, windowMs: 15 * 60 * 1000, cooldownMs: 1_500 },
-  portalEntryIp: { max: 60, windowMs: 15 * 60 * 1000, cooldownMs: 1_000 },
+  portalEntry: { max: 8, windowMs: 15 * 60 * 1000, cooldownMs: 2_000 },
+  portalEntryIp: { max: 30, windowMs: 15 * 60 * 1000, cooldownMs: 1_500 },
+  portalRoomLock: { max: 12, windowMs: 30 * 60 * 1000, cooldownMs: 3_000 },
   magicLinkEnter: { max: 25, windowMs: 15 * 60 * 1000, cooldownMs: 500 },
   magicLinkEnterIp: { max: 80, windowMs: 15 * 60 * 1000, cooldownMs: 500 },
   complaint: { max: 10, windowMs: 60 * 60 * 1000, cooldownMs: 10_000 },
   message: { max: 60, windowMs: 15 * 60 * 1000, cooldownMs: 1_000 },
   request: { max: 20, windowMs: 60 * 60 * 1000, cooldownMs: 5_000 },
   receiptEmail: { max: 3, windowMs: 60 * 60 * 1000, cooldownMs: 30_000 },
+  payment: { max: 8, windowMs: 15 * 60 * 1000, cooldownMs: 5_000 },
 } as const satisfies Record<string, RateLimitOptions>
 
 export const AUTH_RATE_LIMITS = {

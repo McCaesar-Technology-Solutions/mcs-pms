@@ -35,7 +35,7 @@ export function GuestRoomEntryForm({ slug, hotelName }: GuestRoomEntryFormProps)
           <p className="guest-auth-brand">MOJO APARTMENTS</p>
           <p className="mt-2 text-lg">{hotelName}</p>
           <p className="mt-2 text-sm leading-relaxed guest-text-muted">
-            Scan the property QR at the front desk, then enter your room number and 4-digit PIN
+            Scan the property QR at the front desk, then enter your room number and 6-digit PIN
             from check-in.
           </p>
         </div>
@@ -68,12 +68,12 @@ export function GuestRoomEntryForm({ slug, hotelName }: GuestRoomEntryFormProps)
               type="text"
               inputMode="numeric"
               pattern="[0-9]*"
-              maxLength={4}
+              maxLength={6}
               autoComplete="one-time-code"
               required
               value={portalPin}
               onChange={(e) => setPortalPin(e.target.value.replace(/\D/g, ''))}
-              placeholder="4-digit PIN"
+              placeholder="6-digit PIN"
               className="guest-field text-center text-lg font-semibold tracking-[0.5em]"
             />
           </div>
@@ -84,7 +84,7 @@ export function GuestRoomEntryForm({ slug, hotelName }: GuestRoomEntryFormProps)
 
           <button
             type="submit"
-            disabled={loading || !roomNumber.trim() || portalPin.length < 4}
+            disabled={loading || !roomNumber.trim() || portalPin.length < 6}
             className="guest-btn guest-btn-primary w-full py-3.5 text-base disabled:opacity-50"
           >
             {loading ? 'Opening…' : 'Continue'}

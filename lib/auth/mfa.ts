@@ -13,10 +13,10 @@ export function canEnrollMfa(role: UserRole): boolean {
   return role === 'owner' || role === 'manager' || role === 'receptionist' || role === 'technician'
 }
 
-/** Owner/manager must use 2FA in production; other roles opt in via settings. */
+/** Owner/manager/receptionist must use 2FA in production; technicians opt in via settings. */
 export function roleRequiresMfa(role: UserRole): boolean {
   if (!isProd()) return false
-  return role === 'owner' || role === 'manager'
+  return role === 'owner' || role === 'manager' || role === 'receptionist'
 }
 
 /** Owner/manager must use 2FA in production; other roles only when opted in. */

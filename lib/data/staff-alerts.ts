@@ -165,7 +165,7 @@ export async function fetchStaffAlerts(limit = 30): Promise<StaffAlert[]> {
       : Promise.resolve({ data: [] }),
     includeGuestMessages ? loadGuestConversations(hotelId) : Promise.resolve([]),
     includeTeamMessages
-      ? loadStaffConversations(hotelId, profile.id)
+      ? loadStaffConversations(hotelId, profile.id, profile.role)
       : Promise.resolve([]),
   ])
 

@@ -91,6 +91,13 @@ export async function enterGuestPortalByRoom(input: unknown): Promise<GuestPorta
     return { success: false, error: 'This property link is not valid.' }
   }
 
+  const roomLockLimit = await assertRateLimit(
+    guestRateKey('portal-room-lock', `${hotel.id}:${parsed.data.roomNumber}`),
+    GUEST_RATE_LIMITS.portalRoomLock,
+    'Too many attempts for this room. Please wait or ask the front desk for help.',
+  )
+  if (roomLockLimit) return { success: false, error: roomLockLimit }
+
   const rulesBundle = await getHotelGuestRules(hotel.id)
   if (!rulesBundle) {
     return { success: false, error: 'This property link is not valid.' }

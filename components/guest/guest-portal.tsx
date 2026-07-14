@@ -47,6 +47,7 @@ import {
   emailGuestInvoiceReceiptAction,
   fetchGuestPortalBundle,
 } from '@/app/actions/guest-portal'
+import { initiateGuestPortalPayment } from '@/app/actions/payments'
 import { downloadInvoicePdf } from '@/lib/export/invoice-pdf'
 import { GuestPhoneEditor } from '@/components/guest/guest-phone-editor'
 import { ProfilePhotoUpload } from '@/components/profile/profile-photo-upload'
@@ -159,6 +160,7 @@ interface GuestPortalProps {
   propertyContacts: StaffContact[]
   context: GuestPortalContext
   initialTab?: string | null
+  onlinePaymentsEnabled?: boolean
 }
 
 function parseInitialTab(value?: string | null): TabId {
@@ -185,6 +187,7 @@ export function GuestPortal({
   propertyContacts,
   context,
   initialTab,
+  onlinePaymentsEnabled = false,
 }: GuestPortalProps) {
   const [activeTab, setActiveTabState] = useState<TabId>(() => parseInitialTab(initialTab))
   const [staffMessageUnread, setStaffMessageUnread] = useState(false)
@@ -200,6 +203,7 @@ export function GuestPortal({
   const [showRequestForm, setShowRequestForm] = useState<string | null>(null)
   const [emailReceiptLoading, setEmailReceiptLoading] = useState<string | null>(null)
   const [emailReceiptMessage, setEmailReceiptMessage] = useState<string | null>(null)
+  const [payLoading, setPayLoading] = useState<string | null>(null)
 
   const [category, setCategory] = useState<ComplaintCategory | null>(null)
   const [description, setDescription] = useState('')
@@ -367,6 +371,19 @@ export function GuestPortal({
     setEmailReceiptMessage(
       result.success ? 'Receipt sent to your email.' : (result.error ?? 'Could not send email.'),
     )
+  }
+
+  async function payOnline(invoiceId: string) {
+    setPayLoading(invoiceId)
+    setEmailReceiptMessage(null)
+    const result = await initiateGuestPortalPayment({ invoiceId })
+    setPayLoading(null)
+    if (!result.success) {
+      setEmailReceiptMessage(result.error)
+      toast.error(result.error)
+      return
+    }
+    window.location.href = result.data.authorizationUrl
   }
 
   async function downloadReceipt(invoiceId: string) {
@@ -752,33 +769,51 @@ export function GuestPortal({
                           {money(inv.totalAmount)} · {inv.paymentStatus}
                         </p>
                       </div>
-                      {inv.paymentStatus === 'paid' && (
-                        <div className="flex gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => downloadReceipt(inv.id)}
-                            disabled={receiptLoading === inv.id}
-                            className="flex items-center gap-1 rounded-lg bg-emerald-500/12 px-2.5 py-1.5 text-xs font-semibold text-emerald-700 disabled:opacity-50"
-                          >
-                            <Download className="h-3.5 w-3.5" />
-                            {receiptLoading === inv.id ? '…' : 'PDF'}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => emailReceipt(inv.id)}
-                            disabled={emailReceiptLoading === inv.id}
-                            className="guest-btn guest-btn-ghost flex items-center gap-1 px-2.5 py-1.5 text-xs disabled:opacity-50"
-                          >
-                            <Mail className="h-3.5 w-3.5" />
-                            {emailReceiptLoading === inv.id ? '…' : 'Email'}
-                          </button>
-                        </div>
-                      )}
+                      <div className="flex flex-wrap justify-end gap-1.5">
+                        {onlinePaymentsEnabled &&
+                          inv.paymentStatus !== 'paid' &&
+                          inv.paymentStatus !== 'refunded' && (
+                            <button
+                              type="button"
+                              onClick={() => payOnline(inv.id)}
+                              disabled={payLoading === inv.id}
+                              className="guest-btn guest-btn-primary px-2.5 py-1.5 text-xs disabled:opacity-50"
+                            >
+                              {payLoading === inv.id ? '…' : 'Pay now'}
+                            </button>
+                          )}
+                        {inv.paymentStatus === 'paid' && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => downloadReceipt(inv.id)}
+                              disabled={receiptLoading === inv.id}
+                              className="flex items-center gap-1 rounded-lg bg-emerald-500/12 px-2.5 py-1.5 text-xs font-semibold text-emerald-700 disabled:opacity-50"
+                            >
+                              <Download className="h-3.5 w-3.5" />
+                              {receiptLoading === inv.id ? '…' : 'PDF'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => emailReceipt(inv.id)}
+                              disabled={emailReceiptLoading === inv.id}
+                              className="guest-btn guest-btn-ghost flex items-center gap-1 px-2.5 py-1.5 text-xs disabled:opacity-50"
+                            >
+                              <Mail className="h-3.5 w-3.5" />
+                              {emailReceiptLoading === inv.id ? '…' : 'Email'}
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </li>
                   ))}
                 </ul>
               )}
-              <p className="text-xs guest-text-subtle">Pay at the front desk — staff will record your payment.</p>
+              <p className="text-xs guest-text-subtle">
+                {onlinePaymentsEnabled
+                  ? 'Pay online with MoMo or card, or settle at the front desk.'
+                  : 'Pay at the front desk — staff will record your payment.'}
+              </p>
               {emailReceiptMessage && (
                 <p className="text-xs text-[var(--brand-purple)]">{emailReceiptMessage}</p>
               )}

@@ -10,7 +10,7 @@ export default async function TechnicianMessagesPage() {
   if (!profile?.hotel_id) redirect('/login')
 
   const [staffConversations, { staff }] = await Promise.all([
-    loadStaffConversations(profile.hotel_id, profile.id),
+    loadStaffConversations(profile.hotel_id, profile.id, profile.role),
     getStaffData(),
   ])
 

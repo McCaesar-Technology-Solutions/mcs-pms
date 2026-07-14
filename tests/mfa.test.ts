@@ -17,11 +17,12 @@ describe('userNeedsMfa', () => {
     expect(userNeedsMfa('technician', true)).toBe(true)
   })
 
-  it('requires owner/manager in production even when not enabled', () => {
+  it('requires owner/manager/receptionist in production even when not enabled', () => {
     vi.spyOn(env, 'isProd').mockReturnValue(true)
     expect(userNeedsMfa('owner', false)).toBe(true)
     expect(userNeedsMfa('manager', false)).toBe(true)
-    expect(userNeedsMfa('receptionist', false)).toBe(false)
+    expect(userNeedsMfa('receptionist', false)).toBe(true)
+    expect(userNeedsMfa('technician', false)).toBe(false)
     vi.restoreAllMocks()
   })
 })

@@ -10,9 +10,10 @@ export function isProd(): boolean {
   return isProduction
 }
 
-/** Owner self-signup. Set DISABLE_PUBLIC_SIGNUP=true to block new registrations. */
+/** Owner self-signup. Disabled by default in production; set DISABLE_PUBLIC_SIGNUP=false to allow. */
 export function isPublicSignupAllowed(): boolean {
   if (process.env.DISABLE_PUBLIC_SIGNUP === 'true') return false
+  if (isProduction) return process.env.DISABLE_PUBLIC_SIGNUP === 'false'
   return true
 }
 
@@ -81,6 +82,11 @@ export function validateProductionEnv(): { ok: true } | { ok: false; errors: str
     if (!process.env.TERMII_WHATSAPP_SENDER?.trim()) {
       errors.push('TERMII_WHATSAPP_SENDER is required for WhatsApp notifications')
     }
+  }
+
+  const paymentsEnabled = process.env.PAYMENTS_ENABLED?.trim().toLowerCase() === 'true'
+  if (paymentsEnabled && !process.env.PAYSTACK_SECRET_KEY?.trim()) {
+    errors.push('PAYSTACK_SECRET_KEY is required when PAYMENTS_ENABLED=true')
   }
 
   if (errors.length) return { ok: false, errors }

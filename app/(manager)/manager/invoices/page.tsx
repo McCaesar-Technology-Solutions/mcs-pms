@@ -1,7 +1,11 @@
 import { BillingOverview } from '@/components/dashboard/billing-overview'
+import { OnlinePaymentsPanel } from '@/components/dashboard/online-payments-panel'
 import { PageHeader } from '@/components/dashboard/page-header'
+import { PageTabShell } from '@/components/dashboard/page-tab-shell'
 import { getInvoicesData } from '@/lib/data/billing'
+import { getOnlinePaymentsData } from '@/lib/data/online-payments'
 import { getHotelExportInfo } from '@/lib/data/settings'
+import { isPaymentsEnabled } from '@/lib/payments/enabled'
 
 export default async function ManagerInvoicesPage({
   searchParams,
@@ -9,7 +13,12 @@ export default async function ManagerInvoicesPage({
   searchParams: Promise<{ q?: string; open?: string }>
 }) {
   const { q, open } = await searchParams
-  const [invoices, hotel] = await Promise.all([getInvoicesData(), getHotelExportInfo()])
+  const paymentsEnabled = isPaymentsEnabled()
+  const [invoices, hotel, onlinePayments] = await Promise.all([
+    getInvoicesData(),
+    getHotelExportInfo(),
+    getOnlinePaymentsData(100),
+  ])
 
   return (
     <div className="page-shell page-content-stack">
@@ -19,13 +28,26 @@ export default async function ManagerInvoicesPage({
         description="View and print guest invoices from check-outs and other charges."
       />
 
-      <BillingOverview
-        invoices={invoices}
-        hotel={hotel}
-        initialQuery={q}
-        openInvoiceId={open}
-        vatMode={hotel?.vatMode ?? 'exclusive'}
-        readOnly
+      <PageTabShell
+        defaultTab="invoices"
+        tabs={[
+          { id: 'invoices', label: 'Invoices' },
+          { id: 'online', label: 'Online payments' },
+        ]}
+        panels={{
+          invoices: (
+            <BillingOverview
+              invoices={invoices}
+              hotel={hotel}
+              initialQuery={q}
+              openInvoiceId={open}
+              vatMode={hotel?.vatMode ?? 'exclusive'}
+              readOnly
+              onlinePaymentsEnabled={paymentsEnabled}
+            />
+          ),
+          online: <OnlinePaymentsPanel payments={onlinePayments} enabled={paymentsEnabled} />,
+        }}
       />
     </div>
   )

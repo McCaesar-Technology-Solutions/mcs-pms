@@ -2,9 +2,18 @@ name: Production smoke
 
 on:
   workflow_dispatch:
+  # After CI succeeds on main — Vercel usually finishes deploy shortly after.
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
 
 jobs:
   smoke:
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -14,12 +23,16 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Wait for Vercel deploy
+        if: github.event_name == 'workflow_run'
+        run: sleep 90
+
       - name: Smoke test production
         env:
           PRODUCTION_APP_URL: ${{ secrets.PRODUCTION_APP_URL }}
         run: |
           if [ -z "$PRODUCTION_APP_URL" ]; then
-            echo "Set PRODUCTION_APP_URL in repository secrets"
+            echo "Set PRODUCTION_APP_URL in repository secrets (e.g. https://your-app.vercel.app)"
             exit 1
           fi
           npm run smoke:prod

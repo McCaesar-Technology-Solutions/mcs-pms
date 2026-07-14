@@ -181,6 +181,7 @@ export function StaffTeamInbox({
               canManageGroupMembers={canManageGroupMembers}
               hotelStaff={hotelStaff}
               onMembersChanged={() => router.refresh()}
+              readOnly={!selected.isParticipant}
             />
           ) : (
             <div className="staff-messenger__placeholder">

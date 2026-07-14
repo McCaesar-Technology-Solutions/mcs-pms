@@ -3,6 +3,10 @@
  * Post-deploy smoke test. Requires PRODUCTION_APP_URL (or NEXT_PUBLIC_APP_URL).
  *
  *   PRODUCTION_APP_URL=https://mcs-pms.vercel.app npm run smoke:prod
+ *
+ * Optional:
+ *   SMOKE_RETRIES=8          — attempts for /api/ready (default 8)
+ *   SMOKE_RETRY_MS=15000     — delay between ready retries (default 15s)
  */
 const base = (
   process.env.PRODUCTION_APP_URL ??
@@ -15,22 +19,62 @@ if (!base) {
   process.exit(1)
 }
 
-async function check(path, expectReady = false) {
+const readyRetries = Math.max(1, Number.parseInt(process.env.SMOKE_RETRIES ?? '8', 10) || 8)
+const readyRetryMs = Math.max(1000, Number.parseInt(process.env.SMOKE_RETRY_MS ?? '15000', 10) || 15_000)
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+async function fetchJson(path) {
   const url = `${base}${path}`
   const res = await fetch(url, { redirect: 'follow' })
   const body = await res.json().catch(() => ({}))
+  return { res, body }
+}
+
+async function checkHealth() {
+  const { res, body } = await fetchJson('/api/health')
   if (!res.ok) {
-    console.error(`FAIL ${path} → ${res.status}`, body)
+    console.error(`FAIL /api/health → ${res.status}`, body)
     process.exit(1)
   }
-  if (expectReady && body.status !== 'ready') {
-    console.error(`FAIL ${path} — expected status=ready`, body)
+  console.log(`OK   /api/health → ${res.status}`, body.version ? `(${body.version})` : '')
+}
+
+async function checkReady() {
+  for (let attempt = 1; attempt <= readyRetries; attempt++) {
+    const { res, body } = await fetchJson('/api/ready')
+    if (res.ok && body.status === 'ready') {
+      console.log(`OK   /api/ready → ${res.status} (ready, attempt ${attempt}/${readyRetries})`)
+      return
+    }
+
+    const detail = body.error ?? body.status ?? res.status
+    if (attempt === readyRetries) {
+      console.error(`FAIL /api/ready — expected status=ready after ${readyRetries} attempts`, body)
+      process.exit(1)
+    }
+
+    console.warn(
+      `WAIT /api/ready → ${res.status} (${detail}); retry ${attempt}/${readyRetries} in ${readyRetryMs}ms`,
+    )
+    await sleep(readyRetryMs)
+  }
+}
+
+async function checkLoginPage() {
+  const url = `${base}/login`
+  const res = await fetch(url, { redirect: 'follow' })
+  if (!res.ok) {
+    console.error(`FAIL /login → ${res.status}`)
     process.exit(1)
   }
-  console.log(`OK   ${path} → ${res.status}`, expectReady ? `(ready)` : `(health)`)
+  console.log(`OK   /login → ${res.status}`)
 }
 
 console.log(`Smoke test: ${base}`)
-await check('/api/health')
-await check('/api/ready', true)
+await checkHealth()
+await checkReady()
+await checkLoginPage()
 console.log('All smoke checks passed.')

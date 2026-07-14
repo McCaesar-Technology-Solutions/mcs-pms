@@ -118,7 +118,7 @@ export const guestRoomEntrySchema = z.object({
     .string()
     .trim()
     .transform((value) => value.replace(/\D/g, ''))
-    .pipe(z.string().regex(/^\d{4}$/, 'Enter the 4-digit PIN from the front desk')),
+    .pipe(z.string().regex(/^\d{6}$/, 'Enter the 6-digit PIN from the front desk')),
 })
 
 export const staffComplaintSchema = z.object({

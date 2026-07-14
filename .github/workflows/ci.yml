@@ -6,6 +6,17 @@ on:
   push:
     branches: [main]
 
+env:
+  NEXT_PUBLIC_SUPABASE_URL: https://e2e-placeholder.supabase.co
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: e2e-anon-key
+  SUPABASE_SERVICE_ROLE_KEY: e2e-service-key
+  NEXT_PUBLIC_APP_URL: http://127.0.0.1:3000
+  MFA_OTP_SECRET: ci-mfa-otp-secret-not-for-production
+  GUEST_SESSION_SECRET: ci-guest-session-secret-not-for-production
+  CRON_SECRET: ci-cron-secret-not-for-production
+  ARKESEL_API_KEY: ci-arkesel-key
+  ARKESEL_SENDER_ID: MOJO
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -32,11 +43,6 @@ jobs:
 
       - name: Build
         run: npm run build
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: https://e2e-placeholder.supabase.co
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: e2e-anon-key
-          SUPABASE_SERVICE_ROLE_KEY: e2e-service-key
-          NEXT_PUBLIC_APP_URL: http://127.0.0.1:3000
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
@@ -44,8 +50,4 @@ jobs:
       - name: E2E tests
         run: npm run test:e2e
         env:
-          NEXT_PUBLIC_SUPABASE_URL: https://e2e-placeholder.supabase.co
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: e2e-anon-key
-          SUPABASE_SERVICE_ROLE_KEY: e2e-service-key
-          NEXT_PUBLIC_APP_URL: http://127.0.0.1:3000
           CI: true

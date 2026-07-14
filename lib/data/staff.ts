@@ -1,4 +1,4 @@
-import { getProfile } from '@/lib/auth/get-profile'
+import { getVerifiedProfile } from '@/lib/auth/get-profile'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { Profile, StaffInvite } from '@/types'
 
@@ -11,7 +11,7 @@ export interface StaffData {
 const ROLE_RANK: Record<string, number> = { owner: 0, manager: 1, technician: 2 }
 
 export async function getStaffData(): Promise<StaffData> {
-  const profile = await getProfile()
+  const profile = await getVerifiedProfile()
   if (!profile?.hotel_id) return { profile, staff: [], invites: [] }
 
   const admin = createAdminClient()

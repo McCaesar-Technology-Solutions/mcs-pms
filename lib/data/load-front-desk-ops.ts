@@ -34,7 +34,7 @@ export async function loadFrontDeskOpsContext(
       getDashboardData(),
       loadHotelGuestRequests(hotelId),
       countUnreadGuestConversations(hotelId),
-      countUnreadStaffConversations(hotelId, profile.id),
+      countUnreadStaffConversations(hotelId, profile.id, profile.role),
     ])
 
   const pendingRequests = guestRequests.filter((r) => r.status === 'pending').length

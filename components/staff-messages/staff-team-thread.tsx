@@ -24,6 +24,7 @@ interface StaffTeamThreadProps {
   canManageGroupMembers?: boolean
   hotelStaff?: { id: string; name: string; role: string }[]
   onMembersChanged?: () => void
+  readOnly?: boolean
 }
 
 const TEAM_QUICK_REPLIES = [
@@ -43,6 +44,7 @@ export function StaffTeamThread({
   canManageGroupMembers = false,
   hotelStaff = [],
   onMembersChanged,
+  readOnly = false,
 }: StaffTeamThreadProps) {
   const [messages, setMessages] = useState<StaffConversationMessage[]>([])
   const [body, setBody] = useState('')
@@ -293,53 +295,59 @@ export function StaffTeamThread({
         )}
       </div>
 
-      <div className="staff-messenger__composer">
-        <div className="staff-messenger__quick-replies">
-          {TEAM_QUICK_REPLIES.map((q) => (
-            <button
-              key={q}
-              type="button"
-              disabled={loading}
-              onClick={() => prepopulateMessageComposer(q, setBody, textareaRef)}
-              className="staff-messenger__quick-reply"
-            >
-              {q}
-            </button>
-          ))}
+      {readOnly ? (
+        <div className="border-t border-border bg-muted/40 px-4 py-3 text-center text-xs text-muted-foreground">
+          View-only — you can read this thread but only members can send messages.
         </div>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault()
-            void handleSend()
-          }}
-          className="staff-messenger__compose-form"
-        >
-          <textarea
-            ref={textareaRef}
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault()
-                void handleSend()
-              }
+      ) : (
+        <div className="staff-messenger__composer">
+          <div className="staff-messenger__quick-replies">
+            {TEAM_QUICK_REPLIES.map((q) => (
+              <button
+                key={q}
+                type="button"
+                disabled={loading}
+                onClick={() => prepopulateMessageComposer(q, setBody, textareaRef)}
+                className="staff-messenger__quick-reply"
+              >
+                {q}
+              </button>
+            ))}
+          </div>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              void handleSend()
             }}
-            rows={1}
-            placeholder="Message your team…"
-            aria-label="Team message"
-            className="staff-messenger__compose-input"
-          />
-          <button
-            type="submit"
-            disabled={loading || !body.trim()}
-            className="staff-messenger__send"
-            aria-label="Send message"
+            className="staff-messenger__compose-form"
           >
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-          </button>
-        </form>
-        {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
-      </div>
+            <textarea
+              ref={textareaRef}
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  void handleSend()
+                }
+              }}
+              rows={1}
+              placeholder="Message your team…"
+              aria-label="Team message"
+              className="staff-messenger__compose-input"
+            />
+            <button
+              type="submit"
+              disabled={loading || !body.trim()}
+              className="staff-messenger__send"
+              aria-label="Send message"
+            >
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            </button>
+          </form>
+          {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
+        </div>
+      )}
     </div>
   )
 }

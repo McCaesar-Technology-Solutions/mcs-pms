@@ -1,6 +1,8 @@
 import { createAdminClient } from '@/lib/supabase/admin'
+import { resolveHotelTenantAccess } from '@/lib/data/tenant-guard'
 import { profilePhotoPublicUrl } from '@/lib/profile-photos/storage'
 import { canEditOwnMessage } from '@/lib/messaging/can-edit-message'
+import type { Profile, UserRole } from '@/types'
 
 export interface StaffConversationListItem {
   id: string
@@ -12,6 +14,7 @@ export interface StaffConversationListItem {
   lastMessageAt: string | null
   lastAuthorName: string | null
   unread: boolean
+  isParticipant: boolean
 }
 
 export interface StaffConversationMessage {
@@ -52,6 +55,9 @@ function dmDisplayName(
   if (conversation.conversation_type === 'group' && conversation.name) {
     return conversation.name
   }
+  if (!memberIds.includes(currentUserId)) {
+    return memberNames.join(' · ') || 'Team chat'
+  }
   const otherIndex = memberIds.findIndex((id) => id !== currentUserId)
   return memberNames[otherIndex] ?? 'Team member'
 }
@@ -59,19 +65,47 @@ function dmDisplayName(
 export async function loadStaffConversations(
   hotelId: string,
   currentUserId: string,
+  viewerRole?: UserRole,
 ): Promise<StaffConversationListItem[]> {
   try {
+    const access = await resolveHotelTenantAccess(hotelId, {
+      roles: ['owner', 'manager', 'receptionist', 'technician'],
+    })
+    if (!access || access.id !== currentUserId) return []
+
     const admin = createAdminClient()
+    const isOwner = viewerRole === 'owner'
 
-  const { data: memberships } = await admin
-    .from('staff_conversation_members')
-    .select('conversation_id, last_read_at')
-    .eq('profile_id', currentUserId)
+    let convIds: string[]
+    let readMap: Map<string, string | null>
 
-  if (!memberships?.length) return []
+    if (isOwner) {
+      const { data: hotelConversations } = await admin
+        .from('staff_conversations')
+        .select('id')
+        .eq('hotel_id', hotelId)
 
-  const convIds = memberships.map((m) => m.conversation_id)
-  const readMap = new Map(memberships.map((m) => [m.conversation_id, m.last_read_at]))
+      convIds = (hotelConversations ?? []).map((c) => c.id)
+      if (!convIds.length) return []
+
+      const { data: ownerMemberships } = await admin
+        .from('staff_conversation_members')
+        .select('conversation_id, last_read_at')
+        .eq('profile_id', currentUserId)
+        .in('conversation_id', convIds)
+
+      readMap = new Map((ownerMemberships ?? []).map((m) => [m.conversation_id, m.last_read_at]))
+    } else {
+      const { data: memberships } = await admin
+        .from('staff_conversation_members')
+        .select('conversation_id, last_read_at')
+        .eq('profile_id', currentUserId)
+
+      if (!memberships?.length) return []
+
+      convIds = memberships.map((m) => m.conversation_id)
+      readMap = new Map(memberships.map((m) => [m.conversation_id, m.last_read_at]))
+    }
 
   const { data: conversations } = await admin
     .from('staff_conversations')
@@ -155,6 +189,7 @@ export async function loadStaffConversations(
       lastMessageAt: lastAt,
       lastAuthorName: latest?.authorName ?? null,
       unread,
+      isParticipant: members.some((m) => m.profile_id === currentUserId),
     }
   })
   } catch (err) {
@@ -166,17 +201,30 @@ export async function loadStaffConversations(
 export async function loadStaffConversationDetails(
   conversationId: string,
   currentUserId: string,
+  viewer?: Pick<Profile, 'role' | 'hotel_id'>,
 ): Promise<StaffConversationDetails | null> {
   const admin = createAdminClient()
+  const isOwner = viewer?.role === 'owner' && !!viewer.hotel_id
 
-  const { data: membership } = await admin
-    .from('staff_conversation_members')
-    .select('conversation_id')
-    .eq('conversation_id', conversationId)
-    .eq('profile_id', currentUserId)
-    .maybeSingle()
+  if (isOwner) {
+    const { data: ownedConversation } = await admin
+      .from('staff_conversations')
+      .select('id')
+      .eq('id', conversationId)
+      .eq('hotel_id', viewer!.hotel_id!)
+      .maybeSingle()
 
-  if (!membership) return null
+    if (!ownedConversation) return null
+  } else {
+    const { data: membership } = await admin
+      .from('staff_conversation_members')
+      .select('conversation_id')
+      .eq('conversation_id', conversationId)
+      .eq('profile_id', currentUserId)
+      .maybeSingle()
+
+    if (!membership) return null
+  }
 
   const { data: conversation } = await admin
     .from('staff_conversations')
@@ -282,7 +330,8 @@ export async function loadStaffConversationMessages(
 export async function countUnreadStaffConversations(
   hotelId: string,
   currentUserId: string,
+  viewerRole?: UserRole,
 ): Promise<number> {
-  const items = await loadStaffConversations(hotelId, currentUserId)
+  const items = await loadStaffConversations(hotelId, currentUserId, viewerRole)
   return items.filter((i) => i.unread).length
 }

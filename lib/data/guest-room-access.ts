@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { normalizePortalPin } from '@/lib/guest/portal-pin'
+import { hashPortalPin, verifyPortalPin } from '@/lib/guest/portal-pin-crypto'
 import { normalizeRoomNumber } from '@/lib/guest-portal'
 import { todayISO } from '@/lib/stays/helpers'
 import type { Guest } from '@/types'
@@ -22,6 +23,9 @@ export async function findActiveGuestForRoom(
   const normalized = normalizeRoomNumber(roomNumberInput)
   if (!normalized) return null
 
+  const pin = normalizePortalPin(portalPin)
+  if (!pin) return null
+
   const admin = createAdminClient()
   const { data: rooms } = await admin.from('rooms').select('id, number').eq('hotel_id', hotelId)
 
@@ -31,7 +35,7 @@ export async function findActiveGuestForRoom(
   const today = todayISO()
   const { data: guests } = await admin
     .from('guests')
-    .select('*')
+    .select('*, portal_pin_hash')
     .eq('hotel_id', hotelId)
     .eq('room_id', room.id)
     .lte('check_in', today)
@@ -41,15 +45,39 @@ export async function findActiveGuestForRoom(
   if (!guests?.length) return null
 
   const now = new Date()
-  const active = guests.find(
-    (g) => !g.token_expires_at || new Date(g.token_expires_at) > now,
-  )
-  if (!active) return null
+  let matched: (typeof guests)[number] | null = null
 
-  // PIN is the authentication factor — no PIN on record means no self-service
-  // entry (the guest can still use the magic link from the front desk).
-  const pin = normalizePortalPin(portalPin)
-  if (!active.portal_pin || pin.length === 0 || active.portal_pin !== pin) return null
+  for (const guest of guests) {
+    if (guest.token_expires_at && new Date(guest.token_expires_at) <= now) continue
 
-  return { guest: active as Guest, roomNumber: room.number }
+    const row = guest as Guest & { portal_pin_hash?: string | null }
+    const hasCredential = Boolean(row.portal_pin_hash || row.portal_pin)
+    if (!hasCredential) continue
+
+    const ok = await verifyPortalPin(row.id, pin, row.portal_pin_hash, row.portal_pin)
+    if (!ok) continue
+
+    matched = guest
+
+    // Upgrade legacy plaintext PIN to hash and clear plaintext.
+    if (!row.portal_pin_hash && row.portal_pin) {
+      const portal_pin_hash = await hashPortalPin(row.id, pin)
+      await admin
+        .from('guests')
+        .update({ portal_pin_hash, portal_pin: null })
+        .eq('id', row.id)
+    }
+    break
+  }
+
+  if (!matched) return null
+
+  return { guest: matched as Guest, roomNumber: room.number }
+}
+
+/** Persist a newly issued portal PIN (hash only). */
+export async function storeGuestPortalPin(guestId: string, pin: string): Promise<void> {
+  const admin = createAdminClient()
+  const portal_pin_hash = await hashPortalPin(guestId, pin)
+  await admin.from('guests').update({ portal_pin_hash, portal_pin: null }).eq('id', guestId)
 }

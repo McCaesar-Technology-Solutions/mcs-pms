@@ -10,10 +10,12 @@ export type AuditEntityType =
   | 'invoice'
   | 'complaint'
   | 'guest_request'
+  | 'payment'
 
 export interface AuditLogInput {
   hotelId: string
-  actorId: string
+  /** Null for system/webhook events with no staff actor. */
+  actorId?: string | null
   actorName?: string | null
   entityType: AuditEntityType
   entityId?: string | null
@@ -28,7 +30,7 @@ export async function writeAuditLog(input: AuditLogInput): Promise<void> {
     const admin = createAdminClient()
     await admin.from('audit_log').insert({
       hotel_id: input.hotelId,
-      actor_id: input.actorId,
+      actor_id: input.actorId ?? null,
       actor_name: input.actorName?.trim() || null,
       entity_type: input.entityType,
       entity_id: input.entityId ?? null,

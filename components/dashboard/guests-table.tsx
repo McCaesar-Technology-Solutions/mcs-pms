@@ -32,11 +32,20 @@ import type { PaymentMethod } from '@/types'
 import { sortGuestDirectory, type GuestRow, type GuestStatus } from '@/lib/guests/guest-directory'
 import type { ReservationChannel } from '@/types'
 
+interface GuestsServerPagination {
+  page: number
+  totalPages: number
+  totalItems: number
+  pageSize: number
+}
+
 interface GuestsTableProps {
   guests: GuestRow[]
   initialSearch?: string
   openGuestId?: string
   readOnly?: boolean
+  serverPagination?: GuestsServerPagination
+  initialStatus?: GuestStatus | null
 }
 
 const STATUS_LABEL: Record<GuestStatus, string> = {
@@ -96,15 +105,56 @@ export function GuestsTable({
   initialSearch = '',
   openGuestId,
   readOnly = false,
+  serverPagination,
+  initialStatus = null,
 }: GuestsTableProps) {
   const router = useRouter()
   const [searchQuery, setSearchQuery] = useState(initialSearch)
-  const [selectedStatus, setSelectedStatus] = useState<GuestStatus | null>(null)
+  const [selectedStatus, setSelectedStatus] = useState<GuestStatus | null>(initialStatus)
   const [selectedGuest, setSelectedGuest] = useState<GuestRow | null>(null)
 
   useEffect(() => {
     setSearchQuery(initialSearch)
   }, [initialSearch])
+
+  useEffect(() => {
+    setSelectedStatus(initialStatus)
+  }, [initialStatus])
+
+  useEffect(() => {
+    if (!serverPagination) return
+    const trimmed = searchQuery.trim()
+    if (trimmed === initialSearch.trim() && selectedStatus === initialStatus) return
+
+    const timeout = window.setTimeout(() => {
+      const params = new URLSearchParams()
+      if (trimmed) params.set('q', trimmed)
+      if (selectedStatus) params.set('status', selectedStatus)
+      if (openGuestId) params.set('open', openGuestId)
+      const qs = params.toString()
+      router.replace(qs ? `?${qs}` : '?')
+    }, 400)
+
+    return () => window.clearTimeout(timeout)
+  }, [
+    searchQuery,
+    initialSearch,
+    selectedStatus,
+    initialStatus,
+    serverPagination,
+    router,
+    openGuestId,
+  ])
+
+  function pushGuestListPage(nextPage: number) {
+    const params = new URLSearchParams()
+    if (nextPage > 1) params.set('page', String(nextPage))
+    if (searchQuery.trim()) params.set('q', searchQuery.trim())
+    if (selectedStatus) params.set('status', selectedStatus)
+    if (openGuestId) params.set('open', openGuestId)
+    const qs = params.toString()
+    router.push(qs ? `?${qs}` : '?')
+  }
 
   useEffect(() => {
     if (!openGuestId) return
@@ -115,6 +165,11 @@ export function GuestsTable({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
 
   const filteredGuests = useMemo(() => {
+    if (serverPagination) {
+      if (!selectedStatus) return guests
+      return guests.filter((guest) => guest.status === selectedStatus)
+    }
+
     const filtered = guests.filter((guest) => {
       const matchesSearch =
         guest.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -124,7 +179,7 @@ export function GuestsTable({
       return matchesSearch && matchesStatus
     })
     return sortGuestDirectory(filtered)
-  }, [guests, searchQuery, selectedStatus])
+  }, [guests, searchQuery, selectedStatus, serverPagination])
 
   const bulkSelected = useMemo(
     () => guests.filter((g) => selectedIds.has(g.id)),
@@ -134,11 +189,36 @@ export function GuestsTable({
   const allFilteredSelected =
     filteredGuests.length > 0 && filteredGuests.every((g) => selectedIds.has(g.id))
 
-  const pagination = usePagination(
+  const clientPagination = usePagination(
     filteredGuests,
     10,
     `${searchQuery}|${selectedStatus ?? ''}`,
   )
+
+  const displayGuests = serverPagination ? filteredGuests : clientPagination.paginatedItems
+  const pagination = serverPagination
+    ? {
+        page: serverPagination.page,
+        totalPages: serverPagination.totalPages,
+        totalItems: serverPagination.totalItems,
+        rangeStart:
+          serverPagination.totalItems === 0
+            ? 0
+            : (serverPagination.page - 1) * serverPagination.pageSize + 1,
+        rangeEnd: Math.min(
+          serverPagination.page * serverPagination.pageSize,
+          serverPagination.totalItems,
+        ),
+        setPage: pushGuestListPage,
+      }
+    : {
+        page: clientPagination.page,
+        totalPages: clientPagination.totalPages,
+        totalItems: clientPagination.totalItems,
+        rangeStart: clientPagination.rangeStart,
+        rangeEnd: clientPagination.rangeEnd,
+        setPage: clientPagination.setPage,
+      }
 
   function toggleSelected(id: string) {
     setSelectedIds((prev) => {
@@ -215,7 +295,7 @@ export function GuestsTable({
         )}
 
         <div className="space-y-3 p-4 md:hidden">
-          {pagination.paginatedItems.map((guest) => (
+          {displayGuests.map((guest) => (
             <div
               key={guest.id}
               className={`elevated-list-item flex gap-3 p-4 ${
@@ -289,7 +369,7 @@ export function GuestsTable({
               </tr>
             </thead>
             <tbody>
-              {pagination.paginatedItems.map((guest) => (
+              {displayGuests.map((guest) => (
                 <tr
                   key={guest.id}
                   className={`cursor-pointer ${

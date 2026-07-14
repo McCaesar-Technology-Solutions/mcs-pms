@@ -12,7 +12,7 @@ export default async function ReceptionistMessagesPage() {
 
   const [conversations, staffConversations, { staff }] = await Promise.all([
     loadGuestConversations(profile.hotel_id),
-    loadStaffConversations(profile.hotel_id, profile.id),
+    loadStaffConversations(profile.hotel_id, profile.id, profile.role),
     getStaffData(),
   ])
 

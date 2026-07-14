@@ -44,7 +44,7 @@ export async function loadRoomsPageData(
     const [guestRequests, unreadGuest, unreadTeam] = await Promise.all([
       loadHotelGuestRequests(profile.hotel_id),
       countUnreadGuestConversations(profile.hotel_id),
-      countUnreadStaffConversations(profile.hotel_id, profile.id),
+      countUnreadStaffConversations(profile.hotel_id, profile.id, profile.role),
     ])
     pendingRequests = guestRequests.filter((r) => r.status === 'pending').length
     unreadMessages = unreadGuest + unreadTeam

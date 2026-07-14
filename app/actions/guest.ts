@@ -4,6 +4,7 @@ import { loadVerifiedStaffProfile } from '@/lib/auth/staff-session'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { validateGuestAccessToken } from '@/lib/guest/access-token'
 import { generatePortalPin } from '@/lib/guest/portal-pin'
+import { storeGuestPortalPin } from '@/lib/data/guest-room-access'
 import { getGuestSessionId } from '@/lib/guest-session'
 import { guestNeedsRulesAcceptance } from '@/app/actions/guest-rules'
 import { submitComplaintSchema } from '@/lib/validations'
@@ -523,11 +524,13 @@ export async function regenerateGuestAccess(
 
   const { error } = await admin
     .from('guests')
-    .update({ token, token_expires_at: tokenExpiresAt, portal_pin: portalPin })
+    .update({ token, token_expires_at: tokenExpiresAt })
     .eq('id', guestId)
     .eq('hotel_id', profile.hotel_id)
 
   if (error) return { success: false, error: 'Could not regenerate link.' }
+
+  await storeGuestPortalPin(guestId, portalPin)
 
   const { revalidatePath } = await import('next/cache')
   revalidateGuestViews(revalidatePath)

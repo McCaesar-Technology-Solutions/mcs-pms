@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Copy, Download, Plus, TrendingUp } from 'lucide-react'
 import { toast } from 'sonner'
 import { createManualInvoice, recordInvoicePayment, recordPartialInvoicePayment, refundInvoicePayment } from '@/app/actions/invoices'
+import { initiateStaffPayment } from '@/app/actions/payments'
 import { invoiceBalanceDue } from '@/lib/billing/invoice-payments'
 import { BulkActionBar } from '@/components/dashboard/bulk-action-bar'
 import { BulkSelectCheckbox } from '@/components/dashboard/bulk-select-checkbox'
@@ -108,6 +109,8 @@ interface BillingOverviewProps {
   openInvoiceId?: string
   vatMode?: VatMode
   readOnly?: boolean
+  /** When true, staff can open a Paystack checkout link for open balances. */
+  onlinePaymentsEnabled?: boolean
 }
 
 export function BillingOverview({
@@ -117,6 +120,7 @@ export function BillingOverview({
   openInvoiceId,
   vatMode = 'exclusive',
   readOnly = false,
+  onlinePaymentsEnabled = false,
 }: BillingOverviewProps) {
   const router = useRouter()
   const [statusFilter, setStatusFilter] = useState<string | null>(null)
@@ -248,6 +252,19 @@ export function BillingOverview({
       } else {
         toast.error(result.error)
       }
+    })
+  }
+
+  function payOnline(inv: InvoiceWithRoom) {
+    startTransition(async () => {
+      const result = await initiateStaffPayment({ invoiceId: inv.id })
+      if (!result.success) {
+        toast.error(result.error)
+        return
+      }
+      toast.success(result.data.reused ? 'Reopened existing checkout link' : 'Checkout link ready')
+      window.open(result.data.authorizationUrl, '_blank', 'noopener,noreferrer')
+      router.refresh()
     })
   }
 
@@ -615,6 +632,20 @@ export function BillingOverview({
                   Download PDF
                 </button>
               )}
+
+              {onlinePaymentsEnabled &&
+                detail.payment_status !== 'paid' &&
+                detail.payment_status !== 'refunded' &&
+                invoiceOpenBalance(detail) > 0 && (
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() => payOnline(detail)}
+                    className="flex w-full items-center justify-center gap-2 rounded-lg border border-primary bg-primary/5 px-4 py-2.5 text-sm font-semibold text-primary disabled:opacity-50"
+                  >
+                    Pay online (Paystack)
+                  </button>
+                )}
 
               {!readOnly &&
                 detail.payment_status !== 'paid' &&

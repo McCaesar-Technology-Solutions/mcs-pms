@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin'
+import { resolveHotelTenantAccess } from '@/lib/data/tenant-guard'
 
 export interface ExpenseRow {
   id: string
@@ -12,6 +13,9 @@ export interface ExpenseRow {
 }
 
 export async function loadExpenses(hotelId: string): Promise<ExpenseRow[]> {
+  const access = await resolveHotelTenantAccess(hotelId, { roles: ['owner'] })
+  if (!access) return []
+
   const admin = createAdminClient()
   const { data } = await admin
     .from('expenses')

@@ -141,9 +141,10 @@ async function assertOtpRateLimit(userId: string): Promise<string | null> {
   return null
 }
 
-async function createOtpChallenge(userId: string): Promise<
-  MfaActionResult<{ code: string }>
-> {
+async function createOtpChallenge(
+  userId: string,
+  pendingPhone?: string | null,
+): Promise<MfaActionResult<{ code: string }>> {
   try {
     const rateLimitError = await assertOtpRateLimit(userId)
     if (rateLimitError) return { success: false, error: rateLimitError }
@@ -155,6 +156,7 @@ async function createOtpChallenge(userId: string): Promise<
       user_id: userId,
       code_hash: await hashOtp(code),
       expires_at: expiresAt,
+      pending_phone: pendingPhone?.trim() || null,
     })
 
     if (error) {
@@ -171,14 +173,17 @@ async function createOtpChallenge(userId: string): Promise<
   }
 }
 
-async function verifyOtpChallenge(userId: string, trimmed: string): Promise<boolean> {
+async function verifyOtpChallenge(
+  userId: string,
+  trimmed: string,
+): Promise<{ ok: boolean; pendingPhone: string | null }> {
   const admin = createAdminClient()
   const codeHash = await hashOtp(trimmed)
   const now = new Date().toISOString()
 
   const { data: challenge } = await admin
     .from('mfa_otp_challenges')
-    .select('id')
+    .select('id, pending_phone')
     .eq('user_id', userId)
     .eq('code_hash', codeHash)
     .is('consumed_at', null)
@@ -187,18 +192,61 @@ async function verifyOtpChallenge(userId: string, trimmed: string): Promise<bool
     .limit(1)
     .maybeSingle()
 
-  if (!challenge) return false
+  if (!challenge) return { ok: false, pendingPhone: null }
 
   await admin.from('mfa_otp_challenges').update({ consumed_at: now }).eq('id', challenge.id)
-  return true
+  return { ok: true, pendingPhone: challenge.pending_phone?.trim() || null }
 }
 
-async function recordExternalVerifySend(userId: string): Promise<void> {
+async function getLatestPendingPhone(userId: string): Promise<string | null> {
+  const admin = createAdminClient()
+  const now = new Date().toISOString()
+  const { data } = await admin
+    .from('mfa_otp_challenges')
+    .select('pending_phone')
+    .eq('user_id', userId)
+    .is('consumed_at', null)
+    .gt('expires_at', now)
+    .not('pending_phone', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  return data?.pending_phone?.trim() || null
+}
+
+async function consumeLatestExternalChallenge(userId: string): Promise<string | null> {
+  const admin = createAdminClient()
+  const now = new Date().toISOString()
+  const { data } = await admin
+    .from('mfa_otp_challenges')
+    .select('id, pending_phone')
+    .eq('user_id', userId)
+    .eq('code_hash', 'twilio-verify')
+    .is('consumed_at', null)
+    .gt('expires_at', now)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (!data) return null
+  await admin.from('mfa_otp_challenges').update({ consumed_at: now }).eq('id', data.id)
+  return data.pending_phone?.trim() || null
+}
+
+async function commitVerifiedPhone(userId: string, pendingPhone: string | null): Promise<void> {
+  if (!pendingPhone) return
+  const admin = createAdminClient()
+  await admin.from('profiles').update({ phone: pendingPhone }).eq('id', userId)
+}
+
+async function recordExternalVerifySend(userId: string, pendingPhone?: string | null): Promise<void> {
   const admin = createAdminClient()
   await admin.from('mfa_otp_challenges').insert({
     user_id: userId,
     code_hash: 'twilio-verify',
     expires_at: new Date(Date.now() + MFA_OTP_TTL_MS).toISOString(),
+    pending_phone: pendingPhone?.trim() || null,
   })
 }
 
@@ -211,6 +259,7 @@ async function sendPhoneMfaCode(
   profile: StaffProfile,
   phone: string,
   requestedChannel?: string,
+  pendingPhone?: string | null,
 ): Promise<
   MfaActionResult<{ maskedPhone: string; devCode?: string; deliveryChannel?: 'sms' | 'whatsapp' }>
 > {
@@ -234,7 +283,7 @@ async function sendPhoneMfaCode(
     if (!sent.success) {
       return { success: false, error: sent.error ?? 'Could not send the verification code.' }
     }
-    await recordExternalVerifySend(userId)
+    await recordExternalVerifySend(userId, pendingPhone ?? phone)
     return {
       success: true,
       data: {
@@ -244,7 +293,7 @@ async function sendPhoneMfaCode(
     }
   }
 
-  const created = await createOtpChallenge(userId)
+  const created = await createOtpChallenge(userId, pendingPhone ?? phone)
   if (!created.success || !created.data) {
     return created as MfaActionResult<{
       maskedPhone: string
@@ -344,19 +393,27 @@ async function sendEmailMfaCode(
   return { success: true, data: { maskedEmail: maskEmail(email) } }
 }
 
-async function confirmMfaCode(profile: StaffProfile, userId: string, trimmed: string): Promise<boolean> {
+async function confirmMfaCode(
+  profile: StaffProfile,
+  userId: string,
+  trimmed: string,
+): Promise<{ ok: boolean; pendingPhone: string | null }> {
   if (profile.mfa_method === 'email' && isTwilioVerifyConfigured()) {
     const to = profile.email?.trim().toLowerCase()
-    if (!to) return false
+    if (!to) return { ok: false, pendingPhone: null }
     const checked = await checkTwilioVerification(to, trimmed)
-    return checked.success
+    return { ok: checked.success, pendingPhone: null }
   }
 
   if (profile.mfa_method === 'sms' && shouldUseTwilioVerifyForPhone()) {
-    const to = profile.phone ? phoneVerifyDestination(profile.phone) : null
-    if (!to) return false
+    const pending = await getLatestPendingPhone(userId)
+    const phone = profile.phone?.trim() || pending
+    const to = phone ? phoneVerifyDestination(phone) : null
+    if (!to) return { ok: false, pendingPhone: null }
     const checked = await checkTwilioVerification(to, trimmed)
-    return checked.success
+    if (!checked.success) return { ok: false, pendingPhone: null }
+    const committedPhone = await consumeLatestExternalChallenge(userId)
+    return { ok: true, pendingPhone: committedPhone ?? pending }
   }
 
   return verifyOtpChallenge(userId, trimmed)
@@ -645,8 +702,8 @@ export async function verifyMfaSmsCode(
     return { success: false, error: 'Phone verification is not enabled for this account.' }
   }
 
-  const ok = await confirmMfaCode(profile, user.id, trimmed)
-  if (!ok) {
+  const confirmed = await confirmMfaCode(profile, user.id, trimmed)
+  if (!confirmed.ok) {
     const channels = resolveMfaPhoneChannels()
     const label =
       channels.length > 1
@@ -659,6 +716,8 @@ export async function verifyMfaSmsCode(
       error: `Invalid or expired code. Request a new ${label} message and try again.`,
     }
   }
+
+  await commitVerifiedPhone(user.id, confirmed.pendingPhone)
 
   const verified = await markSessionVerified(supabase, user.id)
   if (!verified.success) return verified as MfaActionResult<{ redirectTo: string }>
@@ -690,10 +749,12 @@ export async function verifyMfaEmailCode(
     return { success: false, error: 'Email verification is not enabled for this account.' }
   }
 
-  const ok = await confirmMfaCode(profile, user.id, trimmed)
-  if (!ok) {
+  const confirmed = await confirmMfaCode(profile, user.id, trimmed)
+  if (!confirmed.ok) {
     return { success: false, error: 'Invalid or expired code. Request a new email and try again.' }
   }
+
+  await commitVerifiedPhone(user.id, confirmed.pendingPhone)
 
   const verified = await markSessionVerified(supabase, user.id)
   if (!verified.success) return verified as MfaActionResult<{ redirectTo: string }>
@@ -716,26 +777,32 @@ export async function saveMfaPhoneAndSend(
   const { supabase, user, profile } = await requireStaffContext()
   if (!user || !profile) return { success: false, error: 'Not signed in.' }
 
+  const newPhone = parsed.data.trim()
+  const existingPhone = profile.phone?.trim()
+  const status = await buildMfaStatus(supabase, user.id, profileForStatus(profile))
+
+  if (!status.sessionVerified && existingPhone && existingPhone !== newPhone) {
+    return {
+      success: false,
+      error:
+        'Verify your existing phone before changing it, or contact your administrator for help.',
+    }
+  }
+
   const admin = createAdminClient()
-  const { error } = await admin
-    .from('profiles')
-    .update({ phone: parsed.data.trim() })
-    .eq('id', user.id)
-
-  if (error) return { success: false, error: 'Could not save your phone number.' }
-
   if (profile.mfa_method !== 'sms') {
-    await admin
+    const { error } = await admin
       .from('profiles')
       .update({ mfa_enabled: true, mfa_method: 'sms', mfa_sms_enabled: true })
       .eq('id', user.id)
+
+    if (error) return { success: false, error: 'Could not enable phone verification.' }
   }
 
-  const savedPhone = parsed.data.trim()
   if (!channel) {
-    return { success: true, data: { maskedPhone: maskPhone(savedPhone) } }
+    return { success: true, data: { maskedPhone: maskPhone(newPhone) } }
   }
 
-  const refreshedProfile = { ...profile, phone: savedPhone }
-  return sendPhoneMfaCode(user.id, refreshedProfile, savedPhone, channel)
+  const refreshedProfile = { ...profile, phone: existingPhone ?? newPhone }
+  return sendPhoneMfaCode(user.id, refreshedProfile, newPhone, channel, newPhone)
 }

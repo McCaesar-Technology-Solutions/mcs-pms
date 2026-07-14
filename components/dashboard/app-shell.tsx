@@ -1,5 +1,6 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { useEffect, useState } from 'react'
 import Sidebar from '@/components/dashboard/sidebar'
 import Topbar from '@/components/dashboard/topbar'
@@ -8,9 +9,20 @@ import type { Profile } from '@/types'
 import type { OccupancyToday } from '@/lib/data/occupancy'
 import { HotelRealtimeProvider } from '@/components/realtime/hotel-realtime'
 import { ProfilePhoneBanner } from '@/components/dashboard/profile-phone-banner'
-import { CommandPaletteProvider } from '@/components/dashboard/command-palette'
-import { HelpAssistant } from '@/components/help/help-assistant'
 import { hasPhoneNumber } from '@/lib/phone'
+
+const CommandPaletteProvider = dynamic(
+  () =>
+    import('@/components/dashboard/command-palette').then((m) => ({
+      default: m.CommandPaletteProvider,
+    })),
+  { ssr: false },
+)
+
+const HelpAssistant = dynamic(
+  () => import('@/components/help/help-assistant').then((m) => ({ default: m.HelpAssistant })),
+  { ssr: false },
+)
 
 interface AppShellProps {
   children: React.ReactNode

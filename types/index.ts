@@ -390,6 +390,7 @@ export interface Guest {
   guest_rules_accepted_version: number | null
   do_not_disturb?: boolean | null
   portal_pin?: string | null
+  portal_pin_hash?: string | null
   profile_image_path?: string | null
   enrolled_by: string | null
   created_at: string | null

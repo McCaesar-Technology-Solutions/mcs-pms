@@ -6,6 +6,7 @@ import {
   getOccupancyTimelineBars,
   type OccupancyTimelineBar,
 } from '@/lib/data/occupancy-timeline'
+import { clampLimit, DASHBOARD_HISTORY_LIMIT } from '@/lib/data/pagination'
 import { calculateStayTotal } from '@/lib/pricing/stay-totals'
 import { reconcileHotelBillingState } from '@/lib/billing/reconcile-hotel-billing'
 import { computeHotelOutstandingBalance } from '@/lib/billing/outstanding-balance'
@@ -292,8 +293,14 @@ export async function getDashboardData(): Promise<DashboardData> {
         .from('reservations')
         .select('*, rooms(number), guests(email, phone, do_not_disturb)')
         .eq('hotel_id', hotelId)
-        .order('check_in', { ascending: false }),
-      supabase.from('invoices').select('*').eq('hotel_id', hotelId),
+        .order('check_in', { ascending: false })
+        .limit(clampLimit(DASHBOARD_HISTORY_LIMIT)),
+      supabase
+        .from('invoices')
+        .select('*')
+        .eq('hotel_id', hotelId)
+        .order('issued_at', { ascending: false })
+        .limit(clampLimit(DASHBOARD_HISTORY_LIMIT)),
       getOccupancySpans(supabase, hotelId),
       getOccupancyTimelineBars(supabase, hotelId),
     ])
@@ -336,5 +343,80 @@ export async function getDashboardData(): Promise<DashboardData> {
   } catch (err) {
     console.error('[dashboard] getDashboardData failed:', err)
     return { ...empty, hotelId: profile.hotel_id }
+  }
+}
+
+export interface StaffReservationsPageData {
+  reservations: Reservation[]
+  roomOptions: RoomOption[]
+  occupancySpans: OccupancySpan[]
+  timelineRooms: { id: string; number: string; floor?: number | null }[]
+  timelineBars: OccupancyTimelineBar[]
+}
+
+/** Lighter bundle for the reservations page — skips invoices, metrics, and billing reconcile. */
+export async function getStaffReservationsPageData(): Promise<StaffReservationsPageData> {
+  const empty: StaffReservationsPageData = {
+    reservations: [],
+    roomOptions: [],
+    occupancySpans: [],
+    timelineRooms: [],
+    timelineBars: [],
+  }
+
+  const profile = await getProfile()
+  if (!profile?.hotel_id) return empty
+
+  try {
+    const supabase = await createClient()
+    const admin = tryCreateAdminClient()
+    const hotelId = profile.hotel_id
+
+    const [roomsRes, reservationsRes, occupancySpans, timeline] = await Promise.all([
+      supabase
+        .from('rooms')
+        .select('*, room_categories(name, default_nightly_rate, default_monthly_rate)')
+        .eq('hotel_id', hotelId)
+        .order('number'),
+      supabase
+        .from('reservations')
+        .select('*, rooms(number), guests(email, phone, do_not_disturb)')
+        .eq('hotel_id', hotelId)
+        .order('check_in', { ascending: false })
+        .limit(clampLimit(DASHBOARD_HISTORY_LIMIT)),
+      getOccupancySpans(supabase, hotelId),
+      getOccupancyTimelineBars(supabase, hotelId),
+    ])
+
+    const dbRooms = (roomsRes.data ?? []) as DbRoom[]
+    const reservationRows = (reservationsRes.data ?? []) as unknown as ReservationRow[]
+    const inHouseGuestIds = reservationRows
+      .filter((r) => r.status === 'checked_in' && r.guest_id)
+      .map((r) => r.guest_id as string)
+    const folioMap = admin
+      ? await loadFolioSubtotalMap(admin, hotelId, inHouseGuestIds)
+      : new Map<string, number>()
+
+    return {
+      reservations: reservationRows.map((row) => mapReservation(row, folioMap)),
+      roomOptions: dbRooms.map((r) => ({
+        id: r.id,
+        number: r.number,
+        nightlyRate:
+          r.nightly_rate != null
+            ? Number(r.nightly_rate)
+            : Number(r.room_categories?.default_nightly_rate ?? 0),
+        monthlyRate:
+          r.monthly_rate != null
+            ? Number(r.monthly_rate)
+            : Number(r.room_categories?.default_monthly_rate ?? 0),
+      })),
+      occupancySpans,
+      timelineRooms: timeline.rooms,
+      timelineBars: timeline.bars,
+    }
+  } catch (err) {
+    console.error('[dashboard] getStaffReservationsPageData failed:', err)
+    return empty
   }
 }
