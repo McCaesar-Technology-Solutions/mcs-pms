@@ -58,7 +58,7 @@ Set in **Project → Settings → Environment Variables** (Production):
 | `DISABLE_PUBLIC_SIGNUP` | Recommended | Set `true` after first owner exists |
 | `ARKESEL_API_KEY` + `ARKESEL_SENDER_ID` | Yes (with Resend or Termii) | Ghana SMS |
 | `TERMII_API_KEY` + `TERMII_WHATSAPP_SENDER` | Yes when using WhatsApp | WhatsApp (Termii) |
-| `TERMII_BASE_URL` | If Termii dashboard differs | Default `https://api.ng.termii.com` |
+| `TERMII_BASE_URL` | If Termii dashboard differs | Default `https://v4.api.termii.com` |
 | `NOTIFICATION_CHANNELS` | Recommended | `sms,whatsapp` |
 | `RESEND_API_KEY` + `RESEND_FROM` | Yes (with Arkesel) | Staff email invites, email MFA — **verified domain only** |
 | `SENTRY_DSN` | Recommended | Error monitoring |

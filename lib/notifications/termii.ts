@@ -1,4 +1,4 @@
-export const DEFAULT_TERMII_BASE_URL = 'https://api.ng.termii.com'
+export const DEFAULT_TERMII_BASE_URL = 'https://v4.api.termii.com'
 
 export interface TermiiSendResult {
   success: boolean
@@ -7,8 +7,8 @@ export interface TermiiSendResult {
 }
 
 export function resolveTermiiBaseUrl(): string {
-  const raw = process.env.TERMII_BASE_URL?.trim()
-  return raw || DEFAULT_TERMII_BASE_URL
+  const raw = process.env.TERMII_BASE_URL?.trim() || DEFAULT_TERMII_BASE_URL
+  return raw.replace(/\/+$/, '')
 }
 
 export function isTermiiConfigured(): boolean {
