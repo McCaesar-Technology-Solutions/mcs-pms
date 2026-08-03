@@ -55,6 +55,15 @@ export async function createHousekeepingTask(input: {
   if (!profile?.hotel_id) return { success: false, error: 'Not authorized.' }
 
   const supabase = await createClient()
+  const { data: room } = await supabase
+    .from('rooms')
+    .select('id')
+    .eq('id', parsed.data.roomId)
+    .eq('hotel_id', profile.hotel_id)
+    .maybeSingle()
+
+  if (!room) return { success: false, error: 'Room not found at this property.' }
+
   const { data, error } = await supabase
     .from('housekeeping_tasks')
     .insert({

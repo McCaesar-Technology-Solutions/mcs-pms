@@ -32,6 +32,7 @@ export function ReservationLifecycleSettingsPanel({
   const [noShowPolicy, setNoShowPolicy] = useState<NoShowChargePolicy>('one_night')
   const [holdRoomAfterNoShow, setHoldRoomAfterNoShow] = useState(false)
   const [lifecycleV2, setLifecycleV2] = useState(false)
+  const [timezone, setTimezone] = useState('Africa/Accra')
 
   useEffect(() => {
     setHoldOnline(String(hotelSettings.holdDurationOnlineMinutes))
@@ -42,6 +43,7 @@ export function ReservationLifecycleSettingsPanel({
     setNoShowPolicy(hotelSettings.noShowChargePolicy)
     setHoldRoomAfterNoShow(hotelSettings.noShowHoldRoom)
     setLifecycleV2(hotelSettings.useLifecycleV2)
+    setTimezone(hotelSettings.timezone)
     setError(null)
     setSaved(false)
   }, [hotelSettings])
@@ -61,6 +63,7 @@ export function ReservationLifecycleSettingsPanel({
         noShowChargePolicy: noShowPolicy,
         noShowHoldRoom: holdRoomAfterNoShow,
         useLifecycleV2: lifecycleV2,
+        timezone: timezone.trim(),
       })
       if (!result.success) {
         setError(result.error)
@@ -174,6 +177,18 @@ export function ReservationLifecycleSettingsPanel({
                 value={archiveDays}
                 onChange={(e) => setArchiveDays(e.target.value)}
                 className="input-soft"
+              />
+            </FormField>
+            <FormField
+              label="Property timezone"
+              hint="IANA timezone for no-show and checkout crons (e.g. Africa/Accra)"
+            >
+              <input
+                type="text"
+                value={timezone}
+                onChange={(e) => setTimezone(e.target.value)}
+                className="input-soft"
+                placeholder="Africa/Accra"
               />
             </FormField>
           </div>

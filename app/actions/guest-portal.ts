@@ -20,7 +20,7 @@ import { stayNights, tokenExpiryISO } from '@/lib/stays/helpers'
 import { formatInvoiceNumber } from '@/lib/invoices/numbering'
 import { runNotifyTask } from '@/lib/notifications/notify-task'
 import type { ExportHotelInfo, InvoiceExportRow } from '@/lib/export/types'
-import { guestNeedsRulesAcceptance } from '@/app/actions/guest-rules'
+import { guestNeedsRulesAcceptance } from '@/lib/guest-rules/needs-acceptance'
 import { getGuestFromSession, submitGuestComplaint } from '@/app/actions/guest'
 import {
   GUEST_COMPLAINT_PHOTO_BUCKET,

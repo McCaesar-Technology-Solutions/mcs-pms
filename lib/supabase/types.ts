@@ -48,6 +48,8 @@ export type Database = {
           default_refundable: boolean
           default_penalty_nights: number
           use_lifecycle_v2: boolean
+          access_control_enabled: boolean
+          timezone: string
           created_at: string | null
         }
         Insert: {
@@ -88,6 +90,8 @@ export type Database = {
           default_refundable?: boolean
           default_penalty_nights?: number
           use_lifecycle_v2?: boolean
+          access_control_enabled?: boolean
+          timezone?: string
           created_at?: string | null
         }
         Update: {
@@ -128,6 +132,8 @@ export type Database = {
           default_refundable?: boolean
           default_penalty_nights?: number
           use_lifecycle_v2?: boolean
+          access_control_enabled?: boolean
+          timezone?: string
           created_at?: string | null
         }
         Relationships: [
@@ -694,6 +700,7 @@ export type Database = {
           checked_in_at: string | null
           checked_out_at: string | null
           folio_locked: boolean
+          room_held_until: string | null
           created_by: string | null
           created_at: string | null
         }
@@ -753,6 +760,7 @@ export type Database = {
           checked_in_at?: string | null
           checked_out_at?: string | null
           folio_locked?: boolean
+          room_held_until?: string | null
           created_by?: string | null
           created_at?: string | null
         }
@@ -812,6 +820,7 @@ export type Database = {
           checked_in_at?: string | null
           checked_out_at?: string | null
           folio_locked?: boolean
+          room_held_until?: string | null
           created_by?: string | null
           created_at?: string | null
         }
@@ -1915,6 +1924,309 @@ export type Database = {
           raw_webhook_payload?: Json | null
           created_at?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      access_integrations: {
+        Row: {
+          id: string
+          hotel_id: string
+          provider: 'hikvision'
+          enabled: boolean
+          agent_token_hash: string | null
+          agent_token_prefix: string | null
+          agent_last_seen_at: string | null
+          agent_version: string | null
+          agent_hostname: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          hotel_id: string
+          provider?: 'hikvision'
+          enabled?: boolean
+          agent_token_hash?: string | null
+          agent_token_prefix?: string | null
+          agent_last_seen_at?: string | null
+          agent_version?: string | null
+          agent_hostname?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          hotel_id?: string
+          provider?: 'hikvision'
+          enabled?: boolean
+          agent_token_hash?: string | null
+          agent_token_prefix?: string | null
+          agent_last_seen_at?: string | null
+          agent_version?: string | null
+          agent_hostname?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      access_devices: {
+        Row: {
+          id: string
+          hotel_id: string
+          device_key: string
+          label: string
+          model: string | null
+          serial_number: string | null
+          firmware: string | null
+          last_seen_at: string | null
+          is_online: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          hotel_id: string
+          device_key: string
+          label: string
+          model?: string | null
+          serial_number?: string | null
+          firmware?: string | null
+          last_seen_at?: string | null
+          is_online?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          hotel_id?: string
+          device_key?: string
+          label?: string
+          model?: string | null
+          serial_number?: string | null
+          firmware?: string | null
+          last_seen_at?: string | null
+          is_online?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      access_points: {
+        Row: {
+          id: string
+          hotel_id: string
+          device_key: string
+          door_no: number
+          label: string
+          zone: 'unit' | 'lobby' | 'gate' | 'elevator' | 'other'
+          room_id: string | null
+          grants_shared_access: boolean
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          hotel_id: string
+          device_key: string
+          door_no?: number
+          label: string
+          zone?: 'unit' | 'lobby' | 'gate' | 'elevator' | 'other'
+          room_id?: string | null
+          grants_shared_access?: boolean
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          hotel_id?: string
+          device_key?: string
+          door_no?: number
+          label?: string
+          zone?: 'unit' | 'lobby' | 'gate' | 'elevator' | 'other'
+          room_id?: string | null
+          grants_shared_access?: boolean
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      access_credentials: {
+        Row: {
+          id: string
+          hotel_id: string
+          guest_id: string | null
+          reservation_id: string | null
+          employee_no: string
+          display_name: string
+          card_no: string | null
+          has_pin: boolean
+          valid_from: string
+          valid_to: string
+          status: 'pending' | 'active' | 'revoking' | 'revoked' | 'error'
+          sync_status: 'pending' | 'synced' | 'failed'
+          last_error: string | null
+          last_synced_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          hotel_id: string
+          guest_id?: string | null
+          reservation_id?: string | null
+          employee_no: string
+          display_name: string
+          card_no?: string | null
+          has_pin?: boolean
+          valid_from: string
+          valid_to: string
+          status?: 'pending' | 'active' | 'revoking' | 'revoked' | 'error'
+          sync_status?: 'pending' | 'synced' | 'failed'
+          last_error?: string | null
+          last_synced_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          hotel_id?: string
+          guest_id?: string | null
+          reservation_id?: string | null
+          employee_no?: string
+          display_name?: string
+          card_no?: string | null
+          has_pin?: boolean
+          valid_from?: string
+          valid_to?: string
+          status?: 'pending' | 'active' | 'revoking' | 'revoked' | 'error'
+          sync_status?: 'pending' | 'synced' | 'failed'
+          last_error?: string | null
+          last_synced_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      access_jobs: {
+        Row: {
+          id: string
+          hotel_id: string
+          credential_id: string | null
+          job_type:
+            | 'provision'
+            | 'revoke'
+            | 'update_validity'
+            | 'assign_card'
+            | 'unlock'
+            | 'sync_device'
+          status: 'pending' | 'claimed' | 'succeeded' | 'failed' | 'dead' | 'cancelled'
+          priority: number
+          payload: Json
+          result: Json | null
+          idempotency_key: string | null
+          attempts: number
+          max_attempts: number
+          next_retry_at: string
+          claimed_at: string | null
+          claimed_by: string | null
+          last_error: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          hotel_id: string
+          credential_id?: string | null
+          job_type:
+            | 'provision'
+            | 'revoke'
+            | 'update_validity'
+            | 'assign_card'
+            | 'unlock'
+            | 'sync_device'
+          status?: 'pending' | 'claimed' | 'succeeded' | 'failed' | 'dead' | 'cancelled'
+          priority?: number
+          payload?: Json
+          result?: Json | null
+          idempotency_key?: string | null
+          attempts?: number
+          max_attempts?: number
+          next_retry_at?: string
+          claimed_at?: string | null
+          claimed_by?: string | null
+          last_error?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          hotel_id?: string
+          credential_id?: string | null
+          job_type?:
+            | 'provision'
+            | 'revoke'
+            | 'update_validity'
+            | 'assign_card'
+            | 'unlock'
+            | 'sync_device'
+          status?: 'pending' | 'claimed' | 'succeeded' | 'failed' | 'dead' | 'cancelled'
+          priority?: number
+          payload?: Json
+          result?: Json | null
+          idempotency_key?: string | null
+          attempts?: number
+          max_attempts?: number
+          next_retry_at?: string
+          claimed_at?: string | null
+          claimed_by?: string | null
+          last_error?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      access_events: {
+        Row: {
+          id: string
+          hotel_id: string
+          device_key: string | null
+          door_no: number | null
+          employee_no: string | null
+          guest_id: string | null
+          event_type: string
+          success: boolean
+          raw: Json | null
+          occurred_at: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          hotel_id: string
+          device_key?: string | null
+          door_no?: number | null
+          employee_no?: string | null
+          guest_id?: string | null
+          event_type: string
+          success?: boolean
+          raw?: Json | null
+          occurred_at?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          hotel_id?: string
+          device_key?: string | null
+          door_no?: number | null
+          employee_no?: string | null
+          guest_id?: string | null
+          event_type?: string
+          success?: boolean
+          raw?: Json | null
+          occurred_at?: string
+          created_at?: string
         }
         Relationships: []
       }

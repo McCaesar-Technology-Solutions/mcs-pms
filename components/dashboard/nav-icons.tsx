@@ -15,6 +15,7 @@ import {
   MessageCircle,
   Package,
   Receipt,
+  KeyRound,
 } from 'lucide-react'
 import type { NavIconKey } from '@/lib/navigation'
 
@@ -34,6 +35,7 @@ export const navIcons: Record<NavIconKey, LucideIcon> = {
   'message-circle': MessageCircle,
   package: Package,
   receipt: Receipt,
+  'key-round': KeyRound,
 }
 
 export function getNavIcon(key: NavIconKey): LucideIcon {

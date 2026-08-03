@@ -95,6 +95,11 @@ export const ALLOWED_TRANSITIONS: Partial<
       requiredRole: 'system',
       sideEffects: ['room-status', 'notifications', 'folio'],
     },
+    dispute_hold: {
+      eventType: 'dispute_hold_started',
+      requiredRole: 'manager',
+      sideEffects: ['room-status'],
+    },
     walkout: {
       eventType: 'walkout_detected',
       requiredRole: 'staff',
@@ -106,6 +111,11 @@ export const ALLOWED_TRANSITIONS: Partial<
       eventType: 'checkout_initiated',
       requiredRole: 'staff',
       sideEffects: ['folio', 'room-status'],
+    },
+    dispute_hold: {
+      eventType: 'dispute_hold_started',
+      requiredRole: 'manager',
+      sideEffects: ['room-status'],
     },
     walkout: {
       eventType: 'walkout_detected',
@@ -121,6 +131,18 @@ export const ALLOWED_TRANSITIONS: Partial<
     walkout: {
       eventType: 'walkout_detected',
       requiredRole: 'staff',
+      sideEffects: ['inventory', 'room-status', 'folio'],
+    },
+  },
+  dispute_hold: {
+    checkout_in_progress: {
+      eventType: 'checkout_initiated',
+      requiredRole: 'manager',
+      sideEffects: ['folio', 'room-status'],
+    },
+    walkout: {
+      eventType: 'walkout_detected',
+      requiredRole: 'manager',
       sideEffects: ['inventory', 'room-status', 'folio'],
     },
   },

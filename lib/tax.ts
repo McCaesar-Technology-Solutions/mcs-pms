@@ -1,11 +1,22 @@
 // Ghana Revenue Authority (GRA) indirect tax rates for hospitality.
-// Levies (NHIL, GETFund, COVID-19 Health Recovery Levy) are charged on the
-// taxable value; VAT is then charged on the value INCLUSIVE of those levies.
-// The E-Levy was abolished in 2025, so it is kept in the schema but rated 0.
+// Confirm COVID Health Recovery Levy applicability with your tax advisor — set
+// GRA_COVID_LEVY_RATE=0 on Vercel if your property class no longer applies it.
+function covidLevyRate(): number {
+  const raw = process.env.GRA_COVID_LEVY_RATE?.trim()
+  if (raw === '0' || raw === 'false') return 0
+  if (raw) {
+    const n = Number(raw)
+    if (!Number.isNaN(n) && n >= 0) return n
+  }
+  return 0.01
+}
+
 export const GRA_RATES = {
   nhil: 0.025,
   getfund: 0.025,
-  covid: 0.01,
+  get covid() {
+    return covidLevyRate()
+  },
   vat: 0.15,
   elevy: 0,
 } as const
@@ -13,13 +24,20 @@ export const GRA_RATES = {
 export type VatMode = 'exclusive' | 'inclusive'
 
 /** Multiplier from pre-tax base to gross total (exclusive mode). */
-export const GRA_GROSS_MULTIPLIER =
-  1 +
-  GRA_RATES.nhil +
-  GRA_RATES.getfund +
-  GRA_RATES.covid +
-  GRA_RATES.vat * (1 + GRA_RATES.nhil + GRA_RATES.getfund + GRA_RATES.covid) +
-  GRA_RATES.elevy
+export function graGrossMultiplier(): number {
+  const covid = GRA_RATES.covid
+  return (
+    1 +
+    GRA_RATES.nhil +
+    GRA_RATES.getfund +
+    covid +
+    GRA_RATES.vat * (1 + GRA_RATES.nhil + GRA_RATES.getfund + covid) +
+    GRA_RATES.elevy
+  )
+}
+
+/** @deprecated Use graGrossMultiplier() when COVID rate may vary by env. */
+export const GRA_GROSS_MULTIPLIER = graGrossMultiplier()
 
 export interface InvoiceTaxes {
   subtotal: number
@@ -64,7 +82,7 @@ export function computeInvoiceTaxes(amount: number, mode: VatMode = 'exclusive')
 
   if (mode === 'inclusive') {
     const gross = value
-    const base = round2(gross / GRA_GROSS_MULTIPLIER)
+    const base = round2(gross / graGrossMultiplier())
     const taxes = taxesFromBase(base)
     const componentSum = round2(
       taxes.subtotal + taxes.nhil + taxes.getfund + taxes.covid + taxes.vat + taxes.elevy,

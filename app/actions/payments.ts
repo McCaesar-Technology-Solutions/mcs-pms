@@ -7,7 +7,7 @@ import { consumeStaffAuthError } from '@/lib/auth/staff-session'
 import { writeAuditLog } from '@/lib/audit/log'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getGuestFromSession } from '@/app/actions/guest'
-import { guestNeedsRulesAcceptance } from '@/app/actions/guest-rules'
+import { guestNeedsRulesAcceptance } from '@/lib/guest-rules/needs-acceptance'
 import { isPaymentsEnabled } from '@/lib/payments/enabled'
 import {
   initiateInvoiceOnlinePayment,

@@ -305,6 +305,7 @@ export async function updateReservation(id: string, input: unknown): Promise<Cre
     .from('reservations')
     .select('*')
     .eq('id', id)
+    .eq('hotel_id', profile.hotel_id)
     .maybeSingle()
 
   if (!existing) return { success: false, error: 'Reservation not found.' }
@@ -561,6 +562,7 @@ export async function cancelReservation(
       'hotel_id, guest_name, check_in, check_out, status, guest_id, room_id, amount_paid, nightly_rate, total_amount, guests(phone)',
     )
     .eq('id', id)
+    .eq('hotel_id', profile.hotel_id!)
     .maybeSingle()
 
   if (!reservation) return { success: false, error: 'Reservation not found.' }

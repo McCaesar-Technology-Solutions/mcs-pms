@@ -71,6 +71,8 @@ export type ReservationAction =
   | 'approve_late_checkout'
   | 'complete_checkout'
   | 'record_walkout'
+  | 'dispute_hold'
+  | 'release_no_show_room'
 
 const EDITABLE_STATUSES: ReservationStatus[] = [
   'inquiry',
@@ -153,9 +155,19 @@ export function getAvailableActions(
       break
     case 'checked_in':
       actions.push('begin_checkout', 'extend_stay', 'change_room', 'record_walkout')
+      if (role === 'manager') actions.push('dispute_hold')
       break
     case 'overstay':
       actions.push('begin_checkout', 'approve_late_checkout', 'record_walkout')
+      if (role === 'manager') actions.push('dispute_hold')
+      break
+    case 'dispute_hold':
+      if (role === 'manager') {
+        actions.push('begin_checkout', 'record_walkout')
+      }
+      break
+    case 'no_show':
+      if (role !== 'guest') actions.push('release_no_show_room')
       break
     case 'checkout_in_progress':
       actions.push('complete_checkout', 'record_walkout')

@@ -9,6 +9,12 @@ import { createPostCheckoutCleanTask } from '@/lib/housekeeping/checkout-task'
 import { phoneSchema } from '@/lib/phone'
 import { generatePortalPin } from '@/lib/guest/portal-pin'
 import { storeGuestPortalPin } from '@/lib/data/guest-room-access'
+import {
+  provisionGuestAccess,
+  revokeGuestAccess,
+  updateGuestAccessValidity,
+  rematerializeGuestAccessForRoomMove,
+} from '@/lib/access/lifecycle'
 import { findAvailableRooms, roomHasClash } from '@/lib/data/occupancy'
 import { calculateStayTotal, type RateType } from '@/lib/pricing/stay-totals'
 import { getRoomRates } from '@/lib/pricing/room-rates'
@@ -18,6 +24,7 @@ import {
   todayISO,
   tokenExpiryISO,
 } from '@/lib/stays/helpers'
+import { addDaysISO, hotelTodayISO, normalizeHotelTimezone } from '@/lib/hotel-time'
 import { revalidateStayViews } from '@/lib/stays/revalidate'
 import {
   linkFolioChargesToInvoice,
@@ -164,7 +171,9 @@ export async function searchGuests(query: string): Promise<
   StayActionResult<{ id: string; name: string; phone: string | null; email: string | null }[]>
 > {
   const { profile } = await requireManager()
-  if (!profile?.hotel_id) return { success: false, error: 'Not authorized.' }
+  if (!profile?.hotel_id || !['owner', 'manager', 'receptionist'].includes(profile.role)) {
+    return { success: false, error: 'Not authorized.' }
+  }
 
   const q = query.trim().replace(/[,()]/g, ' ').trim()
   if (q.length < 2) return { success: true, data: [] }
@@ -408,6 +417,17 @@ export async function checkInStay(
     entityId: reservationId,
     action: 'checked_in',
     summary: `${guestName} checked in${roomRow?.number ? ` — Room ${roomRow.number}` : ''} (${reservation.check_in} → ${reservation.check_out})`,
+  })
+
+  void provisionGuestAccess({
+    hotelId: profile.hotel_id,
+    guestId,
+    reservationId,
+    roomId: reservation.room_id,
+    guestName,
+    checkIn: reservation.check_in,
+    checkOut: reservation.check_out,
+    doorPin: portalPin,
   })
 
   return { success: true, data: { loginUrl, token, guestId, portalPin } }
@@ -770,6 +790,12 @@ async function executeStayCheckout(
         token_expires_at: new Date().toISOString(),
       })
       .eq('id', reservation.guest_id)
+
+    void revokeGuestAccess({
+      hotelId: reservation.hotel_id,
+      guestId: reservation.guest_id,
+      reservationId: reservation.id,
+    })
   }
 
   if (reservation.room_id) {
@@ -1354,6 +1380,14 @@ export async function extendStay(
       .from('guests')
       .update({ check_out: newCheckOut, token_expires_at: tokenExpiresAt })
       .eq('id', reservation.guest_id)
+
+    void updateGuestAccessValidity({
+      hotelId: profile.hotel_id,
+      guestId: reservation.guest_id,
+      reservationId,
+      checkIn: reservation.check_in,
+      checkOut: newCheckOut,
+    })
   }
 
   await appendReservationEvent({
@@ -1446,6 +1480,16 @@ export async function moveStayRoom(
 
   if (reservation.guest_id) {
     await admin.from('guests').update({ room_id: newRoomId }).eq('id', reservation.guest_id)
+
+    void rematerializeGuestAccessForRoomMove({
+      hotelId: profile.hotel_id,
+      guestId: reservation.guest_id,
+      reservationId,
+      guestName: reservation.guest_name,
+      newRoomId,
+      checkIn: reservation.check_in,
+      checkOut: reservation.check_out,
+    })
   }
 
   if (oldRoomId) {
@@ -1519,7 +1563,7 @@ export async function markNoShow(
   options?: { depositDisposition?: import('@/lib/billing/deposit-disposition').DepositDisposition },
 ): Promise<StayActionResult> {
   const { supabase, profile } = await requireManager()
-  if (!profile || !['owner', 'manager', 'receptionist'].includes(profile.role)) {
+  if (!profile?.hotel_id || !['owner', 'manager', 'receptionist'].includes(profile.role)) {
     return { success: false, error: 'Not authorized.' }
   }
 
@@ -1527,6 +1571,7 @@ export async function markNoShow(
     .from('reservations')
     .select('id, status, check_in, guest_name, guest_id, hotel_id, amount_paid')
     .eq('id', reservationId)
+    .eq('hotel_id', profile.hotel_id)
     .maybeSingle()
 
   if (!reservation) return { success: false, error: 'Reservation not found.' }
@@ -1575,7 +1620,7 @@ export async function markNoShow(
 
   const { data: hotelPolicy } = await admin
     .from('hotels')
-    .select('no_show_charge_policy')
+    .select('no_show_charge_policy, no_show_hold_room')
     .eq('id', reservation.hotel_id)
     .maybeSingle()
 
@@ -1588,6 +1633,7 @@ export async function markNoShow(
     payload: {
       amountPaid,
       policy: hotelPolicy?.no_show_charge_policy ?? 'one_night',
+      holdRoom: hotelPolicy?.no_show_hold_room ?? false,
     },
   })
   if (!noShow.success) {
@@ -1615,6 +1661,115 @@ export async function markNoShow(
     entityId: reservationId,
     action: 'no_show',
     summary: `${reservation.guest_name}: marked no-show (arrival ${reservation.check_in})`,
+  })
+
+  return { success: true }
+}
+
+export async function beginDisputeHold(reservationId: string): Promise<StayActionResult> {
+  const { profile, userId } = await requireManager()
+  if (!profile?.hotel_id || !userId || !['owner', 'manager'].includes(profile.role)) {
+    return { success: false, error: 'Not authorized.' }
+  }
+
+  const admin = createAdminClient()
+  const { data: reservation } = await admin
+    .from('reservations')
+    .select('id, hotel_id, status, guest_name')
+    .eq('id', reservationId)
+    .eq('hotel_id', profile.hotel_id)
+    .maybeSingle()
+
+  if (!reservation) return { success: false, error: 'Reservation not found.' }
+  if (reservation.status !== 'checked_in' && reservation.status !== 'overstay') {
+    return { success: false, error: 'Dispute hold applies only to in-house stays.' }
+  }
+
+  const result = await transitionReservation({
+    reservationId,
+    hotelId: profile.hotel_id,
+    toStatus: 'dispute_hold',
+    actorId: userId,
+    actorRole: normalizeActorRole(profile.role),
+    payload: { reason: 'billing_dispute' },
+  })
+
+  if (!result.success) return { success: false, error: result.error ?? 'Could not start dispute hold.' }
+
+  revalidateStayViews()
+  void writeAuditLog({
+    hotelId: profile.hotel_id,
+    actorId: userId,
+    actorName: profile.name,
+    entityType: 'reservation',
+    entityId: reservationId,
+    action: 'dispute_hold_started',
+    summary: `${reservation.guest_name}: billing dispute hold`,
+  })
+
+  return { success: true }
+}
+
+export async function releaseNoShowRoomHold(reservationId: string): Promise<StayActionResult> {
+  const { profile, userId } = await requireManager()
+  if (!profile?.hotel_id || !userId || !['owner', 'manager', 'receptionist'].includes(profile.role)) {
+    return { success: false, error: 'Not authorized.' }
+  }
+
+  const admin = createAdminClient()
+  const { data: reservation } = await admin
+    .from('reservations')
+    .select('id, hotel_id, status, room_id, guest_name, room_held_until')
+    .eq('id', reservationId)
+    .eq('hotel_id', profile.hotel_id)
+    .maybeSingle()
+
+  if (!reservation) return { success: false, error: 'Reservation not found.' }
+  if (reservation.status !== 'no_show' || !reservation.room_held_until) {
+    return { success: false, error: 'This reservation is not holding a room after no-show.' }
+  }
+
+  await admin
+    .from('reservations')
+    .update({ room_held_until: null })
+    .eq('id', reservationId)
+    .eq('hotel_id', profile.hotel_id)
+
+  if (reservation.room_id) {
+    const { data: hotelRow } = await admin
+      .from('hotels')
+      .select('timezone')
+      .eq('id', profile.hotel_id)
+      .maybeSingle()
+    const tz = normalizeHotelTimezone(hotelRow?.timezone)
+    const today = hotelTodayISO(tz)
+    const { roomHasClash } = await import('@/lib/data/occupancy')
+    const stillBlocked = await roomHasClash(
+      admin,
+      profile.hotel_id,
+      reservation.room_id,
+      today,
+      addDaysISO(today, 1),
+      { excludeReservationId: reservationId },
+    )
+    if (!stillBlocked) {
+      await admin
+        .from('rooms')
+        .update({ status: 'available', updated_by: userId })
+        .eq('id', reservation.room_id)
+        .eq('hotel_id', profile.hotel_id)
+    }
+  }
+
+  revalidateStayViews()
+  void writeAuditLog({
+    hotelId: profile.hotel_id,
+    actorId: userId,
+    actorName: profile.name,
+    entityType: 'reservation',
+    entityId: reservationId,
+    action: 'no_show_room_released',
+    summary: `${reservation.guest_name}: no-show room hold released`,
   })
 
   return { success: true }

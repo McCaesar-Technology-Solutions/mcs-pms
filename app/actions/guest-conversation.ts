@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { loadVerifiedStaffProfile } from '@/lib/auth/staff-session'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getGuestFromSession } from '@/app/actions/guest'
-import { guestNeedsRulesAcceptance } from '@/app/actions/guest-rules'
+import { guestNeedsRulesAcceptance } from '@/lib/guest-rules/needs-acceptance'
 import { ensureGuestConversation } from '@/lib/guest-conversation/ensure'
 import {
   assertRateLimit,

@@ -186,6 +186,17 @@ You can **add, edit, and delete** rooms. Managers cannot delete rooms.
 
 ---
 
+## 5b. Access control (Hikvision)
+
+**Path:** `/owner/access` — full setup: [access-control.md](access-control.md)
+
+1. Enable Hikvision sync and rotate the agent token for the on-site LAN agent.
+2. Map doors (device key + door number → room or lobby/gate).
+3. Check-in/out enrolls and revokes guests automatically — no iVMS for day-to-day enrollment.
+4. Use Access for remote unlock, card assign, and sync status.
+
+---
+
 ## 6. Guests
 
 **Path:** `/owner/guests`

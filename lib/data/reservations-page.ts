@@ -113,6 +113,7 @@ function mapReservation(row: ReservationRow, folioMap: Map<string, number>): Res
     createdAt: row.created_at ?? new Date().toISOString(),
     updatedAt: row.created_at ?? new Date().toISOString(),
     guestDoNotDisturb: Boolean(row.guests?.do_not_disturb),
+    roomHeldUntil: row.room_held_until ?? null,
   }
 }
 

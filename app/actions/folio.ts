@@ -91,7 +91,9 @@ export async function postGuestCharge(input: unknown): Promise<FolioActionResult
 
 export async function getGuestFolioCharges(guestId: string, limit?: number) {
   const profile = await getVerifiedProfile()
-  if (!profile?.hotel_id) return []
+  if (!profile?.hotel_id || !['owner', 'manager', 'receptionist'].includes(profile.role)) {
+    return []
+  }
 
   const supabase = await createClient()
   const { data } = await supabase

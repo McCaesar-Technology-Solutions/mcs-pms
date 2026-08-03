@@ -19,10 +19,12 @@ import {
 } from '@/app/actions/reservations'
 import { initiateStaffDepositPayment } from '@/app/actions/payments'
 import {
+  beginDisputeHold,
   checkInStay,
   extendStay,
   markNoShow,
   moveStayRoom,
+  releaseNoShowRoomHold,
 } from '@/app/actions/stays'
 import { GuestSearchField } from '@/components/dashboard/guest-search-field'
 import { APP_FIELD_CLASS, FormField } from '@/components/ui/form-field'
@@ -44,6 +46,7 @@ import {
   canCheckIn,
   canCancelReservationStatus,
   canUpdateReservationFields,
+  getAvailableActions,
   reservationStatusLabel,
 } from '@/lib/reservations/lifecycle'
 import type { RoomOption } from '@/lib/data/dashboard'
@@ -888,6 +891,10 @@ function ReservationDrawer({
   const canCancel = canCancelReservationStatus(reservation.status)
   const canEdit = canUpdateReservationFields(reservation.status)
   const canCheckInNow = canCheckIn(reservation.status)
+  const lifecycleActions = getAvailableActions(reservation.status, staffRole)
+  const canDisputeHold = lifecycleActions.includes('dispute_hold')
+  const canReleaseNoShowRoom =
+    lifecycleActions.includes('release_no_show_room') && Boolean(reservation.roomHeldUntil)
   const editDatesValid = editCheckOut > editCheckIn
   const editNights = Math.max(
     1,
@@ -1469,6 +1476,71 @@ function ReservationDrawer({
                     <UserX className="h-4 w-4" />
                     Record walkout
                   </button>
+                  {canDisputeHold && (
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() => {
+                        if (
+                          !window.confirm(
+                            'Start billing dispute hold? The guest stays in-house but checkout is paused until resolved.',
+                          )
+                        ) {
+                          return
+                        }
+                        run(() => beginDisputeHold(reservation.id))
+                      }}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50 py-3 text-sm font-semibold text-amber-900"
+                    >
+                      Dispute hold
+                    </button>
+                  )}
+                </>
+              )}
+
+              {reservation.status === 'dispute_hold' &&
+                !checkingOut &&
+                !extending &&
+                !moving && (
+                <>
+                  <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-950">
+                    Billing dispute hold — resolve the dispute before completing checkout.
+                  </p>
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() =>
+                      run(
+                        () => beginCheckoutReservation(reservation.id),
+                        () => {
+                          onMutated()
+                          setCheckingOut(true)
+                        },
+                      )
+                    }
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#3C216C] py-3 text-sm font-semibold text-white shadow-elevation-1"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Begin checkout
+                  </button>
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() => {
+                      if (
+                        !window.confirm(
+                          'Record walkout? Guest left without paying. An invoice with balance due will be created and the room released.',
+                        )
+                      ) {
+                        return
+                      }
+                      run(() => recordWalkoutReservation(reservation.id, paymentMethod, earlyCheckout, includeTax))
+                    }}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 py-3 text-sm font-semibold text-red-800"
+                  >
+                    <UserX className="h-4 w-4" />
+                    Record walkout
+                  </button>
                 </>
               )}
 
@@ -1730,6 +1802,25 @@ function ReservationDrawer({
                     >
                       <UserX className="h-4 w-4" />
                       Mark no-show
+                    </button>
+                  ) : null}
+                  {!voidDialog && canReleaseNoShowRoom ? (
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() => {
+                        if (
+                          !window.confirm(
+                            'Release the room hold? The room will become available for new bookings.',
+                          )
+                        ) {
+                          return
+                        }
+                        run(() => releaseNoShowRoomHold(reservation.id))
+                      }}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-50 py-3 text-sm font-semibold text-emerald-900 ring-1 ring-emerald-200"
+                    >
+                      Release room hold
                     </button>
                   ) : null}
                   {!voidDialog && canCancel ? (

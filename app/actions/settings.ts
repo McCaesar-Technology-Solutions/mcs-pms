@@ -9,6 +9,7 @@ import type { NotificationSmsPrefs } from '@/lib/notifications/preferences'
 import { NOTIFICATION_TEMPLATE_KEYS } from '@/lib/notifications/preferences'
 import type { NotificationEmailPrefs } from '@/lib/notifications/email-preferences'
 import { EMAIL_STAFF_TEMPLATE_KEYS } from '@/lib/notifications/email-preferences'
+import { normalizeHotelTimezone } from '@/lib/hotel-time'
 import { writeAuditLog } from '@/lib/audit/log'
 
 export type SettingsActionResult = { success: true } | { success: false; error: string }
@@ -126,6 +127,7 @@ export async function updateReservationLifecycleSettings(input: {
   noShowChargePolicy: 'none' | 'one_night' | 'full_stay'
   noShowHoldRoom: boolean
   useLifecycleV2: boolean
+  timezone: string
 }): Promise<SettingsActionResult> {
   const parsed = updateReservationLifecycleSettingsSchema.safeParse(input)
   if (!parsed.success) {
@@ -147,6 +149,7 @@ export async function updateReservationLifecycleSettings(input: {
       no_show_charge_policy: parsed.data.noShowChargePolicy,
       no_show_hold_room: parsed.data.noShowHoldRoom,
       use_lifecycle_v2: parsed.data.useLifecycleV2,
+      timezone: normalizeHotelTimezone(parsed.data.timezone),
     })
     .eq('id', parsed.data.hotelId)
 

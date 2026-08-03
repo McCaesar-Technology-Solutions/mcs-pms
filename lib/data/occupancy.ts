@@ -77,11 +77,23 @@ async function roomsWithIndefiniteOccupant(
     .eq('hotel_id', hotelId)
     .in('status', STALE_IN_HOUSE_STATUSES)
     .lt('check_out', today)
-  if (opts.roomId) staleQuery = staleQuery.eq('room_id', opts.roomId)
-  if (opts.excludeReservationId) staleQuery = staleQuery.neq('id', opts.excludeReservationId)
 
-  const [{ data: indefinite }, { data: stale }] = await Promise.all([indefiniteQuery, staleQuery])
-  for (const r of [...(indefinite ?? []), ...(stale ?? [])]) {
+  let noShowHoldQuery = client
+    .from('reservations')
+    .select('id, room_id')
+    .eq('hotel_id', hotelId)
+    .eq('status', 'no_show')
+    .not('room_id', 'is', null)
+    .gte('room_held_until', today)
+  if (opts.roomId) noShowHoldQuery = noShowHoldQuery.eq('room_id', opts.roomId)
+  if (opts.excludeReservationId) noShowHoldQuery = noShowHoldQuery.neq('id', opts.excludeReservationId)
+
+  const [{ data: indefinite }, { data: stale }, { data: noShowHeld }] = await Promise.all([
+    indefiniteQuery,
+    staleQuery,
+    noShowHoldQuery,
+  ])
+  for (const r of [...(indefinite ?? []), ...(stale ?? []), ...(noShowHeld ?? [])]) {
     if (r.room_id) taken.add(r.room_id)
   }
   return taken
@@ -126,7 +138,7 @@ export async function getOccupancyToday(client: Client, hotelId: string): Promis
 export async function getOccupancySpans(client: Client, hotelId: string): Promise<OccupancySpan[]> {
   const today = todayISO()
   const tomorrow = tomorrowISO()
-  const [reservationsRes, guestsRes, indefiniteRes, staleInHouseRes] = await Promise.all([
+  const [reservationsRes, guestsRes, indefiniteRes, staleInHouseRes, noShowHoldRes] = await Promise.all([
     client
       .from('reservations')
       .select('room_id, check_in, check_out')
@@ -149,6 +161,13 @@ export async function getOccupancySpans(client: Client, hotelId: string): Promis
       .eq('hotel_id', hotelId)
       .in('status', STALE_IN_HOUSE_STATUSES)
       .lt('check_out', today),
+    client
+      .from('reservations')
+      .select('room_id, check_in')
+      .eq('hotel_id', hotelId)
+      .eq('status', 'no_show')
+      .not('room_id', 'is', null)
+      .gte('room_held_until', today),
   ])
 
   const spans: OccupancySpan[] = []
@@ -164,7 +183,11 @@ export async function getOccupancySpans(client: Client, hotelId: string): Promis
   }
   // Overstay / dispute-hold / stale in-house: guest still in the room despite a
   // past check_out. Surface them as occupied through today for the meter.
-  for (const r of [...(indefiniteRes.data ?? []), ...(staleInHouseRes.data ?? [])]) {
+  for (const r of [
+    ...(indefiniteRes.data ?? []),
+    ...(staleInHouseRes.data ?? []),
+    ...(noShowHoldRes.data ?? []),
+  ]) {
     if (r.room_id) {
       const checkIn = r.check_in && r.check_in < today ? r.check_in : today
       spans.push({ roomId: r.room_id, checkIn, checkOut: tomorrow, kind: 'reservation' })

@@ -19,6 +19,7 @@ Step-by-step guides for everyone who uses the property management system.
 | Accept staff invite | `/accept-invite?token=...` |
 | Guest portal | `/guest/enter?token=...` |
 | Mobile housekeeping | `/mobile/housekeeping` |
+| Access control (Hikvision) | `/owner/access` — [setup guide](access-control.md) |
 
 ## MOJO deposit policy (summary)
 

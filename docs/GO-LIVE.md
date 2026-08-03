@@ -37,7 +37,6 @@ Confirm **Owner → Billing → Online payments** shows “Payments disabled” 
 ### Pilot limitations (accepted for now)
 
 - No guest or staff-initiated Paystack checkout
-- Property timezone not yet supported — cron timing uses server UTC
 
 Do **not** set `PAYMENTS_ENABLED=true` until Phase 1 payment fixes are deployed.
 
@@ -45,7 +44,7 @@ Do **not** set `PAYMENTS_ENABLED=true` until Phase 1 payment fixes are deployed.
 
 ## 1. Supabase migrations
 
-Apply all **60** migrations in `supabase/migrations/` (`001` → `060`) in order.
+Apply all **62** migrations in `supabase/migrations/` (`001` → `062`) in order.
 
 **Fresh project:**
 
@@ -75,12 +74,21 @@ SELECT to_regclass('public.notification_outbox');
 -- Online payments table (060) — schema only; keep PAYMENTS_ENABLED off for pilot
 SELECT to_regclass('public.payments');
 
+-- Hikvision access control (061)
+SELECT to_regclass('public.access_jobs');
+SELECT column_name FROM information_schema.columns
+WHERE table_name = 'hotels' AND column_name = 'access_control_enabled';
+
+-- Property timezone + no-show room hold (062)
+SELECT column_name FROM information_schema.columns
+WHERE table_name = 'hotels' AND column_name = 'timezone';
+
 -- Realtime (015)
 SELECT tablename FROM pg_publication_tables
 WHERE pubname = 'supabase_realtime' ORDER BY tablename;
 ```
 
-Enable **Reservation lifecycle v2** per property after migrations are applied: Owner → Settings → Lifecycle → turn on v2 when ready.
+Enable **Reservation lifecycle v2** per property after migrations are applied: Owner → Settings → Lifecycle → turn on v2 and set **Property timezone** (default `Africa/Accra`).
 
 ---
 
@@ -105,6 +113,7 @@ Set in **Project → Settings → Environment Variables** (Production):
 | `NOTIFICATION_CHANNELS` | Recommended | `sms,whatsapp` |
 | `RESEND_API_KEY` + `RESEND_FROM` | Yes (with Arkesel) | Staff email invites, email MFA — **verified domain only** |
 | `SENTRY_DSN` | Recommended | Error monitoring |
+| `GRA_COVID_LEVY_RATE` | Optional | Set `0` if your tax advisor confirms COVID levy no longer applies (default `0.01`) |
 
 **Redeploy** after changing env vars.
 

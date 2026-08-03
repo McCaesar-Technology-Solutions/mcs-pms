@@ -192,6 +192,19 @@ You **cannot** add rooms, delete rooms, or change nightly rates.
 
 ---
 
+## 6b. Access control
+
+**Path:** `/receptionist/access`
+
+When Hikvision sync is enabled:
+
+- After check-in, door access is queued automatically (portal PIN is used as door PIN when the controller supports it).
+- Assign a physical **card number** on Access if the guest gets a card.
+- Use **Unlock** for remote door open (on-site agent must be online).
+- Watch credential status — **Retry** if a sync failed.
+
+---
+
 ## 7. Complaints
 
 **Path:** `/receptionist/complaints`

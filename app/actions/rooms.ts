@@ -289,11 +289,15 @@ export async function updateRoomStatus(
 
 export async function deleteRoom(id: string): Promise<RoomActionResult> {
   const { supabase, profile } = await requireStaff()
-  if (!profile || profile.role !== 'owner') {
+  if (!profile || profile.role !== 'owner' || !profile.hotel_id) {
     return { success: false, error: 'Only owners can delete rooms.' }
   }
 
-  const { error } = await supabase.from('rooms').delete().eq('id', id)
+  const { error } = await supabase
+    .from('rooms')
+    .delete()
+    .eq('id', id)
+    .eq('hotel_id', profile.hotel_id)
   if (error) return { success: false, error: error.message }
 
   revalidateRoomViews()

@@ -14,6 +14,7 @@ export type NavIconKey =
   | 'message-circle'
   | 'package'
   | 'receipt'
+  | 'key-round'
 
 /** Serializable nav item — safe to pass from Server → Client Components */
 export interface NavItem {
@@ -29,6 +30,7 @@ export const ownerNavigation: NavItem[] = [
   { name: 'Reservations', href: '/owner/reservations', icon: 'calendar' },
   { name: 'Guests', href: '/owner/guests', icon: 'users' },
   { name: 'Rooms', href: '/owner/rooms', icon: 'bed-double' },
+  { name: 'Access', href: '/owner/access', icon: 'key-round' },
   { name: 'Housekeeping', href: '/owner/housekeeping', icon: 'briefcase' },
   { name: 'Complaints', href: '/owner/complaints', icon: 'wrench' },
   { name: 'Billing', href: '/owner/billing', icon: 'banknote' },
@@ -48,11 +50,11 @@ export interface NavGroup {
 export const ownerNavGroups: NavGroup[] = [
   {
     label: 'Operations',
-    items: ownerNavigation.slice(0, 7),
+    items: ownerNavigation.slice(0, 8),
   },
   {
     label: 'Finance & admin',
-    items: ownerNavigation.slice(7),
+    items: ownerNavigation.slice(8),
   },
 ]
 
@@ -62,6 +64,7 @@ export const managerNavigation: NavItem[] = [
   { name: 'Reservations', href: '/manager/reservations', icon: 'calendar' },
   { name: 'Guests', href: '/manager/guests', icon: 'users' },
   { name: 'Rooms', href: '/manager/rooms', icon: 'bed-double' },
+  { name: 'Access', href: '/manager/access', icon: 'key-round' },
   { name: 'Housekeeping', href: '/manager/housekeeping', icon: 'briefcase' },
   { name: 'Complaints', href: '/manager/complaints', icon: 'wrench' },
   { name: 'Billing', href: '/manager/invoices', icon: 'banknote' },
@@ -76,6 +79,7 @@ export const receptionistNavigation: NavItem[] = [
   { name: 'Reservations', href: '/receptionist/reservations', icon: 'calendar' },
   { name: 'Guests', href: '/receptionist/guests', icon: 'users' },
   { name: 'Rooms', href: '/receptionist/rooms', icon: 'bed-double' },
+  { name: 'Access', href: '/receptionist/access', icon: 'key-round' },
   { name: 'Complaints', href: '/receptionist/complaints', icon: 'wrench' },
   { name: 'Inventory', href: '/receptionist/inventory', icon: 'package' },
 ]

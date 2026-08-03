@@ -204,6 +204,7 @@ export const updateReservationLifecycleSettingsSchema = z.object({
   noShowChargePolicy: z.enum(['none', 'one_night', 'full_stay']),
   noShowHoldRoom: z.boolean(),
   useLifecycleV2: z.boolean(),
+  timezone: z.string().min(3).max(64),
 })
 
 export const updateNotificationPrefsSchema = z.object({

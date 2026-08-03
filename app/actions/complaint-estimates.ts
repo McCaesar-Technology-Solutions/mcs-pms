@@ -227,6 +227,9 @@ async function persistComplaintEstimate(input: {
 export async function fetchComplaintEstimate(
   complaintId: string,
 ): Promise<EstimateActionResult<ComplaintEstimate | null>> {
+  const ctx = await requireInvoiceViewer(complaintId)
+  if ('error' in ctx) return { success: false, error: ctx.error ?? 'Not authorized.' }
+
   const estimate = await getComplaintEstimate(complaintId)
   return { success: true, data: estimate }
 }

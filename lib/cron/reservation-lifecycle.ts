@@ -2,9 +2,10 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { findAvailableRooms } from '@/lib/data/occupancy'
 import { appendReservationEvent, transitionReservation } from '@/lib/reservations/state-machine'
 import {
-  isPastHotelCheckoutTime,
-  todayISO,
-} from '@/lib/reservations/check-out-time'
+  hotelTodayISO,
+  isPastHotelLocalTime,
+  normalizeHotelTimezone,
+} from '@/lib/hotel-time'
 import { preArrivalPromotionCheckInDates } from '@/lib/cron/reservation-pre-arrival'
 import {
   guestInHouseOnOtherReservation,
@@ -21,6 +22,7 @@ type Admin = ReturnType<typeof createAdminClient>
 interface HotelLifecycleRow {
   id: string
   use_lifecycle_v2: boolean
+  timezone: string | null
   guest_portal_check_out_time: string | null
   no_show_time: string | null
   post_stay_archive_delay_days: number
@@ -32,15 +34,15 @@ async function lifecycleHotels(admin: Admin): Promise<HotelLifecycleRow[]> {
   const { data } = await admin
     .from('hotels')
     .select(
-      'id, use_lifecycle_v2, guest_portal_check_out_time, no_show_time, post_stay_archive_delay_days, no_show_charge_policy, no_show_hold_room',
+      'id, use_lifecycle_v2, timezone, guest_portal_check_out_time, no_show_time, post_stay_archive_delay_days, no_show_charge_policy, no_show_hold_room',
     )
     .eq('use_lifecycle_v2', true)
 
   return (data ?? []) as HotelLifecycleRow[]
 }
 
-function isPastNoShowTime(noShowTime: string | null): boolean {
-  return isPastHotelCheckoutTime(noShowTime ?? '23:59')
+function hotelTz(hotel: HotelLifecycleRow): string {
+  return normalizeHotelTimezone(hotel.timezone)
 }
 
 export async function processExpiredReservationHolds(): Promise<{ processed: number; skipped: number }> {
@@ -94,12 +96,12 @@ export async function processExpiredReservationHolds(): Promise<{ processed: num
 
 export async function processPreArrivalReservations(): Promise<{ processed: number; skipped: number }> {
   const admin = createAdminClient()
-  const today = todayISO()
-  const checkInDates = preArrivalPromotionCheckInDates(today)
   let processed = 0
   let skipped = 0
 
   for (const hotel of await lifecycleHotels(admin)) {
+    const today = hotelTodayISO(hotelTz(hotel))
+    const checkInDates = preArrivalPromotionCheckInDates(today)
     const { data: rows } = await admin
       .from('reservations')
       .select('id, hotel_id, room_id, check_in, check_out, guest_name')
@@ -144,12 +146,14 @@ export async function processPreArrivalReservations(): Promise<{ processed: numb
 
 export async function processNoShowReservations(): Promise<{ processed: number; skipped: number }> {
   const admin = createAdminClient()
-  const today = todayISO()
   let processed = 0
   let skipped = 0
 
   for (const hotel of await lifecycleHotels(admin)) {
-    if (!isPastNoShowTime(hotel.no_show_time)) continue
+    const tz = hotelTz(hotel)
+    if (!isPastHotelLocalTime(tz, hotel.no_show_time ?? '23:59')) continue
+
+    const today = hotelTodayISO(tz)
 
     const { data: inHouse } = await admin
       .from('reservations')
@@ -213,7 +217,6 @@ export async function processNoShowReservations(): Promise<{ processed: number; 
           holdRoom: hotel.no_show_hold_room,
           amountPaid: row.amount_paid,
         },
-        skipRoomStatus: hotel.no_show_hold_room,
       })
 
       if (result.success) processed++
@@ -226,12 +229,14 @@ export async function processNoShowReservations(): Promise<{ processed: number; 
 
 export async function processOverstayReservations(): Promise<{ processed: number; skipped: number }> {
   const admin = createAdminClient()
-  const today = todayISO()
   let processed = 0
   let skipped = 0
 
   for (const hotel of await lifecycleHotels(admin)) {
-    if (!isPastHotelCheckoutTime(hotel.guest_portal_check_out_time)) continue
+    const tz = hotelTz(hotel)
+    if (!isPastHotelLocalTime(tz, hotel.guest_portal_check_out_time)) continue
+
+    const today = hotelTodayISO(tz)
 
     const { data: rows } = await admin
       .from('reservations')
@@ -298,12 +303,14 @@ export async function processOverstayReservations(): Promise<{ processed: number
 
 export async function processAutoCheckoutPrompts(): Promise<{ processed: number; skipped: number }> {
   const admin = createAdminClient()
-  const today = todayISO()
   let processed = 0
   let skipped = 0
 
   for (const hotel of await lifecycleHotels(admin)) {
-    if (!isPastHotelCheckoutTime(hotel.guest_portal_check_out_time)) continue
+    const tz = hotelTz(hotel)
+    if (!isPastHotelLocalTime(tz, hotel.guest_portal_check_out_time)) continue
+
+    const today = hotelTodayISO(tz)
 
     const { data: rows } = await admin
       .from('reservations')

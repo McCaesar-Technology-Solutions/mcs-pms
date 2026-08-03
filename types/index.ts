@@ -159,6 +159,7 @@ export interface Reservation {
   createdAt: string
   updatedAt: string
   guestDoNotDisturb?: boolean
+  roomHeldUntil?: string | null
 }
 
 export type RateType = 'nightly' | 'monthly'
@@ -418,6 +419,7 @@ export interface DbReservation {
   ical_feed_id: string | null
   created_by: string | null
   created_at: string | null
+  room_held_until?: string | null
 }
 
 export interface Complaint {

@@ -16,7 +16,9 @@
     "seed": "node scripts/seed.mjs",
     "generate:pwa-icons": "node scripts/generate-pwa-icons.mjs",
     "desktop:dev": "npm run dev --prefix desktop",
-    "desktop:build": "npm run build --prefix desktop"
+    "desktop:build": "npm run build --prefix desktop",
+    "access-agent:install": "npm install --prefix services/hikvision-agent",
+    "access-agent:start": "npm start --prefix services/hikvision-agent"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",

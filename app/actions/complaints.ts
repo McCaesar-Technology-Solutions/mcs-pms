@@ -266,11 +266,33 @@ export async function assignComplaint(
   priority?: ComplaintPriority,
 ): Promise<ComplaintActionResult> {
   const profile = await requireStaffProfile()
-  if (!profile || !['owner', 'manager'].includes(profile.role)) {
+  if (!profile || !profile.hotel_id || !['owner', 'manager'].includes(profile.role)) {
     return { success: false, error: 'Not authorized.' }
   }
 
   const supabase = await createClient()
+  const { data: complaint } = await supabase
+    .from('complaints')
+    .select('id, hotel_id')
+    .eq('id', complaintId)
+    .eq('hotel_id', profile.hotel_id)
+    .maybeSingle()
+
+  if (!complaint) return { success: false, error: 'Complaint not found.' }
+
+  const { data: technician } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('id', technicianId)
+    .eq('hotel_id', profile.hotel_id)
+    .eq('role', 'technician')
+    .eq('is_active', true)
+    .maybeSingle()
+
+  if (!technician) {
+    return { success: false, error: 'Technician not found at this property.' }
+  }
+
   const updatePayload: {
     assigned_to: string
     status: 'assigned'
@@ -287,7 +309,11 @@ export async function assignComplaint(
   }
   if (priority) updatePayload.priority = priority
 
-  const { error } = await supabase.from('complaints').update(updatePayload).eq('id', complaintId)
+  const { error } = await supabase
+    .from('complaints')
+    .update(updatePayload)
+    .eq('id', complaintId)
+    .eq('hotel_id', profile.hotel_id)
   if (error) return { success: false, error: error.message }
 
   await supabase.from('complaint_events').insert({
@@ -324,7 +350,7 @@ export async function approveComplaint(
   roomStatus?: DbRoomStatus,
 ): Promise<ComplaintActionResult> {
   const profile = await requireStaffProfile()
-  if (!profile || !['owner', 'manager'].includes(profile.role)) {
+  if (!profile || !profile.hotel_id || !['owner', 'manager'].includes(profile.role)) {
     return { success: false, error: 'Not authorized.' }
   }
 
@@ -333,6 +359,7 @@ export async function approveComplaint(
     .from('complaints')
     .select('room_id, hotel_id, status, approval_stage, assigned_to, guest_id, guest_completion_approved_at')
     .eq('id', complaintId)
+    .eq('hotel_id', profile.hotel_id)
     .maybeSingle()
 
   if (!complaint || complaint.status !== 'pending_approval') {
@@ -405,6 +432,7 @@ export async function approveComplaint(
         .from('rooms')
         .update({ status: roomStatus, updated_by: profile.id })
         .eq('id', complaint.room_id)
+        .eq('hotel_id', profile.hotel_id)
     }
 
     if (complaint.hotel_id) {
@@ -496,7 +524,7 @@ export async function rejectComplaint(
   }
 
   const profile = await requireStaffProfile()
-  if (!profile || !['owner', 'manager'].includes(profile.role)) {
+  if (!profile || !profile.hotel_id || !['owner', 'manager'].includes(profile.role)) {
     return { success: false, error: 'Not authorized.' }
   }
 
@@ -505,6 +533,7 @@ export async function rejectComplaint(
     .from('complaints')
     .select('status, approval_stage')
     .eq('id', complaintId)
+    .eq('hotel_id', profile.hotel_id)
     .maybeSingle()
 
   if (!complaint || complaint.status !== 'pending_approval') {
@@ -644,6 +673,12 @@ export async function updateTechnicianComplaintStatus(
 export async function getComplaintEvents(
   complaintId: string,
 ): Promise<ComplaintActionResult<ComplaintEvent[]>> {
+  const profile = await requireStaffProfile()
+  if (!profile) return { success: false, error: consumeStaffAuthError() }
+
+  const access = await assertComplaintStaffAccess(complaintId, profile)
+  if (!access.ok) return { success: false, error: access.error }
+
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('complaint_events')
@@ -658,10 +693,16 @@ export async function getComplaintEvents(
 export async function getTechnicians(): Promise<
   ComplaintActionResult<{ id: string; name: string; specialty: string | null; phone: string | null }[]>
 > {
+  const profile = await requireStaffProfile()
+  if (!profile?.hotel_id || !['owner', 'manager', 'receptionist'].includes(profile.role)) {
+    return { success: false, error: 'Not authorized.' }
+  }
+
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('profiles')
     .select('id, name, specialty, phone')
+    .eq('hotel_id', profile.hotel_id)
     .eq('role', 'technician')
     .eq('is_active', true)
 
@@ -672,8 +713,17 @@ export async function getTechnicians(): Promise<
 export async function getHotelRooms(): Promise<
   ComplaintActionResult<{ id: string; number: string }[]>
 > {
+  const profile = await requireStaffProfile()
+  if (!profile?.hotel_id || !['owner', 'manager', 'receptionist'].includes(profile.role)) {
+    return { success: false, error: 'Not authorized.' }
+  }
+
   const supabase = await createClient()
-  const { data, error } = await supabase.from('rooms').select('id, number').order('number')
+  const { data, error } = await supabase
+    .from('rooms')
+    .select('id, number')
+    .eq('hotel_id', profile.hotel_id)
+    .order('number')
   if (error) return { success: false, error: error.message }
   return { success: true, data: data ?? [] }
 }

@@ -86,6 +86,8 @@ describe('reservation transition table', () => {
     expect(getTransitionDef('confirmed', 'no_show')?.eventType).toBe('marked_no_show')
     expect(getTransitionDef('confirmed', 'no_show')?.requiredRole).toBe('staff')
     expect(getTransitionDef('checked_in', 'walkout')?.eventType).toBe('walkout_detected')
+    expect(getTransitionDef('checked_in', 'dispute_hold')?.eventType).toBe('dispute_hold_started')
+    expect(getTransitionDef('dispute_hold', 'checkout_in_progress')?.eventType).toBe('checkout_initiated')
     expect(getTransitionDef('overstay', 'walkout')?.requiredRole).toBe('staff')
   })
 

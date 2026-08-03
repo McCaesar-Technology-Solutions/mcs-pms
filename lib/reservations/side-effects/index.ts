@@ -147,7 +147,9 @@ export async function runFolioSideEffect(ctx: SideEffectContext): Promise<void> 
 export function resolveRoomStatusForTransition(
   toStatus: ReservationStatus,
 ): 'occupied' | 'cleaning' | null {
-  if (toStatus === 'checked_in') return 'occupied'
+  if (toStatus === 'checked_in' || toStatus === 'dispute_hold' || toStatus === 'overstay') {
+    return 'occupied'
+  }
   if (toStatus === 'checked_out' || toStatus === 'walkout') return 'cleaning'
   return null
 }
@@ -175,6 +177,32 @@ export async function runPaymentSideEffect(ctx: SideEffectContext): Promise<void
       policy = (hotel?.no_show_charge_policy ?? 'one_night') as import('@/types').NoShowChargePolicy
     }
     await applyNoShowCharge(ctx.admin, ctx.reservation, policy, ctx.actorId)
+
+    if (ctx.payload?.holdRoom && ctx.reservation.room_id) {
+      const { data: hotelTzRow } = await ctx.admin
+        .from('hotels')
+        .select('timezone')
+        .eq('id', ctx.reservation.hotel_id)
+        .maybeSingle()
+      const { hotelTodayISO, addDaysISO, normalizeHotelTimezone } = await import('@/lib/hotel-time')
+      const tz = normalizeHotelTimezone(hotelTzRow?.timezone)
+      const heldUntil = addDaysISO(hotelTodayISO(tz), 1)
+
+      await ctx.admin
+        .from('reservations')
+        .update({ room_held_until: heldUntil })
+        .eq('id', ctx.reservation.id)
+        .eq('hotel_id', ctx.reservation.hotel_id)
+
+      await ctx.admin
+        .from('rooms')
+        .update({
+          status: 'occupied',
+          updated_by: ctx.actorId ?? null,
+        })
+        .eq('id', ctx.reservation.room_id)
+        .eq('hotel_id', ctx.reservation.hotel_id)
+    }
   }
 }
 

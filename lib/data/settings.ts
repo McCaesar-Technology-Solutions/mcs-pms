@@ -9,11 +9,12 @@ import {
   NOTIFICATION_TEMPLATE_KEYS,
   type NotificationSmsPrefs,
 } from '@/lib/notifications/preferences'
+import type { NotificationEmailPrefs } from '@/lib/notifications/email-preferences'
 import {
-  mergeEmailPrefs,
   EMAIL_STAFF_TEMPLATE_KEYS,
-  type NotificationEmailPrefs,
+  mergeEmailPrefs,
 } from '@/lib/notifications/email-preferences'
+import { normalizeHotelTimezone, DEFAULT_HOTEL_TIMEZONE } from '@/lib/hotel-time'
 
 export interface HotelSettings {
   id: string
@@ -37,6 +38,7 @@ export interface HotelSettings {
   noShowChargePolicy: NoShowChargePolicy
   noShowHoldRoom: boolean
   useLifecycleV2: boolean
+  timezone: string
 }
 
 export async function getActiveHotelSettings(): Promise<HotelSettings | null> {
@@ -66,6 +68,7 @@ export async function getActiveHotelSettings(): Promise<HotelSettings | null> {
     no_show_charge_policy?: string
     no_show_hold_room?: boolean
     use_lifecycle_v2?: boolean
+    timezone?: string
   }
   const storedPrefs = h.notification_sms_prefs ?? null
   const storedEmailPrefs = h.notification_email_prefs ?? null
@@ -98,6 +101,7 @@ export async function getActiveHotelSettings(): Promise<HotelSettings | null> {
     noShowChargePolicy: (h.no_show_charge_policy ?? 'one_night') as NoShowChargePolicy,
     noShowHoldRoom: h.no_show_hold_room ?? false,
     useLifecycleV2: h.use_lifecycle_v2 ?? false,
+    timezone: normalizeHotelTimezone(h.timezone ?? DEFAULT_HOTEL_TIMEZONE),
   }
 }
 

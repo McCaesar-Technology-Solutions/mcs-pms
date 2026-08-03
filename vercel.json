@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/reservation-archive",
       "schedule": "30 4 * * *"
+    },
+    {
+      "path": "/api/cron/access-jobs",
+      "schedule": "*/5 * * * *"
     }
   ]
 }
