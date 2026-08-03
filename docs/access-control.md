@@ -2,6 +2,16 @@
 
 Production path for the apartment with Hikvision already installed: **MOJO enqueues jobs → on-site agent applies ISAPI**.
 
+**Who uses Access in the app**
+
+| Role | Can do |
+|------|--------|
+| Owner | Full setup + day-to-day ops (`/owner/access`) |
+| Manager | Unlock, assign card, retry (`/manager/access`) |
+| Receptionist | Unlock, assign card, retry (`/receptionist/access`) |
+
+Day-to-day steps for staff are in the [owner](owner-guide.md#8-access-control-hikvision), [manager](manager-guide.md#8-access-ops-only), and [receptionist](receptionist-guide.md#8-access) guides. This page is the **technical setup** checklist.
+
 ## What was built
 
 | Piece | Location |

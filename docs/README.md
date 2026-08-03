@@ -1,13 +1,13 @@
-# MOJO Apartments — Staff documentation
+# MOJO Apartments — User documentation
 
-Step-by-step guides for everyone who uses the property management system.
+Simple guides for everyone who uses the property management system.
 
-| Role | Guide | Who it's for |
+| Role | Guide | Who it’s for |
 |------|--------|----------------|
-| **Owner** | [owner-guide.md](owner-guide.md) | Property owner — money, tax, portfolio, oversight |
-| **Manager** | [manager-guide.md](manager-guide.md) | Daily operations — guests, complaints, housekeeping |
+| **Owner** | [owner-guide.md](owner-guide.md) | Portfolio owner — money, tax, settings, oversight |
+| **Manager** | [manager-guide.md](manager-guide.md) | Daily ops — guests, complaints, housekeeping |
 | **Receptionist** | [receptionist-guide.md](receptionist-guide.md) | Front desk — bookings, check-in/out, room status |
-| **Technician** | [technician-guide.md](technician-guide.md) | Maintenance + housekeeping tasks on mobile |
+| **Technician** | [technician-guide.md](technician-guide.md) | Maintenance + housekeeping on phone |
 | **Guest** | [guest-guide.md](guest-guide.md) | In-house guests using the portal (link/QR) |
 
 ## Quick links
@@ -21,29 +21,27 @@ Step-by-step guides for everyone who uses the property management system.
 | Mobile housekeeping | `/mobile/housekeeping` |
 | Access control (Hikvision) | `/owner/access` — [setup guide](access-control.md) |
 
-## MOJO deposit policy (summary)
+## Deposit policy (summary)
 
-Use the same rules at every property:
+1. **Deposits are optional** unless property policy requires them.
+2. **Forfeit** — hotel keeps the deposit (cancel, no-show). Any front-desk staff can confirm forfeit.
+3. **Refund** — money returned to guest. **Owner only**.
+4. **Never cancel an in-house guest** — use **Check out** to settle the bill and free the room.
 
-1. **Deposits are optional** unless MOJO policy says otherwise for a channel (e.g. direct bookings).
-2. **Forfeit** — hotel keeps the deposit (cancel, no-show, or no-refund policy). Any staff can confirm forfeit.
-3. **Refund** — money returned to guest. **Owner only** in the system.
-4. **Never cancel an in-house guest** from Reservations — use **Check out** to settle the bill and free the room.
-
-Full payment workflows are in the Owner and Receptionist guides.
-
-## What each role can see (money)
+## Who can see money
 
 | | Owner | Manager | Receptionist |
 |--|:-----:|:-------:|:------------:|
 | Revenue on dashboard | ✓ | ✗ | ✗ |
-| Outstanding balance KPI | ✓ | ✓ | ✓ |
-| Record deposit on booking | ✓ | ✓ | ✓ |
+| Outstanding balance | ✓ | ✓ | ✓ |
+| Record deposit | ✓ | ✓ | ✓ |
 | Refund deposit | ✓ | ✗ | ✗ |
-| Billing / partial pay / refunds | ✓ | ✗ | ✗ |
+| Billing write (pay / refund) | ✓ | ✗ | ✗ |
+| Billing view / print | ✓ | ✓ (read-only) | ✗ |
 | GRA exports | ✓ | ✗ | ✗ |
 
 ## Need technical help?
 
 - [GO-LIVE.md](GO-LIVE.md) — production checklist before real traffic
-- [DEPLOYMENT.md](../DEPLOYMENT.md) — migrations (001–051), hosting, env vars
+- [access-control.md](access-control.md) — Hikvision agent setup
+- [DEPLOYMENT.md](../DEPLOYMENT.md) — hosting, migrations, env vars

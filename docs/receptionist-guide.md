@@ -1,6 +1,6 @@
 # Receptionist guide — MOJO Apartments
 
-You are the **front desk**. You handle bookings, check-in and check-out, guest contact, room status, and logging complaints. You do **not** handle billing, GRA, analytics, pricing, complaint approvals, or housekeeping boards.
+You are the **front desk**. You handle bookings, check-in and check-out, guest messages, room status, inventory issues, access ops, and logging complaints. You do **not** handle billing writes, GRA, analytics, pricing, complaint approvals, or the housekeeping board.
 
 ---
 
@@ -12,169 +12,159 @@ You are the **front desk**. You handle bookings, check-in and check-out, guest c
 2. Set name, password, phone.
 3. Land on **Reception Dashboard** (`/receptionist/dashboard`).
 
-One property only — no property switcher.
+One property only. In production you may need **SMS two-factor authentication**.
 
 ---
 
-## 2. Navigation
+## 2. Your menu
 
 | Menu | Path | Your job |
 |------|------|----------|
-| Dashboard | `/receptionist/dashboard` | Today’s picture, guest requests, arrivals |
-| Messages | `/receptionist/messages` | Guest stay chat |
-| Reservations | `/receptionist/reservations` | Bookings, payments at desk |
+| Dashboard | `/receptionist/dashboard` | Today, requests, issues |
+| Messages | `/receptionist/messages` | Guest stay chat + team chat |
+| Reservations | `/receptionist/reservations` | Bookings, deposits, check-in/out |
 | Guests | `/receptionist/guests` | Walk-ins, portal links, folio |
-| Rooms | `/receptionist/rooms` | Update room status |
-| Complaints | `/receptionist/complaints` | Log issues for guests |
+| Rooms | `/receptionist/rooms` | Update room status only |
+| Access | `/receptionist/access` | Unlock, cards, retry sync |
+| Complaints | `/receptionist/complaints` | Log and track issues |
+| Inventory | `/receptionist/inventory` | Issue stock / check levels |
 
 ### Top bar
 
-- **Search / ⌘K** — jump to pages or search reservations, guests, rooms, and complaints.
-- **Notifications** — check-outs today, open complaints, guest requests, messages.
-- **Profile menu** — phone, profile photo, sign out (no separate settings page).
+- **Search / ⌘K** — reservations, guests, rooms, complaints.
+- **Notifications** — check-outs, open complaints, guest requests, messages.
+- **Profile** — phone, photo, sign out (no Settings page).
 
-**Guest requests** from the portal appear on your dashboard under **Guest requests** (also linked from notifications).
-
-**Revenue is hidden** on your dashboard. You still see **Outstanding** balances so you know who owes money before they leave.
+**Revenue is hidden.** You still see **Outstanding** so you know who owes money before they leave.
 
 ---
 
 ## 3. Dashboard
 
-- Occupancy and bookings for today.
+Tabs / sections typically include:
+
+- **Today** — arrivals, departures, occupancy snapshot.
+- **Requests** — guest portal requests (housekeeping, late checkout, extension). Approve, deny, or schedule as trained.
+- **Issues** — recent complaints to track.
 - 14-day availability strip.
-- Recent complaints.
-- Use notifications bell for urgent items.
+- Notification bell for urgent items.
 
 ---
 
-## 4. Reservations — your main screen
+## 4. Messages
+
+**Path:** `/receptionist/messages`
+
+- Answer guest stay questions (towels, checkout time, Wi‑Fi).
+- Team chat with managers / other staff.
+- For a specific repair, open the complaint and message there — or tell the guest to use **Issues** in the portal.
+
+---
+
+## 5. Reservations — main screen
 
 **Path:** `/receptionist/reservations`
 
 ### Create a booking
 
 1. **New reservation**.
-2. Guest name, room, check-in and check-out dates.
-3. **Channel** — how they found you:
-   - Walk-in, Direct, Airbnb, Booking.com, Other.
-4. Rate fills from room; total shows automatically.
-5. Payment starts as **Unpaid**.
+2. Guest name, room, check-in / check-out.
+3. **Channel** — Walk-in, Direct, Airbnb, Booking.com, Other.
+4. Rate fills; payment starts **Unpaid**.
 
-### Payment column and filters
+### Payment filters
 
-Use **payment filters** (Unpaid, Deposit paid, Paid, etc.) to find guests who still owe money.
+Use Unpaid / Deposit paid / Paid / etc. to find balances before departure.
 
 ### Stay status badges
 
-| Status | Meaning |
-|--------|---------|
-| **Confirmed** / **Pre-arrival** | Expected arrival — use **Check in** |
-| **Provisional** | Hold on the room — collect deposit or cancel hold |
-| **Checked in** | In house — extend, move room, or **Begin checkout** |
-| **Checkout in progress** | Folio locked — **Complete checkout** |
-| **Overstay** | Past departure time — begin checkout urgently |
-| **Checked out** / **Post stay** | Departed — read-only history |
-
-Use the **status filter** pills at the top of the list to narrow the board.
+| Status | What to do |
+|--------|------------|
+| **Provisional** | Hold — collect deposit or cancel hold |
+| **Confirmed** / **Pre-arrival** | **Check in** |
+| **Checked in** | Extend, move room, or **Begin checkout** |
+| **Checkout in progress** | **Complete checkout** |
+| **Overstay** | Begin checkout urgently; approve late checkout if allowed |
+| **Checked out** / **Post stay** | History only |
 
 ### Record a deposit
 
-When guest pays part of the stay **before** arrival or at booking:
+1. Open reservation → **Payment** → **Record deposit**.
+2. Amount (≤ balance due) + method (cash, MoMo, card).
+3. Airbnb/Booking already paid? Use **Channel prepaid** when trained.
 
-1. Open reservation → **Payment** section.
-2. **Record deposit**.
-3. Enter amount (cannot be more than balance due) and method (cash, MTN MoMo, etc.).
-4. **Save deposit**.
+### Check in
 
-If guest paid via Airbnb/Booking and you have confirmation: **Channel prepaid** (only for those channels).
-
-### Check in a guest
-
-1. Open **Confirmed** or **Pre-arrival** booking.
-2. **Check in guest** — phone **required**.
-3. Give guest the **portal link** or **QR** (complaints and contact managers).
+1. Open Confirmed / Pre-arrival → **Check in guest**.
+2. Phone **required**.
+3. Give **portal link** or **QR**.
 4. Room should show **Occupied**.
+5. Door access queues automatically if Hikvision is on.
 
-### While guest is in house
+### While in house
 
-- **Extend stay** if they want more nights.
-- **Move room** if you need to reassign.
-- Post **folio** charges from **Guests** page (minibar, laundry) — they appear on this reservation before checkout.
+- **Extend stay** / **Move room**.
+- Post **folio** charges from **Guests**.
+- **Approve late checkout** when policy allows.
 
 ### Check out
 
-1. Open **Checked in** or **Checkout in progress** reservation.
-2. Read **Payment** box carefully:
+1. Read the Payment box:
 
    | Line | Meaning |
    |------|---------|
    | Room total | Nights × rate |
-   | Folio (unbilled) | Extra charges not yet on invoice |
-   | Estimated total | What checkout invoice will be based on |
+   | Folio (unbilled) | Extras not yet on invoice |
+   | Estimated total | Checkout invoice base |
    | Paid | Deposits already collected |
-   | **Outstanding** | What guest still owes **today** |
+   | **Outstanding** | What guest still owes today |
 
-3. Tap **Begin checkout** — folio locks so no new charges can be posted.
-4. Post any final folio charges if needed, then tap **Complete checkout**.
-5. Choose payment method.
-6. **Early checkout** if leaving before booked date.
-7. **Payment received now**:
-   - **On** if they pay everything now.
-   - **Off** if they will pay later (owner collects in Billing).
-8. **Confirm check-out** → room goes to **Cleaning**; invoice goes to owner.
+2. **Begin checkout** — folio locks.
+3. Final folio if needed → **Complete checkout**.
+4. Payment method + **Payment received now** on/off.
+5. **Early checkout** if leaving early.
+6. Confirm → room **Cleaning**; invoice to owner.
 
-**Overstay:** begin checkout urgently; tap **Approve late checkout** when appropriate.
+**Walkout** — guest already left without paying. Do not use during normal desk checkout.
 
-**Walkout:** if the guest left without paying, use **Record walkout** (do not use this at the desk during normal checkout).
+### Cancel / no-show
 
-### Cancel a booking
-
-- Only **Confirmed** bookings (not checked in).
-- If **no deposit**: confirm cancel.
-- If **deposit was collected**: you must choose:
-  - **Forfeit deposit** (hotel keeps) — you can do this.
-  - **Refund deposit** — **call the owner**; only they can refund in the system.
-
-### Mark no-show
-
-For **Confirmed** guest who did not arrive (check-in date is today or past):
-
-- Same deposit rules as cancel.
-- Does not apply to checked-in guests.
+- Only **Confirmed** / pre-arrival (never checked-in).
+- No deposit → confirm cancel.
+- With deposit → **Forfeit** (you can) or **Refund** (call owner).
+- Blocked if unpaid folio / invoice remains.
 
 ### Never do this
 
 | Wrong | Right |
 |-------|--------|
 | Cancel a checked-in guest | **Check out** |
-| Skip deposit question on cancel | Always pick forfeit or ask owner for refund |
-| Ignore Outstanding on checkout | Collect or confirm “pay later” with guest |
+| Skip deposit question | Forfeit or ask owner for refund |
+| Ignore Outstanding | Collect or confirm “pay later” |
 
 ---
 
-## 5. Guests
+## 6. Guests
 
 **Path:** `/receptionist/guests`
 
-### Walk-in (no prior reservation)
+### Walk-in
 
 1. **Walk-in check-in**.
 2. Name, phone, room, checkout date.
-3. Share portal link/QR.
+3. Share portal link / QR.
 
 ### Guest card
 
-- Edit phone/email.
-- **Guest folio** (in-house only):
-  - **Post to folio** — description + amount (₵).
-  - Charges add to checkout total automatically.
-- Copy/regenerate/revoke portal link.
-- Check out from guest page if easier than Reservations.
+- Edit phone / email.
+- **Guest folio** — post description + amount (₵). Cannot post while checkout in progress.
+- Copy / regenerate / revoke portal link; WhatsApp share.
+- **Export PII** if asked (erase is owner only).
+- Check out from guest page if easier.
 
 ---
 
-## 6. Rooms
+## 7. Rooms
 
 **Path:** `/receptionist/rooms`
 
@@ -192,91 +182,90 @@ You **cannot** add rooms, delete rooms, or change nightly rates.
 
 ---
 
-## 6b. Access control
+## 8. Access
 
 **Path:** `/receptionist/access`
 
 When Hikvision sync is enabled:
 
-- After check-in, door access is queued automatically (portal PIN is used as door PIN when the controller supports it).
-- Assign a physical **card number** on Access if the guest gets a card.
-- Use **Unlock** for remote door open (on-site agent must be online).
-- Watch credential status — **Retry** if a sync failed.
+- Check-in enrolls access; checkout revokes it.
+- Portal PIN is used as door PIN when the controller supports it.
+- **Assign card** if the guest gets a physical card.
+- **Unlock** for remote open (agent must be online).
+- **Retry** if credential sync failed.
 
 ---
 
-## 7. Complaints
+## 9. Complaints
 
 **Path:** `/receptionist/complaints`
 
-### Log for a guest
-
 1. **Log complaint**.
 2. Guest or room, category, priority, description.
-3. Manager gets notified and assigns a technician.
+3. Manager assigns a technician.
 
-### What you cannot do
-
-- Assign technicians.
-- Approve invoices or mark jobs resolved.
-
-You **can** track status and tell the guest what stage it is in.
+You can track status and message on the issue. You **cannot** assign technicians or approve invoices / completions.
 
 ---
 
-## 8. What receptionists cannot do
+## 10. Inventory
+
+**Path:** `/receptionist/inventory`
+
+- Check stock levels.
+- **Issue** stock when supplies are used (front desk / housekeeping).
+- You **cannot** create new items or edit item details — ask a manager.
+
+---
+
+## 11. What receptionists cannot do
 
 | Cannot | Who can |
 |--------|---------|
-| Billing, GRA, analytics | Owner |
+| Billing payments / GRA / analytics | Owner |
 | Change room prices / add-delete rooms | Owner / Manager |
 | Approve complaints | Manager |
 | Housekeeping kanban | Manager |
 | Refund deposits | Owner |
 | Invite staff | Owner / Manager |
+| Access setup (token / maps) | Owner |
+| Night / period audits | Owner / Manager |
 
 ---
 
-## 9. Shift checklist
+## 12. Shift checklist
 
 ### Start of shift
 
-- [ ] Open Dashboard → read notifications.
-- [ ] Reservations → filter **Checked in** and today’s **Confirmed** arrivals.
-- [ ] Note any **Outstanding** balances on departures today.
+- [ ] Dashboard → notifications.
+- [ ] Reservations → today’s arrivals and checked-in guests.
+- [ ] Note **Outstanding** on today’s departures.
 
 ### During shift
 
 - [ ] Check-ins: phone + portal link every time.
-- [ ] Deposits recorded same day money is received.
-- [ ] Folio charges posted when incidentals happen (not at checkout only).
-- [ ] Room status updated when you know cleaning state.
+- [ ] Deposits recorded the day money is received.
+- [ ] Folio charges posted when they happen.
+- [ ] Room status kept accurate.
 - [ ] Complaints logged with clear descriptions.
+- [ ] Guest messages answered.
 
 ### End of shift
 
-- [ ] All expected check-outs processed.
+- [ ] Expected check-outs processed.
 - [ ] Rooms set to Cleaning / Available / Maintenance correctly.
-- [ ] Hand off unpaid check-outs to manager or owner.
+- [ ] Unpaid check-outs handed to manager or owner.
 
 ---
 
-## 10. Quick answers for guests
+## 13. Quick answers for guests
 
 | Guest asks | You say |
 |------------|---------|
-| “Can I pay online?” | Pay at desk (cash/MoMo/card); receipt from owner. |
-| “What’s my balance?” | Open reservation → **Outstanding** line. |
-| “I paid on Airbnb” | Manager/owner marks channel prepaid; you can use **Channel prepaid** if trained. |
-| “Cancel my booking” | If deposit: explain forfeit/refund policy; get manager/owner if refund needed. |
+| “Can I pay online?” | If Pay now is on their portal invoice, they can try; otherwise pay at desk (cash/MoMo/card). |
+| “What’s my balance?” | Open reservation → **Outstanding**. |
+| “I paid on Airbnb” | Use **Channel prepaid** if trained, or ask manager. |
+| “Cancel my booking” | Explain forfeit / refund; refund needs the owner. |
+| “Door won’t open” | Access → Unlock / Retry, or call manager if agent offline. |
 
----
-
-## 11. Need help?
-
-- **Money / invoice / refund** → Owner  
-- **Maintenance approval** → Manager  
-- **Room pricing / new room** → Manager or Owner  
-- **System login** → Whoever invited you
-
-Full MOJO deposit policy: [docs/README.md](README.md#mojo-deposit-policy-summary)
+Deposit policy summary: [README.md](README.md#deposit-policy-summary).

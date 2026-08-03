@@ -1,6 +1,6 @@
 # Manager guide — MOJO Apartments
 
-You run **daily operations** for one property: guests, rooms, reservations, complaints, and housekeeping. You do **not** see owner revenue totals, billing, GRA exports, analytics, or property settings.
+You run **daily operations** for one property: guests, rooms, reservations, complaints, housekeeping, and inventory. You do **not** change owner billing, GRA exports, analytics, expenses, or property portfolio settings.
 
 ---
 
@@ -12,260 +12,305 @@ You run **daily operations** for one property: guests, rooms, reservations, comp
 2. Set name, password, phone.
 3. You land on **Manager Dashboard** (`/manager/dashboard`).
 
+In production you may need **SMS two-factor authentication**.
+
 ### First day
 
-1. Add **phone** (top bar) — required for SMS alerts.
-2. Walk through: Dashboard → Reservations → Guests → Complaints → Housekeeping.
+1. Add **phone** (top bar) — needed for SMS alerts.
+2. Walk through: Dashboard → Reservations → Guests → Complaints → Housekeeping → Staff.
 
 You are locked to **one property** (no property switcher).
 
 ---
 
-## 2. Navigation
+## 2. Your menu
 
-| Menu | Path |
-|------|------|
-| Dashboard | `/manager/dashboard` |
-| Messages | `/manager/messages` |
-| Reservations | `/manager/reservations` |
-| Guests | `/manager/guests` |
-| Rooms | `/manager/rooms` |
-| Housekeeping | `/manager/housekeeping` |
-| Complaints | `/manager/complaints` |
-| Guest portal settings | `/manager/dashboard#guest-portal` |
-| Guest links & QR | `/manager/guests` |
-| Inventory | `/manager/inventory` |
-| Staff | `/manager/staff` |
+| Menu | Path | What you do |
+|------|------|-------------|
+| Dashboard | `/manager/dashboard` | Ops overview, portal settings, audits |
+| Messages | `/manager/messages` | Guest chat + team chat |
+| Reservations | `/manager/reservations` | Bookings, check-in/out, deposits |
+| Guests | `/manager/guests` | Walk-ins, portal links, folio |
+| Rooms | `/manager/rooms` | Add/edit rooms & rates (no delete) |
+| Access | `/manager/access` | Unlock, cards, retry sync |
+| Housekeeping | `/manager/housekeeping` | Full cleaning board |
+| Complaints | `/manager/complaints` | Assign and approve work |
+| Billing | `/manager/invoices` | **View / print only** |
+| Guest portal | `/manager/dashboard#guest-portal` | Portal copy, rules, requests |
+| Inventory | `/manager/inventory` | Stock receive / issue / adjust |
+| Staff | `/manager/staff` | Invite technicians + receptionists |
 
 ### Top bar
 
-- **Search / ⌘K** — jump to pages; search reservations, guests, rooms, complaints, housekeeping.
+- **Search / ⌘K** — pages, reservations, guests, rooms, complaints, housekeeping.
 - **Notifications** — check-outs, complaints, guest requests, messages.
-- **Account & team** — profile phone/photo and staff management (`/manager/staff`).
-- **Live updates** — pages refresh automatically; toast on new complaints.
-
-**Guest portal settings** (requests, feedback, Wi‑Fi copy, rules) live under **Guest portal** in the sidebar or the **Guest portal** tab on the dashboard.
+- **Live updates** — lists refresh; toasts for new complaints and approvals.
 
 ---
 
 ## 3. Dashboard
 
-| Card | Notes |
-|------|--------|
+| Section | Notes |
+|---------|--------|
 | Occupancy, avg rate, bookings | **Revenue hidden** (owner only) |
-| **Outstanding** | Collectible balances — flag guests leaving with debt |
+| **Outstanding** | Who still owes money |
 | Complaints snapshot | Link to full page |
 | Housekeeping summary | Link to kanban |
-| **Night audit** | End-of-day close (with owner) |
+| **Guest portal** tab | Wi‑Fi, rules, request toggles, local guide |
+| **Guest reviews** | Portal feedback |
+| **Audits** | Night + monthly + yearly |
+| **Activity** | Audit / SMS logs |
+
+Also review **guest requests** (housekeeping, late checkout, extension) and approve / deny / schedule as needed.
 
 ---
 
-## 4. Reservations and payments
+## 4. Messages
+
+**Path:** `/manager/messages`
+
+- Chat with in-house guests about the stay.
+- Team chat with receptionists and technicians.
+- Repair-specific chat lives on each complaint.
+
+---
+
+## 5. Reservations
 
 **Path:** `/manager/reservations`
 
-You have the same booking tools as the owner **except deposit refunds** (owner only).
+Same front-desk tools as the owner **except deposit refunds** (owner only).
 
-### Payment badges
-
-Reservations show **Unpaid**, **Deposit paid**, **Partial**, **Paid**, **Overdue**, etc. Use payment filters to find open balances.
-
-### Stay status badges
-
-Filters and badges include **Provisional**, **Pre-arrival**, **Checkout in progress**, **Overstay**, and **Post stay** in addition to the classic Confirmed / Checked in / Checked out. Actions on the detail panel match the status (check-in, complete checkout, mark no-show, cancel).
-
-Owners configure hold timers, no-show time, and automated jobs under **Settings → Property → Reservation lifecycle**.
-
-### Typical front-desk flow
+### Typical flow
 
 ```
-New reservation → (optional) Record deposit → Check in → (folio charges) → Check out → invoice
+New reservation → (optional) Record deposit → Check in → Folio charges → Begin checkout → Complete checkout
 ```
 
-### Record a deposit
+### Create / deposit / prepaid
 
-1. Open **Confirmed** or **Checked in** reservation.
-2. **Record deposit** → amount + method → **Save**.
-3. For Airbnb/Booking.com when channel already paid you: **Channel prepaid**.
+1. **New reservation** — guest, room, dates, channel, rate.
+2. **Record deposit** — amount + method.
+3. **Channel prepaid** — when Airbnb/Booking.com already paid you.
+
+### Stay statuses you will see
+
+Provisional, Confirmed, Pre-arrival, Checked in, Checkout in progress, Overstay, Checked out, Post stay, Cancelled, No-show.
+
+Owners configure hold timers and automated jobs under **Settings → Reservation lifecycle** (you cannot change those settings).
 
 ### Check in
 
-Phone required → guest portal link/QR for the guest.
+Phone required → share portal link / QR → room becomes Occupied. Door access queues if Hikvision is enabled.
+
+### While in-house
+
+- **Extend stay**, **Move room**, **Edit** (confirmed only).
+- Post **folio** from Guests.
+- **Approve late checkout** on overstay.
+- **Dispute hold** when a lifecycle hold needs review.
 
 ### Check out
 
-1. Review **Payment** panel:
-   - Room total
-   - **Folio (unbilled)** if charges were posted on Guests page
-   - **Estimated total** and **Outstanding**
-2. Tap **Begin checkout** — folio locks; post any final charges first if needed.
-3. Tap **Complete checkout** → choose payment method.
-4. Toggle **Payment received now** if guest pays in full at desk.
-5. Confirm → invoice created (owner sees in Billing), room → Cleaning.
+1. Read Outstanding carefully.
+2. **Begin checkout** (folio locks).
+3. **Complete checkout** → payment method → **Payment received now** on/off.
+4. Room → Cleaning; invoice goes to owner Billing.
 
-**Overstay** (past departure time): begin checkout urgently; **Approve late checkout** if policy allows.
+**Walkout** — guest left without paying (not for desk settlement).
 
-**Walkout** (guest left without paying): use **Record walkout** — room is released and balance stays due on the invoice.
-
-### Cancel and no-show
+### Cancel / no-show
 
 | Rule | Detail |
 |------|--------|
-| Only **Confirmed** | Cannot cancel checked-in — use checkout |
-| Deposit collected | Must choose **Forfeit** or **Refund** (refund = owner only) |
-| Folio / unpaid invoice | System blocks cancel until settled |
-
-**Forfeit** = MOJO keeps deposit. **Refund** = ask owner to process if guest is owed money back.
-
-### Other actions
-
-- **Extend stay** — updates nights and balance.
-- **Move room** — if another room is free.
-- **Edit reservation** — confirmed only (dates, room, rate).
+| Only confirmed / pre-arrival | Not checked-in |
+| Deposit | **Forfeit** (you) or **Refund** (ask owner) |
+| Unpaid folio / invoice | Cancel blocked until settled |
 
 ---
 
-## 5. Guests
+## 6. Guests
 
 **Path:** `/manager/guests`
 
 ### Walk-in check-in
 
 1. **Walk-in check-in**.
-2. Name, **phone** (required), email, room, checkout date (today = check-in).
+2. Name, **phone** (required), email, room, checkout date.
 3. Portal link + QR immediately.
 
-### Guest detail (in-house)
+### Guest detail
 
 - Edit contact.
-- **Guest folio** — post minibar, laundry, damage, etc. (₵). Shows on reservation before checkout.
-- Portal link management.
-- **Check out** from guest card if needed (same **Begin checkout** → **Complete checkout** flow).
+- Manage portal link / QR / WhatsApp / regenerate / revoke.
+- **Guest folio** — post incidentals (₵).
+- **Export PII** if needed (erase is owner only).
+- **Check out** from guest card when useful.
 
 ---
 
-## 6. Rooms
+## 7. Rooms
 
 **Path:** `/manager/rooms`
 
-Add/edit rooms and categories. **Cannot delete rooms** (owner only).
-
-Update status when needed: Available, Occupied, Cleaning, Needs inspection, Maintenance.
+- Add / edit rooms, categories, rates, photos.
+- Update status: Available, Occupied, Cleaning, Needs inspection, Maintenance.
+- **Cannot delete rooms** (owner only).
 
 ---
 
-## 7. Complaints
+## 8. Access (ops only)
+
+**Path:** `/manager/access`
+
+When Hikvision is enabled by the owner:
+
+- Check-in / checkout sync runs automatically.
+- **Unlock** doors remotely (agent online).
+- **Assign card** numbers.
+- **Retry** failed credential jobs.
+
+You cannot enable the integration, rotate the agent token, or map doors — ask the owner.
+
+---
+
+## 9. Complaints
 
 **Path:** `/manager/complaints`
 
-### Log a complaint for a guest
+### Log a complaint
 
 1. **Log complaint**.
-2. Pick guest (fills room) or room only.
-3. Category, priority, description → **Log complaint**.
+2. Guest (fills room) or room only.
+3. Category, priority, description.
 
 ### Two-step approval
 
-**Stage A — Invoice (before work)**
+**Stage A — before work**
 
 ```
 Open → Assign technician → Technician submits invoice → You approve or reject
 ```
 
-Technician **cannot start** until you **Approve invoice & authorize work**.
+Technician cannot start until you **Approve invoice & authorize work**.
 
-**Stage B — Completion (after work)**
+**Stage B — after work**
 
 ```
 In progress → Technician marks complete → You approve & resolve (pick room status)
 ```
 
-### Pending approvals
-
-Orange banner when invoices or completions need you. Sidebar badge counts them.
+Watch the orange **pending approvals** banner and sidebar badge. Message the guest on the issue thread when needed.
 
 ---
 
-## 8. Housekeeping
+## 10. Housekeeping
 
-**Path:** `/manager/housekeeping` · **Mobile:** `/mobile/housekeeping`
+**Path:** `/manager/housekeeping` · Mobile: `/mobile/housekeeping`
 
-### Kanban columns
+### Clean → inspect
 
-**To do** → **In progress** → **Done**
-
-### Clean → inspect flow (important)
-
-1. Guest checks out → room **Cleaning** + **Clean** task (often unassigned).
-2. Technician or housekeeper completes **Clean** → room **Needs inspection**.
-3. System creates **Inspect** task.
-4. **Inspect** marked **Done** → room **Available**.
+1. Checkout → room **Cleaning** + **Clean** task.
+2. Clean done → **Needs inspection** + **Inspect** task.
+3. Inspect done → **Available**.
 
 ### Who can move tasks?
 
 | Person | Rule |
 |--------|------|
-| Assignee | Start and complete their own tasks |
-| Manager / owner | **Override** any task |
-| Technician | **Claim & start** unassigned tasks from `/technician/tasks` |
+| Assignee | Start / complete own tasks |
+| Manager / owner | **Override** |
+| Technician | **Claim & start** unassigned tasks |
 
-### Add a task manually
-
-Room, type (clean / inspect / maintenance / restock), priority, due date, assignee, notes.
-
-### Room grid
-
-Read-only overview with open task indicators per room.
+Add tasks manually: room, type, priority, due date, assignee, notes. Room grid shows open-task indicators.
 
 ---
 
-## 9. Staff
+## 11. Billing (read-only)
+
+**Path:** `/manager/invoices`
+
+- View and print invoices from check-outs.
+- See online payment attempts when enabled.
+- You **cannot** record payments, partials, or refunds — send those to the owner.
+
+---
+
+## 12. Inventory
+
+**Path:** `/manager/inventory`
+
+- Create / edit items.
+- Receive, issue, adjust stock.
+- View movement history.
+- You **cannot** delete items or record expenses from stock (owner).
+
+---
+
+## 13. Staff
 
 **Path:** `/manager/staff`
 
 - Invite **technicians** (phone) and **receptionists** (email).
 - Cannot invite managers or owners.
-- Edit phones, disable/reactivate, revoke invites.
+- Edit phones, disable / reactivate, revoke invites.
 
 ---
 
-## 10. Night audit
+## 14. Guest portal settings
 
-On **Dashboard**, after the day’s check-outs:
+**Path:** Dashboard → **Guest portal** tab (also sidebar **Guest portal**)
 
-1. **Run night audit** once per date.
-2. Optional notes (e.g. “Late checkout Room 4”).
-3. Owner uses this for daily control — run it consistently.
+Configure what guests see:
+
+- Wi‑Fi / parking / emergency / welcome copy.
+- Which requests are allowed (housekeeping, late checkout, extension).
+- Property rules (guests must accept when required).
+- Local guide items.
+
+Share personal links and property QR from **Guests**.
 
 ---
 
-## 11. What managers cannot do
+## 15. Audits
+
+On Dashboard:
+
+1. Finish check-outs and note open balances.
+2. **Run night audit** once per date (optional notes).
+3. Run **monthly** / **yearly** audits at period close with the owner.
+
+---
+
+## 16. What managers cannot do
 
 | No access | Who has it |
 |-----------|------------|
-| Billing, partial pay, refunds | Owner |
-| GRA reports, Analytics | Owner |
-| Property settings, multi-property | Owner |
-| Delete rooms | Owner |
+| Record invoice payments / refunds | Owner |
+| GRA reports, Analytics, Expenses | Owner |
+| Property portfolio / lifecycle settings | Owner |
+| Delete rooms / inventory items | Owner |
 | Refund deposits | Owner |
 | Invite managers | Owner |
+| Access setup (token / door maps) | Owner |
 
 ---
 
-## 12. Daily routine (suggested)
+## 17. Daily routine
 
 | Time | Tasks |
 |------|--------|
-| **Morning** | Dashboard → notifications → today’s arrivals/departures → Outstanding balances |
-| **Day** | Walk-ins, check-ins, folio posts, assign complaints, approve invoices |
-| **After checkouts** | Housekeeping kanban — ensure Clean tasks claimed |
-| **Evening** | Final check-outs, clear pending complaint approvals, **night audit** |
+| **Morning** | Dashboard → notifications → arrivals/departures → Outstanding |
+| **Day** | Walk-ins, check-ins, folio, complaints, guest requests |
+| **After checkouts** | Housekeeping — ensure Clean tasks claimed |
+| **Evening** | Final check-outs, clear complaint approvals, **night audit** |
 
 ---
 
-## 13. Common mistakes to avoid
+## 18. Common mistakes
 
 - Cancelling a **checked-in** guest instead of checking out.
-- Forgetting **folio charges** before checkout (guest leaves with wrong invoice).
-- Marking **Clean** done without **Inspect** (room stays “needs inspection”).
-- Approving technician invoice without reading materials/labour totals.
+- Forgetting **folio charges** before Begin checkout.
+- Marking Clean done and forgetting Inspect (room stays “needs inspection”).
+- Approving a technician invoice without reading materials/labour totals.
+- Promising a deposit refund — only the owner can refund in the system.
