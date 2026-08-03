@@ -32,23 +32,20 @@ Day-to-day steps for staff are in the [owner](owner-guide.md#8-access-control-hi
 - Staff RLS is **SELECT-only**; writes go through service role (server actions / agent API).
 - Agent endpoints are rate-limited and require `Authorization: Bearer` + `X-Mojo-Hotel-Id`.
 
-## Go-live steps
+## Go-live steps (simplified)
 
-1. Apply migration `061_access_control.sql` (`supabase db push` or SQL Editor).
-2. Owner → **Access** → enable Hikvision sync → rotate agent token.
-3. On a LAN machine:
+1. Apply migration `061` if not already applied.
+2. Owner → **Access** → **Start setup** → **Copy full .env**.
+3. On the apartment PC:
    ```bash
    cd services/hikvision-agent
-   cp .env.example .env
-   # set MOJO_API_URL, HOTEL_ID, AGENT_TOKEN, DEVICES
-   npm install
-   npm start
+   # paste the copied .env, then edit only controller IP + password in DEVICES
+   npm install && npm start
    ```
-4. Map doors (device key must match `DEVICES[].key`).
-5. Confirm agent status **Online**.
-6. Test check-in on one room → credential/job shows **synced**.
-7. Test checkout → credential **revoked**.
-8. Run agent under systemd/Docker with restart policy.
+   Or answer prompts: `npm run setup`
+4. Back in MOJO → map doors (device key must match `DEVICES[].key`, e.g. `lobby`).
+5. Confirm **Agent online**, then test one check-in / checkout.
+6. Keep the agent auto-starting after reboot.
 
 ## Ops notes
 

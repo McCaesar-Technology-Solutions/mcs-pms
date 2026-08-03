@@ -5,6 +5,7 @@
   "description": "On-site Hikvision ISAPI agent for MOJO Apartments PMS",
   "type": "module",
   "scripts": {
+    "setup": "node setup.js",
     "start": "node src/index.js",
     "dev": "node --watch src/index.js"
   },

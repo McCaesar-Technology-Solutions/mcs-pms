@@ -10,23 +10,26 @@ On-site bridge between MOJO cloud and Hikvision access controllers on the apartm
 - Always-on machine on the same LAN as Hikvision controllers (mini PC / NVR PC / Raspberry Pi)
 - Controllers reachable via ISAPI (Digest auth)
 
-## Setup
+## Setup (easiest)
+
+1. In MOJO: Owner → **Access** → **Start setup** → **Copy full .env**
+2. On this PC:
 
 ```bash
 cd services/hikvision-agent
-cp .env.example .env
-# Edit .env — MOJO_API_URL, HOTEL_ID, AGENT_TOKEN, DEVICES
-npm install
-npm start
+# paste into .env, edit only DEVICES host + password
+npm install && npm start
 ```
 
-### Pairing with MOJO
+Or interactive:
 
-1. Owner → **Settings → Access control** (or `/owner/access`)
-2. Enable access control
-3. **Rotate agent token** — copy the one-time token into `.env` as `AGENT_TOKEN`
-4. Map doors (device key + door number → room / lobby)
-5. Start this agent — status should show **Online** within ~30s
+```bash
+npm run setup
+npm install && npm start
+```
+
+3. In MOJO, map doors using the same device key (e.g. `lobby`).
+4. Status should show **Agent online** within ~30s.
 
 ### Device config
 

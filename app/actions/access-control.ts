@@ -9,6 +9,7 @@ import { generateAgentToken } from '@/lib/access/crypto'
 import { enqueueAccessJob } from '@/lib/access/jobs'
 import { provisionGuestAccess } from '@/lib/access/lifecycle'
 import { writeAuditLog } from '@/lib/audit/log'
+import { getAppOrigin } from '@/lib/env'
 import type { AccessZone } from '@/lib/access/types'
 
 type ActionResult<T = undefined> =
@@ -63,6 +64,52 @@ async function requireAccessEditor(hotelId: string) {
     return { ok: false as const, error: 'Not authorized for this property.' }
   }
   return { ok: true as const, userId: result.userId, profile: result.profile }
+}
+
+/** One-click: enable sync + issue agent token + return a ready `.env` draft. */
+export async function startAccessSetup(hotelId: string): Promise<
+  ActionResult<{ token: string; prefix: string; envFile: string; hotelId: string; appUrl: string }>
+> {
+  const auth = await requireOwnerHotel(hotelId)
+  if (!auth.ok) return { success: false, error: auth.error }
+
+  const enabled = await setAccessControlEnabled({ hotelId, enabled: true })
+  if (!enabled.success) return enabled
+
+  const rotated = await rotateAccessAgentToken(hotelId)
+  if (!rotated.success || !rotated.data) {
+    return { success: false, error: rotated.success ? 'No token returned.' : rotated.error }
+  }
+
+  let appUrl = 'https://your-production-domain.com'
+  try {
+    appUrl = getAppOrigin()
+  } catch {
+    // keep placeholder if NEXT_PUBLIC_APP_URL unset in this environment
+  }
+
+  const envFile = [
+    `# MOJO Hikvision agent — paste into services/hikvision-agent/.env`,
+    `MOJO_API_URL=${appUrl}`,
+    `HOTEL_ID=${hotelId}`,
+    `AGENT_TOKEN=${rotated.data.token}`,
+    `AGENT_ID=mojo-apartment-pc`,
+    '',
+    `# Edit host / password for your controller. key must match door mappings in MOJO.`,
+    `DEVICES=[{"key":"lobby","host":"192.168.1.64","port":80,"username":"admin","password":"CHANGE_ME","useHttps":false}]`,
+    '',
+  ].join('\n')
+
+  return {
+    success: true,
+    data: {
+      token: rotated.data.token,
+      prefix: rotated.data.prefix,
+      envFile,
+      hotelId,
+      appUrl,
+    },
+  }
 }
 
 export async function setAccessControlEnabled(input: {

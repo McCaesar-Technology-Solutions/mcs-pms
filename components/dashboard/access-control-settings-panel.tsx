@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useTransition } from 'react'
-import { KeyRound, Copy, Check } from 'lucide-react'
+import { useMemo, useState, useTransition } from 'react'
+import { KeyRound, Copy, Check, Circle, CircleCheck } from 'lucide-react'
 import {
   setAccessControlEnabled,
   rotateAccessAgentToken,
+  startAccessSetup,
   upsertAccessPoint,
   deleteAccessPoint,
 } from '@/app/actions/access-control'
@@ -39,13 +40,26 @@ export function AccessControlSettingsPanel({
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [freshToken, setFreshToken] = useState<string | null>(null)
-  const [copied, setCopied] = useState(false)
+  const [envFile, setEnvFile] = useState<string | null>(null)
+  const [copied, setCopied] = useState<'token' | 'env' | null>(null)
 
   const [label, setLabel] = useState('')
   const [deviceKey, setDeviceKey] = useState(deviceKeys[0] ?? 'lobby')
   const [doorNo, setDoorNo] = useState('1')
-  const [zone, setZone] = useState<'unit' | 'lobby' | 'gate' | 'elevator' | 'other'>('unit')
+  const [zone, setZone] = useState<'unit' | 'lobby' | 'gate' | 'elevator' | 'other'>('lobby')
   const [roomId, setRoomId] = useState(rooms[0]?.id ?? '')
+
+  const enabled = integration.hotelFlagEnabled && integration.enabled
+  const steps = useMemo(
+    () => [
+      { id: 'enable', label: 'Sync enabled', done: enabled },
+      { id: 'token', label: 'Agent token created', done: integration.hasAgentToken },
+      { id: 'agent', label: 'Agent online on apartment PC', done: integration.agentOnline },
+      { id: 'doors', label: 'At least one door mapped', done: points.length > 0 },
+    ],
+    [enabled, integration.hasAgentToken, integration.agentOnline, points.length],
+  )
+  const setupComplete = steps.every((s) => s.done)
 
   function run(action: () => Promise<void>) {
     setError(null)
@@ -59,6 +73,12 @@ export function AccessControlSettingsPanel({
     })
   }
 
+  async function copyText(value: string, kind: 'token' | 'env') {
+    await navigator.clipboard.writeText(value)
+    setCopied(kind)
+    setTimeout(() => setCopied(null), 2000)
+  }
+
   return (
     <div className="surface-card overflow-hidden">
       <div className="surface-card-accent" />
@@ -68,7 +88,7 @@ export function AccessControlSettingsPanel({
           <div>
             <h3 className="text-lg font-semibold text-foreground">Hikvision access control</h3>
             <p className="mt-0.5 text-sm text-muted-foreground">
-              Enroll and revoke guest door access from MOJO for {propertyName}.
+              One-time setup for {propertyName}. After this, check-in/out handles enrollment.
             </p>
           </div>
         </div>
@@ -96,11 +116,171 @@ export function AccessControlSettingsPanel({
             )}
           </div>
 
-          {canManage && (
-            <label className="surface-inset flex cursor-pointer items-start gap-3 rounded-xl p-4 transition-colors hover:bg-muted/40">
+          <ul className="space-y-2">
+            {steps.map((step) => (
+              <li key={step.id} className="flex items-center gap-2 text-sm">
+                {step.done ? (
+                  <CircleCheck className="h-4 w-4 text-emerald-600" />
+                ) : (
+                  <Circle className="h-4 w-4 text-muted-foreground" />
+                )}
+                <span className={step.done ? 'text-foreground' : 'text-muted-foreground'}>
+                  {step.label}
+                </span>
+              </li>
+            ))}
+          </ul>
+
+          {setupComplete ? (
+            <p className="text-sm text-emerald-700 dark:text-emerald-400">
+              Setup complete. Normal check-in/out will enroll and revoke guests automatically.
+            </p>
+          ) : canManage ? (
+            <div className="space-y-3 rounded-xl border border-border p-4">
+              <p className="text-sm font-semibold text-foreground">Simplified setup (3 steps)</p>
+              <ol className="list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
+                <li>Click Start setup — enables sync and creates your agent config.</li>
+                <li>
+                  On the apartment PC: copy the config into{' '}
+                  <code className="text-xs">services/hikvision-agent/.env</code>, edit the controller
+                  IP/password, then run <code className="text-xs">npm install && npm start</code>.
+                </li>
+                <li>Map doors below (device key must match the key in DEVICES, e.g. lobby).</li>
+              </ol>
+              <button
+                type="button"
+                disabled={pending}
+                className="app-btn app-btn-primary"
+                onClick={() =>
+                  run(async () => {
+                    const result = await startAccessSetup(hotelId)
+                    if (!result.success || !result.data) {
+                      setError(result.success ? 'Setup failed.' : result.error)
+                      return
+                    }
+                    setFreshToken(result.data.token)
+                    setEnvFile(result.data.envFile)
+                    setMessage('Setup started. Copy the agent config below, then start the agent.')
+                  })
+                }
+              >
+                Start setup
+              </button>
+            </div>
+          ) : null}
+        </section>
+
+        {canManage && (envFile || freshToken) && (
+          <section className="space-y-3">
+            <div>
+              <p className="text-sm font-semibold text-foreground">Agent config (copy once)</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Paste into <code>services/hikvision-agent/.env</code> on the apartment PC. Change only
+                the controller IP and password.
+              </p>
+            </div>
+            {envFile && (
+              <div className="space-y-2">
+                <pre className="surface-inset max-h-56 overflow-auto rounded-xl p-3 text-xs whitespace-pre-wrap">
+                  {envFile}
+                </pre>
+                <button
+                  type="button"
+                  className="app-btn app-btn-secondary"
+                  onClick={() => copyText(envFile, 'env')}
+                >
+                  {copied === 'env' ? (
+                    <>
+                      <Check className="mr-1 inline h-4 w-4" /> Copied
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="mr-1 inline h-4 w-4" /> Copy full .env
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+            {freshToken && !envFile && (
+              <div className="surface-inset flex items-center gap-2 rounded-xl p-3">
+                <code className="min-w-0 flex-1 break-all text-xs">{freshToken}</code>
+                <button
+                  type="button"
+                  className="app-btn app-btn-ghost shrink-0"
+                  onClick={() => copyText(freshToken, 'token')}
+                >
+                  {copied === 'token' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                </button>
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Apartment PC shortcut after paste:{' '}
+              <code>cd services/hikvision-agent && npm install && npm start</code>
+              <br />
+              Or interactive: <code>npm run setup</code>
+            </p>
+          </section>
+        )}
+
+        {canManage && setupComplete && (
+          <section className="space-y-3">
+            <div>
+              <p className="text-sm font-semibold text-foreground">Advanced</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Disable sync or rotate the agent token if the apartment PC is replaced.
+                {integration.agentTokenPrefix
+                  ? ` Current token prefix: ${integration.agentTokenPrefix}…`
+                  : ''}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <label className="surface-inset flex cursor-pointer items-start gap-3 rounded-xl p-3">
+                <input
+                  type="checkbox"
+                  checked={enabled}
+                  disabled={pending}
+                  onChange={(e) =>
+                    run(async () => {
+                      const result = await setAccessControlEnabled({
+                        hotelId,
+                        enabled: e.target.checked,
+                      })
+                      if (!result.success) setError(result.error)
+                    })
+                  }
+                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-border text-primary focus:ring-primary"
+                />
+                <span className="text-sm text-foreground">Sync enabled</span>
+              </label>
+              <button
+                type="button"
+                disabled={pending}
+                className="app-btn app-btn-secondary"
+                onClick={() =>
+                  run(async () => {
+                    const result = await startAccessSetup(hotelId)
+                    if (!result.success || !result.data) {
+                      setError(result.success ? 'Could not rotate token.' : result.error)
+                      return
+                    }
+                    setFreshToken(result.data.token)
+                    setEnvFile(result.data.envFile)
+                    setMessage('New agent config ready — update the apartment PC .env.')
+                  })
+                }
+              >
+                Rotate token / re-copy config
+              </button>
+            </div>
+          </section>
+        )}
+
+        {!setupComplete && canManage && (
+          <section className="space-y-3">
+            <label className="surface-inset flex cursor-pointer items-start gap-3 rounded-xl p-4">
               <input
                 type="checkbox"
-                checked={integration.hotelFlagEnabled && integration.enabled}
+                checked={enabled}
                 disabled={pending}
                 onChange={(e) =>
                   run(async () => {
@@ -119,28 +299,13 @@ export function AccessControlSettingsPanel({
               />
               <span className="min-w-0">
                 <span className="block text-sm font-semibold text-foreground">
-                  Enable Hikvision sync on check-in / checkout
+                  Enable Hikvision sync
                 </span>
                 <span className="mt-0.5 block text-xs text-muted-foreground">
-                  Requires the on-site agent running on the apartment LAN. Device passwords stay on the
-                  agent only.
+                  Prefer Start setup above — it enables this and creates the config together.
                 </span>
               </span>
             </label>
-          )}
-        </section>
-
-        {canManage && (
-          <section className="space-y-3">
-            <div>
-              <p className="text-sm font-semibold text-foreground">Agent token</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                Shown once on rotate. Put it in the agent `.env` as `AGENT_TOKEN`.
-                {integration.agentTokenPrefix
-                  ? ` Current prefix: ${integration.agentTokenPrefix}…`
-                  : ' No token issued yet.'}
-              </p>
-            </div>
             <button
               type="button"
               disabled={pending}
@@ -153,28 +318,13 @@ export function AccessControlSettingsPanel({
                     return
                   }
                   setFreshToken(result.data.token)
-                  setMessage('New agent token created. Copy it now — it will not be shown again.')
+                  setEnvFile(null)
+                  setMessage('Token created. Prefer Start setup next time for a full .env.')
                 })
               }
             >
-              Rotate agent token
+              Rotate agent token only
             </button>
-            {freshToken && (
-              <div className="surface-inset flex items-center gap-2 rounded-xl p-3">
-                <code className="min-w-0 flex-1 break-all text-xs">{freshToken}</code>
-                <button
-                  type="button"
-                  className="app-btn app-btn-ghost shrink-0"
-                  onClick={async () => {
-                    await navigator.clipboard.writeText(freshToken)
-                    setCopied(true)
-                    setTimeout(() => setCopied(false), 2000)
-                  }}
-                >
-                  {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                </button>
-              </div>
-            )}
           </section>
         )}
 
@@ -182,8 +332,8 @@ export function AccessControlSettingsPanel({
           <div>
             <p className="text-sm font-semibold text-foreground">Door mappings</p>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Map each Hikvision door to a room or shared area. Device key must match the agent
-              `DEVICES` key.
+              Tell MOJO which Hikvision door is which room. Device key must match the agent{' '}
+              <code>DEVICES</code> key (example: lobby).
             </p>
           </div>
 
@@ -252,7 +402,7 @@ export function AccessControlSettingsPanel({
                   className={APP_FIELD_CLASS}
                   value={label}
                   onChange={(e) => setLabel(e.target.value)}
-                  placeholder="Room B204"
+                  placeholder="Lobby entrance"
                   required
                 />
               </FormField>
@@ -290,8 +440,8 @@ export function AccessControlSettingsPanel({
                   value={zone}
                   onChange={(e) => setZone(e.target.value as typeof zone)}
                 >
-                  <option value="unit">Unit</option>
                   <option value="lobby">Lobby</option>
+                  <option value="unit">Unit</option>
                   <option value="gate">Gate</option>
                   <option value="elevator">Elevator</option>
                   <option value="other">Other</option>
@@ -315,7 +465,11 @@ export function AccessControlSettingsPanel({
                 </FormField>
               )}
               <div className="sm:col-span-2">
-                <button type="submit" className="app-btn app-btn-primary" disabled={pending || !label.trim()}>
+                <button
+                  type="submit"
+                  className="app-btn app-btn-primary"
+                  disabled={pending || !label.trim()}
+                >
                   Add door mapping
                 </button>
               </div>
