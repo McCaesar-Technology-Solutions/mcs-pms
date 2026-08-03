@@ -45,13 +45,14 @@ The app is **production-ready as a custom PMS** for a hotel or portfolio operato
 
 #### 2. Distribution
 
-- **Manual channel tagging** — managers create reservations and pick source (Airbnb, Booking.com, walk-in, direct, other) for reporting.
-- **Not in this version:** OTA iCal sync, Airbnb OAuth, channel manager, automatic calendar import/export.
+- **Airbnb iCal sync** — owner connects per-room Airbnb export calendars; cron imports bookings/blocks; public export URL blocks PMS dates back on Airbnb.
+- **Manual channel tagging** — still available for walk-in / direct / other sources.
+- **Not in this version:** Airbnb OAuth API partner program, Booking.com sync, full channel manager (Hostaway/Guesty).
 
 #### 3. Optional / future
 
-- **OTA calendar sync** — iCal import/export (not built).
-- **Online payments** — Paystack or Hubtel Pay (not built).
+- **Other OTA calendars** — Booking.com / VRBO iCal (schema supports providers; UI is Airbnb-first).
+- **Online payments** — Paystack or Hubtel Pay (partial / optional).
 
 #### 4. Production hardening (June 2026)
 
@@ -405,7 +406,14 @@ When viewing an invoice:
 
 ## Channels
 
-> **Not implemented in the current version.** Reservations support manual **channel tagging** (Airbnb, Booking.com, walk-in, direct, other) when staff create bookings. There is no channel manager UI, iCal import/export, or OTA API integration. Database schema for future iCal feeds exists (`channel_ical_feeds` in migration `040`) but has no application code yet.
+**Airbnb iCal sync (shipped).** Owners connect calendars under **Settings → Channels**.
+
+| Direction | Behavior |
+|-----------|----------|
+| Import | Poll Airbnb export ICS (~every 5 min + Sync now). Creates/updates/cancels `confirmed` reservations with `channel=airbnb`, keyed by `ical_uid`. |
+| Export | Public token URL `/api/ical/{token}.ics` for Airbnb **Import calendar**. Excludes events already imported from that room’s Airbnb feed (no echo loop). |
+
+Limits: iCal does not include guest phone, ID, or payout amounts. Staff still check guests in; use **Channel prepaid** when Airbnb already paid you. Direct Airbnb API / Booking.com sync are not built.
 
 For reporting, use **Analytics** and filter by channel on the owner dashboard.
 

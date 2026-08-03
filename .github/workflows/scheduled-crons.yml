@@ -47,6 +47,11 @@ jobs:
           curl -sfS \
             -H "$CRON_AUTH" \
             "${{ secrets.PRODUCTION_APP_URL }}/api/cron/access-jobs"
+      - name: Airbnb / iCal import sync
+        run: |
+          curl -sfS \
+            -H "$CRON_AUTH" \
+            "${{ secrets.PRODUCTION_APP_URL }}/api/cron/ical-sync"
 
   hourly-pre-arrival:
     if: github.event.schedule == '0 * * * *' || env.RUN_ALL == 'true'

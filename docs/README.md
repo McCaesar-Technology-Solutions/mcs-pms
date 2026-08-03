@@ -20,6 +20,7 @@ Simple guides for everyone who uses the property management system.
 | Guest portal | `/guest/enter?token=...` |
 | Mobile housekeeping | `/mobile/housekeeping` |
 | Access control (Hikvision) | `/owner/access` — [setup guide](access-control.md) |
+| Airbnb calendar sync | `/owner/settings#channels` — [setup guide](airbnb-sync.md) |
 
 ## Deposit policy (summary)
 

@@ -36,7 +36,7 @@ Documentation aligned with the **Supabase-backed** application (June 2026).
 ## Still on the roadmap (not documented as shipped)
 
 - Online payment gateway (Paystack / Hubtel Pay)
-- OTA / channel manager
+- Airbnb iCal sync (Settings → Channels); other OTAs manual
 - Owner-facing complaints page
 - E2E test suite
 

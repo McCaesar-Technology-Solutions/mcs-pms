@@ -20,7 +20,7 @@ The app is a **working PMS** with real persistence, role-based access, and live 
 | SMS/email notifications + outbox retry | Done |
 | Live updates via Supabase Realtime | Done |
 | Online payments (Paystack / Hubtel) | Not in this version — manual front-desk recording |
-| OTA / channel manager | Manual channel tagging only — no iCal sync or channel manager UI |
+| OTA / channel manager | Airbnb iCal import/export (Settings → Channels); other OTAs manual tag only |
 
 ---
 
@@ -126,7 +126,7 @@ docs/               role guides + GO-LIVE checklist
 
 ## What's next (roadmap)
 
-Priority optional: Hubtel Pay, OTA calendar sync. Core ops (reservations, billing, compliance) are shipped. Details in [FEATURES.md](FEATURES.md#what-is-incomplete).
+Priority optional: Hubtel Pay, Booking.com iCal. Airbnb calendar sync and core ops (reservations, billing, compliance) are shipped. Details in [FEATURES.md](FEATURES.md#what-is-incomplete).
 
 ---
 

@@ -154,14 +154,14 @@ Workflow: [`.github/workflows/scheduled-crons.yml`](../.github/workflows/schedul
 
 | Schedule | Routes |
 |----------|--------|
-| Every 5 min | `/api/cron/notifications`, `/api/cron/reservation-holds`, `/api/cron/access-jobs` |
+| Every 5 min | `/api/cron/notifications`, `/api/cron/reservation-holds`, `/api/cron/access-jobs`, `/api/cron/ical-sync` |
 | Hourly :00 | `/api/cron/reservation-pre-arrival` |
 | Hourly :15 | `/api/cron/reservation-auto-checkout-prompt` |
 | Hourly :30 | `/api/cron/reservation-overstay` |
 
 **Manual test:** Actions → Scheduled crons → Run workflow.
 
-Daily Vercel crons (`vercel.json`): cleanup (03:00 UTC), no-show (00:05 UTC), archive (04:30 UTC), access-jobs backup (04:45 UTC).
+Daily Vercel crons (`vercel.json`): cleanup (03:00 UTC), no-show (00:05 UTC), archive (04:30 UTC), access-jobs backup (04:45 UTC), iCal sync backup (05:00 UTC).
 
 ---
 

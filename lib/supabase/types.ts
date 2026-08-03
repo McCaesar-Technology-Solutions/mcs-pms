@@ -1631,6 +1631,9 @@ export type Database = {
           last_sync_status: 'ok' | 'error' | 'pending' | null
           last_sync_message: string | null
           events_synced: number
+          last_http_etag: string | null
+          last_content_hash: string | null
+          sync_lock_until: string | null
           created_at: string
           updated_at: string
         }
@@ -1648,6 +1651,9 @@ export type Database = {
           last_sync_status?: 'ok' | 'error' | 'pending' | null
           last_sync_message?: string | null
           events_synced?: number
+          last_http_etag?: string | null
+          last_content_hash?: string | null
+          sync_lock_until?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -1665,6 +1671,9 @@ export type Database = {
           last_sync_status?: 'ok' | 'error' | 'pending' | null
           last_sync_message?: string | null
           events_synced?: number
+          last_http_etag?: string | null
+          last_content_hash?: string | null
+          sync_lock_until?: string | null
           created_at?: string
           updated_at?: string
         }

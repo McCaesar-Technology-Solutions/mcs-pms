@@ -135,7 +135,7 @@ See [SECURITY.md](SECURITY.md) for detail.
 | Resend email | Optional env | `lib/notifications/send-email.ts` |
 | Manual payments | Live — billing, partial pay, ledger | `app/actions/invoices.ts`, `lib/billing/*` |
 | Hubtel Pay | **Not built** | — |
-| OTA / iCal | Not in this version — manual reservations with channel tag | — |
+| OTA / iCal | Live — Airbnb import cron + export ICS | `lib/ical/*`, `app/api/cron/ical-sync`, `app/api/ical/[token]` |
 | Supabase Storage | Live with RLS (migration `038`) | guest ID docs, property images |
 | Sentry | Optional (`SENTRY_DSN`) | `lib/monitoring/sentry.ts` |
 | Vercel Cron | Live | `app/api/cron/*`, `vercel.json` |

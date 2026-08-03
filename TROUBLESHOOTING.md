@@ -374,7 +374,7 @@ A: Yes. Supabase Realtime pushes updates to open browser tabs (after migration `
 A: Currently set to Ghana Cedis (₵). Modify currency in component files.
 
 **Q: Can I connect OTA channels like Airbnb?**
-A: Not automatically in this version. Create the booking manually under **Reservations** and set the **channel** (Airbnb, Booking.com, walk-in, etc.) so it appears in analytics and billing.
+A: Yes for Airbnb. Owner → **Settings → Channels**: paste the Airbnb **Export calendar** URL for each room, then paste the MOJO export URL into Airbnb **Import calendar**. Sync runs about every 15 minutes (or use **Sync now**). Other OTAs still need manual bookings with a channel tag.
 
 **Q: Does it have a mobile app?**
 A: Yes! PWA housekeeping app at /mobile/housekeeping optimized for iOS/Android.
@@ -470,7 +470,7 @@ npm run analyze  # if configured
 Operational caveats you may hit day to day:
 
 1. **No online payments** — mark invoices paid manually; guests cannot pay in the portal.
-2. **No OTA sync** — external calendars (Airbnb, Booking.com) are not connected.
+2. **Airbnb-only OTA sync** — connect under Settings → Channels; Booking.com and others remain manual.
 3. **Realtime requires open tab** — updates stop when the browser is closed.
 4. **No password reset** — use owner/manager to re-invite or reset via Supabase dashboard.
 5. **Large lists** — guests/reservations may slow down without pagination.

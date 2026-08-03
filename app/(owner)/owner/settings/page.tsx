@@ -1,4 +1,3 @@
-import { Suspense } from 'react'
 import { SettingsPanel } from '@/components/dashboard/settings-panel'
 import { NotificationPreferencesPanel } from '@/components/dashboard/notification-preferences-panel'
 import { EmailNotificationPreferencesPanel } from '@/components/dashboard/email-notification-preferences-panel'
@@ -7,12 +6,15 @@ import { AuditLogPanel } from '@/components/dashboard/audit-log-panel'
 import { GuestRulesPanel } from '@/components/dashboard/guest-rules-panel'
 import { GuestPortalSettingsPanel } from '@/components/dashboard/guest-portal-settings-panel'
 import { ReservationLifecycleSettingsPanel } from '@/components/dashboard/reservation-lifecycle-settings-panel'
+import { AirbnbSyncPanel } from '@/components/dashboard/airbnb-sync-panel'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { PageTabShell } from '@/components/dashboard/page-tab-shell'
 import { getActiveHotelSettings } from '@/lib/data/settings'
+import { getChannelIcalFeeds } from '@/lib/data/channel-ical'
 import { getNotificationLog } from '@/lib/data/notification-log'
 import { getAuditLog } from '@/lib/data/audit-log'
 import { getProfile } from '@/lib/auth/get-profile'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 const SETTINGS_HASH_TO_TAB: Record<string, string> = {
   'guest-portal': 'guest-portal',
@@ -21,14 +23,27 @@ const SETTINGS_HASH_TO_TAB: Record<string, string> = {
   notifications: 'alerts',
   'audit-log': 'activity',
   'sms-log': 'activity',
+  airbnb: 'channels',
+  channels: 'channels',
 }
 
 export default async function SettingsPage() {
   const hotelSettings = await getActiveHotelSettings()
-  const [profile, notificationLog, auditLog] = await Promise.all([
+  const [profile, notificationLog, auditLog, channelFeeds, rooms] = await Promise.all([
     getProfile(),
     getNotificationLog(50),
     getAuditLog(50),
+    hotelSettings ? getChannelIcalFeeds(hotelSettings.id) : Promise.resolve([]),
+    (async () => {
+      if (!hotelSettings) return [] as { id: string; number: string }[]
+      const admin = createAdminClient()
+      const { data } = await admin
+        .from('rooms')
+        .select('id, number')
+        .eq('hotel_id', hotelSettings.id)
+        .order('number')
+      return (data ?? []).map((r) => ({ id: r.id, number: r.number }))
+    })(),
   ])
 
   return (
@@ -44,6 +59,7 @@ export default async function SettingsPage() {
         defaultTab="property"
         tabs={[
           { id: 'property', label: 'Property' },
+          { id: 'channels', label: 'Channels' },
           { id: 'guest-portal', label: 'Guest portal' },
           { id: 'alerts', label: 'Alerts' },
           { id: 'activity', label: 'Activity' },
@@ -57,6 +73,19 @@ export default async function SettingsPage() {
               )}
             </>
           ),
+          channels:
+            hotelSettings != null ? (
+              <AirbnbSyncPanel
+                hotelId={hotelSettings.id}
+                propertyName={hotelSettings.name}
+                rooms={rooms}
+                feeds={channelFeeds}
+              />
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Add a property first to connect Airbnb calendars.
+              </p>
+            ),
           'guest-portal':
             hotelSettings != null ? (
               <>

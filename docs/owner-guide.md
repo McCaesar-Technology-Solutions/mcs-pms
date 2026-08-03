@@ -51,7 +51,7 @@ Optional: add more properties in **Settings** or the sidebar **property switcher
 | GRA Reports | `/owner/gra-reports` | Tax exports |
 | Analytics | `/owner/analytics` | Trends and charts |
 | Staff | `/owner/staff` | Invite all roles |
-| Settings | `/owner/settings` | Property, portal, lifecycle, alerts |
+| Settings | `/owner/settings` | Property, Airbnb channels, portal, lifecycle, alerts |
 
 ### Top bar
 
@@ -332,9 +332,20 @@ Share the invite link. Disable / reactivate staff; revoke pending invites; keep 
 | Property | Name, address, logo, city, region |
 | Tax / invoices | VAT TIN, invoice prefix, VAT exclusive/inclusive |
 | Reservation lifecycle | Holds, no-show, overstay, archive crons (lifecycle v2) |
+| Channels | Airbnb calendar sync (import bookings + export blocked dates) |
 | Guest portal | Wi‑Fi, welcome, parking, emergency, checkout time, requests, rules, local guide |
 | Notifications | SMS / email preferences |
 | Activity | Audit log and notification outbox |
+
+### Airbnb sync
+
+1. Open **Settings → Channels**.
+2. In Airbnb: listing → **Availability → Connect calendars → Export calendar** → copy the link.
+3. In MOJO: pick the room, paste the Airbnb export URL → **Connect**.
+4. Copy the **MOJO export URL** and add it in Airbnb under **Import calendar**.
+5. Use **Sync now** after connecting; automatic sync runs about every 5 minutes.
+
+Airbnb iCal does not send guest phone or full payment detail. Front desk still checks the guest in; use **Channel prepaid** when Airbnb already paid you.
 
 ---
 

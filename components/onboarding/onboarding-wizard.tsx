@@ -372,7 +372,7 @@ function WelcomeStep({
           'Room inventory & nightly rates',
           'GRA-ready invoicing on checkout',
           'Guest portal & complaints',
-          'Manual bookings by channel (Airbnb, walk-in, etc.)',
+          'Airbnb calendar sync + manual bookings by channel',
         ].map((item) => (
           <li
             key={item}

@@ -207,10 +207,10 @@ export async function runPaymentSideEffect(ctx: SideEffectContext): Promise<void
 }
 
 export async function runChannelSideEffect(ctx: SideEffectContext): Promise<void> {
-  if (['confirmed', 'cancelled', 'checked_out'].includes(ctx.toStatus)) {
-    // TODO(phase-2): OTA notify when iCal integration ships — see checkout-logic spec
-    void ctx
-  }
+  // Airbnb/OTA calendars are pulled via iCal cron (`lib/ical/sync-import.ts`).
+  // Export feeds (`/api/ical/[token]`) publish PMS occupancy back to Airbnb.
+  // No push webhook exists for Airbnb iCal — availability updates on the next fetch.
+  void ctx
 }
 
 export async function runSideEffects(

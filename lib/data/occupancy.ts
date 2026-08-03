@@ -71,7 +71,7 @@ async function roomsWithIndefiniteOccupant(
   if (opts.roomId) indefiniteQuery = indefiniteQuery.eq('room_id', opts.roomId)
   if (opts.excludeReservationId) indefiniteQuery = indefiniteQuery.neq('id', opts.excludeReservationId)
 
-  let staleQuery = client
+  const staleQuery = client
     .from('reservations')
     .select('id, room_id')
     .eq('hotel_id', hotelId)

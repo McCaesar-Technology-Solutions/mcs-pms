@@ -203,6 +203,7 @@ Configure `CRON_SECRET` in Vercel env vars. Vercel Cron sends `Authorization: Be
 | `/api/cron/cleanup` | Daily 03:00 | Purge stale rate limits and MFA challenges |
 | `/api/cron/reservation-no-show` | Daily 00:05 | Mark no-shows (lifecycle v2) |
 | `/api/cron/reservation-archive` | Daily 04:30 | Archive completed stays |
+| `/api/cron/ical-sync` | Daily 05:00 | Airbnb iCal import backup (primary sync via GitHub Actions) |
 
 **Hobby plan limit:** Vercel Hobby only allows cron jobs that run **once per day**. Sub-daily jobs run via [`.github/workflows/scheduled-crons.yml`](.github/workflows/scheduled-crons.yml):
 
@@ -210,6 +211,8 @@ Configure `CRON_SECRET` in Vercel env vars. Vercel Cron sends `Authorization: Be
 |-------|----------|---------|
 | `/api/cron/notifications` | Every 5 min | Drain notification outbox + retries |
 | `/api/cron/reservation-holds` | Every 5 min | Expire provisional holds |
+| `/api/cron/access-jobs` | Every 5 min | Reclaim stuck access jobs |
+| `/api/cron/ical-sync` | Every 5 min | Airbnb calendar import |
 | `/api/cron/reservation-pre-arrival` | Hourly :00 | Pre-arrival reminders |
 | `/api/cron/reservation-overstay` | Hourly :15 | Overstay detection |
 | `/api/cron/reservation-auto-checkout-prompt` | Hourly :30 | Checkout prompts |
