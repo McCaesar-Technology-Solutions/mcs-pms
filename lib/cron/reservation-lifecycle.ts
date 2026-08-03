@@ -161,14 +161,23 @@ export async function processNoShowReservations(): Promise<{ processed: number; 
       .map((r) => r.guest_id)
       .filter((id): id is string => Boolean(id))
 
-    const { data: rows } = await admin
+    const { data: preArrivalRows } = await admin
       .from('reservations')
       .select('id, hotel_id, guest_id, guest_name, amount_paid')
       .eq('hotel_id', hotel.id)
       .eq('status', 'pre_arrival')
       .eq('check_in', today)
 
-    for (const row of rows ?? []) {
+    const { data: confirmedRows } = await admin
+      .from('reservations')
+      .select('id, hotel_id, guest_id, guest_name, amount_paid')
+      .eq('hotel_id', hotel.id)
+      .eq('status', 'confirmed')
+      .eq('check_in', today)
+
+    const rows = [...(preArrivalRows ?? []), ...(confirmedRows ?? [])]
+
+    for (const row of rows) {
       if (guestInHouseOnOtherReservation(inHouseGuestIds, row.guest_id)) {
         skipped++
         continue

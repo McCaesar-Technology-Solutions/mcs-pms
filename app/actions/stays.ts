@@ -152,7 +152,7 @@ async function findInHouseGuestByPhone(
         .from('reservations')
         .select('id')
         .eq('guest_id', g.id)
-        .eq('status', 'checked_in')
+        .in('status', ['checked_in', 'checkout_in_progress', 'overstay'])
         .maybeSingle()
       if (activeRes) return g.id
     }
@@ -212,6 +212,30 @@ export async function checkInStay(
   }
   if (!reservation.room_id) return { success: false, error: 'Reservation has no room assigned.' }
 
+  if (
+    await roomHasClash(
+      admin,
+      profile.hotel_id,
+      reservation.room_id,
+      reservation.check_in,
+      reservation.check_out,
+      { excludeReservationId: reservationId },
+    )
+  ) {
+    const suggestions = await findAvailableRooms(
+      admin,
+      profile.hotel_id,
+      reservation.check_in,
+      reservation.check_out,
+      { excludeReservationId: reservationId },
+    )
+    return {
+      success: false,
+      error: 'That room is already occupied for these dates.',
+      suggestions,
+    }
+  }
+
   const duplicateGuest = await findInHouseGuestByPhone(
     admin,
     profile.hotel_id,
@@ -231,15 +255,36 @@ export async function checkInStay(
   const portalPin = generatePortalPin()
 
   let guestId = parsed.data.guestId ?? reservation.guest_id ?? null
+  let guestWasCreated = false
+  let guestSnapshot: {
+    name: string
+    phone: string | null
+    email: string | null
+    room_id: string | null
+    check_in: string | null
+    check_out: string | null
+    token: string | null
+    token_expires_at: string | null
+  } | null = null
 
   if (guestId) {
     const { data: existing } = await admin
       .from('guests')
-      .select('id')
+      .select('id, name, phone, email, room_id, check_in, check_out, token, token_expires_at')
       .eq('id', guestId)
       .eq('hotel_id', profile.hotel_id)
       .maybeSingle()
     if (!existing) return { success: false, error: 'Guest not found.' }
+    guestSnapshot = {
+      name: existing.name,
+      phone: existing.phone,
+      email: existing.email,
+      room_id: existing.room_id,
+      check_in: existing.check_in,
+      check_out: existing.check_out,
+      token: existing.token,
+      token_expires_at: existing.token_expires_at,
+    }
 
     const { error: guestError } = await admin
       .from('guests')
@@ -277,6 +322,7 @@ export async function checkInStay(
 
     if (guestError || !newGuest) return { success: false, error: 'Could not create guest record.' }
     guestId = newGuest.id
+    guestWasCreated = true
     await storeGuestPortalPin(guestId, portalPin)
   }
 
@@ -309,6 +355,29 @@ export async function checkInStay(
     },
   })
   if (!transition.success) {
+    if (guestWasCreated && guestId) {
+      await admin.from('guests').delete().eq('id', guestId)
+    } else if (guestId && guestSnapshot) {
+      await admin
+        .from('guests')
+        .update({
+          name: guestSnapshot.name,
+          phone: guestSnapshot.phone,
+          email: guestSnapshot.email,
+          room_id: guestSnapshot.room_id,
+          check_in: guestSnapshot.check_in,
+          check_out: guestSnapshot.check_out,
+          token: guestSnapshot.token,
+          token_expires_at: guestSnapshot.token_expires_at,
+        })
+        .eq('id', guestId)
+    }
+    if (guestWasCreated) {
+      await admin
+        .from('reservations')
+        .update({ guest_id: reservation.guest_id })
+        .eq('id', reservationId)
+    }
     return { success: false, error: transition.error ?? 'Check-in failed.' }
   }
 

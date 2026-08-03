@@ -1,7 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { writeAuditLog } from '@/lib/audit/log'
 import { asReservationStatus } from '@/lib/reservations/lifecycle'
-import { runSideEffects, type ReservationRow } from '@/lib/reservations/side-effects'
+import { runSideEffects, partitionSideEffects, type ReservationRow } from '@/lib/reservations/side-effects'
 import {
   actorMeetsRequiredRole,
   getTransitionDef,
@@ -128,7 +128,9 @@ export async function transitionReservation(
     actorRole: input.actorRole,
   }
 
-  const { holdSource, holdMinutes, roomStatus } = await runSideEffects(def.sideEffects, sideCtx)
+  const { pre: preEffects, post: postEffects } = partitionSideEffects(def.sideEffects)
+
+  const { holdSource, holdMinutes, roomStatus } = await runSideEffects(preEffects, sideCtx)
 
   const { data: rpcResult, error: rpcError } = await admin.rpc('transition_reservation_status', {
     p_reservation_id: input.reservationId,
@@ -165,6 +167,10 @@ export async function transitionReservation(
       code: result?.code ?? 'TRANSITION_FAILED',
       fromStatus: asReservationStatus(result?.from_status) ?? undefined,
     }
+  }
+
+  if (postEffects.length > 0) {
+    await runSideEffects(postEffects, sideCtx)
   }
 
   if (input.actorId) {

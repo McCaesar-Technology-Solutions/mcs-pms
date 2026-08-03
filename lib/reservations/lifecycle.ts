@@ -20,6 +20,12 @@ export const INDEFINITE_OCCUPANCY_STATUSES = [
   'dispute_hold',
 ] as const satisfies readonly ReservationStatus[]
 
+/** In-house statuses that still hold the room after a missed departure day. */
+export const STALE_IN_HOUSE_STATUSES = [
+  'checked_in',
+  'checkout_in_progress',
+] as const satisfies readonly ReservationStatus[]
+
 /** Statuses that have released inventory. */
 export const VOIDED_RESERVATION_STATUSES = ['cancelled', 'no_show', 'released'] as const
 

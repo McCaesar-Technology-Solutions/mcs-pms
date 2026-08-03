@@ -1,6 +1,7 @@
 import {
   INDEFINITE_OCCUPANCY_STATUSES,
   OCCUPANCY_BLOCKING_STATUSES,
+  STALE_IN_HOUSE_STATUSES,
 } from '@/lib/reservations/lifecycle'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/lib/supabase/types'
@@ -50,26 +51,39 @@ function tomorrowISO(): string {
 }
 
 /**
- * Rooms held by a guest who has not actually left (overstay / dispute hold).
- * Their stored check_out is in the past, so date-range overlap alone misses
- * them — we treat them as occupied for any window reaching today or beyond.
+ * Rooms held by a guest who has not actually left (overstay / dispute hold, or
+ * stale checked_in after a missed cron). Their stored check_out may be in the
+ * past, so date-range overlap alone misses them — block from today onward.
  */
 async function roomsWithIndefiniteOccupant(
   client: Client,
   hotelId: string,
   opts: { roomId?: string; excludeReservationId?: string } = {},
 ): Promise<Set<string>> {
-  let query = client
+  const today = todayISO()
+  const taken = new Set<string>()
+
+  let indefiniteQuery = client
     .from('reservations')
     .select('id, room_id')
     .eq('hotel_id', hotelId)
     .in('status', INDEFINITE_BLOCKING_STATUSES)
-  if (opts.roomId) query = query.eq('room_id', opts.roomId)
-  if (opts.excludeReservationId) query = query.neq('id', opts.excludeReservationId)
+  if (opts.roomId) indefiniteQuery = indefiniteQuery.eq('room_id', opts.roomId)
+  if (opts.excludeReservationId) indefiniteQuery = indefiniteQuery.neq('id', opts.excludeReservationId)
 
-  const { data } = await query
-  const taken = new Set<string>()
-  for (const r of data ?? []) if (r.room_id) taken.add(r.room_id)
+  let staleQuery = client
+    .from('reservations')
+    .select('id, room_id')
+    .eq('hotel_id', hotelId)
+    .in('status', STALE_IN_HOUSE_STATUSES)
+    .lt('check_out', today)
+  if (opts.roomId) staleQuery = staleQuery.eq('room_id', opts.roomId)
+  if (opts.excludeReservationId) staleQuery = staleQuery.neq('id', opts.excludeReservationId)
+
+  const [{ data: indefinite }, { data: stale }] = await Promise.all([indefiniteQuery, staleQuery])
+  for (const r of [...(indefinite ?? []), ...(stale ?? [])]) {
+    if (r.room_id) taken.add(r.room_id)
+  }
   return taken
 }
 
@@ -112,7 +126,7 @@ export async function getOccupancyToday(client: Client, hotelId: string): Promis
 export async function getOccupancySpans(client: Client, hotelId: string): Promise<OccupancySpan[]> {
   const today = todayISO()
   const tomorrow = tomorrowISO()
-  const [reservationsRes, guestsRes, indefiniteRes] = await Promise.all([
+  const [reservationsRes, guestsRes, indefiniteRes, staleInHouseRes] = await Promise.all([
     client
       .from('reservations')
       .select('room_id, check_in, check_out')
@@ -129,6 +143,12 @@ export async function getOccupancySpans(client: Client, hotelId: string): Promis
       .select('room_id, check_in')
       .eq('hotel_id', hotelId)
       .in('status', INDEFINITE_BLOCKING_STATUSES),
+    client
+      .from('reservations')
+      .select('room_id, check_in')
+      .eq('hotel_id', hotelId)
+      .in('status', STALE_IN_HOUSE_STATUSES)
+      .lt('check_out', today),
   ])
 
   const spans: OccupancySpan[] = []
@@ -142,9 +162,9 @@ export async function getOccupancySpans(client: Client, hotelId: string): Promis
       spans.push({ roomId: g.room_id, checkIn: g.check_in, checkOut: g.check_out, kind: 'guest' })
     }
   }
-  // Overstay / dispute-hold rooms: guest is still in the room despite a past
-  // check_out. Surface them as occupied through today so the meter is accurate.
-  for (const r of indefiniteRes.data ?? []) {
+  // Overstay / dispute-hold / stale in-house: guest still in the room despite a
+  // past check_out. Surface them as occupied through today for the meter.
+  for (const r of [...(indefiniteRes.data ?? []), ...(staleInHouseRes.data ?? [])]) {
     if (r.room_id) {
       const checkIn = r.check_in && r.check_in < today ? r.check_in : today
       spans.push({ roomId: r.room_id, checkIn, checkOut: tomorrow, kind: 'reservation' })

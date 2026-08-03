@@ -4,9 +4,48 @@ Use this before pointing real staff and guests at MOJO in production. Complete *
 
 ---
 
+## Manual pilot mode (recommended first launch)
+
+Launch with **front-desk / cash payments only**. Online Paystack checkout stays off until payment hardening (Phase 1) is complete.
+
+### Pilot configuration
+
+| Setting | Value | Why |
+|---------|-------|-----|
+| `PAYMENTS_ENABLED` | **unset or `false`** | Disables Paystack checkout, webhook processing, and online refund paths |
+| `PAYSTACK_SECRET_KEY` | **do not set** | Not needed for manual pilot |
+| `DISABLE_PUBLIC_SIGNUP` | `true` | After first owner account exists |
+| Lifecycle v2 | **on** per property | Required for automated no-show, pre-arrival, overstay (Owner → Settings → Lifecycle) |
+
+With payments disabled, staff record payments manually on the **Owner → Billing** page (cash, mobile money, card at desk). Receptionists can record partial payments on invoices; refunds are owner-only.
+
+### Pilot smoke test (manual billing path)
+
+Run in order with a test owner account:
+
+1. Sign in → MFA enroll/verify → owner dashboard
+2. `/get-started` onboarding (new owner) or skip if already complete
+3. Create reservation → check-in → post folio charge → **begin checkout**
+4. On the invoice, **record a manual payment** (cash / MoMo / card) — do **not** use “Pay online”
+5. Complete checkout
+6. Log complaint (manager) → assign technician → verify SMS/email if configured
+7. Guest portal link → submit request → staff acknowledges
+8. Night audit (owner/manager) if using billing close
+
+Confirm **Owner → Billing → Online payments** shows “Payments disabled” (not a Paystack panel).
+
+### Pilot limitations (accepted for now)
+
+- No guest or staff-initiated Paystack checkout
+- Property timezone not yet supported — cron timing uses server UTC
+
+Do **not** set `PAYMENTS_ENABLED=true` until Phase 1 payment fixes are deployed.
+
+---
+
 ## 1. Supabase migrations
 
-Apply all **51** migrations in `supabase/migrations/` (`001` → `051`) in order.
+Apply all **60** migrations in `supabase/migrations/` (`001` → `060`) in order.
 
 **Fresh project:**
 
@@ -33,12 +72,15 @@ WHERE table_name = 'hotels' AND column_name = 'use_lifecycle_v2';
 -- Notification outbox (038)
 SELECT to_regclass('public.notification_outbox');
 
+-- Online payments table (060) — schema only; keep PAYMENTS_ENABLED off for pilot
+SELECT to_regclass('public.payments');
+
 -- Realtime (015)
 SELECT tablename FROM pg_publication_tables
 WHERE pubname = 'supabase_realtime' ORDER BY tablename;
 ```
 
-Enable **Reservation lifecycle v2** per property after `051` is applied: Owner → Settings → Lifecycle → turn on v2 when ready.
+Enable **Reservation lifecycle v2** per property after migrations are applied: Owner → Settings → Lifecycle → turn on v2 when ready.
 
 ---
 
@@ -56,6 +98,7 @@ Set in **Project → Settings → Environment Variables** (Production):
 | `GUEST_SESSION_SECRET` | Yes | Random 32+ char string |
 | `CRON_SECRET` | Yes | Random string; same value in GitHub secrets |
 | `DISABLE_PUBLIC_SIGNUP` | Recommended | Set `true` after first owner exists |
+| `PAYMENTS_ENABLED` | Pilot: **false or unset** | Do not enable until Phase 1 payment fixes ship |
 | `ARKESEL_API_KEY` + `ARKESEL_SENDER_ID` | Yes (with Resend or Termii) | Ghana SMS |
 | `TERMII_API_KEY` + `TERMII_WHATSAPP_SENDER` | Yes when using WhatsApp | WhatsApp (Termii) |
 | `TERMII_BASE_URL` | If Termii dashboard differs | Default `https://v4.api.termii.com` |
@@ -104,8 +147,8 @@ Workflow: [`.github/workflows/scheduled-crons.yml`](../.github/workflows/schedul
 |----------|--------|
 | Every 5 min | `/api/cron/notifications`, `/api/cron/reservation-holds` |
 | Hourly :00 | `/api/cron/reservation-pre-arrival` |
-| Hourly :15 | `/api/cron/reservation-overstay` |
-| Hourly :30 | `/api/cron/reservation-auto-checkout-prompt` |
+| Hourly :15 | `/api/cron/reservation-auto-checkout-prompt` |
+| Hourly :30 | `/api/cron/reservation-overstay` |
 
 **Manual test:** Actions → Scheduled crons → Run workflow.
 
@@ -129,6 +172,7 @@ Configure **SMTP** (or use Supabase default for dev only) for password-reset ema
 
 - [ ] Owner and manager accounts enrolled in **2FA** (mandatory in production)
 - [ ] `DISABLE_PUBLIC_SIGNUP=true` after first owner created
+- [ ] `PAYMENTS_ENABLED` is **not** set to `true` (manual pilot)
 - [ ] Never run `npm run seed` against production
 - [ ] Service role key not in client bundle or public repos
 - [ ] GitHub cron secrets configured and workflow green
@@ -141,7 +185,7 @@ Run in order with a test owner account:
 
 1. Sign in → MFA enroll/verify → owner dashboard
 2. `/get-started` onboarding (new owner) or skip if already complete
-3. Create reservation → check-in → post folio charge → begin checkout → complete checkout
+3. Create reservation → check-in → post folio charge → begin checkout → **record manual payment** → complete checkout
 4. Log complaint (manager) → assign technician → verify SMS/email if configured
 5. Guest portal link → submit request → staff acknowledges
 6. Night audit (owner/manager) if using billing close
@@ -153,6 +197,7 @@ Run in order with a test owner account:
 - Watch Vercel deployment logs for `[startup] Production env validation failed`
 - Configure Sentry alerts for notification dead-letters and 5xx spikes
 - Weekly: confirm GitHub **Scheduled crons** workflow runs successfully
+- Daily during pilot: review departures — manually check out any guest still `checked_in` past their departure date
 
 ---
 
@@ -163,6 +208,7 @@ Run in order with a test owner account:
 | Migrations on disk | `npm run check:migrations` |
 | Production ready | `GET /api/ready` |
 | Liveness | `GET /api/health` |
+| Payments off | `PAYMENTS_ENABLED` unset or `false` on Vercel |
 | Full deploy guide | [DEPLOYMENT.md](../DEPLOYMENT.md) |
 | Staff desktop app | **Install from browser** — open `/login` in Chrome/Edge, use the install icon in the address bar (PWA). Safari: Share → Add to Dock. |
 | Optional native installers | [desktop/README.md](../desktop/README.md) — Tauri `.msi` / `.dmg` if you need unsigned native bundles |

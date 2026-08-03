@@ -226,3 +226,28 @@ export async function runSideEffects(
 
   return { holdSource, holdMinutes, roomStatus }
 }
+
+/** Effects that must run before the atomic status RPC (hold timer, room status for RPC). */
+export const PRE_RPC_SIDE_EFFECTS = new Set<TransitionSideEffect>(['hold-timer', 'room-status'])
+
+/** Effects with ledger writes or notifications — run only after a successful RPC. */
+export const POST_RPC_SIDE_EFFECTS = new Set<TransitionSideEffect>([
+  'inventory',
+  'notifications',
+  'folio',
+  'payment',
+  'channel',
+])
+
+export function partitionSideEffects(effects: TransitionSideEffect[]): {
+  pre: TransitionSideEffect[]
+  post: TransitionSideEffect[]
+} {
+  const pre: TransitionSideEffect[] = []
+  const post: TransitionSideEffect[] = []
+  for (const effect of effects) {
+    if (PRE_RPC_SIDE_EFFECTS.has(effect)) pre.push(effect)
+    else if (POST_RPC_SIDE_EFFECTS.has(effect)) post.push(effect)
+  }
+  return { pre, post }
+}
