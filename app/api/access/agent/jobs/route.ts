@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { authenticateAccessAgent } from '@/lib/access/agent-auth'
-import { claimAccessJobs } from '@/lib/access/jobs'
+import { claimAccessJobs, reclaimStaleAccessJobs } from '@/lib/access/jobs'
 import { decryptAccessSecret } from '@/lib/access/crypto'
 import type { AccessJobPayload, ProvisionJobPayload, AssignCardJobPayload } from '@/lib/access/types'
 
@@ -28,6 +28,9 @@ export async function POST(request: Request) {
   } catch {
     // empty body is fine
   }
+
+  // Hobby Vercel only allows daily crons — reclaim stuck claims on each poll.
+  await reclaimStaleAccessJobs().catch(() => undefined)
 
   const jobs = await claimAccessJobs({
     hotelId: auth.ctx.hotelId,

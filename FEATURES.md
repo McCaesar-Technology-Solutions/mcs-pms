@@ -25,7 +25,7 @@ Production features shipped beyond the original UI prototype.
 - **Staff** — invite managers and receptionists by **email**, technicians by **phone**; phone numbers editable on profiles.
 - **Billing / GRA / Analytics** — owner only; invoice numbering, PDF export, tax reports, manual payments (cash/MoMo/card), partial payments and refunds, payment ledger reconciliation, guest folio posting with checkout rollup, night audit. Managers' dashboard hides revenue metrics.
 - **Guest privacy** — owner export/erase PII from the staff dashboard.
-- **Production ops** — health/ready endpoints, Vercel cron (cleanup, notifications, reservation lifecycle jobs when v2 enabled, access-job reclaim), notification outbox with retries.
+- **Production ops** — health/ready endpoints; daily Vercel crons + GitHub Actions for sub-daily jobs (notifications, lifecycle, access-job reclaim); notification outbox with retries.
 
 ### Notifications and live updates
 

@@ -20,7 +20,7 @@ Day-to-day steps for staff are in the [owner](owner-guide.md#8-access-control-hi
 | Lifecycle hooks | `app/actions/stays.ts` (check-in, checkout, extend, move) |
 | Job queue | `lib/access/jobs.ts` |
 | Agent API | `app/api/access/agent/*` |
-| Stuck-job reclaim | `app/api/cron/access-jobs` (every 5 min) |
+| Stuck-job reclaim | Agent poll + GitHub Actions every 5 min; daily Vercel backup (`04:45` UTC) |
 | Staff UI | `/owner/access`, `/manager/access`, `/receptionist/access` |
 | On-site agent | `services/hikvision-agent/` |
 
@@ -53,7 +53,7 @@ Day-to-day steps for staff are in the [owner](owner-guide.md#8-access-control-hi
 ## Ops notes
 
 - If the agent is offline, jobs stay `pending`/`failed` and retry with backoff.
-- Cron reclaim resets jobs stuck in `claimed` for >5 minutes.
+- Stuck `claimed` jobs are reclaimed on each agent poll, via GitHub Actions every 5 min (Hobby-friendly), and a daily Vercel cron backup.
 - Remote unlock is audited as `access` / `remote_unlock`.
 - Portal PIN is also used as the door PIN on provision (best-effort per firmware).
 

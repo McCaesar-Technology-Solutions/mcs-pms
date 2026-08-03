@@ -14,7 +14,7 @@
     },
     {
       "path": "/api/cron/access-jobs",
-      "schedule": "*/5 * * * *"
+      "schedule": "45 4 * * *"
     }
   ]
 }

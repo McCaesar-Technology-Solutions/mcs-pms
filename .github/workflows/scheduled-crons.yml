@@ -42,6 +42,11 @@ jobs:
           curl -sfS \
             -H "$CRON_AUTH" \
             "${{ secrets.PRODUCTION_APP_URL }}/api/cron/reservation-holds"
+      - name: Reclaim stuck access jobs
+        run: |
+          curl -sfS \
+            -H "$CRON_AUTH" \
+            "${{ secrets.PRODUCTION_APP_URL }}/api/cron/access-jobs"
 
   hourly-pre-arrival:
     if: github.event.schedule == '0 * * * *' || env.RUN_ALL == 'true'
