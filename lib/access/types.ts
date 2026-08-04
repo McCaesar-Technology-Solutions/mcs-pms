@@ -19,6 +19,7 @@ export type AccessJobStatus =
 export type AccessCredentialStatus = 'pending' | 'active' | 'revoking' | 'revoked' | 'error'
 export type AccessSyncStatus = 'pending' | 'synced' | 'failed'
 export type AccessZone = 'unit' | 'lobby' | 'gate' | 'elevator' | 'other'
+export type DeviceCredentialMode = 'local' | 'cloud'
 
 export interface AccessDoorTarget {
   deviceKey: string
@@ -105,6 +106,24 @@ export interface AccessIntegrationSummary {
   agentVersion: string | null
   agentHostname: string | null
   agentOnline: boolean
+  /** local = passwords in agent .env; cloud = passwords stored encrypted in MOJO */
+  deviceCredentialMode: DeviceCredentialMode
+}
+
+/** Safe for staff UI — never includes password. */
+export interface AccessDeviceRow {
+  id: string
+  hotel_id: string
+  device_key: string
+  label: string
+  host: string | null
+  port: number | null
+  username: string | null
+  use_https: boolean
+  managed_in_cloud: boolean
+  is_online: boolean
+  last_seen_at: string | null
+  has_password: boolean
 }
 
 export interface AccessPointRow {

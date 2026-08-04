@@ -26,24 +26,28 @@ Day-to-day steps for staff are in the [owner](owner-guide.md#8-access-control-hi
 
 ## Security model
 
-- Device admin passwords live **only** in the agent `.env` on the apartment LAN.
+- **Two password options:**
+  - **Local** — Hikvision admin passwords stay only in the agent `.env` on site.
+  - **Cloud** — passwords are entered in Owner → Access, stored encrypted (`access_device_secrets`, service role only), and downloaded by the authenticated agent over HTTPS.
 - Agent bearer token is stored as **SHA-256 hash** in `access_integrations` (plaintext shown once on rotate).
 - Door PINs in job payloads are **AES-GCM encrypted** at rest and stripped after success.
-- Staff RLS is **SELECT-only**; writes go through service role (server actions / agent API).
+- Staff RLS is **SELECT-only** on access tables; device password ciphertext is never selected in browser loaders.
 - Agent endpoints are rate-limited and require `Authorization: Bearer` + `X-Mojo-Hotel-Id`.
 
 ## Go-live steps (simplified)
 
-1. Apply migration `061` if not already applied.
-2. Owner → **Access** → **Start setup** → **Copy full .env**.
+1. Apply migrations through `064` (includes cloud device secrets).
+2. Owner → **Access**:
+   - Choose **Store in MOJO** (easier) or **Apartment PC only**
+   - If cloud: save controller IP / username / password
+   - **Start setup** → **Copy full .env**
 3. On the apartment PC:
    ```bash
    cd services/hikvision-agent
-   # paste the copied .env, then edit only controller IP + password in DEVICES
+   # paste .env (cloud mode needs no DEVICES)
    npm install && npm start
    ```
-   Or answer prompts: `npm run setup`
-4. Back in MOJO → map doors (device key must match `DEVICES[].key`, e.g. `lobby`).
+4. Map doors (device key must match controller key, e.g. `lobby`).
 5. Confirm **Agent online**, then test one check-in / checkout.
 6. Keep the agent auto-starting after reboot.
 

@@ -8,8 +8,16 @@ import {
   startAccessSetup,
   upsertAccessPoint,
   deleteAccessPoint,
+  setDeviceCredentialMode,
+  upsertCloudAccessDevice,
+  deleteCloudAccessDevice,
 } from '@/app/actions/access-control'
-import type { AccessIntegrationSummary, AccessPointRow } from '@/lib/access/types'
+import type {
+  AccessDeviceRow,
+  AccessIntegrationSummary,
+  AccessPointRow,
+  DeviceCredentialMode,
+} from '@/lib/access/types'
 import { FormField, APP_FIELD_CLASS } from '@/components/ui/form-field'
 
 interface RoomOption {
@@ -23,6 +31,7 @@ interface AccessControlSettingsPanelProps {
   integration: AccessIntegrationSummary
   points: AccessPointRow[]
   rooms: RoomOption[]
+  devices: AccessDeviceRow[]
   deviceKeys: string[]
   canManage: boolean
 }
@@ -33,6 +42,7 @@ export function AccessControlSettingsPanel({
   integration,
   points,
   rooms,
+  devices,
   deviceKeys,
   canManage,
 }: AccessControlSettingsPanelProps) {
@@ -49,15 +59,39 @@ export function AccessControlSettingsPanel({
   const [zone, setZone] = useState<'unit' | 'lobby' | 'gate' | 'elevator' | 'other'>('lobby')
   const [roomId, setRoomId] = useState(rooms[0]?.id ?? '')
 
+  const [ctrlKey, setCtrlKey] = useState('lobby')
+  const [ctrlLabel, setCtrlLabel] = useState('Lobby controller')
+  const [ctrlHost, setCtrlHost] = useState('192.168.1.64')
+  const [ctrlPort, setCtrlPort] = useState('80')
+  const [ctrlUser, setCtrlUser] = useState('admin')
+  const [ctrlPassword, setCtrlPassword] = useState('')
+
   const enabled = integration.hotelFlagEnabled && integration.enabled
+  const mode = integration.deviceCredentialMode ?? 'local'
+  const cloudDevices = devices.filter((d) => d.managed_in_cloud)
   const steps = useMemo(
     () => [
       { id: 'enable', label: 'Sync enabled', done: enabled },
       { id: 'token', label: 'Agent token created', done: integration.hasAgentToken },
+      {
+        id: 'controllers',
+        label:
+          mode === 'cloud'
+            ? 'Controller saved in MOJO'
+            : 'Controller password set on apartment PC (.env)',
+        done: mode === 'cloud' ? cloudDevices.some((d) => d.has_password) : true,
+      },
       { id: 'agent', label: 'Agent online on apartment PC', done: integration.agentOnline },
       { id: 'doors', label: 'At least one door mapped', done: points.length > 0 },
     ],
-    [enabled, integration.hasAgentToken, integration.agentOnline, points.length],
+    [
+      enabled,
+      integration.hasAgentToken,
+      integration.agentOnline,
+      points.length,
+      mode,
+      cloudDevices,
+    ],
   )
   const setupComplete = steps.every((s) => s.done)
 
@@ -139,13 +173,14 @@ export function AccessControlSettingsPanel({
             <div className="space-y-3 rounded-xl border border-border p-4">
               <p className="text-sm font-semibold text-foreground">Simplified setup (3 steps)</p>
               <ol className="list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
+                <li>Choose where controller passwords live (MOJO cloud or apartment PC only).</li>
                 <li>Click Start setup — enables sync and creates your agent config.</li>
                 <li>
-                  On the apartment PC: copy the config into{' '}
-                  <code className="text-xs">services/hikvision-agent/.env</code>, edit the controller
-                  IP/password, then run <code className="text-xs">npm install && npm start</code>.
+                  On the apartment PC: paste the config into{' '}
+                  <code className="text-xs">services/hikvision-agent/.env</code>, then{' '}
+                  <code className="text-xs">npm install && npm start</code>.
                 </li>
-                <li>Map doors below (device key must match the key in DEVICES, e.g. lobby).</li>
+                <li>Map doors below (device key must match the controller key, e.g. lobby).</li>
               </ol>
               <button
                 type="button"
@@ -325,6 +360,188 @@ export function AccessControlSettingsPanel({
             >
               Rotate agent token only
             </button>
+          </section>
+        )}
+
+        {canManage && (
+          <section className="space-y-4">
+            <div>
+              <p className="text-sm font-semibold text-foreground">Controller passwords</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Choose where Hikvision admin passwords are stored. The agent still must run on the
+                apartment network either way.
+              </p>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {(
+                [
+                  {
+                    value: 'cloud' as DeviceCredentialMode,
+                    title: 'Store in MOJO (easier)',
+                    hint: 'Enter IP/username/password here. Agent downloads them securely.',
+                  },
+                  {
+                    value: 'local' as DeviceCredentialMode,
+                    title: 'Apartment PC only (more private)',
+                    hint: 'Passwords stay only in the agent .env on site.',
+                  },
+                ] as const
+              ).map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  disabled={pending}
+                  onClick={() =>
+                    run(async () => {
+                      const result = await setDeviceCredentialMode({
+                        hotelId,
+                        mode: opt.value,
+                      })
+                      if (!result.success) setError(result.error)
+                      else setMessage(`Credential mode set to ${opt.value}.`)
+                    })
+                  }
+                  className={`rounded-xl border p-4 text-left transition-colors ${
+                    mode === opt.value
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border hover:bg-muted/40'
+                  }`}
+                >
+                  <span className="block text-sm font-semibold text-foreground">{opt.title}</span>
+                  <span className="mt-1 block text-xs text-muted-foreground">{opt.hint}</span>
+                </button>
+              ))}
+            </div>
+
+            {mode === 'cloud' && (
+              <div className="space-y-3 rounded-xl border border-border p-4">
+                <p className="text-sm font-medium text-foreground">Controllers in MOJO</p>
+                {cloudDevices.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No controllers saved yet.</p>
+                ) : (
+                  <ul className="divide-y divide-border rounded-lg border border-border">
+                    {cloudDevices.map((d) => (
+                      <li
+                        key={d.id}
+                        className="flex flex-wrap items-center justify-between gap-2 px-3 py-2"
+                      >
+                        <div>
+                          <p className="text-sm font-medium text-foreground">
+                            {d.label}{' '}
+                            <span className="font-normal text-muted-foreground">({d.device_key})</span>
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {d.host}:{d.port ?? 80} · {d.username}
+                            {d.has_password ? ' · password saved' : ' · missing password'}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          className="app-btn app-btn-ghost text-destructive"
+                          disabled={pending}
+                          onClick={() =>
+                            run(async () => {
+                              const result = await deleteCloudAccessDevice(hotelId, d.id)
+                              if (!result.success) setError(result.error)
+                              else setMessage('Controller removed.')
+                            })
+                          }
+                        >
+                          Remove
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                <form
+                  className="grid gap-3 sm:grid-cols-2"
+                  onSubmit={(e) => {
+                    e.preventDefault()
+                    run(async () => {
+                      const result = await upsertCloudAccessDevice({
+                        hotelId,
+                        deviceKey: ctrlKey,
+                        label: ctrlLabel,
+                        host: ctrlHost,
+                        port: Number(ctrlPort) || 80,
+                        username: ctrlUser,
+                        password: ctrlPassword || undefined,
+                        useHttps: false,
+                      })
+                      if (!result.success) {
+                        setError(result.error)
+                        return
+                      }
+                      setCtrlPassword('')
+                      setMessage('Controller saved in MOJO.')
+                    })
+                  }}
+                >
+                  <FormField label="Device key" htmlFor="ctrl-key">
+                    <input
+                      id="ctrl-key"
+                      className={APP_FIELD_CLASS}
+                      value={ctrlKey}
+                      onChange={(e) => setCtrlKey(e.target.value)}
+                      required
+                    />
+                  </FormField>
+                  <FormField label="Label" htmlFor="ctrl-label">
+                    <input
+                      id="ctrl-label"
+                      className={APP_FIELD_CLASS}
+                      value={ctrlLabel}
+                      onChange={(e) => setCtrlLabel(e.target.value)}
+                      required
+                    />
+                  </FormField>
+                  <FormField label="IP / host" htmlFor="ctrl-host">
+                    <input
+                      id="ctrl-host"
+                      className={APP_FIELD_CLASS}
+                      value={ctrlHost}
+                      onChange={(e) => setCtrlHost(e.target.value)}
+                      required
+                    />
+                  </FormField>
+                  <FormField label="Port" htmlFor="ctrl-port">
+                    <input
+                      id="ctrl-port"
+                      className={APP_FIELD_CLASS}
+                      value={ctrlPort}
+                      onChange={(e) => setCtrlPort(e.target.value)}
+                      required
+                    />
+                  </FormField>
+                  <FormField label="Username" htmlFor="ctrl-user">
+                    <input
+                      id="ctrl-user"
+                      className={APP_FIELD_CLASS}
+                      value={ctrlUser}
+                      onChange={(e) => setCtrlUser(e.target.value)}
+                      required
+                    />
+                  </FormField>
+                  <FormField label="Password" htmlFor="ctrl-pass">
+                    <input
+                      id="ctrl-pass"
+                      type="password"
+                      className={APP_FIELD_CLASS}
+                      value={ctrlPassword}
+                      onChange={(e) => setCtrlPassword(e.target.value)}
+                      placeholder="Required for new controllers"
+                      autoComplete="new-password"
+                    />
+                  </FormField>
+                  <div className="sm:col-span-2">
+                    <button type="submit" className="app-btn app-btn-primary" disabled={pending}>
+                      Save controller
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
           </section>
         )}
 

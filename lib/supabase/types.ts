@@ -1947,6 +1947,7 @@ export type Database = {
           agent_last_seen_at: string | null
           agent_version: string | null
           agent_hostname: string | null
+          device_credential_mode: 'local' | 'cloud'
           created_at: string
           updated_at: string
         }
@@ -1960,6 +1961,7 @@ export type Database = {
           agent_last_seen_at?: string | null
           agent_version?: string | null
           agent_hostname?: string | null
+          device_credential_mode?: 'local' | 'cloud'
           created_at?: string
           updated_at?: string
         }
@@ -1973,6 +1975,7 @@ export type Database = {
           agent_last_seen_at?: string | null
           agent_version?: string | null
           agent_hostname?: string | null
+          device_credential_mode?: 'local' | 'cloud'
           created_at?: string
           updated_at?: string
         }
@@ -1989,6 +1992,11 @@ export type Database = {
           firmware: string | null
           last_seen_at: string | null
           is_online: boolean
+          host: string | null
+          port: number | null
+          username: string | null
+          use_https: boolean
+          managed_in_cloud: boolean
           created_at: string
           updated_at: string
         }
@@ -2002,6 +2010,11 @@ export type Database = {
           firmware?: string | null
           last_seen_at?: string | null
           is_online?: boolean
+          host?: string | null
+          port?: number | null
+          username?: string | null
+          use_https?: boolean
+          managed_in_cloud?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -2015,7 +2028,33 @@ export type Database = {
           firmware?: string | null
           last_seen_at?: string | null
           is_online?: boolean
+          host?: string | null
+          port?: number | null
+          username?: string | null
+          use_https?: boolean
+          managed_in_cloud?: boolean
           created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      access_device_secrets: {
+        Row: {
+          device_id: string
+          hotel_id: string
+          password_encrypted: string
+          updated_at: string
+        }
+        Insert: {
+          device_id: string
+          hotel_id: string
+          password_encrypted: string
+          updated_at?: string
+        }
+        Update: {
+          device_id?: string
+          hotel_id?: string
+          password_encrypted?: string
           updated_at?: string
         }
         Relationships: []

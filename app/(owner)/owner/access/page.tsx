@@ -58,6 +58,7 @@ export default async function OwnerAccessPage() {
       agentVersion: null,
       agentHostname: null,
       agentOnline: false,
+      deviceCredentialMode: 'local' as const,
     } as const)
 
   return (
@@ -74,6 +75,7 @@ export default async function OwnerAccessPage() {
         integration={summary}
         points={points}
         rooms={(rooms ?? []).map((r) => ({ id: r.id, number: r.number }))}
+        devices={devices}
         deviceKeys={devices.map((d) => d.device_key)}
         canManage
       />

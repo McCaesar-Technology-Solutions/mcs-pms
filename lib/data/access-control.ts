@@ -3,9 +3,11 @@ import { resolveHotelTenantAccess } from '@/lib/data/tenant-guard'
 import { isAgentOnline } from '@/lib/access/agent-auth'
 import type {
   AccessCredentialRow,
+  AccessDeviceRow,
   AccessIntegrationSummary,
   AccessPointRow,
   AccessJobRow,
+  DeviceCredentialMode,
 } from '@/lib/access/types'
 
 export async function getAccessIntegrationSummary(
@@ -24,6 +26,8 @@ export async function getAccessIntegrationSummary(
 
   if (!hotel) return null
 
+  const mode = (integration?.device_credential_mode ?? 'local') as DeviceCredentialMode
+
   return {
     hotelId,
     enabled: Boolean(integration?.enabled),
@@ -34,6 +38,7 @@ export async function getAccessIntegrationSummary(
     agentVersion: integration?.agent_version ?? null,
     agentHostname: integration?.agent_hostname ?? null,
     agentOnline: isAgentOnline(integration?.agent_last_seen_at),
+    deviceCredentialMode: mode === 'cloud' ? 'cloud' : 'local',
   }
 }
 
@@ -129,7 +134,7 @@ export async function getRecentAccessJobs(hotelId: string, limit = 30): Promise<
   return (data ?? []) as AccessJobRow[]
 }
 
-export async function getAccessDevices(hotelId: string) {
+export async function getAccessDevices(hotelId: string): Promise<AccessDeviceRow[]> {
   const profile = await resolveHotelTenantAccess(hotelId, {
     roles: ['owner', 'manager', 'receptionist'],
   })
@@ -142,5 +147,28 @@ export async function getAccessDevices(hotelId: string) {
     .eq('hotel_id', hotelId)
     .order('label', { ascending: true })
 
-  return data ?? []
+  const devices = data ?? []
+  if (!devices.length) return []
+
+  const { data: secrets } = await admin
+    .from('access_device_secrets')
+    .select('device_id')
+    .eq('hotel_id', hotelId)
+
+  const withSecret = new Set((secrets ?? []).map((s) => s.device_id))
+
+  return devices.map((d) => ({
+    id: d.id,
+    hotel_id: d.hotel_id,
+    device_key: d.device_key,
+    label: d.label,
+    host: d.host ?? null,
+    port: d.port ?? null,
+    username: d.username ?? null,
+    use_https: Boolean(d.use_https),
+    managed_in_cloud: Boolean(d.managed_in_cloud),
+    is_online: Boolean(d.is_online),
+    last_seen_at: d.last_seen_at ?? null,
+    has_password: withSecret.has(d.id),
+  }))
 }

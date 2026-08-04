@@ -1,7 +1,7 @@
 import os from 'node:os'
-import { loadConfig } from './config.js'
+import { loadConfig, applyCloudDevices } from './config.js'
 
-const VERSION = '1.0.0'
+const VERSION = '1.0.1'
 
 const config = loadConfig()
 
@@ -33,7 +33,32 @@ async function api(path, init = {}) {
   return json
 }
 
+async function refreshDevicesFromCloud() {
+  if (config.deviceSource === 'local') return
+  const data = await api('/api/access/agent/devices')
+  if (data.mode === 'local') {
+    if (!config.devices.size) {
+      throw new Error(
+        'MOJO is in local credential mode, but this agent has no DEVICES. Set DEVICES or switch MOJO to cloud mode.',
+      )
+    }
+    return
+  }
+  applyCloudDevices(config, data.devices)
+  console.log(
+    `[devices] loaded ${config.devices.size} controller(s) from MOJO cloud: ${[...config.devices.keys()].join(', ')}`,
+  )
+}
+
 async function heartbeat() {
+  if (config.deviceSource !== 'local') {
+    try {
+      await refreshDevicesFromCloud()
+    } catch (err) {
+      console.warn('[devices] refresh failed:', err.message)
+    }
+  }
+
   const devices = []
   for (const [key, device] of config.devices) {
     let online = false
@@ -73,7 +98,7 @@ function devicesForDoors(doors = []) {
   const keys = [...new Set(doors.map((d) => d.deviceKey))]
   return keys.map((key) => {
     const device = config.devices.get(key)
-    if (!device) throw new Error(`Unknown device key "${key}" — not in agent DEVICES`)
+    if (!device) throw new Error(`Unknown device key "${key}" — not in agent devices`)
     return device
   })
 }
@@ -160,7 +185,13 @@ async function pollOnce() {
 
 async function main() {
   console.log(`[mojo-hikvision-agent] v${VERSION} hotel=${config.hotelId}`)
-  console.log(`[mojo-hikvision-agent] devices: ${[...config.devices.keys()].join(', ')}`)
+  console.log(`[mojo-hikvision-agent] device source: ${config.deviceSource}`)
+
+  if (config.deviceSource !== 'local') {
+    await refreshDevicesFromCloud()
+  } else {
+    console.log(`[mojo-hikvision-agent] devices: ${[...config.devices.keys()].join(', ')}`)
+  }
 
   const loop = async (fn, ms, label) => {
     const run = async () => {

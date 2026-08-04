@@ -44,7 +44,7 @@ Do **not** set `PAYMENTS_ENABLED=true` until Phase 1 payment fixes are deployed.
 
 ## 1. Supabase migrations
 
-Apply all **62** migrations in `supabase/migrations/` (`001` → `062`) in order.
+Apply all **64** migrations in `supabase/migrations/` (`001` → `064`) in order.
 
 **Fresh project:**
 

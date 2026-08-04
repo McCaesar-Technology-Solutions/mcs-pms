@@ -5,12 +5,12 @@ import { z } from 'zod'
 import { requireVerifiedStaff, consumeStaffAuthError } from '@/lib/auth/staff-session'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { ownerOwnsHotel } from '@/lib/data/properties'
-import { generateAgentToken } from '@/lib/access/crypto'
+import { encryptAccessSecret, generateAgentToken } from '@/lib/access/crypto'
 import { enqueueAccessJob } from '@/lib/access/jobs'
 import { provisionGuestAccess } from '@/lib/access/lifecycle'
 import { writeAuditLog } from '@/lib/audit/log'
 import { getAppOrigin } from '@/lib/env'
-import type { AccessZone } from '@/lib/access/types'
+import type { AccessZone, DeviceCredentialMode } from '@/lib/access/types'
 
 type ActionResult<T = undefined> =
   | { success: true; data?: T }
@@ -88,17 +88,37 @@ export async function startAccessSetup(hotelId: string): Promise<
     // keep placeholder if NEXT_PUBLIC_APP_URL unset in this environment
   }
 
-  const envFile = [
-    `# MOJO Hikvision agent — paste into services/hikvision-agent/.env`,
-    `MOJO_API_URL=${appUrl}`,
-    `HOTEL_ID=${hotelId}`,
-    `AGENT_TOKEN=${rotated.data.token}`,
-    `AGENT_ID=mojo-apartment-pc`,
-    '',
-    `# Edit host / password for your controller. key must match door mappings in MOJO.`,
-    `DEVICES=[{"key":"lobby","host":"192.168.1.64","port":80,"username":"admin","password":"CHANGE_ME","useHttps":false}]`,
-    '',
-  ].join('\n')
+  const { data: modeRow } = await createAdminClient()
+    .from('access_integrations')
+    .select('device_credential_mode')
+    .eq('hotel_id', hotelId)
+    .maybeSingle()
+
+  const cloudMode = modeRow?.device_credential_mode === 'cloud'
+
+  const envFile = cloudMode
+    ? [
+        `# MOJO Hikvision agent — cloud credential mode`,
+        `# Controller passwords are stored in MOJO (Owner → Access). No DEVICES needed.`,
+        `MOJO_API_URL=${appUrl}`,
+        `HOTEL_ID=${hotelId}`,
+        `AGENT_TOKEN=${rotated.data.token}`,
+        `AGENT_ID=mojo-apartment-pc`,
+        `DEVICE_SOURCE=cloud`,
+        '',
+      ].join('\n')
+    : [
+        `# MOJO Hikvision agent — local credential mode`,
+        `MOJO_API_URL=${appUrl}`,
+        `HOTEL_ID=${hotelId}`,
+        `AGENT_TOKEN=${rotated.data.token}`,
+        `AGENT_ID=mojo-apartment-pc`,
+        `DEVICE_SOURCE=local`,
+        '',
+        `# Edit host / password for your controller. key must match door mappings in MOJO.`,
+        `DEVICES=[{"key":"lobby","host":"192.168.1.64","port":80,"username":"admin","password":"CHANGE_ME","useHttps":false}]`,
+        '',
+      ].join('\n')
 
   return {
     success: true,
@@ -456,6 +476,168 @@ export async function retryAccessCredential(
     checkOut: cred.valid_to,
     cardNo: cred.card_no,
   })
+
+  revalidateAccess()
+  return { success: true }
+}
+
+export async function setDeviceCredentialMode(input: {
+  hotelId: string
+  mode: DeviceCredentialMode
+}): Promise<ActionResult> {
+  const auth = await requireOwnerHotel(input.hotelId)
+  if (!auth.ok) return { success: false, error: auth.error }
+  if (input.mode !== 'local' && input.mode !== 'cloud') {
+    return { success: false, error: 'Invalid credential mode.' }
+  }
+
+  const admin = createAdminClient()
+  const now = new Date().toISOString()
+  const { data: existing } = await admin
+    .from('access_integrations')
+    .select('id')
+    .eq('hotel_id', input.hotelId)
+    .maybeSingle()
+
+  if (existing) {
+    await admin
+      .from('access_integrations')
+      .update({ device_credential_mode: input.mode, updated_at: now })
+      .eq('id', existing.id)
+  } else {
+    await admin.from('access_integrations').insert({
+      hotel_id: input.hotelId,
+      enabled: false,
+      provider: 'hikvision',
+      device_credential_mode: input.mode,
+    })
+  }
+
+  void writeAuditLog({
+    hotelId: input.hotelId,
+    actorId: auth.userId,
+    actorName: auth.profile.name,
+    entityType: 'access',
+    entityId: input.hotelId,
+    action: 'device_credential_mode',
+    summary: `Device credential mode set to ${input.mode}`,
+  })
+
+  revalidateAccess()
+  return { success: true }
+}
+
+const cloudDeviceSchema = z.object({
+  hotelId: z.string().uuid(),
+  deviceKey: z.string().min(1).max(64),
+  label: z.string().min(1).max(120),
+  host: z.string().min(1).max(255),
+  port: z.number().int().min(1).max(65535).default(80),
+  username: z.string().min(1).max(120),
+  password: z.string().min(1).max(200).optional(),
+  useHttps: z.boolean().default(false),
+  id: z.string().uuid().optional(),
+})
+
+export async function upsertCloudAccessDevice(
+  input: z.infer<typeof cloudDeviceSchema>,
+): Promise<ActionResult<{ id: string }>> {
+  const parsed = cloudDeviceSchema.safeParse(input)
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid device.' }
+  }
+
+  const auth = await requireOwnerHotel(parsed.data.hotelId)
+  if (!auth.ok) return { success: false, error: auth.error }
+
+  const admin = createAdminClient()
+  const now = new Date().toISOString()
+  const key = parsed.data.deviceKey.trim()
+
+  let deviceId = parsed.data.id ?? null
+
+  if (deviceId) {
+    const { error } = await admin
+      .from('access_devices')
+      .update({
+        device_key: key,
+        label: parsed.data.label.trim(),
+        host: parsed.data.host.trim(),
+        port: parsed.data.port,
+        username: parsed.data.username.trim(),
+        use_https: parsed.data.useHttps,
+        managed_in_cloud: true,
+        updated_at: now,
+      })
+      .eq('id', deviceId)
+      .eq('hotel_id', parsed.data.hotelId)
+    if (error) return { success: false, error: error.message }
+  } else {
+    const { data, error } = await admin
+      .from('access_devices')
+      .upsert(
+        {
+          hotel_id: parsed.data.hotelId,
+          device_key: key,
+          label: parsed.data.label.trim(),
+          host: parsed.data.host.trim(),
+          port: parsed.data.port,
+          username: parsed.data.username.trim(),
+          use_https: parsed.data.useHttps,
+          managed_in_cloud: true,
+          updated_at: now,
+        },
+        { onConflict: 'hotel_id,device_key' },
+      )
+      .select('id')
+      .single()
+    if (error || !data) return { success: false, error: error?.message ?? 'Could not save device.' }
+    deviceId = data.id
+  }
+
+  if (parsed.data.password?.trim()) {
+    const password_encrypted = await encryptAccessSecret(parsed.data.password.trim())
+    const { error: secretError } = await admin.from('access_device_secrets').upsert(
+      {
+        device_id: deviceId,
+        hotel_id: parsed.data.hotelId,
+        password_encrypted,
+        updated_at: now,
+      },
+      { onConflict: 'device_id' },
+    )
+    if (secretError) return { success: false, error: secretError.message }
+  } else if (!parsed.data.id) {
+    return { success: false, error: 'Password is required for a new controller.' }
+  } else {
+    const { data: existingSecret } = await admin
+      .from('access_device_secrets')
+      .select('device_id')
+      .eq('device_id', deviceId)
+      .maybeSingle()
+    if (!existingSecret) {
+      return { success: false, error: 'Password is required (none stored yet).' }
+    }
+  }
+
+  revalidateAccess()
+  return { success: true, data: { id: deviceId } }
+}
+
+export async function deleteCloudAccessDevice(
+  hotelId: string,
+  deviceId: string,
+): Promise<ActionResult> {
+  const auth = await requireOwnerHotel(hotelId)
+  if (!auth.ok) return { success: false, error: auth.error }
+
+  const admin = createAdminClient()
+  const { error } = await admin
+    .from('access_devices')
+    .delete()
+    .eq('id', deviceId)
+    .eq('hotel_id', hotelId)
+  if (error) return { success: false, error: error.message }
 
   revalidateAccess()
   return { success: true }

@@ -31,21 +31,13 @@ function requireEnv(name) {
   return v
 }
 
-export function loadConfig() {
-  const apiUrl = requireEnv('MOJO_API_URL').replace(/\/$/, '')
-  const hotelId = requireEnv('HOTEL_ID')
-  const agentToken = requireEnv('AGENT_TOKEN')
-  const agentId = process.env.AGENT_ID?.trim() || 'hikvision-agent'
-  const pollMs = Number(process.env.POLL_INTERVAL_MS ?? 5000)
-  const heartbeatMs = Number(process.env.HEARTBEAT_INTERVAL_MS ?? 30000)
-
-  let devicesRaw = process.env.DEVICES?.trim()
-  if (!devicesRaw) throw new Error('DEVICES env JSON array is required')
+function devicesFromLocalEnv() {
+  const devicesRaw = process.env.DEVICES?.trim()
+  if (!devicesRaw) return null
   const deviceConfigs = JSON.parse(devicesRaw)
   if (!Array.isArray(deviceConfigs) || !deviceConfigs.length) {
-    throw new Error('DEVICES must be a non-empty JSON array')
+    throw new Error('DEVICES must be a non-empty JSON array when set')
   }
-
   const devices = new Map()
   for (const d of deviceConfigs) {
     if (!d.key || !d.host || !d.username || !d.password) {
@@ -53,6 +45,59 @@ export function loadConfig() {
     }
     devices.set(d.key, new HikvisionDevice(d))
   }
+  return devices
+}
 
-  return { apiUrl, hotelId, agentToken, agentId, pollMs, heartbeatMs, devices }
+export function loadConfig() {
+  const apiUrl = requireEnv('MOJO_API_URL').replace(/\/$/, '')
+  const hotelId = requireEnv('HOTEL_ID')
+  const agentToken = requireEnv('AGENT_TOKEN')
+  const agentId = process.env.AGENT_ID?.trim() || 'hikvision-agent'
+  const pollMs = Number(process.env.POLL_INTERVAL_MS ?? 5000)
+  const heartbeatMs = Number(process.env.HEARTBEAT_INTERVAL_MS ?? 30000)
+  const source = (process.env.DEVICE_SOURCE?.trim() || 'auto').toLowerCase()
+
+  const localDevices = (() => {
+    try {
+      return devicesFromLocalEnv()
+    } catch (err) {
+      if (source === 'local') throw err
+      return null
+    }
+  })()
+
+  /** @type {'local' | 'cloud' | 'auto'} */
+  let deviceSource = 'auto'
+  if (source === 'local' || source === 'cloud') deviceSource = source
+  else if (localDevices?.size) deviceSource = 'local'
+  else deviceSource = 'cloud'
+
+  if (deviceSource === 'local' && !localDevices?.size) {
+    throw new Error('DEVICE_SOURCE=local requires DEVICES in .env')
+  }
+
+  return {
+    apiUrl,
+    hotelId,
+    agentToken,
+    agentId,
+    pollMs,
+    heartbeatMs,
+    deviceSource,
+    /** Populated for local mode immediately; cloud mode filled after fetch. */
+    devices: localDevices ?? new Map(),
+  }
+}
+
+export function applyCloudDevices(config, deviceList) {
+  const devices = new Map()
+  for (const d of deviceList ?? []) {
+    if (!d.key || !d.host || !d.username || !d.password) continue
+    devices.set(d.key, new HikvisionDevice(d))
+  }
+  if (!devices.size) {
+    throw new Error('Cloud mode: no controllers configured in MOJO Access yet')
+  }
+  config.devices = devices
+  return devices
 }
