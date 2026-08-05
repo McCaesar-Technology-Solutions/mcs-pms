@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { enterGuestPortalByRoom } from '@/app/actions/guest-portal'
 import { GuestEntrySteps } from '@/components/guest/guest-entry-steps'
+import { GuestAuthBrand } from '@/components/brand/guest-auth-brand'
 
 interface GuestRoomEntryFormProps {
   slug: string
@@ -32,7 +33,7 @@ export function GuestRoomEntryForm({ slug, hotelName }: GuestRoomEntryFormProps)
         <GuestEntrySteps current={2} />
 
         <div className="text-center">
-          <p className="guest-auth-brand">MOJO APARTMENTS</p>
+          <GuestAuthBrand />
           <p className="mt-2 text-lg">{hotelName}</p>
           <p className="mt-2 text-sm leading-relaxed guest-text-muted">
             Scan the property QR at the front desk, then enter your room number and 6-digit PIN

@@ -118,7 +118,14 @@ export function getMfaOtpSecret(): string {
 }
 
 export function getAppOrigin(): string {
-  return requireEnv('NEXT_PUBLIC_APP_URL').replace(/\/$/, '')
+  const raw = requireEnv('NEXT_PUBLIC_APP_URL').trim()
+  const withProtocol = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`
+  try {
+    const url = new URL(withProtocol)
+    return `${url.protocol}//${url.host}`
+  } catch {
+    return withProtocol.replace(/\/$/, '')
+  }
 }
 
 export function getCronSecret(): string {

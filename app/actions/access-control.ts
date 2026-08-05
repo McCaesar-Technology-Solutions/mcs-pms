@@ -84,11 +84,11 @@ export async function startAccessSetup(hotelId: string): Promise<
     return { success: false, error: rotated.success ? 'No token returned.' : rotated.error }
   }
 
-  let appUrl = 'https://your-production-domain.com'
+  let appUrl = 'https://portal.mojoapartmentsgh.com'
   try {
     appUrl = getAppOrigin()
   } catch {
-    // keep placeholder if NEXT_PUBLIC_APP_URL unset in this environment
+    // keep production portal default if NEXT_PUBLIC_APP_URL unset
   }
 
   const { data: modeRow } = await createAdminClient()

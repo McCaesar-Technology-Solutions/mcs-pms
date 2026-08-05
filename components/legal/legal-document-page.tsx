@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { BrandMark } from '@/components/brand/brand-mark'
 
 interface LegalSection {
   title: string
@@ -24,10 +25,11 @@ export function LegalDocumentPage({ title, intro, sections, lastUpdated }: Legal
             ← Back to sign in
           </Link>
           <p
-            className="mt-6 text-3xl font-semibold text-[#D4A62E]"
+            className="mt-6 inline-flex items-center gap-2.5 text-3xl font-semibold text-[#D4A62E]"
             style={{ fontFamily: 'var(--font-cormorant, "Cormorant Garamond", serif)' }}
           >
-            MOJO APARTMENTS
+            <BrandMark variant="gold" className="!h-10 !w-auto" />
+            <span>MOJO APARTMENTS</span>
           </p>
           <h1 className="mt-2 text-2xl font-semibold">{title}</h1>
           <p className="mt-2 text-sm text-white/60">Last updated: {lastUpdated}</p>

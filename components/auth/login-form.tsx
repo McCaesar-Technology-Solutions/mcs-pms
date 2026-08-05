@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PasswordInput } from '@/components/auth/password-input'
+import { AuthBrand } from '@/components/brand/auth-brand'
 import { DesktopInstallHint } from '@/components/pwa/desktop-install-hint'
 import { signIn } from '@/app/actions/auth'
 import { isMfaPath } from '@/lib/auth/mfa'
@@ -58,10 +59,7 @@ export function LoginForm({ publicSignupAllowed }: LoginFormProps) {
 
   return (
     <div className="auth-form-card">
-      <div className="mb-8 text-center">
-        <p className="auth-brand-title">MOJO APARTMENTS</p>
-        <p className="mt-2 text-sm text-white/75">Staff sign in</p>
-      </div>
+      <AuthBrand subtitle="Staff sign in" />
 
       <DesktopInstallHint />
 

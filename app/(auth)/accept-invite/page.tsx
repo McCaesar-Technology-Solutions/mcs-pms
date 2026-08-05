@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PasswordInput } from '@/components/auth/password-input'
 import { PASSWORD_MIN_LENGTH } from '@/lib/auth/password-policy'
+import { AuthBrand } from '@/components/brand/auth-brand'
 import { acceptInvite } from '@/app/actions/auth'
 
 function AcceptInviteForm() {
@@ -125,10 +126,7 @@ function AcceptInviteForm() {
 export default function AcceptInvitePage() {
   return (
     <div className="auth-form-card">
-      <div className="mb-8 text-center">
-        <p className="auth-brand-title">MOJO APARTMENTS</p>
-        <p className="mt-2 text-sm text-white/75">Complete your staff registration</p>
-      </div>
+      <AuthBrand subtitle="Complete your staff registration" />
       <Suspense fallback={<p className="text-white/75">Loading…</p>}>
         <AcceptInviteForm />
       </Suspense>

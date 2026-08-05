@@ -29,6 +29,21 @@ function requireEnv(name) {
   return v
 }
 
+/** Origin only — strips paths like /owner/access and adds https if missing. */
+function normalizeApiUrl(raw) {
+  const trimmed = String(raw || '').trim()
+  if (!trimmed) throw new Error('MOJO_API_URL is empty')
+  const withProtocol = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`
+  try {
+    const url = new URL(withProtocol)
+    return `${url.protocol}//${url.host}`
+  } catch {
+    throw new Error(
+      `Invalid MOJO_API_URL "${raw}". Use your site origin only, e.g. https://portal.mojoapartmentsgh.com`,
+    )
+  }
+}
+
 function devicesFromLocalEnv() {
   const devicesRaw = process.env.DEVICES?.trim()
   if (!devicesRaw) return null
@@ -53,7 +68,7 @@ export function loadConfig(options = {}) {
   const envDir = options.envDir || process.cwd()
   loadDotEnv(envDir)
 
-  const apiUrl = requireEnv('MOJO_API_URL').replace(/\/$/, '')
+  const apiUrl = normalizeApiUrl(requireEnv('MOJO_API_URL'))
   const hotelId = requireEnv('HOTEL_ID')
   const agentToken = requireEnv('AGENT_TOKEN')
   const agentId = process.env.AGENT_ID?.trim() || 'hikvision-agent'

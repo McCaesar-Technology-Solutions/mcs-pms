@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { acceptGuestRulesForSession, acceptPropertyRulesBySlug } from '@/app/actions/guest-rules'
 import type { GuestRuleRow } from '@/lib/data/guest-rules'
 import { GuestEntrySteps } from '@/components/guest/guest-entry-steps'
+import { GuestAuthBrand } from '@/components/brand/guest-auth-brand'
 
 interface GuestRulesGateProps {
   hotelName: string
@@ -44,7 +45,7 @@ export function GuestRulesGate({ hotelName, rules, mode, slug }: GuestRulesGateP
         <GuestEntrySteps current={1} />
 
         <div className="text-center">
-          <p className="guest-auth-brand">MOJO APARTMENTS</p>
+          <GuestAuthBrand />
           <p className="mt-2 text-lg">{hotelName}</p>
         </div>
 

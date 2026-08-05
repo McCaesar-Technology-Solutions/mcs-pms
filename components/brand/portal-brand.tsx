@@ -1,4 +1,4 @@
-import { SidebarLogo } from '@/components/brand/sidebar-logo'
+import { BrandMark } from '@/components/brand/brand-mark'
 
 interface PortalBrandProps {
   variant?: 'guest' | 'technician'
@@ -8,7 +8,7 @@ interface PortalBrandProps {
 export function PortalBrand({ variant = 'guest', className = '' }: PortalBrandProps) {
   return (
     <div className={`portal-brand portal-brand--${variant} ${className}`.trim()}>
-      <SidebarLogo />
+      <BrandMark variant="brand" />
       <span className="portal-brand__text">
         <span className="portal-brand__mojo">MOJO</span>
         <span className="portal-brand__apartments"> APARTMENTS</span>

@@ -20,7 +20,10 @@ export const metadata: Metadata = {
   title: 'MOJO APARTMENTS - Property Management System',
   description: 'Professional property management system for Ghana hospitality',
   icons: {
-    icon: '/icon.svg',
+    icon: [
+      { url: '/icon.svg', type: 'image/svg+xml' },
+      { url: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+    ],
     apple: '/icons/apple-touch-icon.png',
   },
   appleWebApp: {
@@ -32,6 +35,7 @@ export const metadata: Metadata = {
     title: 'MOJO APARTMENTS',
     description: 'Professional property management system for Ghana hospitality',
     type: 'website',
+    images: [{ url: '/icons/icon-512.png', width: 512, height: 512, alt: 'MOJO Apartments' }],
   },
 }
 

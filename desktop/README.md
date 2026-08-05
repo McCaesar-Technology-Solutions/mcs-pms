@@ -104,9 +104,9 @@ Workflow: [`.github/workflows/desktop-build.yml`](../.github/workflows/desktop-b
 Replace default Tauri icons with your brand:
 
 ```bash
-# 1024×1024 PNG recommended (export from public/icon.svg)
+# 1024×1024 PNG from brand logo (npm run generate:pwa-icons)
 cd desktop
-npm run tauri icon path/to/mojo-icon-1024.png
+npm run tauri icon ../public/icons/icon-1024.png
 npm run build
 ```
 

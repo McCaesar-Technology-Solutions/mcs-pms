@@ -6,6 +6,7 @@ import { guestNeedsRulesAcceptance } from '@/lib/guest-rules/needs-acceptance'
 import { getGuestPropertyContacts } from '@/lib/data/contacts'
 import { getHotelGuestRules } from '@/lib/data/guest-rules'
 import { loadGuestPortalContext } from '@/lib/data/guest-portal'
+import { GuestAuthBrand } from '@/components/brand/guest-auth-brand'
 import { isPaymentsEnabled } from '@/lib/payments/enabled'
 
 export default async function GuestPage({
@@ -82,7 +83,7 @@ function messageForError(error?: string): string {
 function GuestExpiredPage({ message }: { message?: string }) {
   return (
     <div className="guest-auth-shell flex min-h-dvh flex-col items-center justify-center px-6 text-center">
-      <p className="guest-auth-brand text-3xl">MOJO APARTMENTS</p>
+      <GuestAuthBrand size="large" />
       <p className="mt-8 max-w-sm text-lg guest-text-muted">
         {message ?? 'This link has expired. Please contact the front desk.'}
       </p>

@@ -3425,6 +3425,10 @@
   }
 
   .guest-auth-brand {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.625rem;
     text-align: center;
     font-family: var(--font-display);
     font-size: 1.75rem;
@@ -5309,6 +5313,10 @@
   }
 
   .auth-brand-title {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.625rem;
     font-family: var(--font-display);
     font-size: 1.875rem;
     font-weight: 600;

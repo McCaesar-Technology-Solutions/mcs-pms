@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { AuthBrand } from '@/components/brand/auth-brand'
 
 interface AuthMfaShellProps {
   title: string
@@ -10,10 +11,7 @@ interface AuthMfaShellProps {
 export function AuthMfaShell({ title, description, children }: AuthMfaShellProps) {
   return (
     <div className="auth-form-card">
-      <div className="mb-8 text-center">
-        <p className="auth-brand-title">MOJO APARTMENTS</p>
-        <p className="mt-2 text-sm text-white/75">{title}</p>
-      </div>
+      <AuthBrand subtitle={title} />
       <p className="mb-6 text-sm text-white/75">{description}</p>
       {children}
       <p className="mt-6 text-center text-xs text-white/50">

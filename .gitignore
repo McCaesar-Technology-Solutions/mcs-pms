@@ -22,3 +22,9 @@ node_modules
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+services/access-agent-app/dist/
+services/access-agent-app/dist.zip
+services/access-agent-app/build.zip
+*.dmg
+*.exe

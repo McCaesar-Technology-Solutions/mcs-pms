@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PasswordInput } from '@/components/auth/password-input'
+import { AuthBrand } from '@/components/brand/auth-brand'
 import { signUpOwner } from '@/app/actions/auth'
 import { PASSWORD_MIN_LENGTH } from '@/lib/auth/password-policy'
 
@@ -39,12 +40,7 @@ export function SignUpForm() {
 
   return (
     <div className="auth-form-card">
-      <div className="mb-8 text-center">
-        <Link href="/login" className="auth-brand-title hover:text-[var(--brand-gold-light)]">
-          MOJO APARTMENTS
-        </Link>
-        <p className="mt-2 text-sm text-white/75">Create your owner account</p>
-      </div>
+      <AuthBrand asLink href="/login" subtitle="Create your owner account" />
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <div className="space-y-2">
