@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 import os from 'node:os'
 import { loadConfig, applyCloudDevices } from './config.js'
 
-export const AGENT_VERSION = '1.2.3'
+export const AGENT_VERSION = '1.2.4'
 
 /**
  * @param {{

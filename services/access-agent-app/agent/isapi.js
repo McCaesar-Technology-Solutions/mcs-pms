@@ -127,10 +127,32 @@ export class HikvisionDevice {
   }
 
   async remoteOpen(doorNo = 1) {
-    await this.request('PUT', `/ISAPI/AccessControl/RemoteControl/door/${doorNo}`, {
-      RemoteControlDoor: {
-        cmd: 'open',
+    // Prefer XML — proven on this property's controller (JSON format=json is flaky on some firmwares).
+    const path = `/ISAPI/AccessControl/RemoteControl/door/${Number(doorNo) || 1}`
+    const url = `${this.baseUrl()}${path}`
+    const xml =
+      '<RemoteControlDoor version="2.0" xmlns="http://www.isapi.org/ver20/XMLSchema"><cmd>open</cmd></RemoteControlDoor>'
+    const timeoutMs = Number(this.timeoutMs ?? 8000)
+    const res = await this.client.fetch(url, {
+      method: 'PUT',
+      signal: AbortSignal.timeout(timeoutMs),
+      headers: {
+        'Content-Type': 'application/xml',
+        Accept: 'application/xml',
       },
+      body: xml,
     })
+    const text = await res.text()
+    if (!res.ok || (text.includes('statusCode') && !text.includes('<statusCode>1</statusCode>') && !text.includes('<statusString>OK</statusString>'))) {
+      // Fallback to JSON shape used by newer firmwares
+      try {
+        await this.request('PUT', path, { RemoteControlDoor: { cmd: 'open' } })
+        return
+      } catch {
+        throw new Error(
+          `${this.key} remoteOpen door ${doorNo}: ${text || `HTTP ${res.status}`}`,
+        )
+      }
+    }
   }
 }

@@ -1,6 +1,6 @@
 {
   "name": "mojo-access-agent",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "private": true,
   "description": "MOJO Access Agent desktop app — tray icon, no terminal required",
   "main": "src/main.cjs",
