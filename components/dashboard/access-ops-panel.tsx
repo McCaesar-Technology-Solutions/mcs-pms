@@ -4,6 +4,9 @@ import { useState, useTransition } from 'react'
 import { DoorOpen } from 'lucide-react'
 import {
   assignAccessCard,
+  cancelAccessJobAction,
+  cancelOpenAccessJobsAction,
+  clearAccessJobsAction,
   remoteUnlockDoor,
   retryAccessCredential,
   startEnrollmentCapture,
@@ -242,7 +245,7 @@ export function AccessOpsPanel({
                                 if (!result.success) setError(result.error)
                                 else
                                   setMessage(
-                                    'Face enroll queued — guest should face the DS-K1F600U-D6E-F.',
+                                    'Face enroll queued — face the enrollment station; if it fails, stand at the Office door camera.',
                                   )
                               })
                             }
@@ -285,40 +288,106 @@ export function AccessOpsPanel({
       </div>
 
       <div className="surface-card overflow-hidden">
-        <div className="surface-card-header">
-          <h3 className="text-lg font-semibold text-foreground">Recent jobs</h3>
+        <div className="surface-card-header flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-semibold text-foreground">Recent jobs</h3>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              Cancel open jobs to stop retries, or clear the list entirely.
+            </p>
+          </div>
+          <div className="flex shrink-0 flex-wrap gap-2">
+            <button
+              type="button"
+              className="app-btn app-btn-secondary h-8 text-xs"
+              disabled={
+                pending ||
+                !jobs.some(
+                  (j) => j.status === 'pending' || j.status === 'failed' || j.status === 'claimed',
+                )
+              }
+              onClick={() =>
+                run(async () => {
+                  const result = await cancelOpenAccessJobsAction(hotelId)
+                  if (!result.success) setError(result.error)
+                  else setMessage(`Cancelled ${result.data?.count ?? 0} open job(s).`)
+                })
+              }
+            >
+              Cancel open jobs
+            </button>
+            <button
+              type="button"
+              className="app-btn app-btn-ghost h-8 text-xs"
+              disabled={pending || jobs.length === 0}
+              onClick={() =>
+                run(async () => {
+                  const result = await clearAccessJobsAction(hotelId)
+                  if (!result.success) setError(result.error)
+                  else setMessage(`Cleared ${result.data?.count ?? 0} job(s) from the list.`)
+                })
+              }
+            >
+              Clear jobs
+            </button>
+          </div>
         </div>
         <div className="surface-card-body overflow-x-auto">
           {jobs.length === 0 ? (
             <p className="text-sm text-muted-foreground">No jobs yet.</p>
           ) : (
-            <table className="w-full min-w-[520px] text-left text-sm">
+            <table className="w-full min-w-[600px] text-left text-sm">
               <thead className="text-xs uppercase text-muted-foreground">
                 <tr>
                   <th className="pb-2 pr-3 font-medium">Type</th>
                   <th className="pb-2 pr-3 font-medium">Status</th>
                   <th className="pb-2 pr-3 font-medium">Attempts</th>
-                  <th className="pb-2 font-medium">Created</th>
+                  <th className="pb-2 pr-3 font-medium">Created</th>
+                  <th className="pb-2 font-medium"> </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {jobs.map((j) => (
-                  <tr key={j.id}>
-                    <td className="py-2 pr-3">{j.job_type}</td>
-                    <td className="py-2 pr-3">
-                      {j.status}
-                      {j.last_error ? (
-                        <span className="mt-0.5 block text-xs text-destructive">{j.last_error}</span>
-                      ) : null}
-                    </td>
-                    <td className="py-2 pr-3">
-                      {j.attempts}/{j.max_attempts}
-                    </td>
-                    <td className="py-2 text-xs text-muted-foreground">
-                      {new Date(j.created_at).toLocaleString()}
-                    </td>
-                  </tr>
-                ))}
+                {jobs.map((j) => {
+                  const canCancel =
+                    j.status === 'pending' || j.status === 'failed' || j.status === 'claimed'
+                  return (
+                    <tr key={j.id}>
+                      <td className="py-2 pr-3">{j.job_type}</td>
+                      <td className="py-2 pr-3">
+                        {j.status}
+                        {j.last_error ? (
+                          <span className="mt-0.5 block text-xs text-destructive">{j.last_error}</span>
+                        ) : null}
+                      </td>
+                      <td className="py-2 pr-3">
+                        {j.attempts}/{j.max_attempts}
+                      </td>
+                      <td className="py-2 pr-3 text-xs text-muted-foreground">
+                        {new Date(j.created_at).toLocaleString()}
+                      </td>
+                      <td className="py-2 text-right">
+                        {canCancel ? (
+                          <button
+                            type="button"
+                            className="app-btn app-btn-ghost h-7 text-xs"
+                            disabled={pending}
+                            onClick={() =>
+                              run(async () => {
+                                const result = await cancelAccessJobAction({
+                                  hotelId,
+                                  jobId: j.id,
+                                })
+                                if (!result.success) setError(result.error)
+                                else setMessage('Job cancelled.')
+                              })
+                            }
+                          >
+                            Cancel
+                          </button>
+                        ) : null}
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           )}

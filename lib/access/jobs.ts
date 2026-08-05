@@ -167,6 +167,8 @@ export async function completeAccessJob(input: {
     .maybeSingle()
 
   if (!job) return { error: 'Job not found.' }
+  // Staff cancelled while agent was mid-capture — treat as done, don't overwrite.
+  if (job.status === 'cancelled') return { ok: true }
   if (job.status !== 'claimed') return { error: 'Job is not claimed.' }
 
   if (input.success) {
@@ -281,6 +283,87 @@ async function applyCredentialSuccess(
     }
     await admin.from('access_credentials').update(patch).eq('id', job.credential_id)
   }
+}
+
+const CANCELLABLE_STATUSES = ['pending', 'failed', 'claimed'] as const
+
+/** Cancel one open job so the agent will not (re)try it. */
+export async function cancelAccessJob(input: {
+  hotelId: string
+  jobId: string
+}): Promise<{ ok: true } | { error: string }> {
+  const admin = createAdminClient()
+  const now = new Date().toISOString()
+
+  const { data: job } = await admin
+    .from('access_jobs')
+    .select('id, status')
+    .eq('id', input.jobId)
+    .eq('hotel_id', input.hotelId)
+    .maybeSingle()
+
+  if (!job) return { error: 'Job not found.' }
+  if (!CANCELLABLE_STATUSES.includes(job.status as (typeof CANCELLABLE_STATUSES)[number])) {
+    return { error: `Cannot cancel a job with status “${job.status}”.` }
+  }
+
+  const { error } = await admin
+    .from('access_jobs')
+    .update({
+      status: 'cancelled',
+      last_error: 'Cancelled by staff',
+      next_retry_at: now,
+      claimed_at: null,
+      claimed_by: null,
+      updated_at: now,
+    })
+    .eq('id', job.id)
+    .eq('hotel_id', input.hotelId)
+    .in('status', [...CANCELLABLE_STATUSES])
+
+  if (error) return { error: error.message }
+  return { ok: true }
+}
+
+/** Cancel all pending / failed / claimed jobs for a property (stops retry storms). */
+export async function cancelOpenAccessJobs(input: {
+  hotelId: string
+}): Promise<{ ok: true; count: number } | { error: string }> {
+  const admin = createAdminClient()
+  const now = new Date().toISOString()
+
+  const { data, error } = await admin
+    .from('access_jobs')
+    .update({
+      status: 'cancelled',
+      last_error: 'Cancelled by staff',
+      next_retry_at: now,
+      claimed_at: null,
+      claimed_by: null,
+      updated_at: now,
+    })
+    .eq('hotel_id', input.hotelId)
+    .in('status', [...CANCELLABLE_STATUSES])
+    .select('id')
+
+  if (error) return { error: error.message }
+  return { ok: true, count: data?.length ?? 0 }
+}
+
+/** Delete job rows from Recent jobs (history + open). Stops retries by removing them. */
+export async function clearAccessJobs(input: {
+  hotelId: string
+}): Promise<{ ok: true; count: number } | { error: string }> {
+  const admin = createAdminClient()
+
+  const { data, error } = await admin
+    .from('access_jobs')
+    .delete()
+    .eq('hotel_id', input.hotelId)
+    .select('id')
+
+  if (error) return { error: error.message }
+  return { ok: true, count: data?.length ?? 0 }
 }
 
 /** Reclaim jobs stuck in claimed (agent crash) and cancel abandoned unlocks. */

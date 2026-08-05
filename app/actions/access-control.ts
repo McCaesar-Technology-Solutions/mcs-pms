@@ -6,7 +6,12 @@ import { requireVerifiedStaff, consumeStaffAuthError } from '@/lib/auth/staff-se
 import { createAdminClient } from '@/lib/supabase/admin'
 import { ownerOwnsHotel } from '@/lib/data/properties'
 import { encryptAccessSecret, generateAgentToken } from '@/lib/access/crypto'
-import { enqueueAccessJob } from '@/lib/access/jobs'
+import {
+  cancelAccessJob,
+  cancelOpenAccessJobs,
+  clearAccessJobs,
+  enqueueAccessJob,
+} from '@/lib/access/jobs'
 import { provisionGuestAccess } from '@/lib/access/lifecycle'
 import { writeAuditLog } from '@/lib/audit/log'
 import { getAppOrigin } from '@/lib/env'
@@ -353,6 +358,39 @@ async function resolveEnrollmentStation(
     .limit(1)
     .maybeSingle()
   return data
+}
+
+export async function cancelAccessJobAction(input: {
+  hotelId: string
+  jobId: string
+}): Promise<ActionResult> {
+  const auth = await requireAccessOps(input.hotelId)
+  if (!auth.ok) return { success: false, error: auth.error }
+
+  const result = await cancelAccessJob({ hotelId: input.hotelId, jobId: input.jobId })
+  if ('error' in result) return { success: false, error: result.error }
+  revalidateAccess()
+  return { success: true }
+}
+
+export async function cancelOpenAccessJobsAction(hotelId: string): Promise<ActionResult<{ count: number }>> {
+  const auth = await requireAccessOps(hotelId)
+  if (!auth.ok) return { success: false, error: auth.error }
+
+  const result = await cancelOpenAccessJobs({ hotelId })
+  if ('error' in result) return { success: false, error: result.error }
+  revalidateAccess()
+  return { success: true, data: { count: result.count } }
+}
+
+export async function clearAccessJobsAction(hotelId: string): Promise<ActionResult<{ count: number }>> {
+  const auth = await requireAccessOps(hotelId)
+  if (!auth.ok) return { success: false, error: auth.error }
+
+  const result = await clearAccessJobs({ hotelId })
+  if ('error' in result) return { success: false, error: result.error }
+  revalidateAccess()
+  return { success: true, data: { count: result.count } }
 }
 
 export async function startEnrollmentCapture(input: {

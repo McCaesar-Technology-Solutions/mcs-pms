@@ -460,6 +460,11 @@ ipcMain.handle('read-env', () => {
 })
 ipcMain.handle('get-status', () => lastStatus)
 ipcMain.handle('get-logs', () => logs.slice(-50))
+ipcMain.handle('clear-logs', () => {
+  logs.length = 0
+  statusWindow?.webContents.send('logs', [])
+  return { ok: true }
+})
 
 const gotLock = app.requestSingleInstanceLock()
 if (!gotLock) {

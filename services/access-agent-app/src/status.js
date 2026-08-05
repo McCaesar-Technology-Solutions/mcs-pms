@@ -1,6 +1,7 @@
 const badge = document.getElementById('badge')
 const detail = document.getElementById('detail')
 const logsEl = document.getElementById('logs')
+const clearBtn = document.getElementById('clearLogs')
 
 function renderStatus(s) {
   badge.textContent = s.online ? 'Connected' : 'Needs attention'
@@ -10,7 +11,7 @@ function renderStatus(s) {
 
 function renderLogs(items) {
   if (!items?.length) {
-    logsEl.textContent = 'Waiting for logs…'
+    logsEl.textContent = 'No recent activity.'
     return
   }
   logsEl.textContent = items.map((i) => i.line).join('\n')
@@ -21,9 +22,14 @@ if (!window.mojoAgent) {
   badge.textContent = 'Needs attention'
   badge.className = 'warn'
   detail.textContent = 'App bridge failed to load. Quit and reopen MOJO Access Agent.'
+  if (clearBtn) clearBtn.disabled = true
 } else {
   window.mojoAgent.getStatus().then(renderStatus)
   window.mojoAgent.getLogs().then(renderLogs)
   window.mojoAgent.onStatus(renderStatus)
   window.mojoAgent.onLogs(renderLogs)
+  clearBtn?.addEventListener('click', async () => {
+    await window.mojoAgent.clearLogs()
+    renderLogs([])
+  })
 }

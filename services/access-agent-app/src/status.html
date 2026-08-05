@@ -62,6 +62,28 @@
         white-space: pre-wrap;
         line-height: 1.4;
       }
+      .logs-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 8px;
+      }
+      .logs-head h2 {
+        margin: 0;
+      }
+      button.clear {
+        border: 1px solid #d6d3d1;
+        background: #fff;
+        color: var(--ink);
+        border-radius: 8px;
+        padding: 4px 10px;
+        font-size: 0.75rem;
+        cursor: pointer;
+      }
+      button.clear:hover {
+        background: #f5f5f4;
+      }
       .hint {
         margin-top: 14px;
         font-size: 0.85rem;
@@ -73,7 +95,10 @@
     <h1>MOJO Access Agent</h1>
     <div id="badge" class="warn">Checking…</div>
     <p id="detail">—</p>
-    <h2>Recent activity</h2>
+    <div class="logs-head">
+      <h2>Recent activity</h2>
+      <button type="button" class="clear" id="clearLogs">Clear logs</button>
+    </div>
     <div id="logs">Waiting for logs…</div>
     <p class="hint">
       Closing this window keeps the agent running in the menu bar (colored circle).

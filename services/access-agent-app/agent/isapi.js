@@ -261,11 +261,13 @@ export class HikvisionDevice {
     let lastError = 'Waiting for finger on sensor'
 
     while (Date.now() < deadline) {
-      const remaining = Math.max(3000, Math.min(25_000, deadline - Date.now()))
+      const remaining = deadline - Date.now()
+      if (remaining < 4000) break
+      const attemptMs = Math.min(20_000, remaining)
       try {
         const res = await this.digest(url, {
           method: 'POST',
-          timeoutMs: remaining,
+          timeoutMs: attemptMs,
           headers: {
             'Content-Type': 'application/xml',
             Accept: 'application/xml, */*',
@@ -337,7 +339,7 @@ export class HikvisionDevice {
 
   /**
    * Face capture via CaptureFaceData (XML). Device may return progress, faceDataUrl, or JPEG bytes.
-   * Guest must face the station/camera while this runs.
+   * Enrollment station often returns pictureUploadFailed; door terminals (DS-K1T321) support progress polling.
    */
   async captureFaceJpeg({ timeoutMs = 90_000 } = {}) {
     const deadline = Date.now() + timeoutMs
@@ -356,15 +358,22 @@ export class HikvisionDevice {
     const url = `${this.baseUrl()}/ISAPI/AccessControl/CaptureFaceData`
     let lastError = 'Waiting for face'
     let xmlIndex = 0
+    const where =
+      this.role === 'enrollment'
+        ? 'enrollment station camera'
+        : `${this.key} door camera`
 
     while (Date.now() < deadline) {
-      const remaining = Math.max(3000, Math.min(25_000, deadline - Date.now()))
+      const remaining = deadline - Date.now()
+      if (remaining < 4000) break
+      // Keep each attempt long enough for the person to align with the camera
+      const attemptMs = Math.min(20_000, remaining)
       const xml = xmlBodies[xmlIndex % xmlBodies.length]
       xmlIndex += 1
       try {
         const res = await this.digest(url, {
           method: 'POST',
-          timeoutMs: remaining,
+          timeoutMs: attemptMs,
           headers: {
             'Content-Type': 'application/xml',
             Accept: 'application/xml, image/jpeg, application/octet-stream, */*',
@@ -400,21 +409,22 @@ export class HikvisionDevice {
           lastError = `captureProgress ${progress}% — keep facing the camera`
         } else if (progress === 100) {
           lastError = 'captureProgress 100 but no face image in response'
+        } else if (progress === 0) {
+          lastError = 'captureProgress 0% — stand in front of the camera'
         } else {
           const sub =
             text.match(/<subStatusCode>([^<]+)/i)?.[1] ||
             text.match(/<statusString>([^<]+)/i)?.[1] ||
             `HTTP ${res.status}`
           lastError = sub
-          // pictureUploadFailed often means no usable face in frame yet — retry
         }
       } catch (err) {
         lastError = err.message
       }
-      await new Promise((r) => setTimeout(r, 700))
+      await new Promise((r) => setTimeout(r, 500))
     }
     throw new Error(
-      `${this.key}: face capture timed out (${lastError}). Face the DS-K1F600U camera after clicking Enroll face.`,
+      `${this.key}: face capture timed out (${lastError}). Face the ${where} while Enroll face is running.`,
     )
   }
 
