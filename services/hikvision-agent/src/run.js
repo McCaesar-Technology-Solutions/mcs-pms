@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 import os from 'node:os'
 import { loadConfig, applyCloudDevices } from './config.js'
 
-export const AGENT_VERSION = '1.3.1'
+export const AGENT_VERSION = '1.3.2'
 
 /**
  * @param {{
@@ -85,6 +85,9 @@ export async function startAgent(options = {}) {
             `Rate limited by MOJO — pausing API calls for ${Math.round(RATE_LIMIT_BACKOFF_MS / 1000)}s`,
           )
         }
+        const limited = new Error(err.message)
+        limited.code = 'RATE_LIMIT_BACKOFF'
+        throw limited
       }
       throw err
     }

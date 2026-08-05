@@ -1,6 +1,7 @@
 const { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain, dialog, shell } = require('electron')
 const path = require('node:path')
 const fs = require('node:fs')
+const { spawn, execFileSync } = require('node:child_process')
 
 /** @type {Electron.Tray | null} */
 let tray = null
@@ -12,6 +13,60 @@ let statusWindow = null
 let running = null
 let lastStatus = { online: false, detail: 'Starting…', devices: [] }
 const logs = []
+let showedLocalNetworkHelp = false
+
+function openLocalNetworkSettings() {
+  if (process.platform !== 'darwin') return
+  const urls = [
+    'x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_LocalNetwork',
+    'x-apple.systempreferences:com.apple.preference.security?Privacy_LocalNetwork',
+  ]
+  for (const url of urls) {
+    try {
+      shell.openExternal(url)
+      return
+    } catch {
+      // try next
+    }
+  }
+}
+
+function findSystemNode() {
+  const candidates = [
+    '/usr/local/bin/node',
+    '/opt/homebrew/bin/node',
+    process.env.NODE_BINARY,
+  ].filter(Boolean)
+  for (const c of candidates) {
+    try {
+      if (fs.existsSync(c)) return c
+    } catch {
+      // continue
+    }
+  }
+  try {
+    const out = execFileSync('/usr/bin/which', ['node'], { encoding: 'utf8' }).trim()
+    if (out && fs.existsSync(out)) return out
+  } catch {
+    // none
+  }
+  return null
+}
+
+/** Prefer app.asar.unpacked paths so system Node can read agent sources. */
+function resolveUnpacked(...parts) {
+  const asarPath = path.join(__dirname, '..', ...parts)
+  let unpacked = asarPath.replace(
+    `${path.sep}app.asar${path.sep}`,
+    `${path.sep}app.asar.unpacked${path.sep}`,
+  )
+  // path.join(..., '..') may end with ".../app.asar" (no trailing slash)
+  if (unpacked.endsWith(`${path.sep}app.asar`)) {
+    unpacked = `${unpacked.slice(0, -'app.asar'.length)}app.asar.unpacked`
+  }
+  if (unpacked !== asarPath && fs.existsSync(unpacked)) return unpacked
+  return asarPath
+}
 
 function userDataEnvDir() {
   return app.getPath('userData')
@@ -54,6 +109,14 @@ function rebuildTrayMenu() {
       label: 'Edit connection settings…',
       click: () => openSetupWindow(true),
     },
+    ...(process.platform === 'darwin'
+      ? [
+          {
+            label: 'Open Local Network settings…',
+            click: () => openLocalNetworkSettings(),
+          },
+        ]
+      : []),
     {
       label: app.getLoginItemSettings().openAtLogin
         ? '✓ Start when I log in'
@@ -138,6 +201,31 @@ function openStatusWindow() {
   })
 }
 
+function noteMaybeLocalNetworkBlocked(message) {
+  if (process.platform !== 'darwin') return
+  if (!/EHOSTUNREACH|ENETUNREACH|Local Network/i.test(String(message || ''))) return
+  if (showedLocalNetworkHelp) return
+  showedLocalNetworkHelp = true
+  dialog
+    .showMessageBox({
+      type: 'warning',
+      buttons: ['Open Local Network settings', 'Later'],
+      defaultId: 0,
+      title: 'Allow local network access',
+      message: 'macOS is blocking MOJO Access Agent from reaching door controllers on your LAN.',
+      detail:
+        'System Settings → Privacy & Security → Local Network → enable “MOJO Access Agent”, then Quit and reopen this app.\n\nTerminal can reach the devices; the app needs the same permission.',
+    })
+    .then((r) => {
+      if (r.response === 0) openLocalNetworkSettings()
+    })
+    .catch(() => {})
+}
+
+/**
+ * Prefer system Node on macOS — Electron's process is often denied Local Network
+ * (EHOSTUNREACH) even when Terminal/Node can reach Hikvision devices.
+ */
 async function startAgentProcess() {
   if (running) {
     running.stop()
@@ -158,12 +246,105 @@ async function startAgentProcess() {
     delete process.env[key]
   }
 
+  const envDir = userDataEnvDir()
+  const nodeBin = process.platform === 'darwin' ? findSystemNode() : null
+  const cliMain = resolveUnpacked('agent', 'cli-main.mjs')
+  const workerCwd = resolveUnpacked()
+
+  if (nodeBin && fs.existsSync(cliMain)) {
+    pushLog('info', `Starting device worker via system Node (${nodeBin})`)
+    const childEnv = { ...process.env, MOJO_AGENT_ENV_DIR: envDir }
+    // Worker must load credentials from the app .env — strip inherited empties/stale values
+    for (const key of [
+      'MOJO_API_URL',
+      'HOTEL_ID',
+      'AGENT_TOKEN',
+      'AGENT_ID',
+      'DEVICE_SOURCE',
+      'DEVICES',
+      'POLL_INTERVAL_MS',
+      'HEARTBEAT_INTERVAL_MS',
+    ]) {
+      delete childEnv[key]
+    }
+    const child = spawn(nodeBin, [cliMain], {
+      cwd: workerCwd,
+      env: childEnv,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
+
+    let buf = ''
+    const onLine = (line) => {
+      const text = String(line || '').trim()
+      if (!text) return
+      try {
+        const msg = JSON.parse(text)
+        if (msg.type === 'status' && msg.status) {
+          lastStatus = msg.status
+          rebuildTrayMenu()
+          statusWindow?.webContents.send('status', lastStatus)
+          return
+        }
+        if (msg.message) {
+          pushLog(msg.level || 'info', msg.message)
+          noteMaybeLocalNetworkBlocked(msg.message)
+          return
+        }
+      } catch {
+        pushLog('info', text)
+        noteMaybeLocalNetworkBlocked(text)
+      }
+    }
+
+    const feed = (chunk) => {
+      buf += chunk.toString('utf8')
+      const parts = buf.split('\n')
+      buf = parts.pop() || ''
+      for (const p of parts) onLine(p)
+    }
+    child.stdout.on('data', feed)
+    child.stderr.on('data', feed)
+    child.on('error', (err) => {
+      pushLog('error', `Device worker failed to start: ${err.message}`)
+      lastStatus = { online: false, detail: err.message, devices: [] }
+      rebuildTrayMenu()
+      statusWindow?.webContents.send('status', lastStatus)
+    })
+    child.on('exit', (code) => {
+      pushLog('warn', `Device worker exited (code ${code ?? '?'})`)
+      if (running && running._child === child) {
+        lastStatus = {
+          online: false,
+          detail: 'Device worker stopped — reopen the agent',
+          devices: [],
+        }
+        rebuildTrayMenu()
+        statusWindow?.webContents.send('status', lastStatus)
+      }
+    })
+
+    running = {
+      _child: child,
+      stop() {
+        try {
+          child.kill('SIGTERM')
+        } catch {
+          // ignore
+        }
+      },
+    }
+    return
+  }
+
   const agentPath = path.join(__dirname, '..', 'agent', 'run.js')
   const { startAgent } = await import(pathToFileUrl(agentPath))
 
   running = await startAgent({
-    envDir: userDataEnvDir(),
-    log: (level, message) => pushLog(level, message),
+    envDir,
+    log: (level, message) => {
+      pushLog(level, message)
+      noteMaybeLocalNetworkBlocked(message)
+    },
     onStatus: (status) => {
       lastStatus = status
       rebuildTrayMenu()
