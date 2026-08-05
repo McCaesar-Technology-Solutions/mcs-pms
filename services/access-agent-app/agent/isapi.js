@@ -3,7 +3,24 @@
  * Targets common AccessControl person/card/door endpoints.
  */
 
+import { spawn } from 'node:child_process'
+import { existsSync, readFileSync, unlinkSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { digestRequest } from './digest-http.js'
+
+function findFfmpeg() {
+  const candidates = [
+    process.env.FFMPEG_PATH,
+    '/opt/homebrew/bin/ffmpeg',
+    '/usr/local/bin/ffmpeg',
+    'ffmpeg',
+  ].filter(Boolean)
+  for (const c of candidates) {
+    if (c === 'ffmpeg' || existsSync(c)) return c
+  }
+  return null
+}
 
 export class HikvisionDevice {
   constructor(config) {
@@ -338,93 +355,156 @@ export class HikvisionDevice {
   }
 
   /**
-   * Face capture via CaptureFaceData (XML). Device may return progress, faceDataUrl, or JPEG bytes.
-   * Enrollment station often returns pictureUploadFailed; door terminals (DS-K1T321) support progress polling.
+   * Face capture on DS-K1F600U enrollment station.
+   * CaptureFaceData ISAPI returns pictureUploadFailed on this firmware — use RTSP snapshot instead.
+   * Guest must face the enrollment station camera while this runs.
    */
   async captureFaceJpeg({ timeoutMs = 90_000 } = {}) {
+    // Brief ISAPI attempt (works on some firmwares / when progress API is healthy)
+    try {
+      const viaIsapi = await this.captureFaceViaIsapi({ timeoutMs: Math.min(12_000, timeoutMs) })
+      if (viaIsapi?.jpeg?.length) return viaIsapi
+    } catch {
+      // expected on DS-K1F600U — fall through to RTSP
+    }
+    return this.captureFaceViaRtsp({ timeoutMs })
+  }
+
+  async captureFaceViaIsapi({ timeoutMs = 12_000 } = {}) {
     const deadline = Date.now() + timeoutMs
-    const xmlBodies = [
-      `<?xml version="1.0" encoding="UTF-8"?>
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <CaptureFaceDataCond version="2.0" xmlns="http://www.isapi.org/ver20/XMLSchema">
   <dataType>binary</dataType>
   <captureInfrared>false</captureInfrared>
-</CaptureFaceDataCond>`,
-      `<?xml version="1.0" encoding="UTF-8"?>
-<CaptureFaceDataCond version="2.0" xmlns="http://www.isapi.org/ver20/XMLSchema">
-  <dataType>binary</dataType>
-  <captureInfrared>true</captureInfrared>
-</CaptureFaceDataCond>`,
-    ]
+</CaptureFaceDataCond>`
     const url = `${this.baseUrl()}/ISAPI/AccessControl/CaptureFaceData`
     let lastError = 'Waiting for face'
-    let xmlIndex = 0
-    const where =
-      this.role === 'enrollment'
-        ? 'enrollment station camera'
-        : `${this.key} door camera`
 
     while (Date.now() < deadline) {
       const remaining = deadline - Date.now()
-      if (remaining < 4000) break
-      // Keep each attempt long enough for the person to align with the camera
-      const attemptMs = Math.min(20_000, remaining)
-      const xml = xmlBodies[xmlIndex % xmlBodies.length]
-      xmlIndex += 1
-      try {
-        const res = await this.digest(url, {
-          method: 'POST',
-          timeoutMs: attemptMs,
-          headers: {
-            'Content-Type': 'application/xml',
-            Accept: 'application/xml, image/jpeg, application/octet-stream, */*',
-          },
-          body: xml,
-        })
-        const buf = res.body
-        const ctype = String(res.headers['content-type'] || '')
-        if (buf.length > 500 && (ctype.includes('jpeg') || (buf[0] === 0xff && buf[1] === 0xd8))) {
-          return { jpeg: buf, contentType: 'image/jpeg' }
-        }
-
-        const text = res.text()
-        const progress = Number(text.match(/<captureProgress>([^<]+)/i)?.[1] ?? NaN)
-        const faceDataUrl = text.match(/<faceDataUrl>([^<]+)/i)?.[1]?.trim()
-        const infraredUrl = text.match(/<infraredFaceDataUrl>([^<]+)/i)?.[1]?.trim()
-        const dataUrl = faceDataUrl || infraredUrl
-
-        if (dataUrl) {
-          const abs = dataUrl.startsWith('http')
-            ? dataUrl
-            : `${this.baseUrl()}${dataUrl.startsWith('/') ? '' : '/'}${dataUrl}`
-          const pic = await this.digest(abs, {
-            method: 'GET',
-            timeoutMs: 15_000,
-            headers: { Accept: 'image/jpeg, application/octet-stream, */*' },
-          })
-          if (pic.body?.length > 500) {
-            return { jpeg: pic.body, contentType: 'image/jpeg' }
-          }
-          lastError = `faceDataUrl empty (${dataUrl})`
-        } else if (Number.isFinite(progress) && progress > 0 && progress < 100) {
-          lastError = `captureProgress ${progress}% — keep facing the camera`
-        } else if (progress === 100) {
-          lastError = 'captureProgress 100 but no face image in response'
-        } else if (progress === 0) {
-          lastError = 'captureProgress 0% — stand in front of the camera'
-        } else {
-          const sub =
-            text.match(/<subStatusCode>([^<]+)/i)?.[1] ||
-            text.match(/<statusString>([^<]+)/i)?.[1] ||
-            `HTTP ${res.status}`
-          lastError = sub
-        }
-      } catch (err) {
-        lastError = err.message
+      if (remaining < 3000) break
+      const res = await this.digest(url, {
+        method: 'POST',
+        timeoutMs: Math.min(10_000, remaining),
+        headers: {
+          'Content-Type': 'application/xml',
+          Accept: 'application/xml, image/jpeg, application/octet-stream, */*',
+        },
+        body: xml,
+      })
+      const buf = res.body
+      if (buf.length > 500 && buf[0] === 0xff && buf[1] === 0xd8) {
+        return { jpeg: buf, contentType: 'image/jpeg' }
       }
-      await new Promise((r) => setTimeout(r, 500))
+      const text = res.text()
+      const faceDataUrl = text.match(/<faceDataUrl>([^<]+)/i)?.[1]?.trim()
+      if (faceDataUrl) {
+        const abs = faceDataUrl.startsWith('http')
+          ? faceDataUrl
+          : `${this.baseUrl()}${faceDataUrl.startsWith('/') ? '' : '/'}${faceDataUrl}`
+        const pic = await this.digest(abs, {
+          method: 'GET',
+          timeoutMs: 10_000,
+          headers: { Accept: 'image/jpeg, */*' },
+        })
+        if (pic.body?.length > 500) return { jpeg: pic.body, contentType: 'image/jpeg' }
+      }
+      lastError =
+        text.match(/<subStatusCode>([^<]+)/i)?.[1] ||
+        text.match(/<statusString>([^<]+)/i)?.[1] ||
+        `HTTP ${res.status}`
+      if (/pictureUploadFailed/i.test(lastError)) break
+      await new Promise((r) => setTimeout(r, 400))
+    }
+    throw new Error(lastError)
+  }
+
+  /** Grab a JPEG from the enrollment station RTSP stream (proven path on DS-K1F600U). */
+  async captureFaceViaRtsp({ timeoutMs = 90_000 } = {}) {
+    const ffmpeg = findFfmpeg()
+    if (!ffmpeg) {
+      throw new Error(
+        `${this.key}: face capture needs ffmpeg on this PC (brew install ffmpeg). Enrollment station has no working CaptureFaceData snapshot API.`,
+      )
+    }
+
+    const user = encodeURIComponent(this.username)
+    const pass = encodeURIComponent(this.password)
+    const host = this.host
+    const paths = [
+      '/h264/ch1/main/av_stream',
+      '/Streaming/Channels/101',
+      '/Streaming/Channels/1',
+      '/h264/ch1/sub/av_stream',
+    ]
+    const deadline = Date.now() + timeoutMs
+    let lastError = 'Waiting for RTSP frame'
+    const outFile = join(tmpdir(), `mojo-face-${this.key}-${Date.now()}.jpg`)
+
+    while (Date.now() < deadline) {
+      for (const path of paths) {
+        const rtsp = `rtsp://${user}:${pass}@${host}:554${path}`
+        try {
+          await new Promise((resolve, reject) => {
+            const args = [
+              '-y',
+              '-hide_banner',
+              '-loglevel',
+              'error',
+              '-rtsp_transport',
+              'tcp',
+              '-i',
+              rtsp,
+              '-update',
+              '1',
+              '-frames:v',
+              '1',
+              '-q:v',
+              '5',
+              outFile,
+            ]
+            const child = spawn(ffmpeg, args, { stdio: ['ignore', 'ignore', 'pipe'] })
+            let err = ''
+            child.stderr.on('data', (c) => {
+              err += c.toString()
+            })
+            const timer = setTimeout(() => {
+              child.kill('SIGKILL')
+              reject(new Error(`ffmpeg timeout for ${path}`))
+            }, 15_000)
+            child.on('error', (e) => {
+              clearTimeout(timer)
+              reject(e)
+            })
+            child.on('close', (code) => {
+              clearTimeout(timer)
+              if (code === 0 && existsSync(outFile)) resolve()
+              else reject(new Error(err.trim() || `ffmpeg exit ${code} (${path})`))
+            })
+          })
+          const jpeg = readFileSync(outFile)
+          try {
+            unlinkSync(outFile)
+          } catch {
+            // ignore
+          }
+          if (jpeg.length > 500 && jpeg[0] === 0xff && jpeg[1] === 0xd8) {
+            return { jpeg, contentType: 'image/jpeg', source: 'rtsp', path }
+          }
+          lastError = `empty/invalid jpeg from ${path}`
+        } catch (err) {
+          lastError = err.message
+          try {
+            unlinkSync(outFile)
+          } catch {
+            // ignore
+          }
+        }
+      }
+      await new Promise((r) => setTimeout(r, 800))
     }
     throw new Error(
-      `${this.key}: face capture timed out (${lastError}). Face the ${where} while Enroll face is running.`,
+      `${this.key}: face capture timed out on enrollment station (${lastError}). Face the DS-K1F600U camera after clicking Enroll face.`,
     )
   }
 

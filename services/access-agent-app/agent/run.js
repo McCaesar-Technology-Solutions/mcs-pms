@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 import os from 'node:os'
 import { loadConfig, applyCloudDevices } from './config.js'
 
-export const AGENT_VERSION = '1.3.5'
+export const AGENT_VERSION = '1.3.6'
 
 /**
  * @param {{
@@ -278,35 +278,17 @@ export async function startAgent(options = {}) {
       const targets = (payload.doors ?? []).length
         ? devicesForDoors(payload.doors)
         : doorDevices()
-      let jpeg = null
-      let capturedOn = station.key
-
-      // Station CaptureFaceData often returns pictureUploadFailed on DS-K1F600U;
-      // fall back to door terminal camera (DS-K1T321) which supports progress capture.
-      try {
-        log('info', `Capturing face on ${station.key} (enrollment station)…`)
-        ;({ jpeg } = await station.captureFaceJpeg({ timeoutMs: 35_000 }))
-      } catch (stationErr) {
-        log(
-          'warn',
-          `Station face capture failed (${stationErr.message}). Trying door camera — stand at Office terminal…`,
-        )
-        let lastErr = stationErr
-        for (const door of targets) {
-          try {
-            log('info', `Capturing face on ${door.key} (door camera)…`)
-            ;({ jpeg } = await door.captureFaceJpeg({ timeoutMs: 90_000 }))
-            capturedOn = door.key
-            break
-          } catch (err) {
-            lastErr = err
-            log('warn', `${door.key} face capture failed: ${err.message}`)
-          }
-        }
-        if (!jpeg) throw lastErr
-      }
-
-      log('info', `Face image captured on ${capturedOn} — uploading to door controllers`)
+      log(
+        'info',
+        `Capturing face on ${station.key} (DS-K1F600U enrollment station) — face the station camera…`,
+      )
+      const { jpeg, source } = await station.captureFaceJpeg({
+        timeoutMs: payload.timeoutMs ?? 90_000,
+      })
+      log(
+        'info',
+        `Face image captured on enrollment station${source ? ` via ${source}` : ''} — uploading to door controllers`,
+      )
       for (const device of targets) {
         await device.upsertUser({
           employeeNo: payload.employeeNo,
@@ -316,7 +298,7 @@ export async function startAgent(options = {}) {
         })
         await device.uploadFace({ employeeNo: payload.employeeNo, jpeg })
       }
-      return { hasFace: true, capturedOn, devices: targets.map((d) => d.key) }
+      return { hasFace: true, capturedOn: station.key, devices: targets.map((d) => d.key) }
     }
 
     if (type === 'enroll_fingerprint_capture') {

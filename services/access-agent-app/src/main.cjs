@@ -254,7 +254,14 @@ async function startAgentProcess() {
   if (nodeBin && fs.existsSync(cliMain)) {
     pushLog('info', `Starting device worker via system Node (${nodeBin})`)
     const childEnv = { ...process.env, MOJO_AGENT_ENV_DIR: envDir }
-    // Worker must load credentials from the app .env — strip inherited empties/stale values
+    // Homebrew ffmpeg (face capture on enrollment station) + clean credential env
+    const pathParts = String(childEnv.PATH || '')
+      .split(':')
+      .filter(Boolean)
+    for (const extra of ['/opt/homebrew/bin', '/usr/local/bin']) {
+      if (!pathParts.includes(extra)) pathParts.unshift(extra)
+    }
+    childEnv.PATH = pathParts.join(':')
     for (const key of [
       'MOJO_API_URL',
       'HOTEL_ID',

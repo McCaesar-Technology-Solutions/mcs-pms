@@ -245,7 +245,7 @@ export function AccessOpsPanel({
                                 if (!result.success) setError(result.error)
                                 else
                                   setMessage(
-                                    'Face enroll queued — face the enrollment station; if it fails, stand at the Office door camera.',
+                                    'Face enroll queued — face the DS-K1F600U enrollment station camera.',
                                   )
                               })
                             }
