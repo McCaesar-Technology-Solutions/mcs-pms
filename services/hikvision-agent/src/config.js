@@ -77,8 +77,8 @@ export function loadConfig(options = {}) {
   const hotelId = requireEnv('HOTEL_ID')
   const agentToken = requireEnv('AGENT_TOKEN')
   const agentId = process.env.AGENT_ID?.trim() || 'hikvision-agent'
-  const pollMs = Number(process.env.POLL_INTERVAL_MS ?? 5000)
-  const heartbeatMs = Number(process.env.HEARTBEAT_INTERVAL_MS ?? 30000)
+  const pollMs = Number(process.env.POLL_INTERVAL_MS ?? 8000)
+  const heartbeatMs = Number(process.env.HEARTBEAT_INTERVAL_MS ?? 60000)
   const source = (process.env.DEVICE_SOURCE?.trim() || 'auto').toLowerCase()
 
   const localDevices = (() => {

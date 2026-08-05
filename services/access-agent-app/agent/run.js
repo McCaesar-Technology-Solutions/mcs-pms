@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 import os from 'node:os'
 import { loadConfig, applyCloudDevices } from './config.js'
 
-export const AGENT_VERSION = '1.2.0'
+export const AGENT_VERSION = '1.2.3'
 
 /**
  * @param {{
@@ -39,6 +39,7 @@ export async function startAgent(options = {}) {
   async function api(path, init = {}) {
     const res = await fetch(`${config.apiUrl}${path}`, {
       ...init,
+      signal: init.signal ?? AbortSignal.timeout(20000),
       headers: { ...headers(), ...(init.headers ?? {}) },
     })
     const text = await res.text()
@@ -54,9 +55,33 @@ export async function startAgent(options = {}) {
     return json
   }
 
-  async function refreshDevicesFromCloud() {
+  let lastDeviceRefreshAt = 0
+  let apiBackoffUntil = 0
+  const DEVICE_REFRESH_MS = Number(process.env.DEVICE_REFRESH_MS ?? 5 * 60 * 1000)
+
+  async function apiWithBackoff(path, init = {}) {
+    if (Date.now() < apiBackoffUntil) {
+      throw new Error(`${path} → skipped (backing off after rate limit)`)
+    }
+    try {
+      return await api(path, init)
+    } catch (err) {
+      if (String(err.message).includes('429')) {
+        apiBackoffUntil = Date.now() + 30_000
+        log('warn', 'Rate limited by MOJO — pausing API calls for 30s')
+      }
+      throw err
+    }
+  }
+
+  async function refreshDevicesFromCloud({ force = false } = {}) {
     if (config.deviceSource === 'local') return
-    const data = await api('/api/access/agent/devices')
+    const now = Date.now()
+    if (!force && config.devices.size && now - lastDeviceRefreshAt < DEVICE_REFRESH_MS) {
+      return
+    }
+    const data = await apiWithBackoff('/api/access/agent/devices')
+    lastDeviceRefreshAt = Date.now()
     if (data.mode === 'local') {
       if (!config.devices.size) {
         throw new Error(
@@ -77,7 +102,9 @@ export async function startAgent(options = {}) {
       try {
         await refreshDevicesFromCloud()
       } catch (err) {
-        log('warn', `Device refresh failed: ${err.message}`)
+        if (!String(err.message).includes('skipped')) {
+          log('warn', `Device refresh failed: ${err.message}`)
+        }
       }
     }
 
@@ -109,7 +136,7 @@ export async function startAgent(options = {}) {
       })
     }
 
-    await api('/api/access/agent/heartbeat', {
+    await apiWithBackoff('/api/access/agent/heartbeat', {
       method: 'POST',
       body: JSON.stringify({
         version: AGENT_VERSION,
@@ -192,7 +219,7 @@ export async function startAgent(options = {}) {
   }
 
   async function pollOnce() {
-    const { jobs } = await api('/api/access/agent/jobs', {
+    const { jobs } = await apiWithBackoff('/api/access/agent/jobs', {
       method: 'POST',
       body: JSON.stringify({ limit: 10 }),
     })
@@ -200,14 +227,14 @@ export async function startAgent(options = {}) {
     for (const job of jobs ?? []) {
       try {
         const result = await handleJob(job)
-        await api(`/api/access/agent/jobs/${job.id}/complete`, {
+        await apiWithBackoff(`/api/access/agent/jobs/${job.id}/complete`, {
           method: 'POST',
           body: JSON.stringify({ success: true, result }),
         })
         log('info', `Job ${job.id} succeeded`)
       } catch (err) {
         log('error', `Job ${job.id} failed: ${err.message}`)
-        await api(`/api/access/agent/jobs/${job.id}/complete`, {
+        await apiWithBackoff(`/api/access/agent/jobs/${job.id}/complete`, {
           method: 'POST',
           body: JSON.stringify({ success: false, error: err.message }),
         }).catch((e) => log('error', `Complete report failed: ${e.message}`))
@@ -219,13 +246,17 @@ export async function startAgent(options = {}) {
   log('info', `device source: ${config.deviceSource}`)
 
   if (config.deviceSource !== 'local') {
-    await refreshDevicesFromCloud()
+    try {
+      await refreshDevicesFromCloud({ force: true })
+    } catch (err) {
+      log('warn', `Initial device refresh failed: ${err.message}`)
+    }
   } else {
     log('info', `devices: ${[...config.devices.keys()].join(', ')}`)
   }
 
   const timers = []
-  const loop = async (fn, ms, label) => {
+  const loop = (fn, ms, label) => {
     const run = async () => {
       try {
         await fn()
@@ -238,12 +269,19 @@ export async function startAgent(options = {}) {
         })
       }
     }
-    await run()
+    // Fire-and-forget first tick so UI is never blocked on LAN device timeouts
+    void run()
     timers.push(setInterval(run, ms))
   }
 
-  await loop(heartbeat, config.heartbeatMs, 'heartbeat')
-  await loop(pollOnce, config.pollMs, 'poll')
+  loop(heartbeat, config.heartbeatMs, 'heartbeat')
+  loop(pollOnce, config.pollMs, 'poll')
+
+  options.onStatus?.({
+    online: true,
+    detail: 'Agent running — syncing…',
+    devices: [...config.devices.keys()],
+  })
 
   return {
     stop() {

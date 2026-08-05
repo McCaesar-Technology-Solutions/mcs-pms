@@ -2,7 +2,7 @@
 
 Installable Windows / Mac app for the apartment PC. Staff **do not** use Terminal or `npm`.
 
-Current release: **1.2.0** (portal URL hardening, cloud controllers, tray setup UI).
+Current release: **1.2.1** (opens status window on launch; portal URL hardening; cloud controllers).
 
 ## What staff see
 

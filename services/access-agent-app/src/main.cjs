@@ -105,6 +105,8 @@ function openSetupWindow(force = false) {
 
 function openStatusWindow() {
   if (statusWindow) {
+    if (statusWindow.isMinimized()) statusWindow.restore()
+    statusWindow.show()
     statusWindow.focus()
     statusWindow.webContents.send('status', lastStatus)
     statusWindow.webContents.send('logs', logs.slice(-50))
@@ -113,6 +115,7 @@ function openStatusWindow() {
   statusWindow = new BrowserWindow({
     width: 480,
     height: 520,
+    show: true,
     title: 'MOJO Access Agent',
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
@@ -122,6 +125,10 @@ function openStatusWindow() {
     },
   })
   statusWindow.loadFile(path.join(__dirname, 'status.html'))
+  statusWindow.once('ready-to-show', () => {
+    statusWindow?.show()
+    statusWindow?.focus()
+  })
   statusWindow.webContents.on('did-finish-load', () => {
     statusWindow?.webContents.send('status', lastStatus)
     statusWindow?.webContents.send('logs', logs.slice(-50))
@@ -174,8 +181,22 @@ function pathToFileUrl(filePath) {
 
 function createTray() {
   tray = new Tray(trayIcon(false))
+  // macOS menu-bar: single click should open status (double-click is easy to miss)
+  tray.on('click', () => openStatusWindow())
   tray.on('double-click', () => openStatusWindow())
   rebuildTrayMenu()
+}
+
+function shouldOpenWindowOnLaunch() {
+  if (process.platform !== 'darwin') return true
+  try {
+    const login = app.getLoginItemSettings()
+    // Stay quiet only when macOS started us hidden at login
+    if (login.wasOpenedAtLogin && login.wasOpenedAsHidden) return false
+  } catch {
+    // ignore
+  }
+  return true
 }
 
 function normalizeEnvContents(raw) {
@@ -263,12 +284,12 @@ const gotLock = app.requestSingleInstanceLock()
 if (!gotLock) {
   app.quit()
 } else {
-  app.on('second-instance', () => openStatusWindow())
+  app.on('second-instance', () => {
+    if (fs.existsSync(envPath())) openStatusWindow()
+    else openSetupWindow(true)
+  })
 
   app.whenReady().then(async () => {
-    if (process.platform === 'darwin') {
-      app.dock?.hide()
-    }
     createTray()
 
     // Enable auto-start once on first install
@@ -278,24 +299,41 @@ if (!gotLock) {
       fs.writeFileSync(autostartFlag, '1')
     }
 
-    if (!fs.existsSync(envPath())) {
+    const openWindow = shouldOpenWindowOnLaunch()
+    const hasEnv = fs.existsSync(envPath())
+
+    // Always show UI first — never wait on controller/network (that used to look like "nothing opens")
+    if (process.platform === 'darwin' && openWindow) app.dock?.show()
+    if (!hasEnv) {
       openSetupWindow()
-    } else {
-      try {
-        await startAgentProcess()
-      } catch (err) {
-        pushLog('error', err.message)
-        lastStatus = { online: false, detail: err.message, devices: [] }
-        rebuildTrayMenu()
-        openSetupWindow(true)
-        dialog.showErrorBox('MOJO Access Agent', err.message)
-      }
+      return
+    }
+    if (openWindow) openStatusWindow()
+    else if (process.platform === 'darwin') app.dock?.hide()
+
+    try {
+      await startAgentProcess()
+    } catch (err) {
+      pushLog('error', err.message)
+      lastStatus = { online: false, detail: err.message, devices: [] }
+      rebuildTrayMenu()
+      if (process.platform === 'darwin') app.dock?.show()
+      openSetupWindow(true)
+      dialog.showErrorBox('MOJO Access Agent', err.message)
     }
   })
 
+  app.on('activate', () => {
+    // Clicking the Dock icon while running
+    if (process.platform === 'darwin') app.dock?.show()
+    if (fs.existsSync(envPath())) openStatusWindow()
+    else openSetupWindow(true)
+  })
+
   app.on('window-all-closed', (e) => {
-    // Keep running in tray
+    // Keep running in menu bar / tray after windows close
     e.preventDefault?.()
+    if (process.platform === 'darwin') app.dock?.hide()
   })
 
   app.on('before-quit', () => {

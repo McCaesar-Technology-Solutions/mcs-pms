@@ -23,8 +23,10 @@ export class HikvisionDevice {
 
   async request(method, path, body) {
     const url = `${this.baseUrl()}${path}${path.includes('?') ? '&' : '?'}format=json`
+    const timeoutMs = Number(this.timeoutMs ?? 5000)
     const init = {
       method,
+      signal: AbortSignal.timeout(timeoutMs),
       headers: {
         Accept: 'application/json',
         ...(body ? { 'Content-Type': 'application/json' } : {}),
