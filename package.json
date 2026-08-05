@@ -17,8 +17,12 @@
     "generate:pwa-icons": "node scripts/generate-pwa-icons.mjs",
     "desktop:dev": "npm run dev --prefix desktop",
     "desktop:build": "npm run build --prefix desktop",
-    "access-agent:install": "npm install --prefix services/hikvision-agent",
-    "access-agent:start": "npm start --prefix services/hikvision-agent"
+    "access-agent:install": "npm install --prefix services/access-agent-app",
+    "access-agent:dev": "npm start --prefix services/access-agent-app",
+    "access-agent:dist:mac": "npm run dist:mac --prefix services/access-agent-app",
+    "access-agent:dist:win": "npm run dist:win --prefix services/access-agent-app",
+    "access-agent:legacy-install": "npm install --prefix services/hikvision-agent",
+    "access-agent:legacy-start": "npm start --prefix services/hikvision-agent"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",

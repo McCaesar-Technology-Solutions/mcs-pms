@@ -1,0 +1,78 @@
+{
+  "name": "mojo-access-agent",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MOJO Access Agent desktop app — tray icon, no terminal required",
+  "main": "src/main.cjs",
+  "scripts": {
+    "sync:agent": "node scripts/sync-agent.mjs",
+    "prestart": "npm run sync:agent",
+    "predist": "npm run sync:agent",
+    "predist:win": "npm run sync:agent",
+    "predist:mac": "npm run sync:agent",
+    "start": "electron .",
+    "dev": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win",
+    "dist:mac": "electron-builder --mac"
+  },
+  "dependencies": {
+    "digest-fetch": "^3.1.1"
+  },
+  "devDependencies": {
+    "electron": "^37.2.0",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "com.mojoapartments.accessagent",
+    "productName": "MOJO Access Agent",
+    "copyright": "Copyright © MOJO Apartments",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**/*",
+      "agent/**/*",
+      "package.json"
+    ],
+    "extraResources": [],
+    "mac": {
+      "category": "public.app-category.business",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "hardenedRuntime": false
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "MOJO Access Agent",
+      "runAfterFinish": true
+    },
+    "dmg": {
+      "title": "MOJO Access Agent"
+    }
+  }
+}

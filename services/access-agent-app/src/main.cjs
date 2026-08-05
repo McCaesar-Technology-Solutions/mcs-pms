@@ -1,0 +1,257 @@
+const { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain, dialog, shell } = require('electron')
+const path = require('node:path')
+const fs = require('node:fs')
+
+/** @type {Electron.Tray | null} */
+let tray = null
+/** @type {Electron.BrowserWindow | null} */
+let setupWindow = null
+/** @type {Electron.BrowserWindow | null} */
+let statusWindow = null
+/** @type {{ stop: () => void } | null} */
+let running = null
+let lastStatus = { online: false, detail: 'Starting…', devices: [] }
+const logs = []
+
+function userDataEnvDir() {
+  return app.getPath('userData')
+}
+
+function envPath() {
+  return path.join(userDataEnvDir(), '.env')
+}
+
+function pushLog(level, message) {
+  const line = `[${new Date().toLocaleTimeString()}] ${message}`
+  logs.push({ level, line })
+  if (logs.length > 200) logs.shift()
+  statusWindow?.webContents.send('logs', logs.slice(-50))
+}
+
+function trayIcon(online) {
+  // 16x16 simple colored circle as PNG data URL → nativeImage
+  const color = online ? '#16a34a' : '#ca8a04'
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><circle cx="16" cy="16" r="12" fill="${color}"/></svg>`
+  return nativeImage.createFromDataURL(
+    `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`,
+  )
+}
+
+function rebuildTrayMenu() {
+  if (!tray) return
+  const template = [
+    {
+      label: lastStatus.online ? 'Status: Connected' : 'Status: Attention needed',
+      enabled: false,
+    },
+    { label: lastStatus.detail.slice(0, 60) || '—', enabled: false },
+    { type: 'separator' },
+    {
+      label: 'Open status',
+      click: () => openStatusWindow(),
+    },
+    {
+      label: 'Edit connection settings…',
+      click: () => openSetupWindow(true),
+    },
+    {
+      label: app.getLoginItemSettings().openAtLogin
+        ? '✓ Start when I log in'
+        : 'Start when I log in',
+      click: () => {
+        const next = !app.getLoginItemSettings().openAtLogin
+        app.setLoginItemSettings({ openAtLogin: next, openAsHidden: true })
+        rebuildTrayMenu()
+      },
+    },
+    { type: 'separator' },
+    {
+      label: 'Quit MOJO Access Agent',
+      click: () => {
+        running?.stop()
+        app.quit()
+      },
+    },
+  ]
+  tray.setContextMenu(Menu.buildFromTemplate(template))
+  tray.setToolTip(`MOJO Access Agent\n${lastStatus.detail}`)
+  tray.setImage(trayIcon(lastStatus.online))
+}
+
+function openSetupWindow(force = false) {
+  if (setupWindow) {
+    setupWindow.focus()
+    return
+  }
+  setupWindow = new BrowserWindow({
+    width: 560,
+    height: 640,
+    resizable: false,
+    title: 'MOJO Access Agent setup',
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.cjs'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  })
+  setupWindow.loadFile(path.join(__dirname, 'setup.html'), {
+    query: force ? { edit: '1' } : {},
+  })
+  setupWindow.on('closed', () => {
+    setupWindow = null
+  })
+}
+
+function openStatusWindow() {
+  if (statusWindow) {
+    statusWindow.focus()
+    statusWindow.webContents.send('status', lastStatus)
+    statusWindow.webContents.send('logs', logs.slice(-50))
+    return
+  }
+  statusWindow = new BrowserWindow({
+    width: 480,
+    height: 520,
+    title: 'MOJO Access Agent',
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.cjs'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  })
+  statusWindow.loadFile(path.join(__dirname, 'status.html'))
+  statusWindow.webContents.on('did-finish-load', () => {
+    statusWindow?.webContents.send('status', lastStatus)
+    statusWindow?.webContents.send('logs', logs.slice(-50))
+  })
+  statusWindow.on('closed', () => {
+    statusWindow = null
+  })
+}
+
+async function startAgentProcess() {
+  if (running) {
+    running.stop()
+    running = null
+  }
+
+  // Clear env keys we manage so .env reload wins on restart
+  for (const key of [
+    'MOJO_API_URL',
+    'HOTEL_ID',
+    'AGENT_TOKEN',
+    'AGENT_ID',
+    'DEVICE_SOURCE',
+    'DEVICES',
+    'POLL_INTERVAL_MS',
+    'HEARTBEAT_INTERVAL_MS',
+  ]) {
+    delete process.env[key]
+  }
+
+  const agentPath = path.join(__dirname, '..', 'agent', 'run.js')
+  const { startAgent } = await import(pathToFileUrl(agentPath))
+
+  running = await startAgent({
+    envDir: userDataEnvDir(),
+    log: (level, message) => pushLog(level, message),
+    onStatus: (status) => {
+      lastStatus = status
+      rebuildTrayMenu()
+      statusWindow?.webContents.send('status', status)
+    },
+  })
+}
+
+function pathToFileUrl(filePath) {
+  const resolved = path.resolve(filePath)
+  let urlPath = resolved.replace(/\\/g, '/')
+  if (!urlPath.startsWith('/')) urlPath = `/${urlPath}`
+  return `file://${urlPath}`
+}
+
+function createTray() {
+  tray = new Tray(trayIcon(false))
+  tray.on('double-click', () => openStatusWindow())
+  rebuildTrayMenu()
+}
+
+ipcMain.handle('save-env', async (_event, contents) => {
+  const text = String(contents || '').trim()
+  if (!text.includes('MOJO_API_URL') || !text.includes('AGENT_TOKEN') || !text.includes('HOTEL_ID')) {
+    return {
+      ok: false,
+      error: 'That does not look like a MOJO Access Agent config. Use Start setup → Copy full .env.',
+    }
+  }
+  fs.mkdirSync(userDataEnvDir(), { recursive: true })
+  fs.writeFileSync(envPath(), text.endsWith('\n') ? text : `${text}\n`, 'utf8')
+  try {
+    await startAgentProcess()
+    lastStatus = { online: true, detail: 'Connected — syncing…', devices: [] }
+    rebuildTrayMenu()
+    setupWindow?.close()
+    openStatusWindow()
+    return { ok: true }
+  } catch (err) {
+    pushLog('error', err.message)
+    lastStatus = { online: false, detail: err.message, devices: [] }
+    rebuildTrayMenu()
+    return { ok: false, error: err.message }
+  }
+})
+
+ipcMain.handle('has-env', () => fs.existsSync(envPath()))
+ipcMain.handle('read-env', () => {
+  try {
+    return fs.readFileSync(envPath(), 'utf8')
+  } catch {
+    return ''
+  }
+})
+ipcMain.handle('get-status', () => lastStatus)
+ipcMain.handle('get-logs', () => logs.slice(-50))
+
+const gotLock = app.requestSingleInstanceLock()
+if (!gotLock) {
+  app.quit()
+} else {
+  app.on('second-instance', () => openStatusWindow())
+
+  app.whenReady().then(async () => {
+    if (process.platform === 'darwin') {
+      app.dock?.hide()
+    }
+    createTray()
+
+    // Enable auto-start once on first install
+    const autostartFlag = path.join(userDataEnvDir(), 'autostart-initialized')
+    if (!fs.existsSync(autostartFlag)) {
+      app.setLoginItemSettings({ openAtLogin: true, openAsHidden: true })
+      fs.writeFileSync(autostartFlag, '1')
+    }
+
+    if (!fs.existsSync(envPath())) {
+      openSetupWindow()
+    } else {
+      try {
+        await startAgentProcess()
+      } catch (err) {
+        pushLog('error', err.message)
+        lastStatus = { online: false, detail: err.message, devices: [] }
+        rebuildTrayMenu()
+        openSetupWindow(true)
+        dialog.showErrorBox('MOJO Access Agent', err.message)
+      }
+    }
+  })
+
+  app.on('window-all-closed', (e) => {
+    // Keep running in tray
+    e.preventDefault?.()
+  })
+
+  app.on('before-quit', () => {
+    running?.stop()
+  })
+}

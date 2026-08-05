@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MOJO Access Agent</title>
+    <style>
+      :root {
+        --bg: #f7f4ef;
+        --ink: #1c1917;
+        --muted: #78716c;
+        --ok: #047857;
+        --warn: #b45309;
+      }
+      body {
+        margin: 0;
+        font-family: "Segoe UI", system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--ink);
+        padding: 20px;
+      }
+      h1 {
+        font-size: 1.2rem;
+        margin: 0 0 6px;
+      }
+      #detail {
+        color: var(--muted);
+        margin-bottom: 16px;
+        font-size: 0.95rem;
+      }
+      #badge {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        margin-bottom: 16px;
+      }
+      #badge.ok {
+        background: #d1fae5;
+        color: var(--ok);
+      }
+      #badge.warn {
+        background: #ffedd5;
+        color: var(--warn);
+      }
+      h2 {
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--muted);
+        margin: 0 0 8px;
+      }
+      #logs {
+        background: #fff;
+        border-radius: 12px;
+        padding: 12px;
+        font-family: ui-monospace, Menlo, monospace;
+        font-size: 11px;
+        max-height: 320px;
+        overflow: auto;
+        white-space: pre-wrap;
+        line-height: 1.4;
+      }
+      .hint {
+        margin-top: 14px;
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <h1>MOJO Access Agent</h1>
+    <div id="badge" class="warn">Checking…</div>
+    <p id="detail">—</p>
+    <h2>Recent activity</h2>
+    <div id="logs">Waiting for logs…</div>
+    <p class="hint">Keep this app running (tray icon). Door sync pauses if you quit it.</p>
+    <script>
+      const badge = document.getElementById('badge')
+      const detail = document.getElementById('detail')
+      const logsEl = document.getElementById('logs')
+
+      function renderStatus(s) {
+        badge.textContent = s.online ? 'Connected' : 'Needs attention'
+        badge.className = s.online ? 'ok' : 'warn'
+        detail.textContent = s.detail || '—'
+      }
+
+      function renderLogs(items) {
+        if (!items?.length) return
+        logsEl.textContent = items.map((i) => i.line).join('\n')
+        logsEl.scrollTop = logsEl.scrollHeight
+      }
+
+      window.mojoAgent.getStatus().then(renderStatus)
+      window.mojoAgent.getLogs().then(renderLogs)
+      window.mojoAgent.onStatus(renderStatus)
+      window.mojoAgent.onLogs(renderLogs)
+    </script>
+  </body>
+</html>

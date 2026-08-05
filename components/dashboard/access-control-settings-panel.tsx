@@ -176,9 +176,8 @@ export function AccessControlSettingsPanel({
                 <li>Choose where controller passwords live (MOJO cloud or apartment PC only).</li>
                 <li>Click Start setup — enables sync and creates your agent config.</li>
                 <li>
-                  On the apartment PC: paste the config into{' '}
-                  <code className="text-xs">services/hikvision-agent/.env</code>, then{' '}
-                  <code className="text-xs">npm install && npm start</code>.
+                  On the apartment PC: install <strong>MOJO Access Agent</strong>, paste the config
+                  when asked, leave the tray app running.
                 </li>
                 <li>Map doors below (device key must match the controller key, e.g. lobby).</li>
               </ol>
@@ -249,10 +248,8 @@ export function AccessControlSettingsPanel({
               </div>
             )}
             <p className="text-xs text-muted-foreground">
-              Apartment PC shortcut after paste:{' '}
-              <code>cd services/hikvision-agent && npm install && npm start</code>
-              <br />
-              Or interactive: <code>npm run setup</code>
+              Apartment PC: install <strong>MOJO Access Agent</strong> (Windows/Mac app), paste this
+              config once, keep the tray icon running.
             </p>
           </section>
         )}

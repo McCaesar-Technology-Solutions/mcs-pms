@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MOJO Access Agent setup</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f7f4ef;
+        --ink: #1c1917;
+        --muted: #78716c;
+        --card: #fff;
+        --line: #e7e5e4;
+        --accent: #0f766e;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: "Segoe UI", system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--ink);
+        padding: 24px;
+      }
+      h1 {
+        font-size: 1.35rem;
+        margin: 0 0 8px;
+      }
+      p {
+        margin: 0 0 12px;
+        color: var(--muted);
+        line-height: 1.45;
+        font-size: 0.95rem;
+      }
+      ol {
+        margin: 0 0 16px;
+        padding-left: 1.2rem;
+        color: var(--ink);
+        font-size: 0.95rem;
+        line-height: 1.5;
+      }
+      textarea {
+        width: 100%;
+        min-height: 220px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 12px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 12px;
+        resize: vertical;
+        background: var(--card);
+      }
+      button {
+        margin-top: 12px;
+        background: var(--accent);
+        color: white;
+        border: 0;
+        border-radius: 999px;
+        padding: 12px 18px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      button:disabled {
+        opacity: 0.6;
+        cursor: default;
+      }
+      .err {
+        color: #b91c1c;
+        font-size: 0.9rem;
+        margin-top: 10px;
+      }
+      .ok {
+        color: #047857;
+        font-size: 0.9rem;
+        margin-top: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Connect to MOJO</h1>
+    <p>One-time setup. After this, the agent runs in the background from the menu bar / system tray.</p>
+    <ol>
+      <li>On any computer, open MOJO → <strong>Owner → Access</strong></li>
+      <li>Click <strong>Start setup</strong>, then <strong>Copy full .env</strong></li>
+      <li>Paste it in the box below and click Save &amp; start</li>
+    </ol>
+    <textarea id="env" placeholder="Paste the MOJO Access Agent config here…"></textarea>
+    <div>
+      <button id="save" type="button">Save &amp; start</button>
+    </div>
+    <div id="msg" class="err"></div>
+    <script>
+      const msg = document.getElementById('msg')
+      const env = document.getElementById('env')
+      const save = document.getElementById('save')
+
+      window.mojoAgent.readEnv().then((text) => {
+        if (text) env.value = text
+      })
+
+      save.addEventListener('click', async () => {
+        msg.textContent = ''
+        msg.className = 'err'
+        save.disabled = true
+        save.textContent = 'Starting…'
+        const result = await window.mojoAgent.saveEnv(env.value)
+        save.disabled = false
+        save.textContent = 'Save & start'
+        if (!result.ok) {
+          msg.textContent = result.error || 'Could not start'
+          return
+        }
+        msg.className = 'ok'
+        msg.textContent = 'Connected. You can close this window — the agent stays in the tray.'
+      })
+    </script>
+  </body>
+</html>

@@ -22,7 +22,7 @@ Day-to-day steps for staff are in the [owner](owner-guide.md#8-access-control-hi
 | Agent API | `app/api/access/agent/*` |
 | Stuck-job reclaim | Agent poll + GitHub Actions every 5 min; daily Vercel backup (`04:45` UTC) |
 | Staff UI | `/owner/access`, `/manager/access`, `/receptionist/access` |
-| On-site agent | `services/hikvision-agent/` |
+| On-site agent | **MOJO Access Agent** desktop app (`services/access-agent-app`) — tray icon + `.dmg`/`.exe` |
 
 ## Security model
 
@@ -42,16 +42,11 @@ Day-to-day steps for staff are in the [owner](owner-guide.md#8-access-control-hi
    - If cloud: save controller IP / username / password
    - **Start setup** → **Copy full .env**
 3. On the apartment PC:
-   ```bash
-   cd services/hikvision-agent
-   # paste .env (cloud mode needs no DEVICES)
-   npm install && npm start
-   ```
+   - Install **MOJO Access Agent** (Windows `.exe` / Mac `.dmg` from `services/access-agent-app/dist`)
+   - Paste **Start setup → Copy full .env** when the app asks
+   - Leave it running in the tray (auto-starts at login)
 4. Map doors (device key must match controller key, e.g. `lobby`).
 5. Confirm **Agent online**, then test one check-in / checkout.
-6. Keep the agent auto-starting after reboot.
-
-## Ops notes
 
 - If the agent is offline, jobs stay `pending`/`failed` and retry with backoff.
 - Stuck `claimed` jobs are reclaimed on each agent poll, via GitHub Actions every 5 min (Hobby-friendly), and a daily Vercel cron backup.
