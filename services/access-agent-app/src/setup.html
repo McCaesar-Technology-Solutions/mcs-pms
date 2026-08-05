@@ -85,37 +85,14 @@
     <ol>
       <li>On any computer, open MOJO → <strong>Owner → Access</strong></li>
       <li>Click <strong>Start setup</strong>, then <strong>Copy full .env</strong></li>
-      <li>Paste it in the box below and click Save &amp; start</li>
+      <li>Paste it below. URL must be <code>https://portal.mojoapartmentsgh.com</code> (no page path)</li>
+      <li>Click Save &amp; start — leave the app in the tray on the apartment PC (same LAN as doors)</li>
     </ol>
     <textarea id="env" placeholder="Paste the MOJO Access Agent config here…"></textarea>
     <div>
       <button id="save" type="button">Save &amp; start</button>
     </div>
     <div id="msg" class="err"></div>
-    <script>
-      const msg = document.getElementById('msg')
-      const env = document.getElementById('env')
-      const save = document.getElementById('save')
-
-      window.mojoAgent.readEnv().then((text) => {
-        if (text) env.value = text
-      })
-
-      save.addEventListener('click', async () => {
-        msg.textContent = ''
-        msg.className = 'err'
-        save.disabled = true
-        save.textContent = 'Starting…'
-        const result = await window.mojoAgent.saveEnv(env.value)
-        save.disabled = false
-        save.textContent = 'Save & start'
-        if (!result.ok) {
-          msg.textContent = result.error || 'Could not start'
-          return
-        }
-        msg.className = 'ok'
-        msg.textContent = 'Connected. You can close this window — the agent stays in the tray.'
-      })
-    </script>
+    <script src="./setup.js"></script>
   </body>
 </html>

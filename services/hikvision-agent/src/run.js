@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 import os from 'node:os'
 import { loadConfig, applyCloudDevices } from './config.js'
 
-export const AGENT_VERSION = '1.1.0'
+export const AGENT_VERSION = '1.2.0'
 
 /**
  * @param {{
@@ -94,7 +94,10 @@ export async function startAgent(options = {}) {
         serialNumber = info?.serialNumber ?? null
         firmware = info?.firmwareVersion ?? null
       } catch (err) {
-        log('warn', `Device ${key} unreachable: ${err.message}`)
+        log(
+          'warn',
+          `Device ${key} unreachable at ${device.baseUrl()}: ${err.message} (PC must be on same LAN as controller)`,
+        )
       }
       devices.push({
         deviceKey: key,

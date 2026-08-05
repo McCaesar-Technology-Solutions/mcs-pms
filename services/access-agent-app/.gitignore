@@ -1,4 +1,11 @@
 node_modules/
 dist/
+dist.zip
+build.zip
 *.log
 .DS_Store
+*.dmg
+*.exe
+*.blockmap
+mac-arm64/
+win-unpacked/

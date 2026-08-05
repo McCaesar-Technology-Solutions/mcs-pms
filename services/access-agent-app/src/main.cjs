@@ -92,6 +92,7 @@ function openSetupWindow(force = false) {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: false,
     },
   })
   setupWindow.loadFile(path.join(__dirname, 'setup.html'), {
@@ -117,6 +118,7 @@ function openStatusWindow() {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: false,
     },
   })
   statusWindow.loadFile(path.join(__dirname, 'status.html'))
@@ -176,8 +178,53 @@ function createTray() {
   rebuildTrayMenu()
 }
 
+function normalizeEnvContents(raw) {
+  const text = String(raw || '').trim()
+  const lines = text.split(/\r?\n/)
+  const out = []
+  let sawApiUrl = false
+  for (const line of lines) {
+    const trimmed = line.trim()
+    if (!trimmed || trimmed.startsWith('#') || !trimmed.includes('=')) {
+      out.push(line)
+      continue
+    }
+    const eq = trimmed.indexOf('=')
+    const key = trimmed.slice(0, eq).trim()
+    let value = trimmed.slice(eq + 1).trim()
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1)
+    }
+    if (key === 'MOJO_API_URL') {
+      sawApiUrl = true
+      let withProtocol = /^https?:\/\//i.test(value) ? value : `https://${value}`
+      try {
+        const url = new URL(withProtocol)
+        const host = url.host.toLowerCase()
+        if (host === 'mcs-pms.vercel.app' || host === 'www.mcs-pms.vercel.app') {
+          value = 'https://portal.mojoapartmentsgh.com'
+        } else {
+          value = `${url.protocol}//${url.host}`
+        }
+      } catch {
+        value = 'https://portal.mojoapartmentsgh.com'
+      }
+      out.push(`MOJO_API_URL=${value}`)
+      continue
+    }
+    out.push(`${key}=${value}`)
+  }
+  if (!sawApiUrl) {
+    out.unshift('MOJO_API_URL=https://portal.mojoapartmentsgh.com')
+  }
+  return `${out.join('\n').trim()}\n`
+}
+
 ipcMain.handle('save-env', async (_event, contents) => {
-  const text = String(contents || '').trim()
+  const text = normalizeEnvContents(contents)
   if (!text.includes('MOJO_API_URL') || !text.includes('AGENT_TOKEN') || !text.includes('HOTEL_ID')) {
     return {
       ok: false,
@@ -185,7 +232,7 @@ ipcMain.handle('save-env', async (_event, contents) => {
     }
   }
   fs.mkdirSync(userDataEnvDir(), { recursive: true })
-  fs.writeFileSync(envPath(), text.endsWith('\n') ? text : `${text}\n`, 'utf8')
+  fs.writeFileSync(envPath(), text, 'utf8')
   try {
     await startAgentProcess()
     lastStatus = { online: true, detail: 'Connected — syncing…', devices: [] }

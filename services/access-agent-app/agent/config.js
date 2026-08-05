@@ -29,6 +29,9 @@ function requireEnv(name) {
   return v
 }
 
+const LEGACY_API_HOSTS = new Set(['mcs-pms.vercel.app', 'www.mcs-pms.vercel.app'])
+const DEFAULT_API_ORIGIN = 'https://portal.mojoapartmentsgh.com'
+
 /** Origin only — strips paths like /owner/access and adds https if missing. */
 function normalizeApiUrl(raw) {
   const trimmed = String(raw || '').trim()
@@ -36,10 +39,12 @@ function normalizeApiUrl(raw) {
   const withProtocol = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`
   try {
     const url = new URL(withProtocol)
+    const host = url.host.toLowerCase()
+    if (LEGACY_API_HOSTS.has(host)) return DEFAULT_API_ORIGIN
     return `${url.protocol}//${url.host}`
   } catch {
     throw new Error(
-      `Invalid MOJO_API_URL "${raw}". Use your site origin only, e.g. https://portal.mojoapartmentsgh.com`,
+      `Invalid MOJO_API_URL "${raw}". Use your site origin only, e.g. ${DEFAULT_API_ORIGIN}`,
     )
   }
 }

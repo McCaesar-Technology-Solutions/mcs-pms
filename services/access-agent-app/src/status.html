@@ -76,27 +76,6 @@
     <h2>Recent activity</h2>
     <div id="logs">Waiting for logs…</div>
     <p class="hint">Keep this app running (tray icon). Door sync pauses if you quit it.</p>
-    <script>
-      const badge = document.getElementById('badge')
-      const detail = document.getElementById('detail')
-      const logsEl = document.getElementById('logs')
-
-      function renderStatus(s) {
-        badge.textContent = s.online ? 'Connected' : 'Needs attention'
-        badge.className = s.online ? 'ok' : 'warn'
-        detail.textContent = s.detail || '—'
-      }
-
-      function renderLogs(items) {
-        if (!items?.length) return
-        logsEl.textContent = items.map((i) => i.line).join('\n')
-        logsEl.scrollTop = logsEl.scrollHeight
-      }
-
-      window.mojoAgent.getStatus().then(renderStatus)
-      window.mojoAgent.getLogs().then(renderLogs)
-      window.mojoAgent.onStatus(renderStatus)
-      window.mojoAgent.onLogs(renderLogs)
-    </script>
+    <script src="./status.js"></script>
   </body>
 </html>
