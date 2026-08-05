@@ -2,11 +2,11 @@
 -- Alternative to keeping passwords only in the on-site agent .env.
 
 ALTER TABLE access_integrations
-  ADD COLUMN IF NOT EXISTS device_credential_mode text NOT NULL DEFAULT 'local'
+  ADD COLUMN IF NOT EXISTS device_credential_mode text NOT NULL DEFAULT 'cloud'
   CHECK (device_credential_mode IN ('local', 'cloud'));
 
 COMMENT ON COLUMN access_integrations.device_credential_mode IS
-  'local = agent DEVICES env holds controller passwords; cloud = agent downloads encrypted credentials from MOJO.';
+  'local = agent DEVICES env holds controller passwords; cloud = agent downloads encrypted credentials from MOJO (recommended).';
 
 -- Connection fields for owner-managed devices (no password here).
 ALTER TABLE access_devices

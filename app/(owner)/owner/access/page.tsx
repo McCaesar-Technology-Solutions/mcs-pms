@@ -58,7 +58,7 @@ export default async function OwnerAccessPage() {
       agentVersion: null,
       agentHostname: null,
       agentOnline: false,
-      deviceCredentialMode: 'local' as const,
+      deviceCredentialMode: 'cloud' as const,
     } as const)
 
   return (

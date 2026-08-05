@@ -26,7 +26,7 @@ export async function getAccessIntegrationSummary(
 
   if (!hotel) return null
 
-  const mode = (integration?.device_credential_mode ?? 'local') as DeviceCredentialMode
+  const mode = (integration?.device_credential_mode ?? 'cloud') as DeviceCredentialMode
 
   return {
     hotelId,
@@ -38,7 +38,7 @@ export async function getAccessIntegrationSummary(
     agentVersion: integration?.agent_version ?? null,
     agentHostname: integration?.agent_hostname ?? null,
     agentOnline: isAgentOnline(integration?.agent_last_seen_at),
-    deviceCredentialMode: mode === 'cloud' ? 'cloud' : 'local',
+    deviceCredentialMode: mode === 'local' ? 'local' : 'cloud',
   }
 }
 

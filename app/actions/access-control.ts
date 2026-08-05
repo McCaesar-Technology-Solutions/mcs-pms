@@ -76,6 +76,9 @@ export async function startAccessSetup(hotelId: string): Promise<
   const enabled = await setAccessControlEnabled({ hotelId, enabled: true })
   if (!enabled.success) return enabled
 
+  const modeSet = await setDeviceCredentialMode({ hotelId, mode: 'cloud' })
+  if (!modeSet.success) return modeSet
+
   const rotated = await rotateAccessAgentToken(hotelId)
   if (!rotated.success || !rotated.data) {
     return { success: false, error: rotated.success ? 'No token returned.' : rotated.error }
