@@ -6,21 +6,36 @@ import {
   assignAccessCard,
   remoteUnlockDoor,
   retryAccessCredential,
+  startEnrollmentCapture,
 } from '@/app/actions/access-control'
-import type { AccessCredentialRow, AccessPointRow, AccessJobRow } from '@/lib/access/types'
+import type {
+  AccessCredentialRow,
+  AccessDeviceRow,
+  AccessPointRow,
+  AccessJobRow,
+} from '@/lib/access/types'
 
 interface AccessOpsPanelProps {
   hotelId: string
   points: AccessPointRow[]
   credentials: AccessCredentialRow[]
   jobs: AccessJobRow[]
+  devices?: AccessDeviceRow[]
 }
 
-export function AccessOpsPanel({ hotelId, points, credentials, jobs }: AccessOpsPanelProps) {
+export function AccessOpsPanel({
+  hotelId,
+  points,
+  credentials,
+  jobs,
+  devices = [],
+}: AccessOpsPanelProps) {
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [cardDrafts, setCardDrafts] = useState<Record<string, string>>({})
+
+  const enrollmentStation = devices.find((d) => d.device_role === 'enrollment' && d.managed_in_cloud)
 
   function run(action: () => Promise<void>) {
     setError(null)
@@ -90,21 +105,30 @@ export function AccessOpsPanel({ hotelId, points, credentials, jobs }: AccessOps
         <div className="surface-card-header">
           <h3 className="text-lg font-semibold text-foreground">Guest credentials</h3>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            Synced to Hikvision on check-in. Assign a card number when issuing physical cards.
+            Synced on check-in. Enroll at the DS-K1F600U-D6E-F station, or type a card number.
+            {enrollmentStation ? (
+              <>
+                {' '}
+                Station: <span className="font-medium text-foreground">{enrollmentStation.label}</span>
+                {enrollmentStation.is_online ? ' (online)' : ''}.
+              </>
+            ) : (
+              <> No enrollment station saved yet (Owner → Access).</>
+            )}
           </p>
         </div>
         <div className="surface-card-body overflow-x-auto">
           {credentials.length === 0 ? (
             <p className="text-sm text-muted-foreground">No credentials yet.</p>
           ) : (
-            <table className="w-full min-w-[640px] text-left text-sm">
+            <table className="w-full min-w-[760px] text-left text-sm">
               <thead className="text-xs uppercase text-muted-foreground">
                 <tr>
                   <th className="pb-2 pr-3 font-medium">Guest</th>
                   <th className="pb-2 pr-3 font-medium">Room</th>
                   <th className="pb-2 pr-3 font-medium">Status</th>
                   <th className="pb-2 pr-3 font-medium">Valid</th>
-                  <th className="pb-2 font-medium">Card</th>
+                  <th className="pb-2 font-medium">Credentials</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -145,36 +169,111 @@ export function AccessOpsPanel({ hotelId, points, credentials, jobs }: AccessOps
                       {c.valid_from} → {c.valid_to}
                     </td>
                     <td className="py-3">
-                      <div className="flex items-center gap-2">
-                        <input
-                          className="app-field h-8 w-28 text-xs"
-                          placeholder={c.card_no ?? 'Card no'}
-                          value={cardDrafts[c.id] ?? ''}
-                          onChange={(e) =>
-                            setCardDrafts((prev) => ({ ...prev, [c.id]: e.target.value }))
-                          }
-                        />
-                        <button
-                          type="button"
-                          className="app-btn app-btn-secondary h-8 text-xs"
-                          disabled={pending || !(cardDrafts[c.id] ?? '').trim()}
-                          onClick={() =>
-                            run(async () => {
-                              const result = await assignAccessCard({
-                                hotelId,
-                                credentialId: c.id,
-                                cardNo: cardDrafts[c.id] ?? '',
+                      <div className="flex flex-col gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <input
+                            className="app-field h-8 w-28 text-xs"
+                            placeholder={c.card_no ?? 'Card no'}
+                            value={cardDrafts[c.id] ?? ''}
+                            onChange={(e) =>
+                              setCardDrafts((prev) => ({ ...prev, [c.id]: e.target.value }))
+                            }
+                          />
+                          <button
+                            type="button"
+                            className="app-btn app-btn-secondary h-8 text-xs"
+                            disabled={pending || !(cardDrafts[c.id] ?? '').trim()}
+                            onClick={() =>
+                              run(async () => {
+                                const result = await assignAccessCard({
+                                  hotelId,
+                                  credentialId: c.id,
+                                  cardNo: cardDrafts[c.id] ?? '',
+                                })
+                                if (!result.success) setError(result.error)
+                                else {
+                                  setMessage('Card assignment queued.')
+                                  setCardDrafts((prev) => ({ ...prev, [c.id]: '' }))
+                                }
                               })
-                              if (!result.success) setError(result.error)
-                              else {
-                                setMessage('Card assignment queued.')
-                                setCardDrafts((prev) => ({ ...prev, [c.id]: '' }))
-                              }
-                            })
-                          }
-                        >
-                          Assign
-                        </button>
+                            }
+                          >
+                            Assign
+                          </button>
+                          <button
+                            type="button"
+                            className="app-btn app-btn-primary h-8 text-xs"
+                            disabled={pending || !enrollmentStation}
+                            title={
+                              enrollmentStation
+                                ? 'Tap card on DS-K1F600U-D6E-F'
+                                : 'Save enrollment station first'
+                            }
+                            onClick={() =>
+                              run(async () => {
+                                const result = await startEnrollmentCapture({
+                                  hotelId,
+                                  credentialId: c.id,
+                                  capture: 'card',
+                                })
+                                if (!result.success) setError(result.error)
+                                else
+                                  setMessage(
+                                    'Waiting for card on DS-K1F600U-D6E-F — tap the card on the station.',
+                                  )
+                              })
+                            }
+                          >
+                            Enroll card
+                          </button>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            className="app-btn app-btn-secondary h-8 text-xs"
+                            disabled={pending || !enrollmentStation}
+                            onClick={() =>
+                              run(async () => {
+                                const result = await startEnrollmentCapture({
+                                  hotelId,
+                                  credentialId: c.id,
+                                  capture: 'face',
+                                })
+                                if (!result.success) setError(result.error)
+                                else
+                                  setMessage(
+                                    'Face enroll queued — guest should face the DS-K1F600U-D6E-F.',
+                                  )
+                              })
+                            }
+                          >
+                            Enroll face{c.has_face ? ' ✓' : ''}
+                          </button>
+                          <button
+                            type="button"
+                            className="app-btn app-btn-secondary h-8 text-xs"
+                            disabled={pending || !enrollmentStation}
+                            onClick={() =>
+                              run(async () => {
+                                const result = await startEnrollmentCapture({
+                                  hotelId,
+                                  credentialId: c.id,
+                                  capture: 'fingerprint',
+                                })
+                                if (!result.success) setError(result.error)
+                                else
+                                  setMessage(
+                                    'Fingerprint enroll queued — place finger on the DS-K1F600U-D6E-F.',
+                                  )
+                              })
+                            }
+                          >
+                            Enroll fingerprint{c.has_fingerprint ? ' ✓' : ''}
+                          </button>
+                          {c.card_no ? (
+                            <span className="text-xs text-muted-foreground">Card {c.card_no}</span>
+                          ) : null}
+                        </div>
                       </div>
                     </td>
                   </tr>

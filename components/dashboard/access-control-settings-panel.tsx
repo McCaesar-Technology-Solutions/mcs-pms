@@ -65,10 +65,13 @@ export function AccessControlSettingsPanel({
   const [ctrlPort, setCtrlPort] = useState('80')
   const [ctrlUser, setCtrlUser] = useState('admin')
   const [ctrlPassword, setCtrlPassword] = useState('')
+  const [ctrlRole, setCtrlRole] = useState<'door' | 'enrollment'>('door')
 
   const enabled = integration.hotelFlagEnabled && integration.enabled
   const mode = integration.deviceCredentialMode ?? 'local'
   const cloudDevices = devices.filter((d) => d.managed_in_cloud)
+  const doorDevices = cloudDevices.filter((d) => d.device_role !== 'enrollment')
+  const enrollmentDevices = cloudDevices.filter((d) => d.device_role === 'enrollment')
   const steps = useMemo(
     () => [
       { id: 'enable', label: 'Sync enabled', done: enabled },
@@ -77,9 +80,14 @@ export function AccessControlSettingsPanel({
         id: 'controllers',
         label:
           mode === 'cloud'
-            ? 'Controller saved in MOJO'
+            ? 'Door controller saved in MOJO'
             : 'Controller password set on apartment PC (.env)',
-        done: mode === 'cloud' ? cloudDevices.some((d) => d.has_password) : true,
+        done: mode === 'cloud' ? doorDevices.some((d) => d.has_password) : true,
+      },
+      {
+        id: 'enrollment',
+        label: 'Enrollment station (DS-K1F600U-D6E-F) saved',
+        done: mode !== 'cloud' || enrollmentDevices.some((d) => d.has_password),
       },
       { id: 'agent', label: 'Agent online on apartment PC', done: integration.agentOnline },
       { id: 'doors', label: 'At least one door mapped', done: points.length > 0 },
@@ -90,7 +98,8 @@ export function AccessControlSettingsPanel({
       integration.agentOnline,
       points.length,
       mode,
-      cloudDevices,
+      doorDevices,
+      enrollmentDevices,
     ],
   )
   const setupComplete = steps.every((s) => s.done)
@@ -412,9 +421,13 @@ export function AccessControlSettingsPanel({
 
             {mode === 'cloud' && (
               <div className="space-y-3 rounded-xl border border-border p-4">
-                <p className="text-sm font-medium text-foreground">Controllers in MOJO</p>
+                <p className="text-sm font-medium text-foreground">Devices in MOJO</p>
+                <p className="text-xs text-muted-foreground">
+                  Door controllers grant access. Enrollment station (DS-K1F600U-D6E-F) captures
+                  cards / face / fingerprints at the desk.
+                </p>
                 {cloudDevices.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No controllers saved yet.</p>
+                  <p className="text-sm text-muted-foreground">No devices saved yet.</p>
                 ) : (
                   <ul className="divide-y divide-border rounded-lg border border-border">
                     {cloudDevices.map((d) => (
@@ -428,7 +441,8 @@ export function AccessControlSettingsPanel({
                             <span className="font-normal text-muted-foreground">({d.device_key})</span>
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            {d.host}:{d.port ?? 80} · {d.username}
+                            {d.device_role === 'enrollment' ? 'Enrollment station' : 'Door controller'}
+                            {d.model ? ` · ${d.model}` : ''} · {d.host}:{d.port ?? 80} · {d.username}
                             {d.has_password ? ' · password saved' : ' · missing password'}
                           </p>
                         </div>
@@ -440,7 +454,7 @@ export function AccessControlSettingsPanel({
                             run(async () => {
                               const result = await deleteCloudAccessDevice(hotelId, d.id)
                               if (!result.success) setError(result.error)
-                              else setMessage('Controller removed.')
+                              else setMessage('Device removed.')
                             })
                           }
                         >
@@ -465,16 +479,42 @@ export function AccessControlSettingsPanel({
                         username: ctrlUser,
                         password: ctrlPassword || undefined,
                         useHttps: false,
+                        deviceRole: ctrlRole,
+                        model: ctrlRole === 'enrollment' ? 'DS-K1F600U-D6E-F' : undefined,
                       })
                       if (!result.success) {
                         setError(result.error)
                         return
                       }
                       setCtrlPassword('')
-                      setMessage('Controller saved in MOJO.')
+                      setMessage(
+                        ctrlRole === 'enrollment'
+                          ? 'Enrollment station (DS-K1F600U-D6E-F) saved.'
+                          : 'Door controller saved in MOJO.',
+                      )
                     })
                   }}
                 >
+                  <FormField label="Role" htmlFor="ctrl-role">
+                    <select
+                      id="ctrl-role"
+                      className={APP_FIELD_CLASS}
+                      value={ctrlRole}
+                      onChange={(e) => {
+                        const role = e.target.value as 'door' | 'enrollment'
+                        setCtrlRole(role)
+                        if (role === 'enrollment') {
+                          setCtrlKey((k) => (k === 'lobby' ? 'enroll1' : k))
+                          setCtrlLabel((l) =>
+                            l === 'Lobby controller' ? 'DS-K1F600U-D6E-F enrollment' : l,
+                          )
+                        }
+                      }}
+                    >
+                      <option value="door">Door controller</option>
+                      <option value="enrollment">Enrollment station (DS-K1F600U-D6E-F)</option>
+                    </select>
+                  </FormField>
                   <FormField label="Device key" htmlFor="ctrl-key">
                     <input
                       id="ctrl-key"
@@ -527,13 +567,13 @@ export function AccessControlSettingsPanel({
                       className={APP_FIELD_CLASS}
                       value={ctrlPassword}
                       onChange={(e) => setCtrlPassword(e.target.value)}
-                      placeholder="Required for new controllers"
+                      placeholder="Required for new devices"
                       autoComplete="new-password"
                     />
                   </FormField>
                   <div className="sm:col-span-2">
                     <button type="submit" className="app-btn app-btn-primary" disabled={pending}>
-                      Save controller
+                      {ctrlRole === 'enrollment' ? 'Save enrollment station' : 'Save door controller'}
                     </button>
                   </div>
                 </form>

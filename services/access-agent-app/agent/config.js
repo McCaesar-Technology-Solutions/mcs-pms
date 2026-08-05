@@ -118,10 +118,17 @@ export function applyCloudDevices(config, deviceList) {
   const devices = new Map()
   for (const d of deviceList ?? []) {
     if (!d.key || !d.host || !d.username || !d.password) continue
-    devices.set(d.key, new HikvisionDevice(d))
+    devices.set(
+      d.key,
+      new HikvisionDevice({
+        ...d,
+        role: d.role === 'enrollment' ? 'enrollment' : 'door',
+        model: d.model ?? null,
+      }),
+    )
   }
   if (!devices.size) {
-    throw new Error('Cloud mode: no controllers configured in MOJO Access yet')
+    throw new Error('Cloud mode: no devices configured in MOJO Access yet')
   }
   config.devices = devices
   return devices

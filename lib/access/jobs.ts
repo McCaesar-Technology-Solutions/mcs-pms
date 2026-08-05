@@ -182,7 +182,7 @@ export async function completeAccessJob(input: {
       })
       .eq('id', job.id)
 
-    await applyCredentialSuccess(admin, job)
+    await applyCredentialSuccess(admin, job, input.result)
     return { ok: true }
   }
 
@@ -224,7 +224,11 @@ function stripTransientSecrets(payload: Json): Json {
   return next as Json
 }
 
-async function applyCredentialSuccess(admin: Admin, job: { job_type: string; credential_id: string | null }) {
+async function applyCredentialSuccess(
+  admin: Admin,
+  job: { job_type: string; credential_id: string | null },
+  result?: Record<string, unknown>,
+) {
   if (!job.credential_id) return
   const now = new Date().toISOString()
 
@@ -245,18 +249,37 @@ async function applyCredentialSuccess(admin: Admin, job: { job_type: string; cre
   if (
     job.job_type === 'provision' ||
     job.job_type === 'update_validity' ||
-    job.job_type === 'assign_card'
+    job.job_type === 'assign_card' ||
+    job.job_type === 'enroll_card_capture' ||
+    job.job_type === 'enroll_face_capture' ||
+    job.job_type === 'enroll_fingerprint_capture'
   ) {
-    await admin
-      .from('access_credentials')
-      .update({
-        status: 'active',
-        sync_status: 'synced',
-        last_error: null,
-        last_synced_at: now,
-        updated_at: now,
-      })
-      .eq('id', job.credential_id)
+    const patch: {
+      status: 'active'
+      sync_status: 'synced'
+      last_error: null
+      last_synced_at: string
+      updated_at: string
+      card_no?: string
+      has_face?: boolean
+      has_fingerprint?: boolean
+    } = {
+      status: 'active',
+      sync_status: 'synced',
+      last_error: null,
+      last_synced_at: now,
+      updated_at: now,
+    }
+    if (job.job_type === 'enroll_card_capture' && typeof result?.cardNo === 'string' && result.cardNo) {
+      patch.card_no = result.cardNo
+    }
+    if (job.job_type === 'enroll_face_capture' && result?.hasFace) {
+      patch.has_face = true
+    }
+    if (job.job_type === 'enroll_fingerprint_capture' && result?.hasFingerprint) {
+      patch.has_fingerprint = true
+    }
+    await admin.from('access_credentials').update(patch).eq('id', job.credential_id)
   }
 }
 

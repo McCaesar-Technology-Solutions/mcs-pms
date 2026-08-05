@@ -7,6 +7,9 @@ export type AccessJobType =
   | 'assign_card'
   | 'unlock'
   | 'sync_device'
+  | 'enroll_card_capture'
+  | 'enroll_face_capture'
+  | 'enroll_fingerprint_capture'
 
 export type AccessJobStatus =
   | 'pending'
@@ -20,6 +23,7 @@ export type AccessCredentialStatus = 'pending' | 'active' | 'revoking' | 'revoke
 export type AccessSyncStatus = 'pending' | 'synced' | 'failed'
 export type AccessZone = 'unit' | 'lobby' | 'gate' | 'elevator' | 'other'
 export type DeviceCredentialMode = 'local' | 'cloud'
+export type AccessDeviceRole = 'door' | 'enrollment'
 
 export interface AccessDoorTarget {
   deviceKey: string
@@ -68,12 +72,27 @@ export interface UnlockJobPayload {
   requestedByProfileId?: string
 }
 
+/** Capture at DS-K1F600U-D6E-F (or similar), then push to door controllers. */
+export interface EnrollCaptureJobPayload {
+  credentialId: string
+  employeeNo: string
+  displayName: string
+  validFrom: string
+  validTo: string
+  deviceKey: string
+  timeoutMs?: number
+  doors: AccessDoorTarget[]
+  /** Optional PIN already on credential — re-applied after biometric enroll. */
+  doorPin?: string | null
+}
+
 export type AccessJobPayload =
   | ProvisionJobPayload
   | RevokeJobPayload
   | UpdateValidityJobPayload
   | AssignCardJobPayload
   | UnlockJobPayload
+  | EnrollCaptureJobPayload
   | Record<string, unknown>
 
 export interface AccessJobRow {
@@ -121,6 +140,8 @@ export interface AccessDeviceRow {
   username: string | null
   use_https: boolean
   managed_in_cloud: boolean
+  device_role: AccessDeviceRole
+  model: string | null
   is_online: boolean
   last_seen_at: string | null
   has_password: boolean
@@ -148,6 +169,8 @@ export interface AccessCredentialRow {
   display_name: string
   card_no: string | null
   has_pin: boolean
+  has_face: boolean
+  has_fingerprint: boolean
   valid_from: string
   valid_to: string
   status: AccessCredentialStatus

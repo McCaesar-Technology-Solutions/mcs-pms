@@ -1997,6 +1997,7 @@ export type Database = {
           username: string | null
           use_https: boolean
           managed_in_cloud: boolean
+          device_role: 'door' | 'enrollment'
           created_at: string
           updated_at: string
         }
@@ -2015,6 +2016,7 @@ export type Database = {
           username?: string | null
           use_https?: boolean
           managed_in_cloud?: boolean
+          device_role?: 'door' | 'enrollment'
           created_at?: string
           updated_at?: string
         }
@@ -2033,6 +2035,7 @@ export type Database = {
           username?: string | null
           use_https?: boolean
           managed_in_cloud?: boolean
+          device_role?: 'door' | 'enrollment'
           created_at?: string
           updated_at?: string
         }
@@ -2111,6 +2114,8 @@ export type Database = {
           display_name: string
           card_no: string | null
           has_pin: boolean
+          has_face: boolean
+          has_fingerprint: boolean
           valid_from: string
           valid_to: string
           status: 'pending' | 'active' | 'revoking' | 'revoked' | 'error'
@@ -2129,6 +2134,8 @@ export type Database = {
           display_name: string
           card_no?: string | null
           has_pin?: boolean
+          has_face?: boolean
+          has_fingerprint?: boolean
           valid_from: string
           valid_to: string
           status?: 'pending' | 'active' | 'revoking' | 'revoked' | 'error'
@@ -2147,6 +2154,8 @@ export type Database = {
           display_name?: string
           card_no?: string | null
           has_pin?: boolean
+          has_face?: boolean
+          has_fingerprint?: boolean
           valid_from?: string
           valid_to?: string
           status?: 'pending' | 'active' | 'revoking' | 'revoked' | 'error'
@@ -2170,6 +2179,9 @@ export type Database = {
             | 'assign_card'
             | 'unlock'
             | 'sync_device'
+            | 'enroll_card_capture'
+            | 'enroll_face_capture'
+            | 'enroll_fingerprint_capture'
           status: 'pending' | 'claimed' | 'succeeded' | 'failed' | 'dead' | 'cancelled'
           priority: number
           payload: Json
@@ -2195,6 +2207,9 @@ export type Database = {
             | 'assign_card'
             | 'unlock'
             | 'sync_device'
+            | 'enroll_card_capture'
+            | 'enroll_face_capture'
+            | 'enroll_fingerprint_capture'
           status?: 'pending' | 'claimed' | 'succeeded' | 'failed' | 'dead' | 'cancelled'
           priority?: number
           payload?: Json
@@ -2220,6 +2235,9 @@ export type Database = {
             | 'assign_card'
             | 'unlock'
             | 'sync_device'
+            | 'enroll_card_capture'
+            | 'enroll_face_capture'
+            | 'enroll_fingerprint_capture'
           status?: 'pending' | 'claimed' | 'succeeded' | 'failed' | 'dead' | 'cancelled'
           priority?: number
           payload?: Json

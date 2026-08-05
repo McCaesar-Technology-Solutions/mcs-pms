@@ -76,7 +76,9 @@ export default async function OwnerAccessPage() {
         points={points}
         rooms={(rooms ?? []).map((r) => ({ id: r.id, number: r.number }))}
         devices={devices}
-        deviceKeys={devices.map((d) => d.device_key)}
+        deviceKeys={devices
+          .filter((d) => d.device_role !== 'enrollment')
+          .map((d) => d.device_key)}
         canManage
       />
 
@@ -85,6 +87,7 @@ export default async function OwnerAccessPage() {
         points={points}
         credentials={credentials}
         jobs={jobs}
+        devices={devices}
       />
     </div>
   )

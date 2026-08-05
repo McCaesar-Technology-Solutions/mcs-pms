@@ -34,19 +34,23 @@ Day-to-day steps for staff are in the [owner](owner-guide.md#8-access-control-hi
 - Staff RLS is **SELECT-only** on access tables; device password ciphertext is never selected in browser loaders.
 - Agent endpoints are rate-limited and require `Authorization: Bearer` + `X-Mojo-Hotel-Id`.
 
+## Enrollment station (DS-K1F600U-D6E-F)
+
+Phase 1–2: save the station in Owner → Access with role **Enrollment station**, then use **Enroll card / face / fingerprint** on guest credentials. The agent waits on the station, then pushes credentials to door controllers. Migration `065` adds `device_role` and enroll job types.
+
 ## Go-live steps (simplified)
 
-1. Apply migrations through `064` (includes cloud device secrets).
+1. Apply migrations through `065` (cloud device secrets + enrollment station).
 2. Owner → **Access**:
    - Choose **Store in MOJO** (easier) or **Apartment PC only**
-   - If cloud: save controller IP / username / password
+   - If cloud: save door controller(s) and optionally **DS-K1F600U-D6E-F** enrollment station
    - **Start setup** → **Copy full .env**
 3. On the apartment PC:
    - Install **MOJO Access Agent** (Windows `.exe` / Mac `.dmg` from `services/access-agent-app/dist`)
    - Paste **Start setup → Copy full .env** when the app asks
    - Leave it running in the tray (auto-starts at login)
-4. Map doors (device key must match controller key, e.g. `lobby`).
-5. Confirm **Agent online**, then test one check-in / checkout.
+4. Map doors (device key must match **door** controller key, not the enrollment station).
+5. Confirm **Agent online**, then test one check-in / checkout and optional station enroll.
 
 - If the agent is offline, jobs stay `pending`/`failed` and retry with backoff.
 - Stuck `claimed` jobs are reclaimed on each agent poll, via GitHub Actions every 5 min (Hobby-friendly), and a daily Vercel cron backup.

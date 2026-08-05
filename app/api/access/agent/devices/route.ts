@@ -33,7 +33,7 @@ export async function GET(request: Request) {
 
   const { data: devices } = await admin
     .from('access_devices')
-    .select('id, device_key, label, host, port, username, use_https, managed_in_cloud')
+    .select('id, device_key, label, host, port, username, use_https, managed_in_cloud, device_role, model')
     .eq('hotel_id', auth.ctx.hotelId)
     .eq('managed_in_cloud', true)
 
@@ -68,6 +68,8 @@ export async function GET(request: Request) {
       username: d.username,
       password,
       useHttps: Boolean(d.use_https),
+      role: d.device_role === 'enrollment' ? 'enrollment' : 'door',
+      model: d.model ?? null,
     })
   }
 

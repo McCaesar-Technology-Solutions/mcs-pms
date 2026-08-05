@@ -305,6 +305,124 @@ export async function deleteAccessPoint(hotelId: string, pointId: string): Promi
   return { success: true }
 }
 
+async function resolveCredentialDoors(
+  admin: ReturnType<typeof createAdminClient>,
+  hotelId: string,
+  cred: { guest_id: string | null },
+) {
+  let guestRoomId: string | null = null
+  if (cred.guest_id) {
+    const { data: guest } = await admin
+      .from('guests')
+      .select('room_id')
+      .eq('id', cred.guest_id)
+      .maybeSingle()
+    guestRoomId = guest?.room_id ?? null
+  }
+
+  const { data: points } = await admin
+    .from('access_points')
+    .select('device_key, door_no, label, zone, room_id, grants_shared_access, is_active')
+    .eq('hotel_id', hotelId)
+    .eq('is_active', true)
+
+  return (points ?? [])
+    .filter((p) => {
+      if (p.grants_shared_access || p.zone !== 'unit') return true
+      return guestRoomId != null && p.room_id === guestRoomId
+    })
+    .map((p) => ({
+      deviceKey: p.device_key,
+      doorNo: p.door_no,
+      label: p.label,
+      zone: p.zone,
+    }))
+}
+
+async function resolveEnrollmentStation(
+  admin: ReturnType<typeof createAdminClient>,
+  hotelId: string,
+) {
+  const { data } = await admin
+    .from('access_devices')
+    .select('device_key, label, managed_in_cloud')
+    .eq('hotel_id', hotelId)
+    .eq('device_role', 'enrollment')
+    .eq('managed_in_cloud', true)
+    .order('label', { ascending: true })
+    .limit(1)
+    .maybeSingle()
+  return data
+}
+
+export async function startEnrollmentCapture(input: {
+  hotelId: string
+  credentialId: string
+  capture: 'card' | 'face' | 'fingerprint'
+}): Promise<ActionResult> {
+  const auth = await requireAccessOps(input.hotelId)
+  if (!auth.ok) return { success: false, error: auth.error }
+
+  const admin = createAdminClient()
+  const { data: cred } = await admin
+    .from('access_credentials')
+    .select('*')
+    .eq('id', input.credentialId)
+    .eq('hotel_id', input.hotelId)
+    .maybeSingle()
+
+  if (!cred) return { success: false, error: 'Credential not found.' }
+
+  const station = await resolveEnrollmentStation(admin, input.hotelId)
+  if (!station) {
+    return {
+      success: false,
+      error:
+        'No enrollment station saved. Owner → Access → add DS-K1F600U-D6E-F (role: Enrollment station).',
+    }
+  }
+
+  const doors = await resolveCredentialDoors(admin, input.hotelId, cred)
+  const jobType =
+    input.capture === 'card'
+      ? 'enroll_card_capture'
+      : input.capture === 'face'
+        ? 'enroll_face_capture'
+        : 'enroll_fingerprint_capture'
+
+  const now = new Date().toISOString()
+  await admin
+    .from('access_credentials')
+    .update({ sync_status: 'pending', last_error: null, updated_at: now })
+    .eq('id', cred.id)
+
+  const enqueued = await enqueueAccessJob({
+    hotelId: input.hotelId,
+    jobType,
+    credentialId: cred.id,
+    priority: 15,
+    idempotencyKey: `enroll:${input.capture}:${cred.id}:${Date.now()}`,
+    payload: {
+      credentialId: cred.id,
+      employeeNo: cred.employee_no,
+      displayName: cred.display_name,
+      validFrom: cred.valid_from,
+      validTo: cred.valid_to,
+      deviceKey: station.device_key,
+      timeoutMs: 90_000,
+      doors,
+    },
+  })
+
+  if ('error' in enqueued) return { success: false, error: enqueued.error }
+  if ('skipped' in enqueued) {
+    return { success: false, error: 'Access control is not enabled.' }
+  }
+
+  revalidateAccess()
+  return { success: true }
+}
+
 export async function assignAccessCard(input: {
   hotelId: string
   credentialId: string
@@ -539,6 +657,8 @@ const cloudDeviceSchema = z.object({
   username: z.string().min(1).max(120),
   password: z.string().min(1).max(200).optional(),
   useHttps: z.boolean().default(false),
+  deviceRole: z.enum(['door', 'enrollment']).default('door'),
+  model: z.string().max(120).optional(),
   id: z.string().uuid().optional(),
 })
 
@@ -556,6 +676,10 @@ export async function upsertCloudAccessDevice(
   const admin = createAdminClient()
   const now = new Date().toISOString()
   const key = parsed.data.deviceKey.trim()
+  const role = parsed.data.deviceRole
+  const model =
+    parsed.data.model?.trim() ||
+    (role === 'enrollment' ? 'DS-K1F600U-D6E-F' : null)
 
   let deviceId = parsed.data.id ?? null
 
@@ -570,6 +694,8 @@ export async function upsertCloudAccessDevice(
         username: parsed.data.username.trim(),
         use_https: parsed.data.useHttps,
         managed_in_cloud: true,
+        device_role: role,
+        model,
         updated_at: now,
       })
       .eq('id', deviceId)
@@ -588,6 +714,8 @@ export async function upsertCloudAccessDevice(
           username: parsed.data.username.trim(),
           use_https: parsed.data.useHttps,
           managed_in_cloud: true,
+          device_role: role,
+          model,
           updated_at: now,
         },
         { onConflict: 'hotel_id,device_key' },
@@ -611,7 +739,10 @@ export async function upsertCloudAccessDevice(
     )
     if (secretError) return { success: false, error: secretError.message }
   } else if (!parsed.data.id) {
-    return { success: false, error: 'Password is required for a new controller.' }
+    return {
+      success: false,
+      error: role === 'enrollment' ? 'Password is required for a new enrollment station.' : 'Password is required for a new controller.',
+    }
   } else {
     const { data: existingSecret } = await admin
       .from('access_device_secrets')

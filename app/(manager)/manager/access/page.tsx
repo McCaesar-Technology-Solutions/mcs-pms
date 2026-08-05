@@ -4,6 +4,7 @@ import { AccessOpsPanel } from '@/components/dashboard/access-ops-panel'
 import { getProfile } from '@/lib/auth/get-profile'
 import {
   getAccessCredentials,
+  getAccessDevices,
   getAccessIntegrationSummary,
   getAccessPoints,
   getRecentAccessJobs,
@@ -16,11 +17,12 @@ export default async function ManagerAccessPage() {
   }
 
   const hotelId = profile.hotel_id
-  const [integration, points, credentials, jobs] = await Promise.all([
+  const [integration, points, credentials, jobs, devices] = await Promise.all([
     getAccessIntegrationSummary(hotelId),
     getAccessPoints(hotelId),
     getAccessCredentials(hotelId),
     getRecentAccessJobs(hotelId),
+    getAccessDevices(hotelId),
   ])
 
   return (
@@ -40,6 +42,7 @@ export default async function ManagerAccessPage() {
         points={points}
         credentials={credentials}
         jobs={jobs}
+        devices={devices}
       />
     </div>
   )

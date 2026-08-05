@@ -105,6 +105,8 @@ export async function getAccessCredentials(
       display_name: row.display_name,
       card_no: row.card_no,
       has_pin: row.has_pin,
+      has_face: Boolean((row as { has_face?: boolean }).has_face),
+      has_fingerprint: Boolean((row as { has_fingerprint?: boolean }).has_fingerprint),
       valid_from: row.valid_from,
       valid_to: row.valid_to,
       status: row.status,
@@ -167,6 +169,9 @@ export async function getAccessDevices(hotelId: string): Promise<AccessDeviceRow
     username: d.username ?? null,
     use_https: Boolean(d.use_https),
     managed_in_cloud: Boolean(d.managed_in_cloud),
+    device_role:
+      (d as { device_role?: string }).device_role === 'enrollment' ? 'enrollment' : 'door',
+    model: d.model ?? null,
     is_online: Boolean(d.is_online),
     last_seen_at: d.last_seen_at ?? null,
     has_password: withSecret.has(d.id),

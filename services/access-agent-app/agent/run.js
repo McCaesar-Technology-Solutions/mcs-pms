@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 import os from 'node:os'
 import { loadConfig, applyCloudDevices } from './config.js'
 
-export const AGENT_VERSION = '1.2.5'
+export const AGENT_VERSION = '1.3.0'
 
 /**
  * @param {{
@@ -153,13 +153,32 @@ export async function startAgent(options = {}) {
     })
   }
 
+  function doorDevices() {
+    return [...config.devices.values()].filter((d) => d.role !== 'enrollment')
+  }
+
   function devicesForDoors(doors = []) {
     const keys = [...new Set(doors.map((d) => d.deviceKey))]
     return keys.map((key) => {
       const device = config.devices.get(key)
       if (!device) throw new Error(`Unknown device key "${key}" — not in agent devices`)
+      if (device.role === 'enrollment') {
+        throw new Error(`Device "${key}" is an enrollment station, not a door controller`)
+      }
       return device
     })
+  }
+
+  function enrollmentDevice(deviceKey) {
+    const device = deviceKey ? config.devices.get(deviceKey) : null
+    if (device?.role === 'enrollment') return device
+    const fallback = [...config.devices.values()].find((d) => d.role === 'enrollment')
+    if (!fallback) {
+      throw new Error(
+        'No enrollment station in agent devices. Save DS-K1F600U-D6E-F in Owner → Access (role: Enrollment).',
+      )
+    }
+    return fallback
   }
 
   async function handleJob(job) {
@@ -174,7 +193,7 @@ export async function startAgent(options = {}) {
     }
 
     if (type === 'revoke') {
-      for (const device of config.devices.values()) {
+      for (const device of doorDevices()) {
         try {
           await device.deleteUser(payload.employeeNo)
         } catch (err) {
@@ -186,7 +205,7 @@ export async function startAgent(options = {}) {
 
     if (type === 'provision' || type === 'assign_card' || type === 'update_validity') {
       const doors = payload.doors ?? []
-      const targets = doors.length ? devicesForDoors(doors) : [...config.devices.values()]
+      const targets = doors.length ? devicesForDoors(doors) : doorDevices()
 
       for (const device of targets) {
         await device.upsertUser({
@@ -215,6 +234,68 @@ export async function startAgent(options = {}) {
       }
     }
 
+    if (type === 'enroll_card_capture') {
+      const station = enrollmentDevice(payload.deviceKey)
+      log('info', `Waiting for card on ${station.key} (DS-K1F600U-D6E-F)…`)
+      const { cardNo } = await station.captureCard({ timeoutMs: payload.timeoutMs ?? 90_000 })
+      log('info', `Captured card ${cardNo} — pushing to door controllers`)
+      const targets = (payload.doors ?? []).length
+        ? devicesForDoors(payload.doors)
+        : doorDevices()
+      for (const device of targets) {
+        await device.upsertUser({
+          employeeNo: payload.employeeNo,
+          name: payload.displayName ?? payload.employeeNo,
+          validFrom: payload.validFrom,
+          validTo: payload.validTo,
+        })
+        await device.upsertCard({ employeeNo: payload.employeeNo, cardNo })
+      }
+      return { cardNo, hasCard: true, devices: targets.map((d) => d.key) }
+    }
+
+    if (type === 'enroll_face_capture') {
+      const station = enrollmentDevice(payload.deviceKey)
+      log('info', `Capturing face on ${station.key} (DS-K1F600U-D6E-F)…`)
+      const { jpeg } = await station.captureFaceJpeg({ timeoutMs: 25_000 })
+      const targets = (payload.doors ?? []).length
+        ? devicesForDoors(payload.doors)
+        : doorDevices()
+      for (const device of targets) {
+        await device.upsertUser({
+          employeeNo: payload.employeeNo,
+          name: payload.displayName ?? payload.employeeNo,
+          validFrom: payload.validFrom,
+          validTo: payload.validTo,
+        })
+        await device.uploadFace({ employeeNo: payload.employeeNo, jpeg })
+      }
+      return { hasFace: true, devices: targets.map((d) => d.key) }
+    }
+
+    if (type === 'enroll_fingerprint_capture') {
+      const station = enrollmentDevice(payload.deviceKey)
+      log('info', `Capturing fingerprint on ${station.key} (DS-K1F600U-D6E-F)…`)
+      const fp = await station.captureFingerprint({ timeoutMs: payload.timeoutMs ?? 90_000 })
+      const targets = (payload.doors ?? []).length
+        ? devicesForDoors(payload.doors)
+        : doorDevices()
+      for (const device of targets) {
+        await device.upsertUser({
+          employeeNo: payload.employeeNo,
+          name: payload.displayName ?? payload.employeeNo,
+          validFrom: payload.validFrom,
+          validTo: payload.validTo,
+        })
+        await device.upsertFingerprint({
+          employeeNo: payload.employeeNo,
+          fingerNo: fp.fingerNo,
+          fingerprintData: fp.fingerprintData,
+        })
+      }
+      return { hasFingerprint: true, devices: targets.map((d) => d.key) }
+    }
+
     throw new Error(`Unsupported job type: ${type}`)
   }
 
@@ -226,7 +307,14 @@ export async function startAgent(options = {}) {
 
     let hadUnlock = false
     for (const job of jobs ?? []) {
-      if (job.type === 'unlock') hadUnlock = true
+      if (
+        job.type === 'unlock' ||
+        job.type === 'enroll_card_capture' ||
+        job.type === 'enroll_face_capture' ||
+        job.type === 'enroll_fingerprint_capture'
+      ) {
+        hadUnlock = true
+      }
       try {
         const result = await handleJob(job)
         await apiWithBackoff(`/api/access/agent/jobs/${job.id}/complete`, {
