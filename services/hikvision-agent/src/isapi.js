@@ -1,9 +1,9 @@
 /**
- * Minimal Hikvision ISAPI client (Digest auth).
+ * Minimal Hikvision ISAPI client (Digest auth via node:http).
  * Targets common AccessControl person/card/door endpoints.
  */
 
-import DigestFetch from 'digest-fetch'
+import { digestRequest } from './digest-http.js'
 
 export class HikvisionDevice {
   constructor(config) {
@@ -15,7 +15,6 @@ export class HikvisionDevice {
     this.password = config.password
     this.role = config.role === 'enrollment' ? 'enrollment' : 'door'
     this.model = config.model ?? null
-    this.client = new DigestFetch(this.username, this.password)
   }
 
   baseUrl() {
@@ -23,21 +22,30 @@ export class HikvisionDevice {
     return `${scheme}://${this.host}:${this.port}`
   }
 
+  async digest(url, { method = 'GET', headers = {}, body, timeoutMs } = {}) {
+    return digestRequest(url, {
+      username: this.username,
+      password: this.password,
+      method,
+      headers,
+      body,
+      timeoutMs: Number(timeoutMs ?? this.timeoutMs ?? 8000),
+    })
+  }
+
   async request(method, path, body) {
     const url = `${this.baseUrl()}${path}${path.includes('?') ? '&' : '?'}format=json`
-    const timeoutMs = Number(this.timeoutMs ?? 5000)
-    const init = {
+    const timeoutMs = Number(this.timeoutMs ?? 8000)
+    const res = await this.digest(url, {
       method,
-      signal: AbortSignal.timeout(timeoutMs),
+      timeoutMs,
       headers: {
         Accept: 'application/json',
         ...(body ? { 'Content-Type': 'application/json' } : {}),
       },
-      ...(body ? { body: JSON.stringify(body) } : {}),
-    }
-
-    const res = await this.client.fetch(url, init)
-    const text = await res.text()
+      body: body ? JSON.stringify(body) : undefined,
+    })
+    const text = res.text()
     let json = null
     try {
       json = text ? JSON.parse(text) : null
@@ -58,7 +66,19 @@ export class HikvisionDevice {
   }
 
   async deviceInfo() {
-    return this.request('GET', '/ISAPI/System/deviceInfo')
+    const json = await this.request('GET', '/ISAPI/System/deviceInfo')
+    if (json?.model || json?.deviceName) return json
+    const raw = typeof json?.raw === 'string' ? json.raw : ''
+    if (!raw) return json
+    const pick = (tag) => raw.match(new RegExp(`<${tag}>([^<]*)`, 'i'))?.[1]?.trim() || null
+    return {
+      ...json,
+      deviceName: pick('deviceName'),
+      model: pick('model'),
+      serialNumber: pick('serialNumber'),
+      firmwareVersion: pick('firmwareVersion'),
+      macAddress: pick('macAddress'),
+    }
   }
 
   async upsertUser({ employeeNo, name, validFrom, validTo }) {
@@ -135,16 +155,16 @@ export class HikvisionDevice {
     const xml =
       '<RemoteControlDoor version="2.0" xmlns="http://www.isapi.org/ver20/XMLSchema"><cmd>open</cmd></RemoteControlDoor>'
     const timeoutMs = Number(this.timeoutMs ?? 8000)
-    const res = await this.client.fetch(url, {
+    const res = await this.digest(url, {
       method: 'PUT',
-      signal: AbortSignal.timeout(timeoutMs),
+      timeoutMs,
       headers: {
         'Content-Type': 'application/xml',
         Accept: 'application/xml',
       },
       body: xml,
     })
-    const text = await res.text()
+    const text = res.text()
     if (!res.ok || (text.includes('statusCode') && !text.includes('<statusCode>1</statusCode>') && !text.includes('<statusString>OK</statusString>'))) {
       // Fallback to JSON shape used by newer firmwares
       try {
@@ -321,14 +341,14 @@ export class HikvisionDevice {
       for (const path of paths) {
         const url = `${this.baseUrl()}${path}`
         try {
-          const res = await this.client.fetch(url, {
+          const res = await this.digest(url, {
             method: 'GET',
-            signal: AbortSignal.timeout(timeoutMs),
+            timeoutMs,
             headers: { Accept: 'image/jpeg, application/octet-stream, */*' },
           })
           if (!res.ok) continue
-          const ctype = res.headers.get('content-type') || ''
-          const buf = Buffer.from(await res.arrayBuffer())
+          const ctype = String(res.headers['content-type'] || '')
+          const buf = res.body
           if (ctype.includes('json') || ctype.includes('xml')) {
             // Some firmwares return metadata only — skip
             continue
@@ -366,16 +386,16 @@ export class HikvisionDevice {
     const tail = Buffer.from(`\r\n--${boundary}--\r\n`, 'utf8')
     const body = Buffer.concat([head, Buffer.from(jpeg), tail])
 
-    const res = await this.client.fetch(url, {
+    const res = await this.digest(url, {
       method: 'POST',
-      signal: AbortSignal.timeout(Number(this.timeoutMs ?? 20000)),
+      timeoutMs: Number(this.timeoutMs ?? 20000),
       headers: {
         'Content-Type': `multipart/form-data; boundary=${boundary}`,
         Accept: 'application/json',
       },
       body,
     })
-    const text = await res.text()
+    const text = res.text()
     if (!res.ok) {
       throw new Error(`${this.key} face upload: ${text || `HTTP ${res.status}`}`)
     }

@@ -30,11 +30,11 @@ export async function authenticateAccessAgent(
     return { ok: false, status: 400, error: 'Missing X-Mojo-Hotel-Id header.' }
   }
 
-  // One agent: ~8/min poll + ~2/min heartbeat + occasional device refresh.
-  // Headroom for retries / brief double-launch without tripping 429.
+  // One agent: ~40/min poll (1.5s) + heartbeat + device refresh + retries.
+  // Generous headroom so brief double-launch / reconnect storms do not brick unlocks.
   const limited = await assertRateLimit(
     `access-agent:${hotelIdHeader}:${token.slice(0, 12)}`,
-    { max: 300, windowMs: 60_000, cooldownMs: 100 },
+    { max: 600, windowMs: 60_000, cooldownMs: 50 },
     'Agent rate limit exceeded.',
   )
   if (limited) {

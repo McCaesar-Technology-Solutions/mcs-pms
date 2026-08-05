@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 import os from 'node:os'
 import { loadConfig, applyCloudDevices } from './config.js'
 
-export const AGENT_VERSION = '1.3.0'
+export const AGENT_VERSION = '1.3.1'
 
 /**
  * @param {{
@@ -57,18 +57,34 @@ export async function startAgent(options = {}) {
 
   let lastDeviceRefreshAt = 0
   let apiBackoffUntil = 0
+  let loggedBackoff = false
   const DEVICE_REFRESH_MS = Number(process.env.DEVICE_REFRESH_MS ?? 5 * 60 * 1000)
+  const RATE_LIMIT_BACKOFF_MS = Number(process.env.RATE_LIMIT_BACKOFF_MS ?? 60_000)
+
+  function backoffRemainingMs() {
+    return Math.max(0, apiBackoffUntil - Date.now())
+  }
 
   async function apiWithBackoff(path, init = {}) {
     if (Date.now() < apiBackoffUntil) {
-      throw new Error(`${path} → skipped (backing off after rate limit)`)
+      const err = new Error(`${path} → skipped (backing off after rate limit)`)
+      err.code = 'RATE_LIMIT_BACKOFF'
+      throw err
     }
     try {
-      return await api(path, init)
+      const json = await api(path, init)
+      loggedBackoff = false
+      return json
     } catch (err) {
       if (String(err.message).includes('429')) {
-        apiBackoffUntil = Date.now() + 30_000
-        log('warn', 'Rate limited by MOJO — pausing API calls for 30s')
+        apiBackoffUntil = Date.now() + RATE_LIMIT_BACKOFF_MS
+        if (!loggedBackoff) {
+          loggedBackoff = true
+          log(
+            'warn',
+            `Rate limited by MOJO — pausing API calls for ${Math.round(RATE_LIMIT_BACKOFF_MS / 1000)}s`,
+          )
+        }
       }
       throw err
     }
@@ -123,7 +139,7 @@ export async function startAgent(options = {}) {
       } catch (err) {
         log(
           'warn',
-          `Device ${key} unreachable at ${device.baseUrl()}: ${err.message} (PC must be on same LAN as controller)`,
+          `Device ${key} unreachable at ${device.baseUrl()}: ${err.message}. If Terminal can reach this IP, quit & reopen the agent and allow Local Network access for MOJO Access Agent.`,
         )
       }
       devices.push({
@@ -352,9 +368,11 @@ export async function startAgent(options = {}) {
   const loopInterval = (fn, ms, label) => {
     const run = async () => {
       if (stopped) return
+      if (backoffRemainingMs() > 0 && label === 'heartbeat') return
       try {
         await fn()
       } catch (err) {
+        if (err.code === 'RATE_LIMIT_BACKOFF' || String(err.message).includes('skipped')) return
         log('error', `${label}: ${err.message}`)
         options.onStatus?.({
           online: false,
@@ -371,21 +389,37 @@ export async function startAgent(options = {}) {
   const schedulePoll = (delayMs) => {
     const t = setTimeout(async () => {
       if (stopped) return
+      const wait = backoffRemainingMs()
+      if (wait > 0) {
+        schedulePoll(wait)
+        return
+      }
       let result = { count: 0, hadUnlock: false }
       try {
         result = (await pollOnce()) ?? result
       } catch (err) {
-        log('error', `poll: ${err.message}`)
-        options.onStatus?.({
-          online: false,
-          detail: err.message,
-          devices: [...config.devices.keys()],
-        })
+        if (err.code !== 'RATE_LIMIT_BACKOFF' && !String(err.message).includes('skipped')) {
+          log('error', `poll: ${err.message}`)
+          options.onStatus?.({
+            online: false,
+            detail: err.message,
+            devices: [...config.devices.keys()],
+          })
+        } else {
+          options.onStatus?.({
+            online: true,
+            detail: `Paused briefly (MOJO rate limit) — retrying in ${Math.ceil(backoffRemainingMs() / 1000)}s`,
+            devices: [...config.devices.keys()],
+          })
+        }
       }
+      const nextBackoff = backoffRemainingMs()
       const next =
-        result.hadUnlock || result.count > 0
-          ? Math.min(400, config.pollMs) // burst after activity
-          : config.pollMs
+        nextBackoff > 0
+          ? nextBackoff
+          : result.hadUnlock || result.count > 0
+            ? Math.min(400, config.pollMs) // burst after activity
+            : config.pollMs
       schedulePoll(next)
     }, delayMs)
     timers.push(t)
