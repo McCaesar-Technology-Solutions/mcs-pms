@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 import os from 'node:os'
 import { loadConfig, applyCloudDevices } from './config.js'
 
-export const AGENT_VERSION = '1.2.4'
+export const AGENT_VERSION = '1.2.5'
 
 /**
  * @param {{
@@ -224,7 +224,9 @@ export async function startAgent(options = {}) {
       body: JSON.stringify({ limit: 10 }),
     })
 
+    let hadUnlock = false
     for (const job of jobs ?? []) {
+      if (job.type === 'unlock') hadUnlock = true
       try {
         const result = await handleJob(job)
         await apiWithBackoff(`/api/access/agent/jobs/${job.id}/complete`, {
@@ -240,6 +242,7 @@ export async function startAgent(options = {}) {
         }).catch((e) => log('error', `Complete report failed: ${e.message}`))
       }
     }
+    return { count: jobs?.length ?? 0, hadUnlock }
   }
 
   log('info', `v${AGENT_VERSION} hotel=${config.hotelId}`)
@@ -256,8 +259,11 @@ export async function startAgent(options = {}) {
   }
 
   const timers = []
-  const loop = (fn, ms, label) => {
+  let stopped = false
+
+  const loopInterval = (fn, ms, label) => {
     const run = async () => {
+      if (stopped) return
       try {
         await fn()
       } catch (err) {
@@ -269,13 +275,36 @@ export async function startAgent(options = {}) {
         })
       }
     }
-    // Fire-and-forget first tick so UI is never blocked on LAN device timeouts
     void run()
     timers.push(setInterval(run, ms))
   }
 
-  loop(heartbeat, config.heartbeatMs, 'heartbeat')
-  loop(pollOnce, config.pollMs, 'poll')
+  // Poll with setTimeout so ticks never stack; re-poll immediately after unlocks.
+  const schedulePoll = (delayMs) => {
+    const t = setTimeout(async () => {
+      if (stopped) return
+      let result = { count: 0, hadUnlock: false }
+      try {
+        result = (await pollOnce()) ?? result
+      } catch (err) {
+        log('error', `poll: ${err.message}`)
+        options.onStatus?.({
+          online: false,
+          detail: err.message,
+          devices: [...config.devices.keys()],
+        })
+      }
+      const next =
+        result.hadUnlock || result.count > 0
+          ? Math.min(400, config.pollMs) // burst after activity
+          : config.pollMs
+      schedulePoll(next)
+    }, delayMs)
+    timers.push(t)
+  }
+
+  loopInterval(heartbeat, config.heartbeatMs, 'heartbeat')
+  schedulePoll(0)
 
   options.onStatus?.({
     online: true,
@@ -285,7 +314,11 @@ export async function startAgent(options = {}) {
 
   return {
     stop() {
-      for (const t of timers) clearInterval(t)
+      stopped = true
+      for (const t of timers) {
+        clearInterval(t)
+        clearTimeout(t)
+      }
     },
   }
 }

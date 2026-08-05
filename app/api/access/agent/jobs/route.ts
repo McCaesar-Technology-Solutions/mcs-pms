@@ -29,8 +29,10 @@ export async function POST(request: Request) {
     // empty body is fine
   }
 
-  // Hobby Vercel only allows daily crons — reclaim stuck claims on each poll.
-  await reclaimStaleAccessJobs().catch(() => undefined)
+  // Reclaim rarely here so unlock polls stay fast (full reclaim runs on heartbeat + cron).
+  if (Math.random() < 0.05) {
+    await reclaimStaleAccessJobs().catch(() => undefined)
+  }
 
   const jobs = await claimAccessJobs({
     hotelId: auth.ctx.hotelId,

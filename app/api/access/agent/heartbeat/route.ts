@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { authenticateAccessAgent, touchAgentHeartbeat } from '@/lib/access/agent-auth'
+import { reclaimStaleAccessJobs } from '@/lib/access/jobs'
 
 const bodySchema = z.object({
   version: z.string().max(64).optional(),
@@ -44,6 +45,9 @@ export async function POST(request: Request) {
     hostname: parsed.data.hostname,
     devices: parsed.data.devices,
   })
+
+  // Stuck-job reclaim on heartbeat keeps /jobs polls light for fast unlock.
+  await reclaimStaleAccessJobs().catch(() => undefined)
 
   return NextResponse.json({ ok: true })
 }
