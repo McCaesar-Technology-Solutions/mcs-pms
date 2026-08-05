@@ -248,54 +248,63 @@ export class HikvisionDevice {
   }
 
   /**
-   * Fingerprint capture on DS-K1F600U-D6E-F (finger on sensor 2–3 times).
+   * Fingerprint capture — DS-K1F600U wants XML CaptureFingerPrintCond (not JSON / FingerprintCollect).
+   * Keep POSTing until fingerData appears or timeout (place finger on sensor while this runs).
    */
   async captureFingerprint({ timeoutMs = 90_000, fingerNo = 1 } = {}) {
-    const bodies = [
-      {
-        path: '/ISAPI/AccessControl/CaptureFingerPrint',
-        body: { CaptureFingerPrint: { fingerNo, employeeNo: '' } },
-      },
-      {
-        path: '/ISAPI/AccessControl/FingerPrint/Capture',
-        body: { FingerPrintCaptureCond: { fingerNo } },
-      },
-      {
-        path: '/ISAPI/AccessControl/FingerprintCollect',
-        body: { FingerprintCollectCond: { fingerNo } },
-      },
-    ]
-    const prev = this.timeoutMs
-    this.timeoutMs = timeoutMs
-    let lastError = 'Fingerprint capture failed'
-    try {
-      for (const attempt of bodies) {
-        try {
-          const json = await this.request('POST', attempt.path, attempt.body)
-          const data =
-            json?.CaptureFingerPrint ??
-            json?.FingerPrintInfo ??
-            json?.FingerprintData ??
-            json
-          const fingerprintData =
-            data?.fingerData ?? data?.fingerprintData ?? data?.FingerData ?? null
-          if (fingerprintData) {
-            return {
-              fingerNo: data?.fingerNo ?? fingerNo,
-              fingerprintData,
-              fingerprintQuality: data?.fingerQuality ?? data?.fingerprintQuality ?? null,
-            }
+    const deadline = Date.now() + timeoutMs
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<CaptureFingerPrintCond version="2.0" xmlns="http://www.isapi.org/ver20/XMLSchema">
+  <fingerNo>${Number(fingerNo) || 1}</fingerNo>
+</CaptureFingerPrintCond>`
+    const url = `${this.baseUrl()}/ISAPI/AccessControl/CaptureFingerPrint`
+    let lastError = 'Waiting for finger on sensor'
+
+    while (Date.now() < deadline) {
+      const remaining = Math.max(3000, Math.min(25_000, deadline - Date.now()))
+      try {
+        const res = await this.digest(url, {
+          method: 'POST',
+          timeoutMs: remaining,
+          headers: {
+            'Content-Type': 'application/xml',
+            Accept: 'application/xml, */*',
+          },
+          body: xml,
+        })
+        const text = res.text()
+        const fingerData =
+          text.match(/<fingerData>([^<]+)/i)?.[1]?.trim() ||
+          text.match(/"fingerData"\s*:\s*"([^"]+)"/i)?.[1]?.trim() ||
+          null
+        if (fingerData) {
+          return {
+            fingerNo:
+              Number(text.match(/<fingerNo>([^<]+)/i)?.[1]) ||
+              Number(fingerNo) ||
+              1,
+            fingerprintData: fingerData,
+            fingerprintQuality:
+              text.match(/<fingerPrintQuality>([^<]+)/i)?.[1]?.trim() || null,
           }
-          lastError = json?.statusString || 'Empty fingerprint payload'
-        } catch (err) {
-          lastError = err.message
-          if (/404|notSupport|badUrl|Invalid Operation/i.test(err.message)) continue
         }
+        const sub =
+          text.match(/<subStatusCode>([^<]+)/i)?.[1] ||
+          text.match(/<statusString>([^<]+)/i)?.[1] ||
+          `HTTP ${res.status}`
+        lastError = sub
+        // busy / no finger yet — keep trying
+        if (!/deviceBusy|deviceError|Invalid Operation|timeout|busy/i.test(sub) && res.ok) {
+          lastError = text.slice(0, 180) || sub
+        }
+      } catch (err) {
+        lastError = err.message
       }
-    } finally {
-      this.timeoutMs = prev
+      await new Promise((r) => setTimeout(r, 600))
     }
-    throw new Error(`${this.key}: fingerprint capture failed (${lastError})`)
+    throw new Error(
+      `${this.key}: fingerprint capture timed out (${lastError}). Place finger on the DS-K1F600U sensor after clicking Enroll.`,
+    )
   }
 
   async upsertFingerprint({ employeeNo, fingerNo = 1, fingerprintData }) {
@@ -327,44 +336,85 @@ export class HikvisionDevice {
   }
 
   /**
-   * Face capture: grab a JPEG from the enrollment station stream, then upload to doors via FDLib.
+   * Face capture via CaptureFaceData (XML). Device may return progress, faceDataUrl, or JPEG bytes.
+   * Guest must face the station/camera while this runs.
    */
-  async captureFaceJpeg({ timeoutMs = 20_000 } = {}) {
-    const paths = [
-      '/ISAPI/Streaming/channels/1/picture',
-      '/ISAPI/Streaming/channels/101/picture',
-      '/ISAPI/AccessControl/CaptureFaceData',
+  async captureFaceJpeg({ timeoutMs = 90_000 } = {}) {
+    const deadline = Date.now() + timeoutMs
+    const xmlBodies = [
+      `<?xml version="1.0" encoding="UTF-8"?>
+<CaptureFaceDataCond version="2.0" xmlns="http://www.isapi.org/ver20/XMLSchema">
+  <dataType>binary</dataType>
+  <captureInfrared>false</captureInfrared>
+</CaptureFaceDataCond>`,
+      `<?xml version="1.0" encoding="UTF-8"?>
+<CaptureFaceDataCond version="2.0" xmlns="http://www.isapi.org/ver20/XMLSchema">
+  <dataType>binary</dataType>
+  <captureInfrared>true</captureInfrared>
+</CaptureFaceDataCond>`,
     ]
-    const prev = this.timeoutMs
-    this.timeoutMs = timeoutMs
-    try {
-      for (const path of paths) {
-        const url = `${this.baseUrl()}${path}`
-        try {
-          const res = await this.digest(url, {
+    const url = `${this.baseUrl()}/ISAPI/AccessControl/CaptureFaceData`
+    let lastError = 'Waiting for face'
+    let xmlIndex = 0
+
+    while (Date.now() < deadline) {
+      const remaining = Math.max(3000, Math.min(25_000, deadline - Date.now()))
+      const xml = xmlBodies[xmlIndex % xmlBodies.length]
+      xmlIndex += 1
+      try {
+        const res = await this.digest(url, {
+          method: 'POST',
+          timeoutMs: remaining,
+          headers: {
+            'Content-Type': 'application/xml',
+            Accept: 'application/xml, image/jpeg, application/octet-stream, */*',
+          },
+          body: xml,
+        })
+        const buf = res.body
+        const ctype = String(res.headers['content-type'] || '')
+        if (buf.length > 500 && (ctype.includes('jpeg') || (buf[0] === 0xff && buf[1] === 0xd8))) {
+          return { jpeg: buf, contentType: 'image/jpeg' }
+        }
+
+        const text = res.text()
+        const progress = Number(text.match(/<captureProgress>([^<]+)/i)?.[1] ?? NaN)
+        const faceDataUrl = text.match(/<faceDataUrl>([^<]+)/i)?.[1]?.trim()
+        const infraredUrl = text.match(/<infraredFaceDataUrl>([^<]+)/i)?.[1]?.trim()
+        const dataUrl = faceDataUrl || infraredUrl
+
+        if (dataUrl) {
+          const abs = dataUrl.startsWith('http')
+            ? dataUrl
+            : `${this.baseUrl()}${dataUrl.startsWith('/') ? '' : '/'}${dataUrl}`
+          const pic = await this.digest(abs, {
             method: 'GET',
-            timeoutMs,
+            timeoutMs: 15_000,
             headers: { Accept: 'image/jpeg, application/octet-stream, */*' },
           })
-          if (!res.ok) continue
-          const ctype = String(res.headers['content-type'] || '')
-          const buf = res.body
-          if (ctype.includes('json') || ctype.includes('xml')) {
-            // Some firmwares return metadata only — skip
-            continue
+          if (pic.body?.length > 500) {
+            return { jpeg: pic.body, contentType: 'image/jpeg' }
           }
-          if (buf.length > 500) {
-            return { jpeg: buf, contentType: 'image/jpeg' }
-          }
-        } catch {
-          // try next
+          lastError = `faceDataUrl empty (${dataUrl})`
+        } else if (Number.isFinite(progress) && progress > 0 && progress < 100) {
+          lastError = `captureProgress ${progress}% — keep facing the camera`
+        } else if (progress === 100) {
+          lastError = 'captureProgress 100 but no face image in response'
+        } else {
+          const sub =
+            text.match(/<subStatusCode>([^<]+)/i)?.[1] ||
+            text.match(/<statusString>([^<]+)/i)?.[1] ||
+            `HTTP ${res.status}`
+          lastError = sub
+          // pictureUploadFailed often means no usable face in frame yet — retry
         }
+      } catch (err) {
+        lastError = err.message
       }
-    } finally {
-      this.timeoutMs = prev
+      await new Promise((r) => setTimeout(r, 700))
     }
     throw new Error(
-      `${this.key}: face capture failed — ensure DS-K1F600U-D6E-F camera is online and guest faces the station`,
+      `${this.key}: face capture timed out (${lastError}). Face the DS-K1F600U camera after clicking Enroll face.`,
     )
   }
 

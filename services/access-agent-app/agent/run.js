@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 import os from 'node:os'
 import { loadConfig, applyCloudDevices } from './config.js'
 
-export const AGENT_VERSION = '1.3.2'
+export const AGENT_VERSION = '1.3.3'
 
 /**
  * @param {{
@@ -276,7 +276,7 @@ export async function startAgent(options = {}) {
     if (type === 'enroll_face_capture') {
       const station = enrollmentDevice(payload.deviceKey)
       log('info', `Capturing face on ${station.key} (DS-K1F600U-D6E-F)…`)
-      const { jpeg } = await station.captureFaceJpeg({ timeoutMs: 25_000 })
+      const { jpeg } = await station.captureFaceJpeg({ timeoutMs: 90_000 })
       const targets = (payload.doors ?? []).length
         ? devicesForDoors(payload.doors)
         : doorDevices()
