@@ -1,6 +1,11 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, beforeEach, afterEach } from 'vitest'
 import { generatePortalPin, normalizePortalPin, PORTAL_PIN_LENGTH } from '@/lib/guest/portal-pin'
-import { hashPortalPin, verifyPortalPin } from '@/lib/guest/portal-pin-crypto'
+import {
+  hashPortalPin,
+  revealStoredPortalPin,
+  sealPortalPin,
+  verifyPortalPin,
+} from '@/lib/guest/portal-pin-crypto'
 import { guestRoomEntrySchema } from '@/lib/validations'
 
 describe('portal PIN', () => {
@@ -18,6 +23,16 @@ describe('portal PIN', () => {
 })
 
 describe('portal PIN hashing', () => {
+  const prev = process.env.GUEST_SESSION_SECRET
+
+  beforeEach(() => {
+    process.env.GUEST_SESSION_SECRET = 'test-secret-for-portal-pin'
+  })
+
+  afterEach(() => {
+    process.env.GUEST_SESSION_SECRET = prev
+  })
+
   it('verifies hashed PINs and rejects wrong PINs', async () => {
     const guestId = '00000000-0000-4000-8000-000000000001'
     const pin = '123456'
@@ -31,6 +46,22 @@ describe('portal PIN hashing', () => {
     const guestId = '00000000-0000-4000-8000-000000000001'
     expect(await verifyPortalPin(guestId, '123456', null, '123456')).toBe(true)
     expect(await verifyPortalPin(guestId, '000000', null, '123456')).toBe(false)
+  })
+
+  it('does not treat sealed ciphertext as legacy plaintext', async () => {
+    const guestId = '00000000-0000-4000-8000-000000000001'
+    const sealed = await sealPortalPin('123456')
+    expect(await verifyPortalPin(guestId, '123456', null, sealed)).toBe(false)
+  })
+
+  it('seals a PIN for staff reveal without storing plaintext', async () => {
+    const pin = '654321'
+    const sealed = await sealPortalPin(pin)
+    expect(sealed.startsWith('enc:v1:')).toBe(true)
+    expect(sealed.includes(pin)).toBe(false)
+    expect(await revealStoredPortalPin(sealed)).toBe(pin)
+    expect(await revealStoredPortalPin('123456')).toBe('123456')
+    expect(await revealStoredPortalPin(null)).toBeNull()
   })
 })
 

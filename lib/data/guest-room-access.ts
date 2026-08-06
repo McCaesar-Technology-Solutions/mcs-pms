@@ -1,6 +1,11 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { normalizePortalPin } from '@/lib/guest/portal-pin'
-import { hashPortalPin, verifyPortalPin } from '@/lib/guest/portal-pin-crypto'
+import {
+  hashPortalPin,
+  isLegacyPlainPortalPin,
+  sealPortalPin,
+  verifyPortalPin,
+} from '@/lib/guest/portal-pin-crypto'
 import { normalizeRoomNumber } from '@/lib/guest-portal'
 import { todayISO } from '@/lib/stays/helpers'
 import type { Guest } from '@/types'
@@ -59,13 +64,11 @@ export async function findActiveGuestForRoom(
 
     matched = guest
 
-    // Upgrade legacy plaintext PIN to hash and clear plaintext.
-    if (!row.portal_pin_hash && row.portal_pin) {
+    // Upgrade legacy plaintext PIN to hash + sealed staff copy.
+    if (!row.portal_pin_hash && isLegacyPlainPortalPin(row.portal_pin)) {
       const portal_pin_hash = await hashPortalPin(row.id, pin)
-      await admin
-        .from('guests')
-        .update({ portal_pin_hash, portal_pin: null })
-        .eq('id', row.id)
+      const portal_pin = await sealPortalPin(pin)
+      await admin.from('guests').update({ portal_pin_hash, portal_pin }).eq('id', row.id)
     }
     break
   }
@@ -75,9 +78,10 @@ export async function findActiveGuestForRoom(
   return { guest: matched as Guest, roomNumber: room.number }
 }
 
-/** Persist a newly issued portal PIN (hash only). */
+/** Persist a newly issued portal PIN (hash for verify + sealed copy for staff UI). */
 export async function storeGuestPortalPin(guestId: string, pin: string): Promise<void> {
   const admin = createAdminClient()
   const portal_pin_hash = await hashPortalPin(guestId, pin)
-  await admin.from('guests').update({ portal_pin_hash, portal_pin: null }).eq('id', guestId)
+  const portal_pin = await sealPortalPin(pin)
+  await admin.from('guests').update({ portal_pin_hash, portal_pin }).eq('id', guestId)
 }

@@ -1,5 +1,6 @@
 import { getProfile } from '@/lib/auth/get-profile'
 import { createClient } from '@/lib/supabase/server'
+import { revealStoredPortalPin } from '@/lib/guest/portal-pin-crypto'
 import { isVoidedReservationStatus } from '@/lib/reservations/lifecycle'
 import {
   sortGuestDirectory,
@@ -60,7 +61,10 @@ function deriveStatus(
   return 'new'
 }
 
-function mapGuestRows(guests: GuestQueryRow[], reservations: DbReservation[]): GuestRow[] {
+async function mapGuestRows(
+  guests: GuestQueryRow[],
+  reservations: DbReservation[],
+): Promise<GuestRow[]> {
   const byGuest = new Map<string, DbReservation[]>()
   for (const res of reservations) {
     if (!res.guest_id) continue
@@ -71,8 +75,8 @@ function mapGuestRows(guests: GuestQueryRow[], reservations: DbReservation[]): G
 
   const today = todayStr()
 
-  return sortGuestDirectory(
-    guests.map((guest) => {
+  const rows = await Promise.all(
+    guests.map(async (guest) => {
       const resList = (byGuest.get(guest.id) ?? []).filter(
         (r) => !isVoidedReservationStatus(r.status),
       )
@@ -117,13 +121,15 @@ function mapGuestRows(guests: GuestQueryRow[], reservations: DbReservation[]): G
         source: activeReservation?.channel ?? latestRes?.channel ?? null,
         token: guest.token,
         tokenExpiresAt: guest.token_expires_at,
-        portalPin: null,
+        portalPin: await revealStoredPortalPin(guest.portal_pin),
         reservationId: activeReservation?.id ?? null,
         isInHouse: isCurrentlyStaying,
         doNotDisturb: Boolean(guest.do_not_disturb),
       }
     }),
   )
+
+  return sortGuestDirectory(rows)
 }
 
 async function loadReservationsForGuests(
@@ -181,7 +187,7 @@ export async function getGuestsPage(options?: {
     const guestRows = (allGuests ?? []) as unknown as GuestQueryRow[]
     const guestIds = guestRows.map((g) => g.id)
     const reservations = await loadReservationsForGuests(supabase, hotelId, guestIds)
-    let rows = mapGuestRows(guestRows, reservations)
+    let rows = await mapGuestRows(guestRows, reservations)
 
     if (search) {
       const q = search.toLowerCase()
@@ -233,7 +239,7 @@ export async function getGuestsPage(options?: {
   const totalCount = count ?? guestRows.length
 
   return {
-    guests: mapGuestRows(guestRows, reservations),
+    guests: await mapGuestRows(guestRows, reservations),
     totalCount,
     page,
     pageSize,

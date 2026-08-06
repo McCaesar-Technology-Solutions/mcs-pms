@@ -828,19 +828,28 @@ function GuestAccessLink({ guest }: { guest: GuestRow }) {
             </button>
           </div>
 
-          {pin && (
-            <div className="flex items-center justify-between surface-inset rounded-xl p-3">
-              <div>
-                <p className="text-xs font-medium text-muted-foreground">Portal access PIN</p>
-                <p className="text-[11px] text-muted-foreground/80">
-                  For self-service entry via the property QR (room number + PIN).
-                </p>
-              </div>
-              <span className="rounded-lg bg-primary/10 px-3 py-1.5 font-mono text-lg font-bold tracking-[0.3em] text-primary">
+          <div className="flex items-center justify-between gap-3 surface-inset rounded-xl p-3">
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-muted-foreground">Portal login code</p>
+              <p className="text-[11px] text-muted-foreground/80">
+                Guest enters room number + this code after scanning the property QR.
+              </p>
+            </div>
+            {pin ? (
+              <span className="shrink-0 rounded-lg bg-primary/10 px-3 py-1.5 font-mono text-lg font-bold tracking-[0.3em] text-primary">
                 {pin}
               </span>
-            </div>
-          )}
+            ) : (
+              <button
+                type="button"
+                onClick={handleRegenerate}
+                disabled={pending}
+                className="shrink-0 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-50"
+              >
+                {pending ? 'Creating…' : 'Create code'}
+              </button>
+            )}
+          </div>
 
           <div className="flex flex-wrap items-center gap-4">
             {qr && (
