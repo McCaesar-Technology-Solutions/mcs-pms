@@ -24,9 +24,12 @@ Repeat per apartment/room (one active Airbnb import feed per room).
 ## Ops notes
 
 - Guest phone, Ghana Card, and Airbnb payout amounts are **not** in iCal. Staff still check in and can mark **Channel prepaid**.
-- In-house / checked-out stays are never overwritten or cancelled by sync.
+- In-house stays are never overwritten or cancelled by sync.
+- Cancelled / checked-out iCal rows release their UID so the same Airbnb booking can re-import later.
+- Empty or sharply truncated feeds **do not** mass-cancel open bookings (safety guard). Sync status shows an error until the feed looks healthy again.
 - If an Airbnb date clashes with an existing non-iCal booking, sync records a **conflict** and skips that event.
 - Export feeds exclude reservations imported from the same room’s Airbnb import feed (avoids echo loops).
+- Blocked dates import as “Blocked (Airbnb)” occupancy without manager new-booking SMS.
 
 ## Security
 

@@ -6,6 +6,25 @@ export type SyncableStatus =
   | 'confirmed'
   | 'pre_arrival'
 
+/** Statuses that still hold ical_uid for sync, but must never be cancelled/overwritten. */
+export const PROTECTED_STATUSES = [
+  'checked_in',
+  'checkout_in_progress',
+  'overstay',
+  'dispute_hold',
+] as const
+
+/** Terminal statuses — UID should be released so the same Airbnb booking can re-import. */
+export const TERMINAL_ICAL_STATUSES = [
+  'cancelled',
+  'released',
+  'checked_out',
+  'post_stay',
+  'archived',
+  'no_show',
+  'walkout',
+] as const
+
 export const SYNCABLE_STATUSES: readonly SyncableStatus[] = [
   'inquiry',
   'provisional',
@@ -42,12 +61,73 @@ export function isSyncableStatus(status: string | null | undefined): status is S
   return (SYNCABLE_STATUSES as readonly string[]).includes(status ?? '')
 }
 
-/** Pure diff between feed events and existing iCal-linked reservations. */
+export function isProtectedStatus(status: string | null | undefined): boolean {
+  return (PROTECTED_STATUSES as readonly string[]).includes(status ?? '')
+}
+
+export function isTerminalIcalStatus(status: string | null | undefined): boolean {
+  return (TERMINAL_ICAL_STATUSES as readonly string[]).includes(status ?? '')
+}
+
+/**
+ * Guard against truncated/empty Airbnb feeds wiping inventory.
+ * When refused, callers should still apply creates/updates but drop cancels.
+ */
+export function shouldRefuseMassCancel(input: {
+  previousEventsSynced: number
+  incomingActiveEvents: number
+  proposedCancels: number
+  openSyncableCount: number
+  force?: boolean
+}): { refuse: boolean; reason?: string } {
+  if (input.proposedCancels === 0) return { refuse: false }
+
+  // Empty feed with open bookings is never safe — even manual Sync now.
+  if (input.incomingActiveEvents === 0 && input.openSyncableCount > 0) {
+    return {
+      refuse: true,
+      reason:
+        'Feed returned 0 events while open Airbnb bookings exist — refusing mass cancel (possible feed glitch).',
+    }
+  }
+
+  if (input.force) return { refuse: false }
+
+  if (
+    input.previousEventsSynced >= 3 &&
+    input.incomingActiveEvents < input.previousEventsSynced * 0.4 &&
+    input.proposedCancels >= Math.max(2, Math.ceil(input.openSyncableCount * 0.5))
+  ) {
+    return {
+      refuse: true,
+      reason:
+        'Feed shrank sharply versus last sync — refusing mass cancel (possible truncated calendar).',
+    }
+  }
+
+  return { refuse: false }
+}
+
+/** Pure diff between feed events and existing open iCal-linked reservations. */
 export function buildSyncPlan(
   events: AirbnbMappedEvent[],
   existing: ExistingIcalReservation[],
 ): SyncPlan {
-  const byUid = new Map(existing.map((r) => [r.ical_uid, r]))
+  // Prefer syncable/protected rows if duplicate UIDs ever appear.
+  const byUid = new Map<string, ExistingIcalReservation>()
+  for (const row of existing) {
+    const prev = byUid.get(row.ical_uid)
+    if (!prev) {
+      byUid.set(row.ical_uid, row)
+      continue
+    }
+    const prevRank =
+      (isSyncableStatus(prev.status) ? 2 : 0) + (isProtectedStatus(prev.status) ? 3 : 0)
+    const nextRank =
+      (isSyncableStatus(row.status) ? 2 : 0) + (isProtectedStatus(row.status) ? 3 : 0)
+    if (nextRank >= prevRank) byUid.set(row.ical_uid, row)
+  }
+
   const actions: SyncPlanAction[] = []
   const activeUids = new Set<string>()
 
@@ -78,7 +158,7 @@ export function buildSyncPlan(
       continue
     }
 
-    if (!isSyncableStatus(row.status)) {
+    if (isProtectedStatus(row.status) || !isSyncableStatus(row.status)) {
       actions.push({
         type: 'skip',
         reason: `Reservation ${row.id} is ${row.status} — dates not overwritten from iCal`,
@@ -119,6 +199,14 @@ export function buildSyncPlan(
 
   for (const row of existing) {
     if (activeUids.has(row.ical_uid)) continue
+    if (isProtectedStatus(row.status)) {
+      actions.push({
+        type: 'skip',
+        reason: `Missing from feed but status ${row.status} — left unchanged`,
+        icalUid: row.ical_uid,
+      })
+      continue
+    }
     if (!isSyncableStatus(row.status)) {
       actions.push({
         type: 'skip',

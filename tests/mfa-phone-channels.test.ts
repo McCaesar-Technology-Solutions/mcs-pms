@@ -19,11 +19,11 @@ describe('resolveMfaPhoneChannels', () => {
     process.env = env
   })
 
-  it('exposes SMS and WhatsApp when both providers are configured', () => {
+  it('exposes only SMS while WhatsApp MFA is disabled', () => {
     process.env.ARKESEL_API_KEY = 'arkesel'
     process.env.TERMII_API_KEY = 'termii'
     process.env.TERMII_WHATSAPP_SENDER = 'MOJO'
-    expect(resolveMfaPhoneChannels()).toEqual(['sms', 'whatsapp'])
+    expect(resolveMfaPhoneChannels()).toEqual(['sms'])
   })
 
   it('exposes only SMS when Termii WhatsApp is not configured', () => {
@@ -46,19 +46,16 @@ describe('resolveMfaPhoneChannel', () => {
     process.env = env
   })
 
-  it('honours the requested channel when available', () => {
+  it('honours SMS when available', () => {
     expect(resolveMfaPhoneChannel('sms')).toBe('sms')
-    expect(resolveMfaPhoneChannel('whatsapp')).toBe('whatsapp')
   })
 
-  it('rejects unavailable channels', () => {
-    delete process.env.TERMII_API_KEY
-    delete process.env.TERMII_WHATSAPP_SENDER
+  it('rejects WhatsApp while MFA WhatsApp is disabled', () => {
     const result = resolveMfaPhoneChannel('whatsapp')
     expect(result).toEqual({ error: 'WhatsApp verification is not available. Try SMS instead.' })
   })
 
-  it('defaults to SMS when both channels are available', () => {
+  it('defaults to SMS', () => {
     expect(resolveMfaPhoneChannel()).toBe('sms')
   })
 

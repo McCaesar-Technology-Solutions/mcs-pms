@@ -4,7 +4,7 @@ import { isProd } from '@/lib/env'
 export type MfaMethod = 'sms' | 'email'
 
 export const MFA_METHOD_LABELS: Record<MfaMethod, string> = {
-  sms: 'Phone (WhatsApp or SMS)',
+  sms: 'Phone (SMS)',
   email: 'Email',
 }
 

@@ -37,10 +37,18 @@ function isPrivateOrReservedIp(ip: string): boolean {
     if (normalized.startsWith('fc') || normalized.startsWith('fd')) return true // unique local
     if (normalized.startsWith('fe80')) return true // link-local
     if (normalized.startsWith('ff')) return true // multicast
-    // IPv4-mapped
+    // IPv4-mapped dotted (::ffff:127.0.0.1)
     if (normalized.includes('.')) {
       const mapped = normalized.split(':').pop()
       if (mapped && net.isIPv4(mapped)) return isPrivateOrReservedIp(mapped)
+    }
+    // IPv4-mapped hex (::ffff:7f00:1)
+    const hexMapped = normalized.match(/^:?:ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i)
+    if (hexMapped) {
+      const hi = Number.parseInt(hexMapped[1]!, 16)
+      const lo = Number.parseInt(hexMapped[2]!, 16)
+      const dotted = `${(hi >> 8) & 255}.${hi & 255}.${(lo >> 8) & 255}.${lo & 255}`
+      return isPrivateOrReservedIp(dotted)
     }
     return false
   }
@@ -48,9 +56,16 @@ function isPrivateOrReservedIp(ip: string): boolean {
 }
 
 export function isAirbnbCalendarHost(hostname: string): boolean {
-  const host = hostname.toLowerCase().replace(/\.$/, '')
+  const host = normalizeHostname(hostname).replace(/\.$/, '')
   if (AIRBNB_HOSTS.has(host)) return true
   return AIRBNB_HOST_SUFFIXES.some((suffix) => host.endsWith(suffix))
+}
+
+/** Node may keep brackets on IPv6 hostnames (`[::1]`). */
+function normalizeHostname(hostname: string): string {
+  const host = hostname.toLowerCase()
+  if (host.startsWith('[') && host.endsWith(']')) return host.slice(1, -1)
+  return host
 }
 
 /** Validate import URL shape before DNS/fetch. HTTPS only. */
@@ -67,7 +82,7 @@ export function validateImportUrl(raw: string): { ok: true; url: URL } | { ok: f
   if (url.username || url.password) {
     return { ok: false, error: 'Calendar URL must not include credentials.' }
   }
-  const host = url.hostname.toLowerCase()
+  const host = normalizeHostname(url.hostname)
   if (!host || host === 'localhost' || host.endsWith('.local')) {
     return { ok: false, error: 'Calendar host is not allowed.' }
   }
@@ -78,12 +93,13 @@ export function validateImportUrl(raw: string): { ok: true; url: URL } | { ok: f
 }
 
 async function assertPublicHostname(hostname: string): Promise<string | null> {
-  if (isIP(hostname)) {
-    return isPrivateOrReservedIp(hostname) ? 'Calendar host resolves to a private address.' : null
+  const host = normalizeHostname(hostname)
+  if (isIP(host)) {
+    return isPrivateOrReservedIp(host) ? 'Calendar host resolves to a private address.' : null
   }
   let records: { address: string; family: number }[]
   try {
-    records = await dns.lookup(hostname, { all: true, verbatim: true })
+    records = await dns.lookup(host, { all: true, verbatim: true })
   } catch {
     return 'Could not resolve calendar host.'
   }
@@ -111,7 +127,7 @@ export async function fetchIcalFeed(
   const validated = validateImportUrl(importUrl)
   if (!validated.ok) return { ok: false, error: validated.error, code: 'INVALID_URL' }
 
-  const hostError = await assertPublicHostname(validated.url.hostname)
+  const hostError = await assertPublicHostname(normalizeHostname(validated.url.hostname))
   if (hostError) return { ok: false, error: hostError, code: 'SSRF_BLOCKED' }
 
   const controller = new AbortController()

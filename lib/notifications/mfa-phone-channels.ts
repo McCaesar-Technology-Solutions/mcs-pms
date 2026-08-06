@@ -3,11 +3,17 @@ import { isTermiiWhatsAppConfigured } from '@/lib/notifications/termii'
 
 export type MfaPhoneChannel = 'sms' | 'whatsapp'
 
+/**
+ * WhatsApp MFA OTP delivery is unreliable right now — hide the option from the UI
+ * and do not offer it as a verification channel until Termii auth templates work.
+ */
+const MFA_WHATSAPP_ENABLED = false
+
 /** Phone MFA channels available from configured providers (Arkesel SMS, Termii WhatsApp). */
 export function resolveMfaPhoneChannels(): MfaPhoneChannel[] {
   const channels: MfaPhoneChannel[] = []
   if (isSmsConfigured()) channels.push('sms')
-  if (isTermiiWhatsAppConfigured()) channels.push('whatsapp')
+  if (MFA_WHATSAPP_ENABLED && isTermiiWhatsAppConfigured()) channels.push('whatsapp')
   return channels
 }
 

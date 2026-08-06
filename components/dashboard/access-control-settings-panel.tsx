@@ -18,6 +18,7 @@ import type {
   AccessPointRow,
   DeviceCredentialMode,
 } from '@/lib/access/types'
+import type { AccessAgentDownloadLinks } from '@/lib/access/agent-downloads'
 import { FormField, APP_FIELD_CLASS } from '@/components/ui/form-field'
 
 interface RoomOption {
@@ -34,6 +35,7 @@ interface AccessControlSettingsPanelProps {
   devices: AccessDeviceRow[]
   deviceKeys: string[]
   canManage: boolean
+  agentDownloads?: AccessAgentDownloadLinks
 }
 
 export function AccessControlSettingsPanel({
@@ -45,6 +47,7 @@ export function AccessControlSettingsPanel({
   devices,
   deviceKeys,
   canManage,
+  agentDownloads,
 }: AccessControlSettingsPanelProps) {
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
@@ -185,8 +188,26 @@ export function AccessControlSettingsPanel({
                 <li>Choose where controller passwords live (MOJO cloud or apartment PC only).</li>
                 <li>Click Start setup — enables sync and creates your agent config.</li>
                 <li>
-                  On the apartment PC: install <strong>MOJO Access Agent</strong>, paste the config
-                  when asked, leave the tray app running.
+                  On the apartment PC: download <strong>MOJO Access Agent</strong>
+                  {agentDownloads?.macDmg || agentDownloads?.windowsSetup ? (
+                    <>
+                      {' '}
+                      (
+                      {agentDownloads.macDmg ? (
+                        <a href={agentDownloads.macDmg} className="underline" download>
+                          Mac
+                        </a>
+                      ) : null}
+                      {agentDownloads.macDmg && agentDownloads.windowsSetup ? ' / ' : null}
+                      {agentDownloads.windowsSetup ? (
+                        <a href={agentDownloads.windowsSetup} className="underline" download>
+                          Windows
+                        </a>
+                      ) : null}
+                      )
+                    </>
+                  ) : null}
+                  , install it, paste the config when asked, leave the tray app running.
                 </li>
                 <li>Map doors below (device key must match the controller key, e.g. lobby).</li>
               </ol>

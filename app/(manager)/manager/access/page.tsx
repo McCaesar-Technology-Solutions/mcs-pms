@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { AccessOpsPanel } from '@/components/dashboard/access-ops-panel'
+import { AccessAgentInstallCard } from '@/components/dashboard/access-agent-install-card'
+import { getAccessAgentDownloadLinks } from '@/lib/access/agent-downloads'
 import { getProfile } from '@/lib/auth/get-profile'
 import {
   getAccessCredentials,
@@ -36,6 +38,8 @@ export default async function ManagerAccessPage() {
             : 'Agent offline or not configured — unlock jobs will queue until it reconnects.'
         }
       />
+
+      <AccessAgentInstallCard links={getAccessAgentDownloadLinks()} />
 
       <AccessOpsPanel
         hotelId={hotelId}

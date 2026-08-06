@@ -2,6 +2,8 @@ import { redirect } from 'next/navigation'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { AccessControlSettingsPanel } from '@/components/dashboard/access-control-settings-panel'
 import { AccessOpsPanel } from '@/components/dashboard/access-ops-panel'
+import { AccessAgentInstallCard } from '@/components/dashboard/access-agent-install-card'
+import { getAccessAgentDownloadLinks } from '@/lib/access/agent-downloads'
 import { getProfile } from '@/lib/auth/get-profile'
 import { getActiveHotelSettings } from '@/lib/data/settings'
 import {
@@ -61,6 +63,8 @@ export default async function OwnerAccessPage() {
       deviceCredentialMode: 'cloud' as const,
     } as const)
 
+  const agentDownloads = getAccessAgentDownloadLinks()
+
   return (
     <div className="page-shell page-content-stack">
       <PageHeader
@@ -68,6 +72,8 @@ export default async function OwnerAccessPage() {
         title="Access control"
         description="Hikvision door enrollment driven by check-in and checkout — no separate iVMS for guests."
       />
+
+      <AccessAgentInstallCard links={agentDownloads} />
 
       <AccessControlSettingsPanel
         hotelId={hotelId}
@@ -80,6 +86,7 @@ export default async function OwnerAccessPage() {
           .filter((d) => d.device_role !== 'enrollment')
           .map((d) => d.device_key)}
         canManage
+        agentDownloads={agentDownloads}
       />
 
       <AccessOpsPanel

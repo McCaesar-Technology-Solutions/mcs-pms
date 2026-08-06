@@ -71,7 +71,7 @@ export async function GET(
     headers: {
       'Content-Type': 'text/calendar; charset=utf-8',
       'Content-Disposition': `inline; filename="mojo-${token.slice(0, 8)}.ics"`,
-      'Cache-Control': 'public, max-age=300, must-revalidate',
+      'Cache-Control': 'private, no-store',
       'X-Content-Type-Options': 'nosniff',
     },
   })

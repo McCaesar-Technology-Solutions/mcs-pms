@@ -21,6 +21,7 @@ describe('validateImportUrl', () => {
     expect(validateImportUrl('https://127.0.0.1/cal.ics').ok).toBe(false)
     expect(validateImportUrl('https://192.168.1.10/cal.ics').ok).toBe(false)
     expect(validateImportUrl('https://169.254.169.254/latest/meta-data').ok).toBe(false)
+    expect(validateImportUrl('https://[::ffff:127.0.0.1]/cal.ics').ok).toBe(false)
   })
 })
 

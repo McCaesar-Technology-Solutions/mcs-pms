@@ -2,6 +2,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import type { ChannelIcalFeedRow } from '@/lib/ical/sync-import'
 
 function publicAppOrigin(): string {
+  // Keep in sync with connect-action export URLs (NEXT_PUBLIC_APP_URL).
   return (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000').replace(/\/$/, '')
 }
 

@@ -28,3 +28,7 @@ services/access-agent-app/dist.zip
 services/access-agent-app/build.zip
 *.dmg
 *.exe
+
+# Access Agent installers — stage locally, publish via GitHub Releases (not git)
+public/downloads/access-agent/*
+!public/downloads/access-agent/README.md

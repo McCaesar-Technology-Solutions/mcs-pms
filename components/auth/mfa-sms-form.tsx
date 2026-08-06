@@ -210,7 +210,7 @@ export function MfaSmsForm({ nextPath, mode }: MfaSmsFormProps) {
     return (
       <form onSubmit={handleSavePhone} className="space-y-5">
         <p className="text-sm text-white/70">
-          Add your mobile number. We&apos;ll send a 6-digit code via SMS or WhatsApp to verify it.
+          Add your mobile number. We&apos;ll send a 6-digit code via SMS to verify it.
         </p>
         <div className="space-y-2">
           <Label htmlFor="mfa-phone" className="text-white/90">

@@ -4,8 +4,18 @@ import { getRoomRates } from '@/lib/pricing/room-rates'
 import { calculateStayTotal } from '@/lib/pricing/stay-totals'
 import { parseIcs } from '@/lib/ical/parse'
 import { mapAirbnbEvents } from '@/lib/ical/airbnb'
-import { fetchIcalFeed } from '@/lib/ical/safe-fetch'
-import { buildSyncPlan, type ExistingIcalReservation } from '@/lib/ical/sync-plan'
+import {
+  fetchIcalFeed,
+  isAirbnbCalendarHost,
+  validateImportUrl,
+} from '@/lib/ical/safe-fetch'
+import {
+  buildSyncPlan,
+  isSyncableStatus,
+  isTerminalIcalStatus,
+  shouldRefuseMassCancel,
+  type ExistingIcalReservation,
+} from '@/lib/ical/sync-plan'
 import { transitionReservation } from '@/lib/reservations/state-machine'
 import { writeAuditLog } from '@/lib/audit/log'
 import { runNotifyTask } from '@/lib/notifications/notify-task'
@@ -87,6 +97,36 @@ async function releaseSyncLock(
     .eq('id', feedId)
 }
 
+/**
+ * Free ical_uid on terminal reservations so the same Airbnb UID can re-import
+ * (unique index on feed+uid would otherwise block forever).
+ */
+async function releaseTerminalIcalUids(admin: Admin, feedId: string): Promise<number> {
+  const { data } = await admin
+    .from('reservations')
+    .select('id, status, ical_uid')
+    .eq('ical_feed_id', feedId)
+    .not('ical_uid', 'is', null)
+
+  const terminalIds = (data ?? [])
+    .filter((r) => r.ical_uid && isTerminalIcalStatus(r.status))
+    .map((r) => r.id)
+
+  if (terminalIds.length === 0) return 0
+
+  const { error } = await admin
+    .from('reservations')
+    .update({ ical_uid: null })
+    .in('id', terminalIds)
+    .eq('ical_feed_id', feedId)
+
+  if (error) {
+    console.error('[ical-sync] failed to release terminal UIDs:', error.message)
+    return 0
+  }
+  return terminalIds.length
+}
+
 async function loadExistingForFeed(
   admin: Admin,
   feedId: string,
@@ -100,6 +140,8 @@ async function loadExistingForFeed(
   const rows: ExistingIcalReservation[] = []
   for (const r of data ?? []) {
     if (!r.ical_uid) continue
+    // Terminal rows should already have UIDs cleared; skip if any remain.
+    if (isTerminalIcalStatus(r.status)) continue
     rows.push({
       id: r.id,
       ical_uid: r.ical_uid,
@@ -339,6 +381,14 @@ async function cancelFromFeed(
   })
 
   if (result.success) {
+    // Release UID so a later reappearance of the same Airbnb booking can import again.
+    const admin = createAdminClient()
+    await admin
+      .from('reservations')
+      .update({ ical_uid: null })
+      .eq('id', reservationId)
+      .eq('hotel_id', feed.hotel_id)
+
     void writeAuditLog({
       hotelId: feed.hotel_id,
       actorId: null,
@@ -389,6 +439,23 @@ export async function syncImportFeed(
   }
 
   try {
+    const urlCheck = validateImportUrl(feed.import_url)
+    if (!urlCheck.ok) {
+      await releaseSyncLock(admin, feed.id, {
+        last_sync_status: 'error',
+        last_sync_message: urlCheck.error.slice(0, 500),
+      })
+      return { ...empty, ok: false, message: urlCheck.error }
+    }
+    if (feed.provider === 'airbnb' && !isAirbnbCalendarHost(urlCheck.url.hostname)) {
+      const msg = 'Import URL host is not an allowed Airbnb calendar host.'
+      await releaseSyncLock(admin, feed.id, {
+        last_sync_status: 'error',
+        last_sync_message: msg,
+      })
+      return { ...empty, ok: false, message: msg }
+    }
+
     const fetched = await fetchIcalFeed(feed.import_url, {
       etag: opts.force ? null : feed.last_http_etag,
     })
@@ -448,13 +515,29 @@ export async function syncImportFeed(
     }
 
     const parsed = parseIcs(body)
-    const mapped =
-      feed.provider === 'airbnb'
-        ? mapAirbnbEvents(parsed.events)
-        : mapAirbnbEvents(parsed.events) // shared mapping is Airbnb-tuned; OK for generic DATE blocks
+    const mapped = mapAirbnbEvents(parsed.events)
+    const activeEvents = mapped.filter((e) => e.kind !== 'cancelled')
 
+    await releaseTerminalIcalUids(admin, feed.id)
     const existing = await loadExistingForFeed(admin, feed.id)
-    const plan = buildSyncPlan(mapped, existing)
+    let plan = buildSyncPlan(mapped, existing)
+
+    const openSyncableCount = existing.filter((r) => isSyncableStatus(r.status)).length
+    const proposedCancels = plan.actions.filter((a) => a.type === 'cancel').length
+    const massCancelGuard = shouldRefuseMassCancel({
+      previousEventsSynced: feed.events_synced,
+      incomingActiveEvents: activeEvents.length,
+      proposedCancels,
+      openSyncableCount,
+      force: opts.force,
+    })
+
+    if (massCancelGuard.refuse) {
+      plan = {
+        ...plan,
+        actions: plan.actions.filter((a) => a.type !== 'cancel'),
+      }
+    }
 
     let created = 0
     let updated = 0
@@ -484,11 +567,14 @@ export async function syncImportFeed(
         })
         if (result.ok) {
           created++
-          createdNotify.push({
-            guestName: action.event.guestName,
-            checkIn: action.event.checkIn,
-            checkOut: action.event.checkOut,
-          })
+          // Blocks still reserve the room; only notify for real guest stays.
+          if (action.event.kind === 'reservation') {
+            createdNotify.push({
+              guestName: action.event.guestName,
+              checkIn: action.event.checkIn,
+              checkOut: action.event.checkOut,
+            })
+          }
         } else if (result.conflict) {
           conflicts++
           if (conflictNotes.length < 5) conflictNotes.push(result.error)
@@ -528,18 +614,26 @@ export async function syncImportFeed(
       }
     }
 
-    const eventsSynced = mapped.filter((e) => e.kind !== 'cancelled').length
+    const eventsSynced = activeEvents.length
     const messageParts = [
       `Synced ${eventsSynced} event(s): +${created} ~${updated} -${cancelled}`,
     ]
     if (conflicts) messageParts.push(`${conflicts} conflict(s)`)
+    if (massCancelGuard.refuse && massCancelGuard.reason) {
+      messageParts.push(massCancelGuard.reason)
+    }
     if (conflictNotes.length) messageParts.push(conflictNotes.join('; '))
 
     const message = messageParts.join(' · ').slice(0, 500)
-    const ok = conflicts === 0 || created + updated + cancelled > 0 || eventsSynced === 0
+    const statusError =
+      (conflicts > 0 && created + updated + cancelled === 0) ||
+      Boolean(massCancelGuard.refuse)
+    const ok =
+      !massCancelGuard.refuse &&
+      (conflicts === 0 || created + updated + cancelled > 0 || eventsSynced === 0)
 
     await releaseSyncLock(admin, feed.id, {
-      last_sync_status: conflicts > 0 && created + updated + cancelled === 0 ? 'error' : 'ok',
+      last_sync_status: statusError ? 'error' : 'ok',
       last_sync_message: message,
       events_synced: eventsSynced,
       last_http_etag: fetched.etag,

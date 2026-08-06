@@ -4,6 +4,8 @@ name: Scheduled crons
 # jobs run here via CRON_SECRET instead.
 #
 # Required repo secrets: CRON_SECRET, PRODUCTION_APP_URL (e.g. https://mcs-pms.vercel.app)
+#
+# Note: job-level `if` cannot use the `env` context — use github.* only.
 
 on:
   schedule:
@@ -25,11 +27,12 @@ on:
 
 env:
   CRON_AUTH: 'Authorization: Bearer ${{ secrets.CRON_SECRET }}'
-  RUN_ALL: ${{ github.event_name == 'workflow_dispatch' && (github.event.inputs.run_all != 'false') }}
 
 jobs:
   every-five-minutes:
-    if: github.event.schedule == '*/5 * * * *' || env.RUN_ALL == 'true'
+    if: >-
+      github.event.schedule == '*/5 * * * *' ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.run_all != 'false')
     runs-on: ubuntu-latest
     steps:
       - name: Drain notification outbox
@@ -54,7 +57,9 @@ jobs:
             "${{ secrets.PRODUCTION_APP_URL }}/api/cron/ical-sync"
 
   hourly-pre-arrival:
-    if: github.event.schedule == '0 * * * *' || env.RUN_ALL == 'true'
+    if: >-
+      github.event.schedule == '0 * * * *' ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.run_all != 'false')
     runs-on: ubuntu-latest
     steps:
       - name: Reservation pre-arrival reminders
@@ -64,7 +69,9 @@ jobs:
             "${{ secrets.PRODUCTION_APP_URL }}/api/cron/reservation-pre-arrival"
 
   hourly-auto-checkout-prompt:
-    if: github.event.schedule == '15 * * * *' || env.RUN_ALL == 'true'
+    if: >-
+      github.event.schedule == '15 * * * *' ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.run_all != 'false')
     runs-on: ubuntu-latest
     steps:
       - name: Auto checkout prompt
@@ -74,7 +81,9 @@ jobs:
             "${{ secrets.PRODUCTION_APP_URL }}/api/cron/reservation-auto-checkout-prompt"
 
   hourly-overstay:
-    if: github.event.schedule == '30 * * * *' || env.RUN_ALL == 'true'
+    if: >-
+      github.event.schedule == '30 * * * *' ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.run_all != 'false')
     runs-on: ubuntu-latest
     steps:
       - name: Reservation overstay check
@@ -84,7 +93,9 @@ jobs:
             "${{ secrets.PRODUCTION_APP_URL }}/api/cron/reservation-overstay"
 
   daily-readiness:
-    if: github.event.schedule == '0 6 * * *' || env.RUN_ALL == 'true'
+    if: >-
+      github.event.schedule == '0 6 * * *' ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.run_all != 'false')
     runs-on: ubuntu-latest
     steps:
       - name: Health check

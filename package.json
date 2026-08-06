@@ -21,6 +21,7 @@
     "access-agent:dev": "npm start --prefix services/access-agent-app",
     "access-agent:dist:mac": "npm run dist:mac --prefix services/access-agent-app",
     "access-agent:dist:win": "npm run dist:win --prefix services/access-agent-app",
+    "publish:access-agent": "node scripts/publish-access-agent.mjs",
     "access-agent:legacy-install": "npm install --prefix services/hikvision-agent",
     "access-agent:legacy-start": "npm start --prefix services/hikvision-agent"
   },
