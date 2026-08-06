@@ -45,10 +45,10 @@ describe('guest session tokens', () => {
     expect(await parseGuestSessionToken('550e8400-e29b-41d4-a716-446655440000')).toBeNull()
   })
 
-  it('uses strict same-site cookies scoped to /guest', () => {
+  it('uses lax same-site cookies scoped to /guest (QR / magic-link entry)', () => {
     const expiresAt = new Date(Date.now() + 60_000)
     const opts = guestSessionCookieOptions(expiresAt)
-    expect(opts.sameSite).toBe('strict')
+    expect(opts.sameSite).toBe('lax')
     expect(opts.path).toBe('/guest')
     expect(opts.httpOnly).toBe(true)
   })

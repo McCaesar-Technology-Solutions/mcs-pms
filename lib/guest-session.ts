@@ -80,7 +80,11 @@ export function guestSessionCookieOptions(expiresAt: Date) {
   return {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict' as const,
+    // Lax (not Strict): personal QR / magic links open from camera apps and
+    // messengers as cross-site navigations. Strict cookies set on /guest/enter
+    // are not sent on the follow-up redirect to /guest, so guests see the
+    // "scan the property QR" empty state instead of their portal.
+    sameSite: 'lax' as const,
     path: '/guest',
     expires: expiresAt,
   }

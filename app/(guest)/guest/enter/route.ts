@@ -41,13 +41,19 @@ export async function GET(request: NextRequest) {
     const result = await validateGuestAccessToken(token)
 
     if (!result.ok) {
-      return NextResponse.redirect(
-        new URL(`/guest?error=${encodeURIComponent(result.error)}`, request.url),
-      )
+      const code =
+        result.error === 'expired'
+          ? 'expired'
+          : result.error === 'Missing access token.'
+            ? 'missing'
+            : 'invalid'
+      return NextResponse.redirect(new URL(`/guest?error=${code}`, request.url))
     }
 
     const sessionToken = await createGuestSessionToken(result.guest.id, result.expiresAt)
-    const response = NextResponse.redirect(new URL('/guest', request.url))
+    // 303 + absolute /guest keeps the session cookie on the follow-up GET after
+    // camera/QR cross-site entry (see guestSessionCookieOptions sameSite: lax).
+    const response = NextResponse.redirect(new URL('/guest', request.url), 303)
     response.cookies.set(
       GUEST_SESSION_COOKIE,
       sessionToken,
