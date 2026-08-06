@@ -10,6 +10,7 @@ export interface InvoiceWithRoom extends DbInvoice {
   checkIn: string | null
   checkOut: string | null
   nights: number | null
+  guestPhone: string | null
 }
 
 interface InvoiceQueryRow extends DbInvoice {
@@ -37,6 +38,15 @@ export async function getInvoicesData(limit?: number): Promise<InvoiceWithRoom[]
     .limit(clampLimit(limit))
 
   const rows = (data ?? []) as unknown as InvoiceQueryRow[]
+  const guestIds = [...new Set(rows.map((r) => r.guest_id).filter(Boolean))] as string[]
+  const phoneByGuestId = new Map<string, string | null>()
+
+  if (guestIds.length > 0) {
+    const { data: guests } = await supabase.from('guests').select('id, phone').in('id', guestIds)
+    for (const g of guests ?? []) {
+      phoneByGuestId.set(g.id, g.phone?.trim() || null)
+    }
+  }
 
   return rows.map((row) => {
     const checkIn = row.reservations?.check_in ?? null
@@ -47,6 +57,7 @@ export async function getInvoicesData(limit?: number): Promise<InvoiceWithRoom[]
       checkIn,
       checkOut,
       nights: checkIn && checkOut ? stayNights(checkIn, checkOut) : null,
+      guestPhone: row.guest_id ? (phoneByGuestId.get(row.guest_id) ?? null) : null,
     }
   })
 }

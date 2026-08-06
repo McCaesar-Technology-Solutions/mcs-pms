@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Copy, Download, Plus, TrendingUp } from 'lucide-react'
+import { Copy, Download, MessageCircle, Plus, TrendingUp } from 'lucide-react'
 import { toast } from 'sonner'
 import { createManualInvoice, recordInvoicePayment, recordPartialInvoicePayment, refundInvoicePayment } from '@/app/actions/invoices'
 import { initiateStaffPayment } from '@/app/actions/payments'
@@ -18,8 +18,9 @@ import { formatGhs, formatGhsCompact, MONEY_CLASS } from '@/lib/format/money'
 import { useRowSelection } from '@/lib/hooks/use-row-selection'
 import { PAYMENT_METHOD_LABELS, computeInvoiceTaxesWithOption, invoiceHasTaxBreakdown, type VatMode } from '@/lib/tax'
 import { formatInvoiceNumber } from '@/lib/invoices/numbering'
+import { InvoiceWhatsAppDialog, InvoiceWhatsAppShare } from '@/components/dashboard/invoice-whatsapp-share'
 import { downloadInvoicePdf } from '@/lib/export/invoice-pdf'
-import type { ExportHotelInfo } from '@/lib/export/types'
+import type { ExportHotelInfo, InvoiceExportRow } from '@/lib/export/types'
 import type { InvoiceWithRoom } from '@/lib/data/billing'
 import type { PaymentMethod } from '@/types'
 
@@ -81,10 +82,11 @@ function money(value: number | null | undefined) {
   return formatGhs(value)
 }
 
-function toExportRow(inv: InvoiceWithRoom) {
+function toExportRow(inv: InvoiceWithRoom): InvoiceExportRow {
   return {
     invoiceNumber: formatInvoiceNumber(inv),
     guestName: inv.guest_name,
+    guestPhone: inv.guestPhone,
     roomNumber: inv.roomNumber,
     checkIn: inv.checkIn,
     checkOut: inv.checkOut,
@@ -135,6 +137,7 @@ export function BillingOverview({
   const [newIncludeTax, setNewIncludeTax] = useState(true)
   const [partialAmount, setPartialAmount] = useState('')
   const [partialMethod, setPartialMethod] = useState<PaymentMethod>('cash')
+  const [whatsAppInvoice, setWhatsAppInvoice] = useState<InvoiceWithRoom | null>(null)
   const [pending, startTransition] = useTransition()
 
   useEffect(() => {
@@ -208,7 +211,18 @@ export function BillingOverview({
   const downloadPdf = (inv: InvoiceWithRoom, e?: React.MouseEvent) => {
     e?.stopPropagation()
     if (!hotel) return
-    downloadInvoicePdf(hotel, toExportRow(inv))
+    void downloadInvoicePdf(hotel, toExportRow(inv)).then(() => {
+      toast.success('Invoice downloaded')
+    })
+  }
+
+  const openWhatsApp = (inv: InvoiceWithRoom, e?: React.MouseEvent) => {
+    e?.stopPropagation()
+    if (!hotel) {
+      toast.error('Hotel details unavailable')
+      return
+    }
+    setWhatsAppInvoice(inv)
   }
 
   const newSubtotalNum = parseFloat(newSubtotal) || 0
@@ -519,15 +533,26 @@ export function BillingOverview({
                     </span>
                   </td>
                   <td className="py-4 px-6 text-center">
-                    <button
-                      type="button"
-                      disabled={!hotel || !invoice.invoice}
-                      title={hotel ? 'Download PDF' : 'Hotel details unavailable'}
-                      onClick={(e) => invoice.invoice && downloadPdf(invoice.invoice, e)}
-                      className="inline-flex items-center justify-center w-8 h-8 rounded-lg hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground disabled:opacity-40"
-                    >
-                      <Download className="h-4 w-4" />
-                    </button>
+                    <div className="inline-flex items-center gap-0.5">
+                      <button
+                        type="button"
+                        disabled={!hotel || !invoice.invoice}
+                        title={hotel ? 'Send via WhatsApp' : 'Hotel details unavailable'}
+                        onClick={(e) => invoice.invoice && openWhatsApp(invoice.invoice, e)}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[#25D366] transition-colors hover:bg-[#25D366]/10 disabled:opacity-40"
+                      >
+                        <MessageCircle className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        disabled={!hotel || !invoice.invoice}
+                        title={hotel ? 'Download PDF' : 'Hotel details unavailable'}
+                        onClick={(e) => invoice.invoice && downloadPdf(invoice.invoice, e)}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:opacity-40"
+                      >
+                        <Download className="h-4 w-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -623,14 +648,19 @@ export function BillingOverview({
               </div>
 
               {hotel && (
-                <button
-                  type="button"
-                  onClick={() => downloadPdf(detail)}
-                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-secondary px-4 py-2.5 text-sm font-semibold text-foreground"
-                >
-                  <Download className="h-4 w-4" />
-                  Download PDF
-                </button>
+                <div className="flex flex-col gap-2">
+                  <div className="rounded-xl border border-[#25D366]/30 bg-[#25D366]/5 p-3">
+                    <InvoiceWhatsAppShare hotel={hotel} invoice={toExportRow(detail)} embedded />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => downloadPdf(detail)}
+                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-secondary px-4 py-2.5 text-sm font-semibold text-foreground"
+                  >
+                    <Download className="h-4 w-4" />
+                    Download PDF
+                  </button>
+                </div>
               )}
 
               {onlinePaymentsEnabled &&
@@ -801,6 +831,15 @@ export function BillingOverview({
           </button>
         </ModalFooter>
       </CenteredModal>
+      )}
+
+      {hotel && whatsAppInvoice && (
+        <InvoiceWhatsAppDialog
+          open
+          onClose={() => setWhatsAppInvoice(null)}
+          hotel={hotel}
+          invoice={toExportRow(whatsAppInvoice)}
+        />
       )}
     </>
   )

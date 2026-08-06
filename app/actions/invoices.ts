@@ -126,6 +126,16 @@ export async function getStaffInvoiceExport(invoiceId: string): Promise<StaffInv
     vat_mode: 'exclusive' | 'inclusive' | null
   } | null
 
+  let guestPhone: string | null = null
+  if (row.guest_id) {
+    const { data: guestRow } = await admin
+      .from('guests')
+      .select('phone')
+      .eq('id', row.guest_id)
+      .maybeSingle()
+    guestPhone = guestRow?.phone?.trim() || null
+  }
+
   const reservation = row.reservations as unknown as {
     check_in: string
     check_out: string
@@ -149,6 +159,7 @@ export async function getStaffInvoiceExport(invoiceId: string): Promise<StaffInv
       invoice: {
         invoiceNumber: formatInvoiceNumber({ invoice_number: row.invoice_number, id: row.id }),
         guestName: row.guest_name,
+        guestPhone,
         roomNumber: reservation?.rooms?.number ?? null,
         checkIn,
         checkOut,

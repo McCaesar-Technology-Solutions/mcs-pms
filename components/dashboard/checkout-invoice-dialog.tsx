@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { Download, Loader2, Printer } from 'lucide-react'
 import { toast } from 'sonner'
 import { getStaffInvoiceExport } from '@/app/actions/invoices'
+import { InvoiceWhatsAppShare } from '@/components/dashboard/invoice-whatsapp-share'
 import { CenteredModal, ModalBody, ModalFooter, ModalHeader } from '@/components/ui/centered-modal'
 import { downloadInvoicePdf, printInvoicePdf } from '@/lib/export/invoice-pdf'
 import { invoiceHasTaxBreakdown, PAYMENT_METHOD_LABELS } from '@/lib/tax'
@@ -38,12 +39,8 @@ export function CheckoutInvoiceDialog({
 
   useEffect(() => {
     let cancelled = false
-    if (initialInvoice) {
-      setLoadingExport(true)
-    } else {
-      setLoadingExport(true)
-      setError(null)
-    }
+    setLoadingExport(true)
+    if (!initialInvoice) setError(null)
 
     void getStaffInvoiceExport(invoiceId).then((result) => {
       if (cancelled) return
@@ -53,7 +50,7 @@ export function CheckoutInvoiceDialog({
         return
       }
       setHotel(result.data.hotel)
-      if (!initialInvoice) setInvoice(result.data.invoice)
+      setInvoice(result.data.invoice)
       setLoadingExport(false)
     })
 
@@ -62,21 +59,21 @@ export function CheckoutInvoiceDialog({
     }
   }, [invoiceId, initialInvoice])
 
-  function handleDownload() {
+  async function handleDownload() {
     if (!hotel || !invoice) {
       toast.error('Preparing invoice for download…')
       return
     }
-    downloadInvoicePdf(hotel, invoice)
+    await downloadInvoicePdf(hotel, invoice)
     toast.success('Invoice downloaded')
   }
 
-  function handlePrint() {
+  async function handlePrint() {
     if (!hotel || !invoice) {
       toast.error('Preparing invoice for print…')
       return
     }
-    printInvoicePdf(hotel, invoice)
+    await printInvoicePdf(hotel, invoice)
     toast.success('Opening print dialog…')
   }
 
@@ -88,7 +85,8 @@ export function CheckoutInvoiceDialog({
       <ModalHeader onClose={onClose}>
         <h3 className="text-lg font-semibold">Guest invoice</h3>
         <p className="modal-panel-subtle text-sm">
-          {guestName ?? invoice?.guestName ?? 'Guest'} checked out — print or download for the guest.
+          {guestName ?? invoice?.guestName ?? 'Guest'} checked out — print, download, or send via
+          WhatsApp.
         </p>
       </ModalHeader>
 
@@ -174,25 +172,32 @@ export function CheckoutInvoiceDialog({
               </div>
             </div>
 
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <button
-                type="button"
-                onClick={handlePrint}
-                disabled={!pdfReady && loadingExport}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
-              >
-                <Printer className="h-4 w-4" />
-                {pdfReady ? 'Print invoice' : 'Preparing…'}
-              </button>
-              <button
-                type="button"
-                onClick={handleDownload}
-                disabled={!pdfReady && loadingExport}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-secondary px-4 py-2.5 text-sm font-semibold text-foreground disabled:opacity-60"
-              >
-                <Download className="h-4 w-4" />
-                {pdfReady ? 'Download PDF' : 'Preparing…'}
-              </button>
+            <div className="flex flex-col gap-2">
+              {hotel && (
+                <div className="rounded-xl border border-[#25D366]/30 bg-[#25D366]/5 p-3">
+                  <InvoiceWhatsAppShare hotel={hotel} invoice={invoice} embedded />
+                </div>
+              )}
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={() => void handlePrint()}
+                  disabled={!pdfReady && loadingExport}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+                >
+                  <Printer className="h-4 w-4" />
+                  {pdfReady ? 'Print invoice' : 'Preparing…'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleDownload()}
+                  disabled={!pdfReady && loadingExport}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-secondary px-4 py-2.5 text-sm font-semibold text-foreground disabled:opacity-60"
+                >
+                  <Download className="h-4 w-4" />
+                  {pdfReady ? 'Download PDF' : 'Preparing…'}
+                </button>
+              </div>
             </div>
           </>
         )}

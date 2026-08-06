@@ -10,6 +10,7 @@ export interface ExportHotelInfo {
 export interface InvoiceExportRow {
   invoiceNumber: string
   guestName: string
+  guestPhone?: string | null
   roomNumber: string | null
   checkIn: string | null
   checkOut: string | null

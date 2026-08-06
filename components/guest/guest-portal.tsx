@@ -48,7 +48,8 @@ import {
   fetchGuestPortalBundle,
 } from '@/app/actions/guest-portal'
 import { initiateGuestPortalPayment } from '@/app/actions/payments'
-import { downloadInvoicePdf } from '@/lib/export/invoice-pdf'
+import { downloadInvoicePdf, shareInvoiceViaWhatsApp } from '@/lib/export/invoice-pdf'
+import { hasPhoneNumber } from '@/lib/phone'
 import { GuestPhoneEditor } from '@/components/guest/guest-phone-editor'
 import { ProfilePhotoUpload } from '@/components/profile/profile-photo-upload'
 import { clearGuestProfilePhoto, uploadGuestProfilePhoto } from '@/app/actions/profile-photo'
@@ -391,7 +392,31 @@ export function GuestPortal({
     const result = await getGuestInvoiceReceiptExport(invoiceId)
     setReceiptLoading(null)
     if (!result.success || !result.data) return
-    downloadInvoicePdf(result.data.hotel, result.data.invoice)
+    await downloadInvoicePdf(result.data.hotel, result.data.invoice)
+  }
+
+  async function whatsappReceipt(invoiceId: string) {
+    setReceiptLoading(invoiceId)
+    const result = await getGuestInvoiceReceiptExport(invoiceId)
+    setReceiptLoading(null)
+    if (!result.success || !result.data) {
+      toast.error(result.success === false ? result.error : 'Could not load receipt.')
+      return
+    }
+    if (!hasPhoneNumber(result.data.invoice.guestPhone)) {
+      toast.error('Add your phone number to share via WhatsApp.')
+      return
+    }
+    const share = await shareInvoiceViaWhatsApp(result.data.hotel, result.data.invoice)
+    if (!share.ok) {
+      toast.error(share.error)
+      return
+    }
+    toast.success(
+      share.mode === 'share'
+        ? 'Share sheet opened — pick WhatsApp'
+        : 'PDF downloaded — WhatsApp opened with your receipt message',
+    )
   }
 
   async function copyWifi() {
@@ -792,6 +817,15 @@ export function GuestPortal({
                             >
                               <Download className="h-3.5 w-3.5" />
                               {receiptLoading === inv.id ? '…' : 'PDF'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void whatsappReceipt(inv.id)}
+                              disabled={receiptLoading === inv.id}
+                              className="flex items-center gap-1 rounded-lg bg-[#25D366]/15 px-2.5 py-1.5 text-xs font-semibold text-[#128C7E] disabled:opacity-50"
+                            >
+                              <MessageCircle className="h-3.5 w-3.5" />
+                              WhatsApp
                             </button>
                             <button
                               type="button"

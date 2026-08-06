@@ -709,6 +709,7 @@ async function executeStayCheckout(
         invoiceId: invoiceRow.id,
         invoiceNumber,
         guestName: reservation.guest_name,
+        guestPhone,
         roomNumber,
         checkIn: reservation.check_in,
         checkOut: effectiveCheckOut,

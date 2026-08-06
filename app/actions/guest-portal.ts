@@ -667,6 +667,7 @@ export async function getGuestInvoiceReceiptExport(
       invoice: {
         invoiceNumber: formatInvoiceNumber({ invoice_number: row.invoice_number, id: row.id }),
         guestName: row.guest_name,
+        guestPhone: auth.guest.phone ?? null,
         roomNumber: reservation?.rooms?.number ?? auth.roomNumber,
         checkIn: checkIn ?? null,
         checkOut: checkOut ?? null,
