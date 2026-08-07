@@ -1,8 +1,13 @@
 export interface ExportHotelInfo {
   name: string
+  /** Postal / mailing address shown on invoices. */
   address: string | null
+  /** Physical site / plot location shown on invoices. */
+  location?: string | null
   city: string | null
   region: string | null
+  phone?: string | null
+  email?: string | null
   vatRegistrationNumber: string | null
   vatMode?: 'exclusive' | 'inclusive'
 }

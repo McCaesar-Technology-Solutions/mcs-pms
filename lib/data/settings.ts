@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { ownerOwnsHotel } from '@/lib/data/properties'
 import { propertyImagePublicUrl } from '@/lib/properties/image-storage'
 import type { Hotel, NoShowChargePolicy, VatMode } from '@/types'
+import { withInvoiceHotelContact } from '@/lib/export/invoice-hotel-contact'
 import type { ExportHotelInfo } from '@/lib/export/types'
 import {
   mergeNotificationPrefs,
@@ -112,20 +113,24 @@ export async function getHotelExportInfo(): Promise<ExportHotelInfo | null> {
   const admin = createAdminClient()
   const { data: hotel } = await admin
     .from('hotels')
-    .select('name, address, city, region, vat_registration_number, vat_mode')
+    .select(
+      'name, address, city, region, vat_registration_number, vat_mode, notification_from_email, guest_portal_emergency_phone',
+    )
     .eq('id', profile.hotel_id)
     .maybeSingle()
 
   if (!hotel) return null
 
-  return {
+  return withInvoiceHotelContact({
     name: hotel.name,
     address: hotel.address,
     city: hotel.city,
     region: hotel.region,
+    phone: hotel.guest_portal_emergency_phone,
+    email: hotel.notification_from_email,
     vatRegistrationNumber: hotel.vat_registration_number,
     vatMode: (hotel.vat_mode ?? 'exclusive') as VatMode,
-  }
+  })
 }
 
 export async function getHotelVatMode(hotelId: string): Promise<VatMode> {

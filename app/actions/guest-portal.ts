@@ -19,6 +19,7 @@ import { guestRoomEntrySchema, submitComplaintSchema } from '@/lib/validations'
 import { stayNights, tokenExpiryISO } from '@/lib/stays/helpers'
 import { formatInvoiceNumber } from '@/lib/invoices/numbering'
 import { runNotifyTask } from '@/lib/notifications/notify-task'
+import { withInvoiceHotelContact } from '@/lib/export/invoice-hotel-contact'
 import type { ExportHotelInfo, InvoiceExportRow } from '@/lib/export/types'
 import { guestNeedsRulesAcceptance } from '@/lib/guest-rules/needs-acceptance'
 import { getGuestFromSession, submitGuestComplaint } from '@/app/actions/guest'
@@ -624,7 +625,7 @@ export async function getGuestInvoiceReceiptExport(
   const { data: row } = await admin
     .from('invoices')
     .select(
-      '*, hotels(name, address, city, region, vat_registration_number, vat_mode), reservations(check_in, check_out, rooms(number))',
+      '*, hotels(name, address, city, region, vat_registration_number, vat_mode, notification_from_email, guest_portal_emergency_phone), reservations(check_in, check_out, rooms(number))',
     )
     .eq('id', invoiceId)
     .eq('guest_id', auth.guest.id)
@@ -642,6 +643,8 @@ export async function getGuestInvoiceReceiptExport(
     region: string | null
     vat_registration_number: string | null
     vat_mode: 'exclusive' | 'inclusive' | null
+    notification_from_email: string | null
+    guest_portal_emergency_phone: string | null
   } | null
 
   const reservation = row.reservations as unknown as {
@@ -656,14 +659,16 @@ export async function getGuestInvoiceReceiptExport(
   return {
     success: true,
     data: {
-      hotel: {
+      hotel: withInvoiceHotelContact({
         name: hotelRaw?.name ?? 'Property',
         address: hotelRaw?.address ?? null,
         city: hotelRaw?.city ?? null,
         region: hotelRaw?.region ?? null,
+        phone: hotelRaw?.guest_portal_emergency_phone ?? null,
+        email: hotelRaw?.notification_from_email ?? null,
         vatRegistrationNumber: hotelRaw?.vat_registration_number ?? null,
         vatMode: hotelRaw?.vat_mode ?? 'exclusive',
-      },
+      }),
       invoice: {
         invoiceNumber: formatInvoiceNumber({ invoice_number: row.invoice_number, id: row.id }),
         guestName: row.guest_name,

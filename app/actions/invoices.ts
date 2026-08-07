@@ -17,6 +17,7 @@ import { refundOnlineInvoicePayments } from '@/lib/payments/refund-online'
 import { writeAuditLog } from '@/lib/audit/log'
 import { formatInvoiceNumber } from '@/lib/invoices/numbering'
 import { stayNights } from '@/lib/stays/helpers'
+import { withInvoiceHotelContact } from '@/lib/export/invoice-hotel-contact'
 import type { ExportHotelInfo, InvoiceExportRow } from '@/lib/export/types'
 import type { PaymentMethod } from '@/types'
 
@@ -109,7 +110,7 @@ export async function getStaffInvoiceExport(invoiceId: string): Promise<StaffInv
   const { data: row } = await admin
     .from('invoices')
     .select(
-      '*, hotels(name, address, city, region, vat_registration_number, vat_mode), reservations(check_in, check_out, rooms(number))',
+      '*, hotels(name, address, city, region, vat_registration_number, vat_mode, notification_from_email, guest_portal_emergency_phone), reservations(check_in, check_out, rooms(number))',
     )
     .eq('id', invoiceId)
     .eq('hotel_id', profile.hotel_id)
@@ -124,6 +125,8 @@ export async function getStaffInvoiceExport(invoiceId: string): Promise<StaffInv
     region: string | null
     vat_registration_number: string | null
     vat_mode: 'exclusive' | 'inclusive' | null
+    notification_from_email: string | null
+    guest_portal_emergency_phone: string | null
   } | null
 
   let guestPhone: string | null = null
@@ -148,14 +151,16 @@ export async function getStaffInvoiceExport(invoiceId: string): Promise<StaffInv
   return {
     success: true,
     data: {
-      hotel: {
+      hotel: withInvoiceHotelContact({
         name: hotelRaw?.name ?? 'Property',
         address: hotelRaw?.address ?? null,
         city: hotelRaw?.city ?? null,
         region: hotelRaw?.region ?? null,
+        phone: hotelRaw?.guest_portal_emergency_phone ?? null,
+        email: hotelRaw?.notification_from_email ?? null,
         vatRegistrationNumber: hotelRaw?.vat_registration_number ?? null,
         vatMode: hotelRaw?.vat_mode ?? 'exclusive',
-      },
+      }),
       invoice: {
         invoiceNumber: formatInvoiceNumber({ invoice_number: row.invoice_number, id: row.id }),
         guestName: row.guest_name,

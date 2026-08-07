@@ -1,4 +1,5 @@
 import { jsPDF } from 'jspdf'
+import { withInvoiceHotelContact } from '@/lib/export/invoice-hotel-contact'
 import type { ExportHotelInfo, InvoiceExportRow } from '@/lib/export/types'
 import { whatsAppHref } from '@/lib/phone'
 import { invoiceHasTaxBreakdown, PAYMENT_METHOD_LABELS } from '@/lib/tax'
@@ -23,8 +24,26 @@ function money(value: number): string {
   return `GHS ${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
-function hotelAddress(hotel: ExportHotelInfo): string {
-  return [hotel.address, hotel.city, hotel.region].filter(Boolean).join(', ')
+function drawLabeledLine(
+  doc: jsPDF,
+  label: string,
+  value: string,
+  x: number,
+  y: number,
+  maxWidth: number,
+): number {
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(7.5)
+  doc.setTextColor(...BRAND.muted)
+  const labelText = `${label}: `
+  doc.text(labelText, x, y)
+  const labelW = doc.getTextWidth(labelText)
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(8)
+  doc.setTextColor(...BRAND.purpleInk)
+  const lines = doc.splitTextToSize(value, Math.max(20, maxWidth - labelW)) as string[]
+  doc.text(lines, x + labelW, y)
+  return y + Math.max(1, lines.length) * 4.2
 }
 
 function formatDate(iso: string): string {
@@ -99,7 +118,8 @@ function invoiceWhatsAppMessage(hotel: ExportHotelInfo, invoice: InvoiceExportRo
     .join('\n')
 }
 
-async function buildInvoicePdf(hotel: ExportHotelInfo, invoice: InvoiceExportRow): Promise<jsPDF> {
+async function buildInvoicePdf(hotelInput: ExportHotelInfo, invoice: InvoiceExportRow): Promise<jsPDF> {
+  const hotel = withInvoiceHotelContact(hotelInput)
   const doc = new jsPDF({ unit: 'mm', format: 'a4' })
   const pageW = doc.internal.pageSize.getWidth()
   const pageH = doc.internal.pageSize.getHeight()
@@ -111,36 +131,32 @@ async function buildInvoicePdf(hotel: ExportHotelInfo, invoice: InvoiceExportRow
 
   // ── Header band ──────────────────────────────────────────────
   doc.setFillColor(...BRAND.purpleDeep)
-  doc.rect(0, 0, pageW, 42, 'F')
+  doc.rect(0, 0, pageW, 36, 'F')
   doc.setFillColor(...BRAND.gold)
-  doc.rect(0, 42, pageW, 1.6, 'F')
+  doc.rect(0, 36, pageW, 1.6, 'F')
 
   if (logo) {
-    doc.addImage(logo, 'PNG', margin, 10, 18, 18)
+    doc.addImage(logo, 'PNG', margin, 8, 16, 16)
   } else {
     doc.setFillColor(...BRAND.gold)
-    doc.roundedRect(margin, 12, 14, 14, 2, 2, 'F')
+    doc.roundedRect(margin, 10, 12, 12, 2, 2, 'F')
     doc.setTextColor(...BRAND.purpleInk)
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(8)
-    doc.text('M', margin + 7, 21, { align: 'center' })
+    doc.text('M', margin + 6, 18, { align: 'center' })
   }
 
-  const textLeft = margin + (logo ? 22 : 18)
+  const textLeft = margin + (logo ? 20 : 16)
   doc.setTextColor(...BRAND.white)
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(16)
-  doc.text(hotel.name, textLeft, 18)
+  doc.text(hotel.name, textLeft, 16)
 
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(8)
   doc.setTextColor(230, 220, 255)
-  const addr = hotelAddress(hotel)
-  if (addr) {
-    doc.text(addr, textLeft, 25, { maxWidth: contentW - 50 })
-  }
   if (hotel.vatRegistrationNumber) {
-    doc.text(`VAT Reg: ${hotel.vatRegistrationNumber}`, textLeft, 31)
+    doc.text(`VAT Reg: ${hotel.vatRegistrationNumber}`, textLeft, 23)
   }
 
   // Invoice badge (right)
@@ -149,16 +165,40 @@ async function buildInvoicePdf(hotel: ExportHotelInfo, invoice: InvoiceExportRow
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(8)
   const badgeW = doc.getTextWidth(badgeLabel) + 10
-  doc.roundedRect(pageW - margin - badgeW, 12, badgeW, 7, 1.5, 1.5, 'F')
+  doc.roundedRect(pageW - margin - badgeW, 10, badgeW, 7, 1.5, 1.5, 'F')
   doc.setTextColor(...BRAND.purpleInk)
-  doc.text(badgeLabel, pageW - margin - badgeW / 2, 16.8, { align: 'center' })
+  doc.text(badgeLabel, pageW - margin - badgeW / 2, 14.8, { align: 'center' })
 
   doc.setTextColor(...BRAND.white)
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(10)
-  doc.text(invoice.invoiceNumber, pageW - margin, 26, { align: 'right' })
+  doc.text(invoice.invoiceNumber, pageW - margin, 24, { align: 'right' })
 
-  let y = 54
+  let y = 44
+
+  // ── Property contact letterhead ───────────────────────────────
+  const contactTop = y
+  const contactMaxW = contentW - 8
+  const contactLines =
+    (hotel.address ? 1 : 0) + (hotel.location ? 1 : 0) + (hotel.phone || hotel.email ? 1 : 0)
+  const contactH = 6 + contactLines * 4.6 + 3
+  doc.setFillColor(...BRAND.soft)
+  doc.roundedRect(margin, contactTop, contentW, contactH, 2, 2, 'F')
+
+  let contactY = contactTop + 5
+  if (hotel.address) {
+    contactY = drawLabeledLine(doc, 'Address', hotel.address, margin + 4, contactY, contactMaxW)
+  }
+  if (hotel.location) {
+    contactY = drawLabeledLine(doc, 'Location', hotel.location, margin + 4, contactY, contactMaxW)
+  }
+  if (hotel.phone) {
+    drawLabeledLine(doc, 'Tel', hotel.phone, margin + 4, contactY, contentW / 2 - 10)
+  }
+  if (hotel.email) {
+    drawLabeledLine(doc, 'E-mail', hotel.email, margin + contentW / 2, contactY, contentW / 2 - 8)
+  }
+  y = contactTop + contactH + 6
 
   // ── Meta strip: dates ────────────────────────────────────────
   doc.setFillColor(...BRAND.soft)
@@ -308,18 +348,24 @@ async function buildInvoicePdf(hotel: ExportHotelInfo, invoice: InvoiceExportRow
   doc.text(status, margin + contentW / 2, y + 12)
 
   // ── Footer ───────────────────────────────────────────────────
-  const footerY = pageH - 18
+  const footerY = pageH - 22
   doc.setDrawColor(...BRAND.line)
   doc.setLineWidth(0.4)
   doc.line(margin, footerY, pageW - margin, footerY)
 
   doc.setFont('helvetica', 'normal')
-  doc.setFontSize(7.5)
+  doc.setFontSize(7)
   doc.setTextColor(...BRAND.muted)
-  doc.text('Powered by MOJO Property Management', margin, footerY + 6)
-  doc.text(`Page 1 · ${formatDateTime(generatedAt)}`, pageW - margin, footerY + 6, {
+  const footerContact = [hotel.phone ? `Tel ${hotel.phone}` : null, hotel.email || null]
+    .filter(Boolean)
+    .join('  ·  ')
+  if (footerContact) {
+    doc.text(footerContact, margin, footerY + 5)
+  }
+  doc.text(`Page 1 · ${formatDateTime(generatedAt)}`, pageW - margin, footerY + 5, {
     align: 'right',
   })
+  doc.text('Thank you for staying with us.', margin, footerY + 10)
 
   return doc
 }
