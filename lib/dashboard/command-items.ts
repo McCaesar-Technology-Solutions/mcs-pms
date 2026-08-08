@@ -16,6 +16,7 @@ import {
 import type { Profile } from '@/types'
 import type { LucideIcon } from 'lucide-react'
 import {
+  Banknote,
   CalendarPlus,
   LayoutDashboard,
   LogIn,
@@ -140,15 +141,26 @@ export function buildCommandItems(role?: Profile['role']): CommandItem[] {
   }
 
   if (role === 'owner') {
-    actions.push({
-      id: 'action-settings',
-      label: 'Property settings',
-      description: 'Portal, rules, and notifications',
-      href: '/owner/settings',
-      kind: 'action',
-      keywords: ['settings', 'config', 'property'],
-      icon: Settings,
-    })
+    actions.push(
+      {
+        id: 'action-payroll',
+        label: 'Payroll',
+        description: 'Pay runs, commissions, and payouts',
+        href: '/owner/payroll',
+        kind: 'action',
+        keywords: ['payroll', 'salary', 'commission', 'payslip', 'wages'],
+        icon: Banknote,
+      },
+      {
+        id: 'action-settings',
+        label: 'Property settings',
+        description: 'Portal, rules, and notifications',
+        href: '/owner/settings',
+        kind: 'action',
+        keywords: ['settings', 'config', 'property'],
+        icon: Settings,
+      },
+    )
   }
 
   if (role === 'manager') {

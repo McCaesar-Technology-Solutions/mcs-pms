@@ -24,6 +24,7 @@ Production features shipped beyond the original UI prototype.
 - **Complaints** — guest submit (or staff log on a guest's behalf) → manager assign → technician invoice → manager approve → work → completion approval → resolved. Owners get a **read-only** lifecycle view at `/owner/complaints`; assigned technicians can call/WhatsApp the guest.
 - **Staff** — invite managers and receptionists by **email**, technicians by **phone**; phone numbers editable on profiles.
 - **Billing / GRA / Analytics** — owner only; invoice numbering, PDF export, tax reports, manual payments (cash/MoMo/card), partial payments and refunds, payment ledger reconciliation, guest folio posting with checkout rollup, night audit. Managers' dashboard hides revenue metrics.
+- **Payroll** — owner (full) / manager (draft prepare): staff pay profiles, monthly pay runs (draft → approve → paid), housekeeping commission accrual, payslip PDF + MoMo/bank CSV, optional expense posting. See Phase 2 backlog below (PAYE/SSNIT engine, timesheets, booking commissions, self-service slips).
 - **Guest privacy** — owner export/erase PII from the staff dashboard.
 - **Production ops** — health/ready endpoints; daily Vercel crons + GitHub Actions for sub-daily jobs (notifications, lifecycle, access-job reclaim); notification outbox with retries.
 
@@ -53,6 +54,7 @@ The app is **production-ready as a custom PMS** for a hotel or portfolio operato
 
 - **Other OTA calendars** — Booking.com / VRBO iCal (schema supports providers; UI is Airbnb-first).
 - **Online payments** — Paystack or Hubtel Pay (partial / optional).
+- **Payroll Phase 2** — Ghana PAYE brackets + SSNIT on basic vs allowances; timesheets/OT; booking & maintenance commissions; employee self-service payslips; dual-approval policy packs.
 
 #### 4. Production hardening (June 2026)
 

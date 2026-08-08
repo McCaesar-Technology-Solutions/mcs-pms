@@ -2398,6 +2398,336 @@ export type Database = {
         }
         Relationships: []
       }
+      payroll_settings: {
+        Row: {
+          id: string
+          hotel_id: string
+          default_cycle: 'monthly' | 'biweekly' | 'weekly'
+          post_expense_on_paid: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          hotel_id: string
+          default_cycle?: 'monthly' | 'biweekly' | 'weekly'
+          post_expense_on_paid?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          hotel_id?: string
+          default_cycle?: 'monthly' | 'biweekly' | 'weekly'
+          post_expense_on_paid?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      employee_compensation: {
+        Row: {
+          id: string
+          hotel_id: string
+          profile_id: string
+          pay_type: 'salary' | 'daily' | 'hourly'
+          base_amount: number
+          currency: string
+          momo_number: string | null
+          bank_name: string | null
+          bank_account: string | null
+          tin: string | null
+          ssnit_number: string | null
+          hire_date: string | null
+          payroll_active: boolean
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          hotel_id: string
+          profile_id: string
+          pay_type?: 'salary' | 'daily' | 'hourly'
+          base_amount?: number
+          currency?: string
+          momo_number?: string | null
+          bank_name?: string | null
+          bank_account?: string | null
+          tin?: string | null
+          ssnit_number?: string | null
+          hire_date?: string | null
+          payroll_active?: boolean
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          hotel_id?: string
+          profile_id?: string
+          pay_type?: 'salary' | 'daily' | 'hourly'
+          base_amount?: number
+          currency?: string
+          momo_number?: string | null
+          bank_name?: string | null
+          bank_account?: string | null
+          tin?: string | null
+          ssnit_number?: string | null
+          hire_date?: string | null
+          payroll_active?: boolean
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      pay_periods: {
+        Row: {
+          id: string
+          hotel_id: string
+          cycle: 'monthly' | 'biweekly' | 'weekly'
+          period_start: string
+          period_end: string
+          status: 'open' | 'closed'
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          hotel_id: string
+          cycle?: 'monthly' | 'biweekly' | 'weekly'
+          period_start: string
+          period_end: string
+          status?: 'open' | 'closed'
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          hotel_id?: string
+          cycle?: 'monthly' | 'biweekly' | 'weekly'
+          period_start?: string
+          period_end?: string
+          status?: 'open' | 'closed'
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      pay_runs: {
+        Row: {
+          id: string
+          hotel_id: string
+          pay_period_id: string
+          status: 'draft' | 'pending_approval' | 'approved' | 'paid' | 'void'
+          total_base: number
+          total_commission: number
+          total_allowances: number
+          total_deductions: number
+          total_net: number
+          employee_count: number
+          notes: string | null
+          created_by: string | null
+          approved_by: string | null
+          approved_at: string | null
+          paid_by: string | null
+          paid_at: string | null
+          expense_id: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          hotel_id: string
+          pay_period_id: string
+          status?: 'draft' | 'pending_approval' | 'approved' | 'paid' | 'void'
+          total_base?: number
+          total_commission?: number
+          total_allowances?: number
+          total_deductions?: number
+          total_net?: number
+          employee_count?: number
+          notes?: string | null
+          created_by?: string | null
+          approved_by?: string | null
+          approved_at?: string | null
+          paid_by?: string | null
+          paid_at?: string | null
+          expense_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          hotel_id?: string
+          pay_period_id?: string
+          status?: 'draft' | 'pending_approval' | 'approved' | 'paid' | 'void'
+          total_base?: number
+          total_commission?: number
+          total_allowances?: number
+          total_deductions?: number
+          total_net?: number
+          employee_count?: number
+          notes?: string | null
+          created_by?: string | null
+          approved_by?: string | null
+          approved_at?: string | null
+          paid_by?: string | null
+          paid_at?: string | null
+          expense_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      pay_run_lines: {
+        Row: {
+          id: string
+          hotel_id: string
+          pay_run_id: string
+          profile_id: string
+          base_pay: number
+          commission: number
+          allowances: number
+          deductions: number
+          net_pay: number
+          status: 'unpaid' | 'paid' | 'excluded'
+          override_reason: string | null
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          hotel_id: string
+          pay_run_id: string
+          profile_id: string
+          base_pay?: number
+          commission?: number
+          allowances?: number
+          deductions?: number
+          net_pay?: number
+          status?: 'unpaid' | 'paid' | 'excluded'
+          override_reason?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          hotel_id?: string
+          pay_run_id?: string
+          profile_id?: string
+          base_pay?: number
+          commission?: number
+          allowances?: number
+          deductions?: number
+          net_pay?: number
+          status?: 'unpaid' | 'paid' | 'excluded'
+          override_reason?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      commission_rules: {
+        Row: {
+          id: string
+          hotel_id: string
+          name: string
+          trigger: 'housekeeping_complete' | 'manual'
+          rate_type: 'flat' | 'percent'
+          rate_value: number
+          percent_base_amount: number
+          task_type: 'clean' | 'inspect' | 'maintenance' | 'restock' | null
+          role_filter: 'manager' | 'technician' | 'receptionist' | null
+          active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          hotel_id: string
+          name?: string
+          trigger?: 'housekeeping_complete' | 'manual'
+          rate_type?: 'flat' | 'percent'
+          rate_value?: number
+          percent_base_amount?: number
+          task_type?: 'clean' | 'inspect' | 'maintenance' | 'restock' | null
+          role_filter?: 'manager' | 'technician' | 'receptionist' | null
+          active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          hotel_id?: string
+          name?: string
+          trigger?: 'housekeeping_complete' | 'manual'
+          rate_type?: 'flat' | 'percent'
+          rate_value?: number
+          percent_base_amount?: number
+          task_type?: 'clean' | 'inspect' | 'maintenance' | 'restock' | null
+          role_filter?: 'manager' | 'technician' | 'receptionist' | null
+          active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      commission_entries: {
+        Row: {
+          id: string
+          hotel_id: string
+          profile_id: string
+          rule_id: string | null
+          source_type: 'housekeeping_task' | 'manual'
+          source_id: string | null
+          description: string
+          amount: number
+          accrued_on: string
+          pay_period_id: string | null
+          pay_run_line_id: string | null
+          status: 'accrued' | 'included' | 'void'
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          hotel_id: string
+          profile_id: string
+          rule_id?: string | null
+          source_type?: 'housekeeping_task' | 'manual'
+          source_id?: string | null
+          description: string
+          amount: number
+          accrued_on?: string
+          pay_period_id?: string | null
+          pay_run_line_id?: string | null
+          status?: 'accrued' | 'included' | 'void'
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          hotel_id?: string
+          profile_id?: string
+          rule_id?: string | null
+          source_type?: 'housekeeping_task' | 'manual'
+          source_id?: string | null
+          description?: string
+          amount?: number
+          accrued_on?: string
+          pay_period_id?: string | null
+          pay_run_line_id?: string | null
+          status?: 'accrued' | 'included' | 'void'
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       inventory_items: {
         Row: {
           id: string

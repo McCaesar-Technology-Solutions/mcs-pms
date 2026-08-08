@@ -14,3 +14,13 @@ export function canOwnerEraseGuestData(role: UserRole | string | null | undefine
 export function canAccessBilling(role: UserRole | string | null | undefined): boolean {
   return role === 'owner'
 }
+
+/** Payroll overview: owners manage fully; managers may view and prepare drafts. */
+export function canAccessPayroll(role: UserRole | string | null | undefined): boolean {
+  return role === 'owner' || role === 'manager'
+}
+
+/** Compensation rates, commission rules, approve, and mark-paid are owner-only. */
+export function canManagePayrollRates(role: UserRole | string | null | undefined): boolean {
+  return role === 'owner'
+}

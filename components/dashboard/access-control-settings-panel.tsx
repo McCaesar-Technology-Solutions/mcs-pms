@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState, useTransition } from 'react'
+import { useState, useTransition } from 'react'
 import { KeyRound, Copy, Check, Circle, CircleCheck } from 'lucide-react'
 import {
   setAccessControlEnabled,
@@ -75,36 +75,27 @@ export function AccessControlSettingsPanel({
   const cloudDevices = devices.filter((d) => d.managed_in_cloud)
   const doorDevices = cloudDevices.filter((d) => d.device_role !== 'enrollment')
   const enrollmentDevices = cloudDevices.filter((d) => d.device_role === 'enrollment')
-  const steps = useMemo(
-    () => [
-      { id: 'enable', label: 'Sync enabled', done: enabled },
-      { id: 'token', label: 'Agent token created', done: integration.hasAgentToken },
-      {
-        id: 'controllers',
-        label:
-          mode === 'cloud'
-            ? 'Door controller saved in MOJO'
-            : 'Controller password set on apartment PC (.env)',
-        done: mode === 'cloud' ? doorDevices.some((d) => d.has_password) : true,
-      },
-      {
-        id: 'enrollment',
-        label: 'Enrollment station (DS-K1F600U-D6E-F) saved',
-        done: mode !== 'cloud' || enrollmentDevices.some((d) => d.has_password),
-      },
-      { id: 'agent', label: 'Agent online on apartment PC', done: integration.agentOnline },
-      { id: 'doors', label: 'At least one door mapped', done: points.length > 0 },
-    ],
-    [
-      enabled,
-      integration.hasAgentToken,
-      integration.agentOnline,
-      points.length,
-      mode,
-      doorDevices,
-      enrollmentDevices,
-    ],
-  )
+  const doorReady = mode !== 'cloud' || doorDevices.some((d) => d.has_password)
+  const enrollmentReady = mode !== 'cloud' || enrollmentDevices.some((d) => d.has_password)
+  const steps = [
+    { id: 'enable', label: 'Sync enabled', done: enabled },
+    { id: 'token', label: 'Agent token created', done: integration.hasAgentToken },
+    {
+      id: 'controllers',
+      label:
+        mode === 'cloud'
+          ? 'Door controller saved in MOJO'
+          : 'Controller password set on apartment PC (.env)',
+      done: doorReady,
+    },
+    {
+      id: 'enrollment',
+      label: 'Enrollment station (DS-K1F600U-D6E-F) saved',
+      done: enrollmentReady,
+    },
+    { id: 'agent', label: 'Agent online on apartment PC', done: integration.agentOnline },
+    { id: 'doors', label: 'At least one door mapped', done: points.length > 0 },
+  ]
   const setupComplete = steps.every((s) => s.done)
 
   function run(action: () => Promise<void>) {

@@ -233,6 +233,40 @@ export async function setHousekeepingTaskStatus(
       actorId: profile.id,
     })
 
+    // Accrue payroll commissions: assignee when set (piece-rate), else completer
+    try {
+      const { accrueHousekeepingCommissions } = await import('@/lib/payroll/commissions')
+      const earnerId = task.assigned_to ?? profile.id
+      let roomLabel: string | null = null
+      if (task.room_id) {
+        const { data: room } = await admin
+          .from('rooms')
+          .select('number')
+          .eq('id', task.room_id)
+          .maybeSingle()
+        roomLabel = room?.number != null ? String(room.number) : null
+      }
+      let earnerRole: typeof profile.role | null = profile.role
+      if (earnerId !== profile.id) {
+        const { data: earner } = await admin
+          .from('profiles')
+          .select('role')
+          .eq('id', earnerId)
+          .maybeSingle()
+        earnerRole = (earner?.role as typeof profile.role) ?? null
+      }
+      await accrueHousekeepingCommissions(admin, {
+        hotelId,
+        taskId: task.id,
+        taskType: task.task_type as HousekeepingTaskType,
+        earnerProfileId: earnerId,
+        earnerRole,
+        roomLabel,
+      })
+    } catch (err) {
+      console.error('[payroll] housekeeping commission accrual error', err)
+    }
+
     if (
       options?.inventoryLines &&
       options.inventoryLines.length > 0 &&

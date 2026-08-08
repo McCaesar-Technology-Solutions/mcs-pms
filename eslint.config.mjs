@@ -25,6 +25,8 @@ const eslintConfig = defineConfig([
     'next-env.d.ts',
     'node_modules/**',
     '.agents/**',
+    // Electron agent uses CommonJS require() — not part of the Next app lint surface
+    'services/access-agent-app/**',
   ]),
 ])
 

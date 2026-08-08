@@ -3,7 +3,7 @@ import { StaffManager } from '@/components/dashboard/staff-manager'
 import { getStaffData } from '@/lib/data/staff'
 
 export default async function OwnerStaffPage() {
-  const { profile, staff, invites } = await getStaffData()
+  const { profile, staff, invites, compensationByProfileId } = await getStaffData()
 
   return (
     <div className="page-shell page-content-stack">
@@ -13,7 +13,12 @@ export default async function OwnerStaffPage() {
         description="Invite managers and technicians, and manage access across your hotel."
       />
       {profile ? (
-        <StaffManager currentProfile={profile} staff={staff} invites={invites} />
+        <StaffManager
+          currentProfile={profile}
+          staff={staff}
+          invites={invites}
+          compensationByProfileId={compensationByProfileId}
+        />
       ) : (
         <p className="text-sm text-muted-foreground">Unable to load your team right now.</p>
       )}

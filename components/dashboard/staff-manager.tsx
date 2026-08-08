@@ -2,11 +2,12 @@
 
 import { Suspense, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Check, Copy, Download, Loader2, Mail, MessageCircle, Phone, Plus, Search, ShieldCheck, UserX, X } from 'lucide-react'
+import { Banknote, Check, Copy, Download, Loader2, Mail, MessageCircle, Phone, Plus, Search, ShieldCheck, UserX, X } from 'lucide-react'
 import { inviteStaff, revokeInvite, setStaffActive, updateStaffPhone } from '@/app/actions/staff'
 import { startStaffDm } from '@/app/actions/staff-conversation'
 import { ProfilePhoneEditor } from '@/components/dashboard/profile-phone-editor'
 import { MfaSettingsCard } from '@/components/dashboard/mfa-settings-card'
+import { StaffPayProfileDialog } from '@/components/dashboard/staff-pay-profile-dialog'
 import { BulkActionBar } from '@/components/dashboard/bulk-action-bar'
 import { BulkSelectCheckbox } from '@/components/dashboard/bulk-select-checkbox'
 import { downloadCsv } from '@/lib/export/download-csv'
@@ -23,12 +24,15 @@ import {
   ModalFooter,
   ModalHeader,
 } from '@/components/ui/centered-modal'
+import type { EmployeeCompensationRow } from '@/lib/payroll/types'
 import type { Profile, StaffInvite, UserRole } from '@/types'
 
 interface StaffManagerProps {
   currentProfile: Profile
   staff: Profile[]
   invites: StaffInvite[]
+  /** Owner-only: existing pay profiles keyed by profile id */
+  compensationByProfileId?: Record<string, EmployeeCompensationRow>
 }
 
 const ROLE_BADGE: Record<UserRole, { label: string; chip: string }> = {
@@ -72,13 +76,20 @@ function inviteLink(token: string) {
   return `${window.location.origin}/accept-invite?t=${token}`
 }
 
-export function StaffManager({ currentProfile, staff, invites }: StaffManagerProps) {
+export function StaffManager({
+  currentProfile,
+  staff,
+  invites,
+  compensationByProfileId = {},
+}: StaffManagerProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
 
   const inviteRoles = allowedInviteRoles(currentProfile.role)
   const canInvite = inviteRoles.length > 0
+  const canEditPay = currentProfile.role === 'owner'
 
+  const [payMember, setPayMember] = useState<Profile | null>(null)
   const [open, setOpen] = useState(false)
   const [contact, setContact] = useState('')
   const [role, setRole] = useState<InviteRole>(inviteRoles[0] ?? 'technician')
@@ -346,6 +357,17 @@ export function StaffManager({ currentProfile, staff, invites }: StaffManagerPro
                 <MessageCircle className="h-3.5 w-3.5" />
               )}
               Chat
+            </button>
+          )}
+          {canEditPay && member.role !== 'owner' && (
+            <button
+              type="button"
+              onClick={() => setPayMember(member)}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[#D4A62E]/15 px-2.5 py-1.5 text-xs font-semibold text-[#9a7615] transition-colors hover:bg-[#D4A62E]/25"
+              aria-label={`Set pay for ${member.name}`}
+            >
+              <Banknote className="h-3.5 w-3.5" />
+              {compensationByProfileId[member.id] ? 'Pay' : 'Set pay'}
             </button>
           )}
           <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${badge.chip}`}>
@@ -654,6 +676,15 @@ export function StaffManager({ currentProfile, staff, invites }: StaffManagerPro
           </>
         )}
       </CenteredModal>
+
+      {payMember && (
+        <StaffPayProfileDialog
+          open={Boolean(payMember)}
+          onClose={() => setPayMember(null)}
+          member={payMember}
+          initial={compensationByProfileId[payMember.id] ?? null}
+        />
+      )}
     </>
   )
 }

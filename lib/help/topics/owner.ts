@@ -47,6 +47,21 @@ export const ownerHelpTopics: HelpTopic[] = [
     pathPrefixes: ['/owner/billing'],
   },
   {
+    id: 'payroll',
+    title: 'Run staff payroll',
+    summary: 'Pay profiles, commissions from cleans, and payouts.',
+    steps: [
+      'Staff → Set pay on each team member (base pay, MoMo/bank, TIN/SSNIT).',
+      'Payroll → add a housekeeping commission rule if cleaners earn per job.',
+      'Run payroll for the period, review lines, approve, then mark paid.',
+      'Export payslips or the MoMo/bank checklist CSV for disbursement.',
+    ],
+    href: '/owner/payroll',
+    hrefLabel: 'Open payroll',
+    keywords: ['payroll', 'salary', 'commission', 'payslip', 'wages', 'ssnit'],
+    pathPrefixes: ['/owner/payroll', '/owner/staff'],
+  },
+  {
     id: 'lifecycle',
     title: 'Reservation lifecycle settings',
     summary: 'Automated holds, no-show, overstay, and archive.',
