@@ -68,7 +68,12 @@ export async function GET(request: Request) {
       username: d.username,
       password,
       useHttps: Boolean(d.use_https),
-      role: d.device_role === 'enrollment' ? 'enrollment' : 'door',
+      role:
+        d.device_role === 'enrollment'
+          ? 'enrollment'
+          : d.device_role === 'attendance'
+            ? 'attendance'
+            : 'door',
       model: d.model ?? null,
     })
   }

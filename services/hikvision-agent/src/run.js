@@ -173,19 +173,42 @@ export async function startAgent(options = {}) {
   }
 
   function doorDevices() {
-    return [...config.devices.values()].filter((d) => d.role !== 'enrollment')
+    return [...config.devices.values()].filter(
+      (d) => d.role !== 'enrollment' && d.role !== 'attendance',
+    )
   }
 
-  function devicesForDoors(doors = []) {
-    const keys = [...new Set(doors.map((d) => d.deviceKey))]
-    return keys.map((key) => {
+  /**
+   * Group payload doors by controller, collecting door numbers per device.
+   * Requires a non-empty doors list — never falls back to all devices.
+   */
+  function targetsFromDoors(doors = []) {
+    if (!Array.isArray(doors) || !doors.length) {
+      throw new Error('Job has no door targets — map doors / access policy before syncing.')
+    }
+    const byKey = new Map()
+    for (const d of doors) {
+      const key = d.deviceKey
+      if (!key) continue
       const device = config.devices.get(key)
       if (!device) throw new Error(`Unknown device key "${key}" — not in agent devices`)
-      if (device.role === 'enrollment') {
-        throw new Error(`Device "${key}" is an enrollment station, not a door controller`)
+      if (device.role === 'enrollment' || device.role === 'attendance') {
+        throw new Error(`Device "${key}" is not a door controller (role: ${device.role})`)
       }
-      return device
-    })
+      const doorNo = Number(d.doorNo ?? 1)
+      const n = Number.isFinite(doorNo) && doorNo >= 1 ? doorNo : 1
+      const entry = byKey.get(key) ?? { device, doorNos: new Set() }
+      entry.doorNos.add(n)
+      byKey.set(key, entry)
+    }
+    const targets = [...byKey.values()].map(({ device, doorNos }) => ({
+      device,
+      doorNos: [...doorNos].sort((a, b) => a - b),
+    }))
+    if (!targets.length) {
+      throw new Error('Job door list did not resolve to any door controllers.')
+    }
+    return targets
   }
 
   function enrollmentDevice(deviceKey) {
@@ -200,6 +223,18 @@ export async function startAgent(options = {}) {
     return fallback
   }
 
+  function attendanceDevice(deviceKey) {
+    const device = deviceKey ? config.devices.get(deviceKey) : null
+    if (device?.role === 'attendance') return device
+    const fallback = [...config.devices.values()].find((d) => d.role === 'attendance')
+    if (!fallback) {
+      throw new Error(
+        'No attendance terminal in agent devices. Save DS-K1A8503MF-B in Owner → Access (role: Attendance).',
+      )
+    }
+    return fallback
+  }
+
   async function handleJob(job) {
     const { type, payload } = job
     log('info', `Job ${job.id} ${type}`)
@@ -207,31 +242,39 @@ export async function startAgent(options = {}) {
     if (type === 'unlock') {
       const device = config.devices.get(payload.deviceKey)
       if (!device) throw new Error(`Unknown device key "${payload.deviceKey}"`)
+      if (device.role !== 'door') {
+        throw new Error(`Cannot unlock non-door device "${payload.deviceKey}" (${device.role})`)
+      }
       await device.remoteOpen(payload.doorNo ?? 1)
       return { unlocked: true, deviceKey: payload.deviceKey, doorNo: payload.doorNo }
     }
 
     if (type === 'revoke') {
+      const errors = []
       for (const device of doorDevices()) {
         try {
           await device.deleteUser(payload.employeeNo)
         } catch (err) {
           log('warn', `Revoke on ${device.key}: ${err.message}`)
+          errors.push(`${device.key}: ${err.message}`)
         }
+      }
+      if (errors.length) {
+        throw new Error(`Revoke partial failure — ${errors.join('; ')}`)
       }
       return { revoked: true, employeeNo: payload.employeeNo }
     }
 
     if (type === 'provision' || type === 'assign_card' || type === 'update_validity') {
-      const doors = payload.doors ?? []
-      const targets = doors.length ? devicesForDoors(doors) : doorDevices()
+      const targets = targetsFromDoors(payload.doors ?? [])
 
-      for (const device of targets) {
+      for (const { device, doorNos } of targets) {
         await device.upsertUser({
           employeeNo: payload.employeeNo,
           name: payload.displayName ?? payload.employeeNo,
           validFrom: payload.validFrom,
           validTo: payload.validTo,
+          doorNos,
         })
         if (payload.cardNo) {
           await device.upsertCard({
@@ -249,7 +292,10 @@ export async function startAgent(options = {}) {
       return {
         provisioned: true,
         employeeNo: payload.employeeNo,
-        devices: targets.map((d) => d.key),
+        devices: targets.map((t) => ({
+          key: t.device.key,
+          doorNos: t.doorNos,
+        })),
       }
     }
 
@@ -258,26 +304,27 @@ export async function startAgent(options = {}) {
       log('info', `Waiting for card on ${station.key} (DS-K1F600U-D6E-F)…`)
       const { cardNo } = await station.captureCard({ timeoutMs: payload.timeoutMs ?? 90_000 })
       log('info', `Captured card ${cardNo} — pushing to door controllers`)
-      const targets = (payload.doors ?? []).length
-        ? devicesForDoors(payload.doors)
-        : doorDevices()
-      for (const device of targets) {
+      const targets = targetsFromDoors(payload.doors ?? [])
+      for (const { device, doorNos } of targets) {
         await device.upsertUser({
           employeeNo: payload.employeeNo,
           name: payload.displayName ?? payload.employeeNo,
           validFrom: payload.validFrom,
           validTo: payload.validTo,
+          doorNos,
         })
         await device.upsertCard({ employeeNo: payload.employeeNo, cardNo })
       }
-      return { cardNo, hasCard: true, devices: targets.map((d) => d.key) }
+      return {
+        cardNo,
+        hasCard: true,
+        devices: targets.map((t) => t.device.key),
+      }
     }
 
     if (type === 'enroll_face_capture') {
       const station = enrollmentDevice(payload.deviceKey)
-      const targets = (payload.doors ?? []).length
-        ? devicesForDoors(payload.doors)
-        : doorDevices()
+      const targets = targetsFromDoors(payload.doors ?? [])
       log(
         'info',
         `Capturing face on ${station.key} (DS-K1F600U enrollment station) — face the station camera…`,
@@ -289,31 +336,31 @@ export async function startAgent(options = {}) {
         'info',
         `Face image captured on enrollment station${source ? ` via ${source}` : ''} — uploading to door controllers`,
       )
-      for (const device of targets) {
+      for (const { device, doorNos } of targets) {
         await device.upsertUser({
           employeeNo: payload.employeeNo,
           name: payload.displayName ?? payload.employeeNo,
           validFrom: payload.validFrom,
           validTo: payload.validTo,
+          doorNos,
         })
         await device.uploadFace({ employeeNo: payload.employeeNo, jpeg })
       }
-      return { hasFace: true, capturedOn: station.key, devices: targets.map((d) => d.key) }
+      return { hasFace: true, capturedOn: station.key, devices: targets.map((t) => t.device.key) }
     }
 
     if (type === 'enroll_fingerprint_capture') {
       const station = enrollmentDevice(payload.deviceKey)
       log('info', `Capturing fingerprint on ${station.key} (DS-K1F600U-D6E-F)…`)
       const fp = await station.captureFingerprint({ timeoutMs: payload.timeoutMs ?? 90_000 })
-      const targets = (payload.doors ?? []).length
-        ? devicesForDoors(payload.doors)
-        : doorDevices()
-      for (const device of targets) {
+      const targets = targetsFromDoors(payload.doors ?? [])
+      for (const { device, doorNos } of targets) {
         await device.upsertUser({
           employeeNo: payload.employeeNo,
           name: payload.displayName ?? payload.employeeNo,
           validFrom: payload.validFrom,
           validTo: payload.validTo,
+          doorNos,
         })
         await device.upsertFingerprint({
           employeeNo: payload.employeeNo,
@@ -321,7 +368,19 @@ export async function startAgent(options = {}) {
           fingerprintData: fp.fingerprintData,
         })
       }
-      return { hasFingerprint: true, devices: targets.map((d) => d.key) }
+      return { hasFingerprint: true, devices: targets.map((t) => t.device.key) }
+    }
+
+    if (type === 'pull_attendance') {
+      const device = attendanceDevice(payload.deviceKey)
+      log('info', `Pulling attendance events from ${device.key}…`)
+      if (typeof device.pullAttendanceEvents !== 'function') {
+        throw new Error(
+          'Attendance pull is not supported on this Access Agent build yet — upgrade the agent.',
+        )
+      }
+      const records = await device.pullAttendanceEvents({ sinceHours: 48 })
+      return { records: records ?? [], deviceKey: device.key }
     }
 
     throw new Error(`Unsupported job type: ${type}`)

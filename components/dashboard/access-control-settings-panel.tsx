@@ -73,8 +73,9 @@ export function AccessControlSettingsPanel({
   const enabled = integration.hotelFlagEnabled && integration.enabled
   const mode = integration.deviceCredentialMode ?? 'local'
   const cloudDevices = devices.filter((d) => d.managed_in_cloud)
-  const doorDevices = cloudDevices.filter((d) => d.device_role !== 'enrollment')
+  const doorDevices = cloudDevices.filter((d) => d.device_role === 'door')
   const enrollmentDevices = cloudDevices.filter((d) => d.device_role === 'enrollment')
+  const attendanceDevices = cloudDevices.filter((d) => d.device_role === 'attendance')
   const doorReady = mode !== 'cloud' || doorDevices.some((d) => d.has_password)
   const enrollmentReady = mode !== 'cloud' || enrollmentDevices.some((d) => d.has_password)
   const steps = [
@@ -435,8 +436,12 @@ export function AccessControlSettingsPanel({
               <div className="space-y-3 rounded-xl border border-border p-4">
                 <p className="text-sm font-medium text-foreground">Devices in MOJO</p>
                 <p className="text-xs text-muted-foreground">
-                  Door controllers grant access. Enrollment station (DS-K1F600U-D6E-F) captures
-                  cards / face / fingerprints at the desk.
+                  Door controllers grant access. Enrollment station captures cards / face /
+                  fingerprints. Attendance terminal (DS-K1A8503MF-B) is staff clock-in only — never
+                  used as a door.
+                  {attendanceDevices.length
+                    ? ` Attendance devices saved: ${attendanceDevices.length}.`
+                    : ''}
                 </p>
                 {cloudDevices.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No devices saved yet.</p>
@@ -453,7 +458,11 @@ export function AccessControlSettingsPanel({
                             <span className="font-normal text-muted-foreground">({d.device_key})</span>
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            {d.device_role === 'enrollment' ? 'Enrollment station' : 'Door controller'}
+                            {d.device_role === 'enrollment'
+                              ? 'Enrollment station'
+                              : d.device_role === 'attendance'
+                                ? 'Attendance terminal'
+                                : 'Door controller'}
                             {d.model ? ` · ${d.model}` : ''} · {d.host}:{d.port ?? 80} · {d.username}
                             {d.has_password ? ' · password saved' : ' · missing password'}
                           </p>
@@ -598,7 +607,11 @@ export function AccessControlSettingsPanel({
                   </FormField>
                   <div className="sm:col-span-2">
                     <button type="submit" className="app-btn app-btn-primary" disabled={pending}>
-                      {ctrlRole === 'enrollment' ? 'Save enrollment station' : 'Save door controller'}
+                      {ctrlRole === 'enrollment'
+                        ? 'Save enrollment station'
+                        : ctrlRole === 'attendance'
+                          ? 'Save attendance terminal'
+                          : 'Save door controller'}
                     </button>
                   </div>
                 </form>

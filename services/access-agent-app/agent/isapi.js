@@ -30,7 +30,12 @@ export class HikvisionDevice {
     this.useHttps = Boolean(config.useHttps)
     this.username = config.username
     this.password = config.password
-    this.role = config.role === 'enrollment' ? 'enrollment' : 'door'
+    this.role =
+      config.role === 'enrollment'
+        ? 'enrollment'
+        : config.role === 'attendance'
+          ? 'attendance'
+          : 'door'
     this.model = config.model ?? null
   }
 
@@ -98,10 +103,17 @@ export class HikvisionDevice {
     }
   }
 
-  async upsertUser({ employeeNo, name, validFrom, validTo }) {
+  async upsertUser({ employeeNo, name, validFrom, validTo, doorNos }) {
     // Try create; on conflict modify.
     const beginTime = `${validFrom}T00:00:00`
     const endTime = `${validTo}T23:59:59`
+    const doors =
+      Array.isArray(doorNos) && doorNos.length
+        ? [...new Set(doorNos.map((n) => Number(n)).filter((n) => Number.isFinite(n) && n >= 1))]
+        : [1]
+    if (!doors.length) doors.push(1)
+    const doorRight = doors.join(',')
+    const RightPlan = doors.map((doorNo) => ({ doorNo, planTemplateNo: '1' }))
     const userInfo = {
       employeeNo: String(employeeNo),
       name: String(name).slice(0, 32),
@@ -112,8 +124,8 @@ export class HikvisionDevice {
         endTime,
         timeType: 'local',
       },
-      doorRight: '1',
-      RightPlan: [{ doorNo: 1, planTemplateNo: '1' }],
+      doorRight,
+      RightPlan,
     }
 
     try {

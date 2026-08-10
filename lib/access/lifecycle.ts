@@ -211,6 +211,15 @@ export async function updateGuestAccessValidity(input: {
       })
       .eq('id', cred.id)
 
+    let guestRoomId: string | null = null
+    const { data: guest } = await admin
+      .from('guests')
+      .select('room_id')
+      .eq('id', input.guestId)
+      .maybeSingle()
+    guestRoomId = guest?.room_id ?? null
+    const doors = await resolveDoorsForRoom(admin, input.hotelId, guestRoomId)
+
     await enqueueAccessJob({
       hotelId: input.hotelId,
       jobType: 'update_validity',
@@ -221,6 +230,7 @@ export async function updateGuestAccessValidity(input: {
         employeeNo: cred.employee_no,
         validFrom: input.checkIn,
         validTo: input.checkOut,
+        doors,
       },
     })
   } catch (err) {

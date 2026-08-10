@@ -49,6 +49,12 @@ function normalizeApiUrl(raw) {
   }
 }
 
+function normalizeDeviceRole(role) {
+  if (role === 'enrollment') return 'enrollment'
+  if (role === 'attendance') return 'attendance'
+  return 'door'
+}
+
 function devicesFromLocalEnv() {
   const devicesRaw = process.env.DEVICES?.trim()
   if (!devicesRaw) return null
@@ -61,7 +67,13 @@ function devicesFromLocalEnv() {
     if (!d.key || !d.host || !d.username || !d.password) {
       throw new Error('Each device needs key, host, username, password')
     }
-    devices.set(d.key, new HikvisionDevice(d))
+    devices.set(
+      d.key,
+      new HikvisionDevice({
+        ...d,
+        role: normalizeDeviceRole(d.role),
+      }),
+    )
   }
   return devices
 }
@@ -122,7 +134,7 @@ export function applyCloudDevices(config, deviceList) {
       d.key,
       new HikvisionDevice({
         ...d,
-        role: d.role === 'enrollment' ? 'enrollment' : 'door',
+        role: normalizeDeviceRole(d.role),
         model: d.model ?? null,
       }),
     )

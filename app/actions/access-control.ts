@@ -452,6 +452,14 @@ export async function startEnrollmentCapture(input: {
   }
 
   const doors = await resolveCredentialDoors(admin, input.hotelId, cred)
+  if (!doors.length) {
+    return {
+      success: false,
+      error:
+        'No doors mapped for this person. Map unit/shared/gym doors (guests) or staff policy doors first.',
+    }
+  }
+
   const jobType =
     input.capture === 'card'
       ? 'enroll_card_capture'
@@ -536,6 +544,13 @@ export async function assignAccessCard(input: {
     person_type: (cred as { person_type?: string }).person_type,
     access_policy_id: (cred as { access_policy_id?: string | null }).access_policy_id,
   })
+  if (!doors.length) {
+    return {
+      success: false,
+      error:
+        'No doors mapped for this person. Map unit/shared/gym doors (guests) or staff policy doors first.',
+    }
+  }
 
   const now = new Date().toISOString()
   await admin
@@ -858,7 +873,12 @@ export async function upsertCloudAccessDevice(
   } else if (!parsed.data.id) {
     return {
       success: false,
-      error: role === 'enrollment' ? 'Password is required for a new enrollment station.' : 'Password is required for a new controller.',
+      error:
+        role === 'enrollment'
+          ? 'Password is required for a new enrollment station.'
+          : role === 'attendance'
+            ? 'Password is required for a new attendance terminal.'
+            : 'Password is required for a new controller.',
     }
   } else {
     const { data: existingSecret } = await admin
