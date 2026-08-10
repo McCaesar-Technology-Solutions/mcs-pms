@@ -73,7 +73,11 @@ export default async function ManagerAccessPage() {
         canCreateOwnerTypes={false}
       />
 
-      <AttendancePanel hotelId={hotelId} records={attendance} />
+      <AttendancePanel
+        hotelId={hotelId}
+        records={attendance}
+        lastPullJob={jobs.find((j) => j.job_type === 'pull_attendance') ?? null}
+      />
 
       <AccessOpsPanel
         hotelId={hotelId}

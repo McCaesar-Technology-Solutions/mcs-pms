@@ -16,7 +16,7 @@ Maps the Mojo Suites Hikvision SRS onto the existing stack:
 | 2 | Gym / amenity door policy (room + gym; fix over-grant) | Done |
 | 3 | Harden Reception unlock/enroll + audit | Done (cancel/jobs — Phase C) |
 | 4 | Access policies / door groups for staff | Done |
-| 5 | Attendance (DS-K1A8503MF-B) schema + pull job + UI | Partial (role fixed; ISAPI pull TBD — Phase F) |
+| 5 | Attendance (DS-K1A8503MF-B) schema + pull job + UI | Done (ISAPI AcsEvent pull — Phase F; verify on-site) |
 | 6 | Staff / attendance UI on Access pages | Done (Phase D staff ops) |
 
 ## Fix sprints
@@ -27,7 +27,7 @@ Maps the Mojo Suites Hikvision SRS onto the existing stack:
 | 2 | C Reception job isolation | Done |
 | 3 | D Staff ops completeness | Done |
 | 3b | E Door edit UX + gym remap | Done |
-| 4 | F Attendance ISAPI pull | Planned |
+| 4 | F Attendance ISAPI pull | Done |
 | 5 | G Hardening / docs / tests | Planned |
 
 ## Source of truth
@@ -39,6 +39,7 @@ Maps the Mojo Suites Hikvision SRS onto the existing stack:
 
 - `061` access core · `064` cloud secrets · `065` enrollment station
 - `068` persons, policies, gym zone, attendance foundation
+- `069` attendance natural-key dedupe (re-pull safe)
 
 ## Roles (ops)
 

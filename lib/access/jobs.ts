@@ -1,6 +1,10 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { Json } from '@/lib/supabase/types'
 import type { AccessJobType, AccessJobPayload } from '@/lib/access/types'
+import {
+  dedupeAttendanceRows,
+  parseAttendancePullRecord,
+} from '@/lib/access/attendance-ingest'
 
 const CLAIM_STALE_MS = 5 * 60 * 1000
 const BATCH = 20
@@ -172,6 +176,28 @@ export async function completeAccessJob(input: {
   if (job.status !== 'claimed') return { error: 'Job is not claimed.' }
 
   if (input.success) {
+    if (job.job_type === 'pull_attendance') {
+      try {
+        await ingestAttendancePull(admin, input.hotelId, input.result)
+      } catch (err) {
+        const msg =
+          err instanceof Error ? err.message : 'Attendance ingest failed after device pull.'
+        await admin
+          .from('access_jobs')
+          .update({
+            status: 'failed',
+            last_error: msg,
+            result: (input.result ?? null) as Json | null,
+            updated_at: now,
+            claimed_at: null,
+            claimed_by: null,
+            next_retry_at: new Date(Date.now() + 60_000).toISOString(),
+          })
+          .eq('id', job.id)
+        return { ok: true }
+      }
+    }
+
     const sanitizedPayload = stripTransientSecrets(job.payload)
     await admin
       .from('access_jobs')
@@ -185,9 +211,6 @@ export async function completeAccessJob(input: {
       .eq('id', job.id)
 
     await applyCredentialSuccess(admin, job, input.result)
-    if (job.job_type === 'pull_attendance') {
-      await ingestAttendancePull(admin, input.hotelId, input.result)
-    }
     return { ok: true }
   }
 
@@ -238,46 +261,66 @@ async function ingestAttendancePull(
   if (!Array.isArray(records) || !records.length) return
 
   const deviceKey = typeof result?.deviceKey === 'string' ? result.deviceKey : null
-  const rows = []
-
+  const parsed = []
   for (const raw of records) {
-    if (!raw || typeof raw !== 'object') continue
-    const r = raw as Record<string, unknown>
-    const employeeNo = String(r.employeeNo ?? r.employee_no ?? '').trim()
-    if (!employeeNo) continue
-    const occurredAt = String(r.occurredAt ?? r.occurred_at ?? '')
-    if (!occurredAt) continue
-    const eventTypeRaw = String(r.eventType ?? r.event_type ?? 'unknown')
-    const event_type: 'clock_in' | 'clock_out' | 'unknown' =
-      eventTypeRaw === 'clock_in' || eventTypeRaw === 'clock_out' ? eventTypeRaw : 'unknown'
+    const row = parseAttendancePullRecord(raw, deviceKey)
+    if (row) parsed.push(row)
+  }
+  if (!parsed.length) return
 
-    const { data: cred } = await admin
-      .from('access_credentials')
-      .select('id, profile_id, display_name, person_type')
-      .eq('hotel_id', hotelId)
-      .eq('employee_no', employeeNo)
-      .neq('person_type', 'tenant')
-      .maybeSingle()
+  const employeeNos = [...new Set(parsed.map((r) => r.employee_no))]
+  const { data: creds } = await admin
+    .from('access_credentials')
+    .select('id, profile_id, display_name, person_type, employee_no')
+    .eq('hotel_id', hotelId)
+    .in('employee_no', employeeNos)
+    .neq('person_type', 'tenant')
 
-    // Never attribute attendance to tenants.
-    if (cred?.person_type === 'tenant') continue
-
-    rows.push({
-      hotel_id: hotelId,
-      credential_id: cred?.id ?? null,
-      profile_id: cred?.profile_id ?? null,
-      employee_no: employeeNo,
-      display_name:
-        (typeof r.displayName === 'string' ? r.displayName : null) ?? cred?.display_name ?? null,
-      event_type,
-      occurred_at: occurredAt,
-      device_key: deviceKey,
-      raw_ref: typeof r.rawRef === 'string' ? r.rawRef : null,
-    })
+  const byEmployee = new Map<
+    string,
+    { id: string; profile_id: string | null; display_name: string | null; person_type: string }
+  >()
+  for (const c of creds ?? []) {
+    // Prefer first non-tenant match; skip tenants explicitly.
+    if (c.person_type === 'tenant') continue
+    if (!byEmployee.has(c.employee_no)) {
+      byEmployee.set(c.employee_no, c)
+    }
   }
 
+  const rows = dedupeAttendanceRows(
+    parsed.map((r) => {
+      const cred = byEmployee.get(r.employee_no)
+      return {
+        hotel_id: hotelId,
+        credential_id: cred?.id ?? null,
+        profile_id: cred?.profile_id ?? null,
+        employee_no: r.employee_no,
+        display_name: r.display_name ?? cred?.display_name ?? null,
+        event_type: r.event_type,
+        occurred_at: r.occurred_at,
+        device_key: r.device_key,
+        raw_ref: r.raw_ref,
+      }
+    }),
+  )
+
   if (!rows.length) return
-  await admin.from('attendance_records').insert(rows)
+
+  // Unique index idx_attendance_records_natural — re-pull is idempotent.
+  const { error } = await admin.from('attendance_records').upsert(rows, {
+    onConflict: 'hotel_id,employee_no,occurred_at,event_type,device_key',
+    ignoreDuplicates: true,
+  })
+  if (error) {
+    // Fallback: insert one-by-one ignoring conflicts (older DBs without unique index).
+    for (const row of rows) {
+      const { error: insertError } = await admin.from('attendance_records').insert(row)
+      if (insertError && !/duplicate|unique/i.test(insertError.message)) {
+        throw new Error(insertError.message)
+      }
+    }
+  }
 }
 
 async function applyCredentialSuccess(

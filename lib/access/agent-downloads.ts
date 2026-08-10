@@ -5,7 +5,7 @@
  */
 
 export const ACCESS_AGENT_VERSION =
-  process.env.NEXT_PUBLIC_ACCESS_AGENT_VERSION?.trim() || '1.3.7'
+  process.env.NEXT_PUBLIC_ACCESS_AGENT_VERSION?.trim() || '1.3.8'
 
 const GITHUB_RELEASE_TAG =
   process.env.NEXT_PUBLIC_ACCESS_AGENT_RELEASE_TAG?.trim() ||

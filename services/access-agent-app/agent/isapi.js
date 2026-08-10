@@ -22,6 +22,69 @@ function findFfmpeg() {
   return null
 }
 
+function mapAttendanceStatus(raw) {
+  const s = String(raw ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]+/g, '')
+  if (!s) return 'unknown'
+  if (
+    s === 'checkin' ||
+    s === 'clockin' ||
+    s === 'in' ||
+    s === 'breakin' ||
+    s === 'overtimein'
+  ) {
+    return 'clock_in'
+  }
+  if (
+    s === 'checkout' ||
+    s === 'clockout' ||
+    s === 'out' ||
+    s === 'breakout' ||
+    s === 'overtimeout'
+  ) {
+    return 'clock_out'
+  }
+  return 'unknown'
+}
+
+/** Normalize one AcsEvent InfoList row for PMS ingest. */
+function mapAcsEventInfo(item) {
+  if (!item || typeof item !== 'object') return null
+  const employeeNo = String(
+    item.employeeNoString ?? item.employeeNo ?? item.employee_no ?? '',
+  ).trim()
+  if (!employeeNo) return null
+
+  const occurredRaw =
+    item.time ?? item.Time ?? item.dateTime ?? item.occurredAt ?? item.occurred_at
+  if (!occurredRaw) return null
+  const occurredAt = new Date(String(occurredRaw))
+  if (Number.isNaN(occurredAt.getTime())) return null
+
+  const eventType = mapAttendanceStatus(
+    item.attendanceStatus ?? item.AttendanceStatus ?? item.attendanceStatusValue,
+  )
+
+  const serial =
+    item.serialNo != null
+      ? String(item.serialNo)
+      : item.serialNumber != null
+        ? String(item.serialNumber)
+        : null
+
+  return {
+    employeeNo,
+    displayName: item.name != null ? String(item.name).slice(0, 80) : null,
+    occurredAt: occurredAt.toISOString(),
+    eventType,
+    rawRef: serial,
+    major: item.major != null ? Number(item.major) : null,
+    minor: item.minor != null ? Number(item.minor) : null,
+  }
+}
+
 export class HikvisionDevice {
   constructor(config) {
     this.key = config.key
@@ -518,6 +581,90 @@ export class HikvisionDevice {
     throw new Error(
       `${this.key}: face capture timed out on enrollment station (${lastError}). Face the DS-K1F600U camera after clicking Enroll face.`,
     )
+  }
+
+  /**
+   * Pull access/attendance punch events (AcsEvent) — used for DS-K1A8503MF-B.
+   * Returns normalized rows for PMS ingest: employeeNo, occurredAt, eventType, rawRef, displayName.
+   */
+  async pullAttendanceEvents({ sinceHours = 48 } = {}) {
+    const hours = Math.min(168, Math.max(1, Number(sinceHours) || 48))
+    const end = new Date()
+    const start = new Date(end.getTime() - hours * 3600_000)
+    // Hikvision often rejects millisecond / trailing Z forms.
+    const startTime = start.toISOString().replace(/\.\d{3}Z$/, '')
+    const endTime = end.toISOString().replace(/\.\d{3}Z$/, '')
+    const searchID = `mojo-att-${Date.now()}`
+    const maxResults = 30
+    const maxPages = 40
+    const records = []
+    let position = 0
+    let lastError = null
+
+    for (let page = 0; page < maxPages; page++) {
+      let json
+      try {
+        json = await this.request('POST', '/ISAPI/AccessControl/AcsEvent', {
+          AcsEventCond: {
+            searchID,
+            searchResultPosition: position,
+            maxResults,
+            major: 5,
+            minor: 0,
+            startTime,
+            endTime,
+          },
+        })
+      } catch (err) {
+        lastError = err.message
+        // Some firmwares want major/minor omitted or zeroed for “all events”.
+        if (page === 0 && /Invalid|notSupport|badUrl|400|403/i.test(String(err.message))) {
+          try {
+            json = await this.request('POST', '/ISAPI/AccessControl/AcsEvent', {
+              AcsEventCond: {
+                searchID: `${searchID}-all`,
+                searchResultPosition: 0,
+                maxResults,
+                major: 0,
+                minor: 0,
+                startTime,
+                endTime,
+              },
+            })
+            lastError = null
+          } catch (err2) {
+            throw new Error(
+              `${this.key}: attendance AcsEvent pull failed (${err2.message}). Check ISAPI / network on DS-K1A8503MF-B.`,
+            )
+          }
+        } else {
+          throw new Error(
+            `${this.key}: attendance AcsEvent pull failed (${err.message}).`,
+          )
+        }
+      }
+
+      const acs = json?.AcsEvent ?? json
+      const listRaw = acs?.InfoList ?? acs?.infoList ?? []
+      const list = Array.isArray(listRaw) ? listRaw : listRaw ? [listRaw] : []
+
+      for (const item of list) {
+        const mapped = mapAcsEventInfo(item)
+        if (mapped) records.push(mapped)
+      }
+
+      const status = String(acs?.responseStatusStrg ?? acs?.responseStatusString ?? '')
+      const num = Number(acs?.numOfMatches ?? list.length) || list.length
+      if (!list.length || /^NO MATCH$/i.test(status)) break
+      if (/^OK$/i.test(status) && num < maxResults) break
+      if (num < maxResults) break
+      position += num
+    }
+
+    if (lastError && !records.length) {
+      throw new Error(`${this.key}: attendance pull failed (${lastError})`)
+    }
+    return records
   }
 
   async uploadFace({ employeeNo, jpeg }) {

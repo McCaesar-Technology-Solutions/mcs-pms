@@ -41,7 +41,12 @@ Owner/Manager create staff physical persons with an access policy (door group). 
 
 ## Attendance
 
-Save DS-K1A8503MF-B as device role **Attendance**, then use **Pull from terminal** on Access. Agent job `pull_attendance` (ISAPI event pull TBD per device firmware).
+Save DS-K1A8503MF-B as device role **Attendance**, then **Pull from terminal** on Owner/Manager Access.
+
+- Agent job `pull_attendance` calls ISAPI `POST /ISAPI/AccessControl/AcsEvent` (last 48h, paginated).
+- Ingest maps `attendanceStatus` → `clock_in` / `clock_out` / `unknown`, links staff credentials by `employee_no`, never tenants.
+- Re-pulls are idempotent (`069` unique index + upsert ignoreDuplicates).
+- Requires Access Agent **1.3.8+**.
 
 ## Deferred
 
@@ -49,9 +54,9 @@ Payment-gated door provision is deferred (Paystack not the live gate yet).
 
 ## Go-live steps
 
-1. Apply migrations through `068`.
+1. Apply migrations through `069`.
 2. Owner → Access: Start setup, save controllers + optional enrollment + attendance terminals.
 3. Map room doors (zone unit), lobby (shared), gymnasium (zone **gym** — not “Lobby + shared”).
    If Gymnasium was saved earlier as lobby/other with shared access, **Edit** it and set zone to Gymnasium.
 4. Map staff policy doors (setup checklist requires ≥1), create staff access, enroll at station.
-5. Install MOJO Access Agent; leave tray running.
+5. Install MOJO Access Agent **1.3.8+**; leave tray running.
