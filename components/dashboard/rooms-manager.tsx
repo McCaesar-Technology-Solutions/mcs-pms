@@ -161,7 +161,16 @@ export function RoomsManager({
   }
 
   function exportRoomsCsv() {
-    const header = ['Reference', 'Number', 'Category', 'Floor', 'Status', 'Nightly rate', 'Monthly rate']
+    const header = [
+      'Reference',
+      'Number',
+      'Category',
+      'Floor',
+      'Status',
+      'Nightly rate',
+      'Weekly rate',
+      'Monthly rate',
+    ]
     const csvRows = selection.selected.map((room) => [
       roomRef(room),
       room.number,
@@ -169,6 +178,7 @@ export function RoomsManager({
       String(room.floor ?? ''),
       room.status ?? 'available',
       String(room.nightly_rate ?? ''),
+      String(room.weekly_rate ?? ''),
       String(room.monthly_rate ?? ''),
     ])
     downloadCsv(`rooms-${new Date().toISOString().slice(0, 10)}.csv`, [header, ...csvRows])
@@ -360,6 +370,13 @@ function RoomModal({ room, categories, canDelete, statusOnly = false, onClose, o
   const [nightlyRate, setNightlyRate] = useState(
     String(room?.nightly_rate ?? categories.find((c) => c.id === defaultCategoryId)?.default_nightly_rate ?? ''),
   )
+  const [weeklyRate, setWeeklyRate] = useState(
+    String(
+      room?.weekly_rate ??
+        categories.find((c) => c.id === defaultCategoryId)?.default_weekly_rate ??
+        '',
+    ),
+  )
   const [monthlyRate, setMonthlyRate] = useState(
     String(
       room?.monthly_rate ??
@@ -376,6 +393,9 @@ function RoomModal({ room, categories, canDelete, statusOnly = false, onClose, o
     const category = categories.find((c) => c.id === categoryId)
     if (category) {
       setNightlyRate(String(category.default_nightly_rate))
+      setWeeklyRate(
+        category.default_weekly_rate != null ? String(category.default_weekly_rate) : '',
+      )
       setMonthlyRate(
         category.default_monthly_rate != null ? String(category.default_monthly_rate) : '',
       )
@@ -387,6 +407,9 @@ function RoomModal({ room, categories, canDelete, statusOnly = false, onClose, o
     const category = categories.find((c) => c.id === nextCategoryId)
     if (category) {
       setNightlyRate(String(category.default_nightly_rate))
+      setWeeklyRate(
+        category.default_weekly_rate != null ? String(category.default_weekly_rate) : '',
+      )
       setMonthlyRate(
         category.default_monthly_rate != null ? String(category.default_monthly_rate) : '',
       )
@@ -402,6 +425,8 @@ function RoomModal({ room, categories, canDelete, statusOnly = false, onClose, o
         else setError(result.error)
         return
       }
+      const weeklyRateValue: number | '' =
+        weeklyRate.trim() === '' ? '' : Number(weeklyRate)
       const monthlyRateValue: number | '' =
         monthlyRate.trim() === '' ? '' : Number(monthlyRate)
       const payload = {
@@ -409,6 +434,7 @@ function RoomModal({ room, categories, canDelete, statusOnly = false, onClose, o
         floor: Number(floor),
         categoryId,
         nightlyRate: Number(nightlyRate),
+        weeklyRate: weeklyRateValue,
         monthlyRate: monthlyRateValue,
       }
       const result = isEdit
@@ -502,6 +528,18 @@ function RoomModal({ room, categories, canDelete, statusOnly = false, onClose, o
                 step="0.01"
                 value={nightlyRate}
                 onChange={(e) => setNightlyRate(e.target.value)}
+                className={APP_FIELD_CLASS}
+              />
+            </FormField>
+
+            <FormField label="Weekly rate (₵, optional)">
+              <input
+                type="number"
+                min={0}
+                step="0.01"
+                value={weeklyRate}
+                onChange={(e) => setWeeklyRate(e.target.value)}
+                placeholder="Prorated ÷ 7 per night"
                 className={APP_FIELD_CLASS}
               />
             </FormField>

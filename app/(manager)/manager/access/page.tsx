@@ -75,8 +75,8 @@ export default async function ManagerAccessPage() {
     <div className="page-shell page-content-stack">
       <PageHeader
         badge="Access"
-        title="Access control"
-        description="Unlock doors and manage guest + approved staff access."
+        title="Access"
+        description="Unlock doors, issue guest badges, and manage approved staff access."
       />
 
       <AccessStatusStrip
@@ -90,7 +90,7 @@ export default async function ManagerAccessPage() {
         stickyNav
         defaultTab="today"
         hashToTab={ACCESS_HASH_TO_TAB}
-        tabs={accessTabsForRole('manager', openJobBadge(jobs))}
+        tabs={accessTabsForRole('manager', { openJobBadge: openJobBadge(jobs) })}
         panels={{
           today: (
             <AccessOpsPanel
@@ -132,6 +132,9 @@ export default async function ManagerAccessPage() {
               hotelId={hotelId}
               records={attendance}
               lastPullJob={lastPullJob}
+              hasAttendanceDevice={devices.some((d) => d.device_role === 'attendance')}
+              agentOnline={summary.agentOnline}
+              canOpenSetup={false}
             />
           ),
         }}

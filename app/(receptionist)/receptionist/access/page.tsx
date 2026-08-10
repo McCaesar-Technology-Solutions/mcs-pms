@@ -53,8 +53,8 @@ export default async function ReceptionistAccessPage() {
     <div className="page-shell page-content-stack">
       <PageHeader
         badge="Access"
-        title="Access control"
-        description="Issue cards and unlock doors for in-house guests."
+        title="Access"
+        description="Unlock doors and issue guest badges for in-house stays."
       />
 
       <AccessStatusStrip integration={summary} jobs={jobs} viewerRole="receptionist" />
@@ -63,7 +63,7 @@ export default async function ReceptionistAccessPage() {
         stickyNav
         defaultTab="today"
         hashToTab={ACCESS_HASH_TO_TAB}
-        tabs={accessTabsForRole('receptionist', openJobBadge(jobs))}
+        tabs={accessTabsForRole('receptionist', { openJobBadge: openJobBadge(jobs) })}
         panels={{
           today: (
             <AccessOpsPanel

@@ -143,8 +143,9 @@ export const createReservationSchema = z.object({
   checkIn: z.string().min(1),
   checkOut: z.string().min(1),
   channel: z.enum(['airbnb', 'booking_com', 'direct', 'walk_in', 'other']),
-  rateType: z.enum(['nightly', 'monthly']).default('nightly'),
+  rateType: z.enum(['nightly', 'weekly', 'monthly']).default('nightly'),
   nightlyRate: z.coerce.number().min(0, 'Rate cannot be negative'),
+  weeklyRate: z.coerce.number().min(0, 'Rate cannot be negative').optional(),
   monthlyRate: z.coerce.number().min(0, 'Rate cannot be negative').optional(),
   guestId: z.string().uuid().optional(),
 })
@@ -242,6 +243,7 @@ export const submitComplaintEstimateSchema = z.object({
 export const createRoomCategorySchema = z.object({
   name: z.string().min(1, 'Category name is required').max(80),
   defaultNightlyRate: z.coerce.number().min(0, 'Rate cannot be negative'),
+  defaultWeeklyRate: z.coerce.number().min(0, 'Rate cannot be negative').optional().or(z.literal('')),
   defaultMonthlyRate: z.coerce.number().min(0, 'Rate cannot be negative').optional().or(z.literal('')),
 })
 
@@ -252,6 +254,7 @@ export const createRoomSchema = z.object({
   floor: z.coerce.number().int().min(0),
   categoryId: z.string().uuid('Select a room category'),
   nightlyRate: z.coerce.number().min(0, 'Price cannot be negative'),
+  weeklyRate: z.coerce.number().min(0, 'Price cannot be negative').optional().or(z.literal('')),
   monthlyRate: z.coerce.number().min(0, 'Price cannot be negative').optional().or(z.literal('')),
 })
 

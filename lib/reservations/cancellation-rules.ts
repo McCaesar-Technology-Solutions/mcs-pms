@@ -1,4 +1,5 @@
 import type { createAdminClient } from '@/lib/supabase/admin'
+import { dailyRateForType, type RateType } from '@/lib/pricing/stay-totals'
 import { appendReservationEvent } from '@/lib/reservations/state-machine'
 import type { Reservation, ReservationActorRole } from '@/types'
 
@@ -47,7 +48,10 @@ export interface CancellationRulesInput {
     check_in: string
     amount_paid?: number | null
     total_amount?: number | null
+    rate_type?: string | null
     nightly_rate?: number | null
+    weekly_rate?: number | null
+    monthly_rate?: number | null
   }
   hotelSettings: HotelCancellationDefaults
   cancelledAt: Date
@@ -80,7 +84,14 @@ export async function applyCancellationRules(
   input: CancellationRulesInput,
 ): Promise<CancellationRulesResult> {
   const totalPaidCents = cents(Number(input.reservation.amount_paid ?? 0))
-  const roomRateCents = cents(Number(input.reservation.nightly_rate ?? 0))
+  const rateType = (input.reservation.rate_type ?? 'nightly') as RateType
+  const dailyRate = dailyRateForType(
+    rateType,
+    Number(input.reservation.nightly_rate ?? 0),
+    Number(input.reservation.monthly_rate ?? 0),
+    Number(input.reservation.weekly_rate ?? 0),
+  )
+  const roomRateCents = cents(dailyRate)
   const penaltyNights = input.hotelSettings.default_penalty_nights ?? 1
   const freeCancelBefore = addDays(
     input.reservation.check_in,

@@ -5,18 +5,22 @@ type AdminClient = ReturnType<typeof createAdminClient>
 
 export interface RoomRates {
   nightlyRate: number
+  weeklyRate: number
   monthlyRate: number
 }
 
 export async function getRoomRates(admin: AdminClient, roomId: string): Promise<RoomRates> {
   const { data } = await admin
     .from('rooms')
-    .select('nightly_rate, monthly_rate, room_categories(default_nightly_rate, default_monthly_rate)')
+    .select(
+      'nightly_rate, weekly_rate, monthly_rate, room_categories(default_nightly_rate, default_weekly_rate, default_monthly_rate)',
+    )
     .eq('id', roomId)
     .maybeSingle()
 
   const cat = data?.room_categories as {
     default_nightly_rate?: number
+    default_weekly_rate?: number | null
     default_monthly_rate?: number | null
   } | null
 
@@ -25,6 +29,10 @@ export async function getRoomRates(admin: AdminClient, roomId: string): Promise<
       data?.nightly_rate != null
         ? Number(data.nightly_rate)
         : Number(cat?.default_nightly_rate ?? 0),
+    weeklyRate:
+      data?.weekly_rate != null
+        ? Number(data.weekly_rate)
+        : Number(cat?.default_weekly_rate ?? 0),
     monthlyRate:
       data?.monthly_rate != null
         ? Number(data.monthly_rate)
@@ -35,11 +43,13 @@ export async function getRoomRates(admin: AdminClient, roomId: string): Promise<
 export function effectiveRatesForBooking(
   rateType: RateType,
   nightlyRate: number,
+  weeklyRate: number,
   monthlyRate: number,
   roomRates: RoomRates,
-): { nightlyRate: number; monthlyRate: number } {
+): RoomRates {
   return {
     nightlyRate: rateType === 'nightly' ? nightlyRate : roomRates.nightlyRate,
+    weeklyRate: rateType === 'weekly' ? weeklyRate : roomRates.weeklyRate,
     monthlyRate: rateType === 'monthly' ? monthlyRate : roomRates.monthlyRate,
   }
 }

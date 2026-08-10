@@ -16,6 +16,16 @@ Deep links: `#today`, `#guests`, `#staff`, `#attendance`, `#setup` (also `#unloc
 
 **Setup tab (Owner):** collapses to “Setup healthy” once Core checklist is done (sync, token, controller, agent online, ≥1 physical door). Recommended: enrollment station, gym zone, staff policy door rights. Single action: **Start setup** / **Rotate token**. Physical doors ≠ policy door rights (Staff tab).
 
+**Today / Guests:** large unlock tiles (last-used highlighted), guest search + status chips + Enroll menu / More overflow, jobs filtered Open/Failed/Pending/All with failed-first sort.
+
+**Staff:** Policy door rights first → Add staff dialog → list with Enroll primary + ⋯ (assign / retry / suspend / terminate).
+
+**Attendance:** status line (last pull / error), Pull disabled with reason if no terminal, Today / 48h / All + staff filter, Clock in/out badges.
+
+**Mobile:** jobs + attendance as stacked cards (no wide tables); Unlock / Enroll / Pull ≥44px; sticky tab chips scroll horizontally; tab scroll respects `prefers-reduced-motion`.
+
+**Trust polish:** task titles (Unlock / Issue guest access / Staff badges / Clock events / Property setup); status strip + feedback use icon + text; Setup tab shows **Setup · OK** (muted) when core healthy; front-desk copy avoids device-key / model jargon.
+
 ## What was built
 
 | Piece | Location |

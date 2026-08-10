@@ -6,6 +6,8 @@ export interface PageTab {
   id: string
   label: string
   badge?: number
+  /** Softer styling for completed/secondary sections (e.g. healthy Setup). */
+  muted?: boolean
 }
 
 interface PageTabShellProps {
@@ -52,7 +54,11 @@ export function PageTabShell({
       const anchor = hash.replace(/^#/, '').split('?')[0]
       if (anchor && anchor !== tab && document.getElementById(anchor)) {
         requestAnimationFrame(() => {
-          document.getElementById(anchor)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+          document.getElementById(anchor)?.scrollIntoView({
+            behavior: reduceMotion ? 'auto' : 'smooth',
+            block: 'start',
+          })
         })
       }
     }
@@ -65,7 +71,10 @@ export function PageTabShell({
   function selectTab(id: string) {
     setActive(id)
     window.history.replaceState(null, '', `#${id}`)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    const reduceMotion =
+      typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' })
   }
 
   return (
@@ -93,7 +102,13 @@ export function PageTabShell({
               aria-controls={`tabpanel-${tab.id}`}
               tabIndex={selected ? 0 : -1}
               onClick={() => selectTab(tab.id)}
-              className={`page-tab-nav__item ${selected ? 'page-tab-nav__item--active' : ''}`}
+              className={[
+                'page-tab-nav__item',
+                selected ? 'page-tab-nav__item--active' : '',
+                !selected && tab.muted ? 'page-tab-nav__item--muted' : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
             >
               <span>{tab.label}</span>
               {tab.badge != null && tab.badge > 0 && (

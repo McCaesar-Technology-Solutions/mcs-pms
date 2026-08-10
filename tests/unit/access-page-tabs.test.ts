@@ -15,10 +15,26 @@ describe('accessTabsForRole', () => {
     ])
   })
 
-  it('gives owner Setup last', () => {
-    const ids = accessTabsForRole('owner', 3).map((t) => t.id)
-    expect(ids).toEqual(['today', 'guests', 'staff', 'attendance', 'setup'])
-    expect(accessTabsForRole('owner', 3)[0]?.badge).toBe(3)
+  it('gives owner Setup last and mutes when healthy', () => {
+    const open = accessTabsForRole('owner', { openJobBadge: 3 })
+    expect(open.map((t) => t.id)).toEqual([
+      'today',
+      'guests',
+      'staff',
+      'attendance',
+      'setup',
+    ])
+    expect(open[0]?.badge).toBe(3)
+    expect(open.find((t) => t.id === 'setup')?.muted).toBeFalsy()
+
+    const healthy = accessTabsForRole('owner', { setupHealthy: true })
+    const setup = healthy.find((t) => t.id === 'setup')
+    expect(setup?.label).toBe('Setup · OK')
+    expect(setup?.muted).toBe(true)
+  })
+
+  it('still accepts openJobBadge number shorthand', () => {
+    expect(accessTabsForRole('owner', 2)[0]?.badge).toBe(2)
   })
 
   it('maps unlock/install hashes', () => {

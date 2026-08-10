@@ -154,6 +154,7 @@ export interface Reservation {
   channel: ReservationChannel
   rateType: RateType
   nightlyRate: number
+  weeklyRate: number
   monthlyRate: number
   notes?: string
   createdAt: string
@@ -162,7 +163,7 @@ export interface Reservation {
   roomHeldUntil?: string | null
 }
 
-export type RateType = 'nightly' | 'monthly'
+export type RateType = 'nightly' | 'weekly' | 'monthly'
 
 // Housekeeping
 export type TaskStatus = 'todo' | 'in_progress' | 'done'
@@ -267,6 +268,7 @@ export interface RoomCategory {
   hotel_id: string
   name: string
   default_nightly_rate: number
+  default_weekly_rate: number | null
   default_monthly_rate: number | null
   created_at: string | null
 }
@@ -365,6 +367,7 @@ export interface DbRoom {
   floor: number | null
   category_id: string | null
   nightly_rate: number | null
+  weekly_rate: number | null
   monthly_rate: number | null
   status: DbRoomStatus | null
   updated_at: string | null
@@ -372,7 +375,7 @@ export interface DbRoom {
   profile_image_path?: string | null
   room_categories?: Pick<
     RoomCategory,
-    'name' | 'default_nightly_rate' | 'default_monthly_rate'
+    'name' | 'default_nightly_rate' | 'default_weekly_rate' | 'default_monthly_rate'
   > | null
 }
 
@@ -409,6 +412,7 @@ export interface DbReservation {
   channel: ReservationChannel | null
   rate_type: RateType | null
   nightly_rate: number | null
+  weekly_rate: number | null
   monthly_rate: number | null
   total_amount: number | null
   payment_status: ReservationPaymentStatus | null

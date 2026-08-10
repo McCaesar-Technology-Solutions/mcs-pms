@@ -50,6 +50,7 @@ export async function createRoom(input: {
   floor: number
   categoryId: string
   nightlyRate: number
+  weeklyRate?: number | ''
   monthlyRate?: number | ''
 }): Promise<RoomActionResult> {
   const parsed = createRoomSchema.safeParse(input)
@@ -66,6 +67,10 @@ export async function createRoom(input: {
     return { success: false, error: 'Invalid room category.' }
   }
 
+  const weeklyRate =
+    parsed.data.weeklyRate === '' || parsed.data.weeklyRate === undefined
+      ? null
+      : parsed.data.weeklyRate
   const monthlyRate =
     parsed.data.monthlyRate === '' || parsed.data.monthlyRate === undefined
       ? null
@@ -83,6 +88,7 @@ export async function createRoom(input: {
     floor: parsed.data.floor,
     category_id: parsed.data.categoryId,
     nightly_rate: parsed.data.nightlyRate,
+    weekly_rate: weeklyRate,
     monthly_rate: monthlyRate,
     status: 'available',
     updated_by: profile.id,
@@ -133,6 +139,7 @@ export async function updateRoom(
     floor?: number
     categoryId?: string
     nightlyRate?: number
+    weeklyRate?: number | ''
     monthlyRate?: number | ''
     status?: DbRoomStatus
   },
@@ -159,6 +166,7 @@ export async function updateRoom(
     floor?: number
     category_id?: string
     nightly_rate?: number
+    weekly_rate?: number | null
     monthly_rate?: number | null
     status?: DbRoomStatus
     updated_by: string
@@ -169,6 +177,9 @@ export async function updateRoom(
   if (parsed.data.floor !== undefined) payload.floor = parsed.data.floor
   if (parsed.data.categoryId !== undefined) payload.category_id = parsed.data.categoryId
   if (parsed.data.nightlyRate !== undefined) payload.nightly_rate = parsed.data.nightlyRate
+  if (parsed.data.weeklyRate !== undefined) {
+    payload.weekly_rate = parsed.data.weeklyRate === '' ? null : parsed.data.weeklyRate
+  }
   if (parsed.data.monthlyRate !== undefined) {
     payload.monthly_rate = parsed.data.monthlyRate === '' ? null : parsed.data.monthlyRate
   }
@@ -176,7 +187,7 @@ export async function updateRoom(
 
   const { data: existing } = await supabase
     .from('rooms')
-    .select('number, nightly_rate, monthly_rate, status')
+    .select('number, nightly_rate, weekly_rate, monthly_rate, status')
     .eq('id', id)
     .eq('hotel_id', profile.hotel_id)
     .maybeSingle()
@@ -204,6 +215,12 @@ export async function updateRoom(
       parsed.data.nightlyRate ?? Number(existing.nightly_rate ?? 0),
     )
     if (nightlyDelta) changes.push(nightlyDelta)
+    if (parsed.data.weeklyRate !== undefined) {
+      const nextWeekly =
+        parsed.data.weeklyRate === '' ? 0 : Number(parsed.data.weeklyRate ?? 0)
+      const weeklyDelta = moneyDelta('Weekly rate', existing.weekly_rate, nextWeekly)
+      if (weeklyDelta) changes.push(weeklyDelta)
+    }
     if (parsed.data.monthlyRate !== undefined) {
       const nextMonthly =
         parsed.data.monthlyRate === '' ? 0 : Number(parsed.data.monthlyRate ?? 0)

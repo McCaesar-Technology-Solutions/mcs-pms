@@ -805,6 +805,7 @@ function ReservationDrawer({
   const [editChannel, setEditChannel] = useState<ReservationChannel>(reservation.channel)
   const [editRateType, setEditRateType] = useState<RateType>(reservation.rateType)
   const [editNightlyRate, setEditNightlyRate] = useState(String(reservation.nightlyRate))
+  const [editWeeklyRate, setEditWeeklyRate] = useState(String(reservation.weeklyRate))
   const [editMonthlyRate, setEditMonthlyRate] = useState(String(reservation.monthlyRate))
   const [selectedGuestId, setSelectedGuestId] = useState<string | null>(null)
   const [portalUrl, setPortalUrl] = useState<string | null>(null)
@@ -910,6 +911,7 @@ function ReservationDrawer({
     editCheckOut,
     Number(editNightlyRate || 0),
     Number(editMonthlyRate || 0),
+    Number(editWeeklyRate || 0),
   )
 
   return (
@@ -1198,6 +1200,7 @@ function ReservationDrawer({
                         const room = roomOptions.find((r) => r.id === nextId)
                         if (room) {
                           setEditNightlyRate(String(room.nightlyRate))
+                          setEditWeeklyRate(String(room.weeklyRate))
                           setEditMonthlyRate(String(room.monthlyRate))
                         }
                       }}
@@ -1244,6 +1247,7 @@ function ReservationDrawer({
                       className={APP_FIELD_CLASS}
                     >
                       <option value="nightly">Nightly</option>
+                      <option value="weekly">Weekly (prorated)</option>
                       <option value="monthly">Monthly (prorated)</option>
                     </select>
                   </FormField>
@@ -1254,6 +1258,16 @@ function ReservationDrawer({
                         min={0}
                         value={editNightlyRate}
                         onChange={(e) => setEditNightlyRate(e.target.value)}
+                        className={APP_FIELD_CLASS}
+                      />
+                    </FormField>
+                  ) : editRateType === 'weekly' ? (
+                    <FormField label="Weekly rate (₵)">
+                      <input
+                        type="number"
+                        min={0}
+                        value={editWeeklyRate}
+                        onChange={(e) => setEditWeeklyRate(e.target.value)}
                         className={APP_FIELD_CLASS}
                       />
                     </FormField>
@@ -1287,6 +1301,7 @@ function ReservationDrawer({
                         pending ||
                         !editDatesValid ||
                         !editGuestName.trim() ||
+                        (editRateType === 'weekly' && Number(editWeeklyRate) <= 0) ||
                         (editRateType === 'monthly' && Number(editMonthlyRate) <= 0)
                       }
                       onClick={() =>
@@ -1300,6 +1315,7 @@ function ReservationDrawer({
                               channel: editChannel,
                               rateType: editRateType,
                               nightlyRate: Number(editNightlyRate || 0),
+                              weeklyRate: Number(editWeeklyRate || 0),
                               monthlyRate: Number(editMonthlyRate || 0),
                             }),
                           () => {
@@ -1892,6 +1908,7 @@ function ReservationFormModal({
   )
   const [rateType, setRateType] = useState<RateType>('nightly')
   const [nightlyRate, setNightlyRate] = useState(String(roomOptions[0]?.nightlyRate ?? 0))
+  const [weeklyRate, setWeeklyRate] = useState(String(roomOptions[0]?.weeklyRate ?? 0))
   const [monthlyRate, setMonthlyRate] = useState(String(roomOptions[0]?.monthlyRate ?? 0))
   const [selectedGuestId, setSelectedGuestId] = useState<string | null>(null)
   const [portalUrl, setPortalUrl] = useState<string | null>(null)
@@ -1903,6 +1920,7 @@ function ReservationFormModal({
     const room = roomOptions.find((r) => r.id === roomId)
     if (room) {
       setNightlyRate(String(room.nightlyRate))
+      setWeeklyRate(String(room.weeklyRate))
       setMonthlyRate(String(room.monthlyRate))
     }
   }, [roomId, roomOptions])
@@ -1948,6 +1966,7 @@ function ReservationFormModal({
     checkOut,
     Number(nightlyRate || 0),
     Number(monthlyRate || 0),
+    Number(weeklyRate || 0),
   )
 
   function submit() {
@@ -1961,6 +1980,7 @@ function ReservationFormModal({
         channel,
         rateType,
         nightlyRate: Number(nightlyRate || 0),
+        weeklyRate: Number(weeklyRate || 0),
         monthlyRate: Number(monthlyRate || 0),
         guestId: selectedGuestId ?? undefined,
       }
@@ -2001,6 +2021,7 @@ function ReservationFormModal({
     datesValid &&
     guestName.trim().length >= 2 &&
     (flowMode !== 'check_in_now' || phone.trim().length > 0) &&
+    (rateType !== 'weekly' || Number(weeklyRate) > 0) &&
     (rateType !== 'monthly' || Number(monthlyRate) > 0)
 
   if (portalUrl) {
@@ -2206,6 +2227,7 @@ function ReservationFormModal({
               className={APP_FIELD_CLASS}
             >
               <option value="nightly">Nightly</option>
+              <option value="weekly">Weekly (prorated)</option>
               <option value="monthly">Monthly (prorated)</option>
             </select>
           </FormField>
@@ -2217,6 +2239,16 @@ function ReservationFormModal({
               type="number"
               value={nightlyRate}
               onChange={(e) => setNightlyRate(e.target.value)}
+              min={0}
+              className={APP_FIELD_CLASS}
+            />
+          </FormField>
+        ) : rateType === 'weekly' ? (
+          <FormField label="Weekly rate (₵)">
+            <input
+              type="number"
+              value={weeklyRate}
+              onChange={(e) => setWeeklyRate(e.target.value)}
               min={0}
               className={APP_FIELD_CLASS}
             />

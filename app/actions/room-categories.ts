@@ -25,6 +25,7 @@ async function requireStaff() {
 export async function createRoomCategory(input: {
   name: string
   defaultNightlyRate: number
+  defaultWeeklyRate?: number | ''
   defaultMonthlyRate?: number | ''
 }): Promise<RoomCategoryActionResult> {
   const parsed = createRoomCategorySchema.safeParse(input)
@@ -37,6 +38,10 @@ export async function createRoomCategory(input: {
     return { success: false, error: 'Not authorized.' }
   }
 
+  const weeklyRate =
+    parsed.data.defaultWeeklyRate === '' || parsed.data.defaultWeeklyRate === undefined
+      ? null
+      : parsed.data.defaultWeeklyRate
   const monthlyRate =
     parsed.data.defaultMonthlyRate === '' || parsed.data.defaultMonthlyRate === undefined
       ? null
@@ -48,6 +53,7 @@ export async function createRoomCategory(input: {
       hotel_id: profile.hotel_id,
       name: parsed.data.name.trim(),
       default_nightly_rate: parsed.data.defaultNightlyRate,
+      default_weekly_rate: weeklyRate,
       default_monthly_rate: monthlyRate,
     })
     .select('id')
@@ -66,7 +72,12 @@ export async function createRoomCategory(input: {
 
 export async function updateRoomCategory(
   id: string,
-  input: { name?: string; defaultNightlyRate?: number; defaultMonthlyRate?: number | '' },
+  input: {
+    name?: string
+    defaultNightlyRate?: number
+    defaultWeeklyRate?: number | ''
+    defaultMonthlyRate?: number | ''
+  },
 ): Promise<RoomCategoryActionResult> {
   const parsed = updateRoomCategorySchema.safeParse(input)
   if (!parsed.success) {
@@ -78,11 +89,19 @@ export async function updateRoomCategory(
     return { success: false, error: 'Not authorized.' }
   }
 
-  const payload: { name?: string; default_nightly_rate?: number; default_monthly_rate?: number | null } =
-    {}
+  const payload: {
+    name?: string
+    default_nightly_rate?: number
+    default_weekly_rate?: number | null
+    default_monthly_rate?: number | null
+  } = {}
   if (parsed.data.name !== undefined) payload.name = parsed.data.name.trim()
   if (parsed.data.defaultNightlyRate !== undefined) {
     payload.default_nightly_rate = parsed.data.defaultNightlyRate
+  }
+  if (parsed.data.defaultWeeklyRate !== undefined) {
+    payload.default_weekly_rate =
+      parsed.data.defaultWeeklyRate === '' ? null : parsed.data.defaultWeeklyRate
   }
   if (parsed.data.defaultMonthlyRate !== undefined) {
     payload.default_monthly_rate =
@@ -91,7 +110,7 @@ export async function updateRoomCategory(
 
   const { data: existing } = await supabase
     .from('room_categories')
-    .select('name, default_nightly_rate, default_monthly_rate')
+    .select('name, default_nightly_rate, default_weekly_rate, default_monthly_rate')
     .eq('id', id)
     .eq('hotel_id', profile.hotel_id)
     .maybeSingle()
@@ -118,6 +137,12 @@ export async function updateRoomCategory(
       parsed.data.defaultNightlyRate ?? Number(existing.default_nightly_rate ?? 0),
     )
     if (nightlyDelta) changes.push(nightlyDelta)
+    if (parsed.data.defaultWeeklyRate !== undefined) {
+      const nextWeekly =
+        parsed.data.defaultWeeklyRate === '' ? 0 : Number(parsed.data.defaultWeeklyRate ?? 0)
+      const weeklyDelta = moneyDelta('Default weekly rate', existing.default_weekly_rate, nextWeekly)
+      if (weeklyDelta) changes.push(weeklyDelta)
+    }
     if (parsed.data.defaultMonthlyRate !== undefined) {
       const nextMonthly =
         parsed.data.defaultMonthlyRate === '' ? 0 : Number(parsed.data.defaultMonthlyRate ?? 0)

@@ -33,7 +33,7 @@ export function RoomCategoriesPanel({ categories }: RoomCategoriesPanelProps) {
         <div>
           <h3 className="text-lg font-semibold text-foreground">Room categories</h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            Define categories and default nightly or monthly rates for your rooms.
+            Define categories and default nightly, weekly, or monthly rates for your rooms.
           </p>
         </div>
         <button
@@ -61,6 +61,9 @@ export function RoomCategoriesPanel({ categories }: RoomCategoriesPanelProps) {
                 <p className="font-semibold text-foreground">{category.name}</p>
                 <p className="text-sm text-muted-foreground">
                   Nightly: ₵{category.default_nightly_rate.toLocaleString()}
+                  {category.default_weekly_rate != null
+                    ? ` · Weekly: ₵${category.default_weekly_rate.toLocaleString()}`
+                    : ''}
                   {category.default_monthly_rate != null
                     ? ` · Monthly: ₵${category.default_monthly_rate.toLocaleString()}`
                     : ''}
@@ -113,6 +116,9 @@ function CategoryModal({ category, onClose, onDone }: CategoryModalProps) {
   const isEdit = Boolean(category)
   const [name, setName] = useState(category?.name ?? '')
   const [rate, setRate] = useState(String(category?.default_nightly_rate ?? ''))
+  const [weeklyRate, setWeeklyRate] = useState(
+    category?.default_weekly_rate != null ? String(category.default_weekly_rate) : '',
+  )
   const [monthlyRate, setMonthlyRate] = useState(
     category?.default_monthly_rate != null ? String(category.default_monthly_rate) : '',
   )
@@ -123,11 +129,23 @@ function CategoryModal({ category, onClose, onDone }: CategoryModalProps) {
     setError(null)
     startTransition(async () => {
       const defaultNightlyRate = Number(rate)
+      const defaultWeeklyRate: number | '' =
+        weeklyRate.trim() === '' ? '' : Number(weeklyRate)
       const defaultMonthlyRate: number | '' =
         monthlyRate.trim() === '' ? '' : Number(monthlyRate)
       const result = isEdit
-        ? await updateRoomCategory(category!.id, { name, defaultNightlyRate, defaultMonthlyRate })
-        : await createRoomCategory({ name, defaultNightlyRate, defaultMonthlyRate })
+        ? await updateRoomCategory(category!.id, {
+            name,
+            defaultNightlyRate,
+            defaultWeeklyRate,
+            defaultMonthlyRate,
+          })
+        : await createRoomCategory({
+            name,
+            defaultNightlyRate,
+            defaultWeeklyRate,
+            defaultMonthlyRate,
+          })
       if (result.success) {
         onDone()
       } else {
@@ -179,6 +197,18 @@ function CategoryModal({ category, onClose, onDone }: CategoryModalProps) {
             value={rate}
             onChange={(e) => setRate(e.target.value)}
             placeholder="250"
+            className={APP_FIELD_CLASS}
+          />
+        </FormField>
+
+        <FormField label="Default weekly rate (₵, optional)">
+          <input
+            type="number"
+            min={0}
+            step="0.01"
+            value={weeklyRate}
+            onChange={(e) => setWeeklyRate(e.target.value)}
+            placeholder="1500"
             className={APP_FIELD_CLASS}
           />
         </FormField>

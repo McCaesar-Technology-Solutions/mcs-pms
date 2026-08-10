@@ -320,7 +320,7 @@ export async function getAccessDevices(hotelId: string): Promise<AccessDeviceRow
 
 export async function getAttendanceRecords(
   hotelId: string,
-  limit = 100,
+  limit = 200,
 ): Promise<AttendanceRecordRow[]> {
   const profile = await resolveHotelTenantAccess(hotelId, {
     roles: ['owner', 'manager'],

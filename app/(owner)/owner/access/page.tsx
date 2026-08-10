@@ -97,13 +97,24 @@ export default async function OwnerAccessPage() {
   const hasEnrollmentStation = devices.some(
     (d) => d.device_role === 'enrollment' && d.managed_in_cloud,
   )
+  const mode = summary.deviceCredentialMode ?? 'cloud'
+  const doorReady =
+    mode !== 'cloud' ||
+    devices.some((d) => d.device_role === 'door' && d.managed_in_cloud && d.has_password)
+  const setupHealthy =
+    summary.enabled &&
+    summary.hotelFlagEnabled &&
+    summary.hasAgentToken &&
+    summary.agentOnline &&
+    doorReady &&
+    points.some((p) => p.is_active)
 
   return (
     <div className="page-shell page-content-stack">
       <PageHeader
         badge="Access"
-        title="Access control"
-        description="Unlock doors, issue guest badges, manage staff access — setup stays under Setup."
+        title="Access"
+        description="Today for unlocks. Guests for badges. Staff and attendance when you need them. Setup when something is missing."
       />
 
       <AccessStatusStrip
@@ -117,7 +128,10 @@ export default async function OwnerAccessPage() {
         stickyNav
         defaultTab="today"
         hashToTab={ACCESS_HASH_TO_TAB}
-        tabs={accessTabsForRole('owner', openJobBadge(jobs))}
+        tabs={accessTabsForRole('owner', {
+          openJobBadge: openJobBadge(jobs),
+          setupHealthy,
+        })}
         panels={{
           today: (
             <AccessOpsPanel
@@ -157,6 +171,9 @@ export default async function OwnerAccessPage() {
               hotelId={hotelId}
               records={attendance}
               lastPullJob={lastPullJob}
+              hasAttendanceDevice={devices.some((d) => d.device_role === 'attendance')}
+              agentOnline={summary.agentOnline}
+              canOpenSetup
             />
           ),
           setup: (

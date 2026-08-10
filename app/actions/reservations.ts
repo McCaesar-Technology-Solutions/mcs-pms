@@ -122,6 +122,9 @@ export async function createReservation(input: unknown): Promise<CreateReservati
   }
 
   const rateType = data.rateType as RateType
+  if (rateType === 'weekly' && (data.weeklyRate ?? 0) <= 0) {
+    return { success: false, error: 'Enter a weekly rate.' }
+  }
   if (rateType === 'monthly' && (data.monthlyRate ?? 0) <= 0) {
     return { success: false, error: 'Enter a monthly rate.' }
   }
@@ -143,10 +146,19 @@ export async function createReservation(input: unknown): Promise<CreateReservati
   const admin = createAdminClient()
   const roomRates = await getRoomRates(admin, data.roomId)
   const nightlyRate = rateType === 'nightly' ? data.nightlyRate : roomRates.nightlyRate
+  const weeklyRate =
+    rateType === 'weekly' ? (data.weeklyRate ?? roomRates.weeklyRate) : roomRates.weeklyRate
   const monthlyRate =
     rateType === 'monthly' ? (data.monthlyRate ?? roomRates.monthlyRate) : roomRates.monthlyRate
 
-  const total = calculateStayTotal(rateType, data.checkIn, data.checkOut, nightlyRate, monthlyRate)
+  const total = calculateStayTotal(
+    rateType,
+    data.checkIn,
+    data.checkOut,
+    nightlyRate,
+    monthlyRate,
+    weeklyRate,
+  )
 
   const { data: row, error } = await supabase
     .from('reservations')
@@ -161,6 +173,7 @@ export async function createReservation(input: unknown): Promise<CreateReservati
       channel: data.channel,
       rate_type: rateType,
       nightly_rate: nightlyRate,
+      weekly_rate: weeklyRate,
       monthly_rate: monthlyRate,
       total_amount: total,
       payment_status: 'unpaid',
@@ -329,10 +342,16 @@ export async function updateReservation(id: string, input: unknown): Promise<Cre
   const nightlyRate =
     parsed.data.nightlyRate ??
     (existing.nightly_rate != null ? Number(existing.nightly_rate) : roomRates.nightlyRate)
+  const weeklyRate =
+    parsed.data.weeklyRate ??
+    (existing.weekly_rate != null ? Number(existing.weekly_rate) : roomRates.weeklyRate)
   const monthlyRate =
     parsed.data.monthlyRate ??
     (existing.monthly_rate != null ? Number(existing.monthly_rate) : roomRates.monthlyRate)
 
+  if (rateType === 'weekly' && weeklyRate <= 0) {
+    return { success: false, error: 'Enter a weekly rate.' }
+  }
   if (rateType === 'monthly' && monthlyRate <= 0) {
     return { success: false, error: 'Enter a monthly rate.' }
   }
@@ -353,7 +372,14 @@ export async function updateReservation(id: string, input: unknown): Promise<Cre
     }
   }
 
-  const total = calculateStayTotal(rateType, checkIn, checkOut, nightlyRate, monthlyRate)
+  const total = calculateStayTotal(
+    rateType,
+    checkIn,
+    checkOut,
+    nightlyRate,
+    monthlyRate,
+    weeklyRate,
+  )
 
   const { error } = await supabase
     .from('reservations')
@@ -365,6 +391,7 @@ export async function updateReservation(id: string, input: unknown): Promise<Cre
       channel: (parsed.data.channel ?? existing.channel) as ReservationChannel,
       rate_type: rateType,
       nightly_rate: nightlyRate,
+      weekly_rate: weeklyRate,
       monthly_rate: monthlyRate,
       total_amount: total,
     })
@@ -382,6 +409,8 @@ export async function updateReservation(id: string, input: unknown): Promise<Cre
   if (existing.room_id !== roomId) changes.push('Room changed')
   const nightlyDelta = moneyDelta('Nightly rate', existing.nightly_rate, nightlyRate)
   if (nightlyDelta) changes.push(nightlyDelta)
+  const weeklyDelta = moneyDelta('Weekly rate', existing.weekly_rate, weeklyRate)
+  if (weeklyDelta) changes.push(weeklyDelta)
   const monthlyDelta = moneyDelta('Monthly rate', existing.monthly_rate, monthlyRate)
   if (monthlyDelta) changes.push(monthlyDelta)
   if ((existing.rate_type ?? 'nightly') !== rateType) {
@@ -408,6 +437,7 @@ export async function updateReservation(id: string, input: unknown): Promise<Cre
         checkOut: existing.check_out,
         roomId: existing.room_id,
         nightlyRate: existing.nightly_rate,
+        weeklyRate: existing.weekly_rate,
         monthlyRate: existing.monthly_rate,
         rateType: existing.rate_type,
         total: existing.total_amount,
@@ -418,6 +448,7 @@ export async function updateReservation(id: string, input: unknown): Promise<Cre
         checkOut,
         roomId,
         nightlyRate,
+        weeklyRate,
         monthlyRate,
         rateType,
         total,
@@ -584,7 +615,10 @@ export async function cancelReservation(
       check_in: reservation.check_in,
       amount_paid: reservation.amount_paid,
       total_amount: reservation.total_amount,
+      rate_type: reservation.rate_type,
       nightly_rate: reservation.nightly_rate,
+      weekly_rate: reservation.weekly_rate,
+      monthly_rate: reservation.monthly_rate,
     },
     hotelSettings,
     cancelledAt: new Date(),

@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useMemo, useState, useTransition } from 'react'
-import { Users } from 'lucide-react'
+import { ChevronDown, MoreHorizontal, Shield, Users } from 'lucide-react'
+import { AccessFeedback } from '@/components/dashboard/access-feedback'
 import {
   assignAccessCard,
   createOrUpdateStaffAccess,
@@ -11,6 +12,12 @@ import {
   updateStaffAccessStatusAction,
 } from '@/app/actions/access-control'
 import { FormField, APP_FIELD_CLASS } from '@/components/ui/form-field'
+import {
+  CenteredModal,
+  ModalBody,
+  ModalFooter,
+  ModalHeader,
+} from '@/components/ui/centered-modal'
 import type {
   AccessCredentialRow,
   AccessPointRow,
@@ -28,6 +35,8 @@ type Props = {
   hasEnrollmentStation?: boolean
   canCreateOwnerTypes: boolean
 }
+
+type CaptureKind = 'card' | 'face' | 'fingerprint'
 
 const STAFF_TYPES: Array<{ value: StaffPersonType; label: string; ownerOnly?: boolean }> = [
   { value: 'housekeeping', label: 'Housekeeping' },
@@ -54,6 +63,35 @@ function policyDoorCount(policy: AccessPolicyRow | undefined) {
   return policy?.point_ids?.length ?? 0
 }
 
+function firstPolicyWithDoors(policies: AccessPolicyRow[]) {
+  return policies.find((p) => policyDoorCount(p) > 0)?.id ?? policies[0]?.id ?? ''
+}
+
+function staffSyncChip(c: AccessCredentialRow): { label: string; className: string } {
+  if (c.staff_status === 'terminated' || c.status === 'revoked') {
+    return { label: 'Terminated', className: 'bg-muted text-muted-foreground' }
+  }
+  if (c.staff_status === 'suspended' || c.staff_status === 'on_leave') {
+    return {
+      label: c.staff_status === 'on_leave' ? 'On leave' : 'Suspended',
+      className: 'bg-amber-500/15 text-amber-800 dark:text-amber-300',
+    }
+  }
+  if (c.status === 'error' || c.sync_status === 'failed') {
+    return { label: 'Error', className: 'bg-destructive/15 text-destructive' }
+  }
+  if (c.sync_status === 'pending' || c.status === 'pending' || c.status === 'revoking') {
+    return {
+      label: 'Pending',
+      className: 'bg-amber-500/15 text-amber-800 dark:text-amber-300',
+    }
+  }
+  return {
+    label: 'Active',
+    className: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400',
+  }
+}
+
 export function StaffAccessPanel({
   hotelId,
   policies,
@@ -67,27 +105,50 @@ export function StaffAccessPanel({
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const range = useMemo(() => defaultValidRange(), [])
+  const [creating, setCreating] = useState(false)
   const [name, setName] = useState('')
   const [personType, setPersonType] = useState<StaffPersonType>('housekeeping')
-  const [policyId, setPolicyId] = useState(policies[0]?.id ?? '')
+  const [policyId, setPolicyId] = useState(() => firstPolicyWithDoors(policies))
   const [profileId, setProfileId] = useState('')
   const [validFrom, setValidFrom] = useState(range.validFrom)
   const [validTo, setValidTo] = useState(range.validTo)
+  const [formError, setFormError] = useState<string | null>(null)
   const [editingPolicyId, setEditingPolicyId] = useState(policies[0]?.id ?? '')
   const [selectedPoints, setSelectedPoints] = useState<string[]>(
     () => policies[0]?.point_ids ?? [],
   )
   const [cardDrafts, setCardDrafts] = useState<Record<string, string>>({})
+  const [enrollMenuId, setEnrollMenuId] = useState<string | null>(null)
+  const [moreMenuId, setMoreMenuId] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!policyId && policies[0]?.id) setPolicyId(policies[0].id)
+    if (!policyId && policies[0]?.id) setPolicyId(firstPolicyWithDoors(policies))
   }, [policies, policyId])
+
+  useEffect(() => {
+    if (!editingPolicyId && policies[0]?.id) {
+      setEditingPolicyId(policies[0].id)
+      setSelectedPoints(policies[0].point_ids ?? [])
+    }
+  }, [policies, editingPolicyId])
+
+  useEffect(() => {
+    function onDocClick(e: MouseEvent) {
+      const target = e.target as HTMLElement | null
+      if (target?.closest('[data-staff-access-menu]')) return
+      setEnrollMenuId(null)
+      setMoreMenuId(null)
+    }
+    document.addEventListener('click', onDocClick)
+    return () => document.removeEventListener('click', onDocClick)
+  }, [])
 
   const typeOptions = STAFF_TYPES.filter((t) => canCreateOwnerTypes || !t.ownerOnly)
   const activePoints = points.filter((p) => p.is_active)
   const selectedPolicy = policies.find((p) => p.id === policyId)
   const selectedDoorCount = policyDoorCount(selectedPolicy)
   const datesOk = Boolean(validFrom && validTo && validFrom <= validTo)
+  const anyPolicyHasDoors = policies.some((p) => policyDoorCount(p) > 0)
 
   function run(action: () => Promise<void>) {
     setError(null)
@@ -101,6 +162,22 @@ export function StaffAccessPanel({
     })
   }
 
+  function resetCreateForm() {
+    const next = defaultValidRange()
+    setName('')
+    setProfileId('')
+    setPersonType('housekeeping')
+    setPolicyId(firstPolicyWithDoors(policies))
+    setValidFrom(next.validFrom)
+    setValidTo(next.validTo)
+    setFormError(null)
+  }
+
+  function openCreate() {
+    resetCreateForm()
+    setCreating(true)
+  }
+
   function onProfileChange(id: string) {
     setProfileId(id)
     if (!id) return
@@ -108,378 +185,89 @@ export function StaffAccessPanel({
     if (profile && !name.trim()) setName(profile.name)
   }
 
+  function queueEnroll(credentialId: string, displayName: string, capture: CaptureKind) {
+    setEnrollMenuId(null)
+    run(async () => {
+      const result = await startEnrollmentCapture({
+        hotelId,
+        credentialId,
+        capture,
+      })
+      if (!result.success) {
+        setError(result.error)
+        return
+      }
+      if (capture === 'card') setMessage(`Card enroll started for ${displayName}.`)
+      else if (capture === 'face') setMessage(`Face enroll started for ${displayName}.`)
+      else setMessage(`Fingerprint enroll started for ${displayName}.`)
+    })
+  }
+
+  function submitCreate() {
+    setFormError(null)
+    if (!name.trim()) {
+      setFormError('Name is required.')
+      return
+    }
+    if (!policyId) {
+      setFormError('Choose an access policy.')
+      return
+    }
+    if (selectedDoorCount === 0) {
+      setFormError('This policy has no door rights. Save policy door rights first, then try again.')
+      return
+    }
+    if (!datesOk) {
+      setFormError('Valid from must be on or before valid to.')
+      return
+    }
+    run(async () => {
+      const result = await createOrUpdateStaffAccess({
+        hotelId,
+        displayName: name,
+        personType,
+        accessPolicyId: policyId,
+        profileId: profileId || null,
+        validFrom,
+        validTo,
+      })
+      if (!result.success) {
+        setFormError(result.error)
+        return
+      }
+      setCreating(false)
+      resetCreateForm()
+      setMessage('Staff access queued for sync.')
+    })
+  }
+
   return (
     <div className="space-y-6">
+      {/* 1) Policy door rights first */}
       <div className="surface-card overflow-hidden">
         <div className="surface-card-accent" />
         <div className="surface-card-header">
           <div className="flex items-start gap-3">
-            <Users className="mt-0.5 h-6 w-6 shrink-0 text-primary" />
+            <Shield className="mt-0.5 h-6 w-6 shrink-0 text-primary" aria-hidden />
             <div>
-              <h3 className="text-lg font-semibold text-foreground">Staff physical access</h3>
+              <h3 className="text-lg font-semibold text-foreground">Policy door rights</h3>
               <p className="mt-0.5 text-sm text-muted-foreground">
-                Separate from PMS logins. Set policy door rights below first, then create and enroll.
-                Reception cannot see these records.
+                Which doors this staff group may open. Do this before adding people. Guests still get
+                room + shared + gym from physical door zones
+                {canCreateOwnerTypes ? ' (Setup).' : ' (owner Setup).'}
               </p>
             </div>
           </div>
-        </div>
-        <div className="surface-card-body space-y-4">
-          <form
-            className="grid gap-3 sm:grid-cols-2"
-            onSubmit={(e) => {
-              e.preventDefault()
-              if (selectedDoorCount === 0) {
-                setError('Assign policy door rights below before creating staff access.')
-                return
-              }
-              if (!datesOk) {
-                setError('Valid from must be on or before valid to.')
-                return
-              }
-              run(async () => {
-                const result = await createOrUpdateStaffAccess({
-                  hotelId,
-                  displayName: name,
-                  personType,
-                  accessPolicyId: policyId,
-                  profileId: profileId || null,
-                  validFrom,
-                  validTo,
-                })
-                if (!result.success) {
-                  setError(result.error)
-                  return
-                }
-                setName('')
-                setProfileId('')
-                setMessage('Staff access queued for sync.')
-              })
-            }}
-          >
-            {linkableProfiles.length > 0 ? (
-              <FormField label="Link PMS login (optional)" htmlFor="staff-access-profile">
-                <select
-                  id="staff-access-profile"
-                  className={APP_FIELD_CLASS}
-                  value={profileId}
-                  onChange={(e) => onProfileChange(e.target.value)}
-                >
-                  <option value="">No login link</option>
-                  {linkableProfiles.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} ({p.role})
-                    </option>
-                  ))}
-                </select>
-              </FormField>
-            ) : null}
-            <FormField label="Name" htmlFor="staff-access-name">
-              <input
-                id="staff-access-name"
-                className={APP_FIELD_CLASS}
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-              />
-            </FormField>
-            <FormField label="Staff type" htmlFor="staff-access-type">
-              <select
-                id="staff-access-type"
-                className={APP_FIELD_CLASS}
-                value={personType}
-                onChange={(e) => setPersonType(e.target.value as StaffPersonType)}
-              >
-                {typeOptions.map((t) => (
-                  <option key={t.value} value={t.value}>
-                    {t.label}
-                  </option>
-                ))}
-              </select>
-            </FormField>
-            <FormField label="Access policy" htmlFor="staff-access-policy">
-              <select
-                id="staff-access-policy"
-                className={APP_FIELD_CLASS}
-                value={policyId}
-                onChange={(e) => setPolicyId(e.target.value)}
-                required
-              >
-                {policies.map((p) => {
-                  const count = policyDoorCount(p)
-                  return (
-                    <option key={p.id} value={p.id}>
-                      {p.name} — {count} door{count === 1 ? '' : 's'}
-                      {!p.assignable_by_manager ? ' (owner)' : ''}
-                    </option>
-                  )
-                })}
-              </select>
-              {selectedDoorCount === 0 ? (
-                <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
-                  This policy has no door rights yet. Set them in Policy door rights below.
-                </p>
-              ) : null}
-            </FormField>
-            <FormField label="Valid from" htmlFor="staff-access-from">
-              <input
-                id="staff-access-from"
-                type="date"
-                className={APP_FIELD_CLASS}
-                value={validFrom}
-                onChange={(e) => setValidFrom(e.target.value)}
-                required
-              />
-            </FormField>
-            <FormField label="Valid to" htmlFor="staff-access-to">
-              <input
-                id="staff-access-to"
-                type="date"
-                className={APP_FIELD_CLASS}
-                value={validTo}
-                onChange={(e) => setValidTo(e.target.value)}
-                required
-              />
-            </FormField>
-            <div className="sm:col-span-2">
-              <button
-                type="submit"
-                className="app-btn app-btn-primary"
-                disabled={
-                  pending || !name.trim() || !policyId || selectedDoorCount === 0 || !datesOk
-                }
-              >
-                Create staff access
-              </button>
-            </div>
-          </form>
-
-          {staffCredentials.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No staff credentials yet.</p>
-          ) : (
-            <ul className="space-y-3">
-              {staffCredentials.map((c) => {
-                const inactive =
-                  c.staff_status === 'suspended' ||
-                  c.staff_status === 'terminated' ||
-                  c.staff_status === 'on_leave' ||
-                  c.status === 'revoked'
-                return (
-                  <li
-                    key={c.id}
-                    className="space-y-2 rounded-xl border border-border px-3 py-3"
-                  >
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-foreground">{c.display_name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {c.person_type} · {c.policy_name ?? 'no policy'} · {c.status} /{' '}
-                          {c.sync_status}
-                          {c.staff_status ? ` · ${c.staff_status}` : ''}
-                          {c.card_no ? ` · card ${c.card_no}` : ''}
-                          {c.has_face ? ' · face' : ''}
-                          {c.has_fingerprint ? ' · fingerprint' : ''}
-                        </p>
-                        {c.last_error ? (
-                          <p className="mt-1 text-xs text-destructive">{c.last_error}</p>
-                        ) : null}
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {inactive ? (
-                          <button
-                            type="button"
-                            className="app-btn app-btn-primary text-xs"
-                            disabled={pending}
-                            onClick={() =>
-                              run(async () => {
-                                const result = await updateStaffAccessStatusAction({
-                                  hotelId,
-                                  credentialId: c.id,
-                                  staffStatus: 'active',
-                                })
-                                if (!result.success) setError(result.error)
-                                else setMessage(`Reactivated ${c.display_name} — sync queued.`)
-                              })
-                            }
-                          >
-                            Resume
-                          </button>
-                        ) : (
-                          <>
-                            <button
-                              type="button"
-                              className="app-btn app-btn-secondary text-xs"
-                              disabled={pending}
-                              onClick={() =>
-                                run(async () => {
-                                  const result = await updateStaffAccessStatusAction({
-                                    hotelId,
-                                    credentialId: c.id,
-                                    staffStatus: 'suspended',
-                                  })
-                                  if (!result.success) setError(result.error)
-                                  else setMessage(`Suspended ${c.display_name}.`)
-                                })
-                              }
-                            >
-                              Suspend
-                            </button>
-                            <button
-                              type="button"
-                              className="app-btn app-btn-ghost text-xs"
-                              disabled={pending}
-                              onClick={() =>
-                                run(async () => {
-                                  const result = await updateStaffAccessStatusAction({
-                                    hotelId,
-                                    credentialId: c.id,
-                                    staffStatus: 'terminated',
-                                  })
-                                  if (!result.success) setError(result.error)
-                                  else setMessage(`Terminated access for ${c.display_name}.`)
-                                })
-                              }
-                            >
-                              Terminate
-                            </button>
-                          </>
-                        )}
-                        <button
-                          type="button"
-                          className="app-btn app-btn-ghost text-xs"
-                          disabled={pending || inactive}
-                          onClick={() =>
-                            run(async () => {
-                              const result = await retryAccessCredential(hotelId, c.id)
-                              if (!result.success) setError(result.error)
-                              else setMessage(`Re-provision queued for ${c.display_name}.`)
-                            })
-                          }
-                        >
-                          Retry sync
-                        </button>
-                      </div>
-                    </div>
-
-                    {!inactive ? (
-                      <div className="flex flex-wrap items-center gap-2 border-t border-border pt-2">
-                        <button
-                          type="button"
-                          className="app-btn app-btn-secondary text-xs"
-                          disabled={pending || !hasEnrollmentStation}
-                          title={
-                            hasEnrollmentStation
-                              ? undefined
-                              : canCreateOwnerTypes
-                                ? 'Save an enrollment station under Setup first'
-                                : 'Ask the owner to save an enrollment station under Setup'
-                          }
-                          onClick={() =>
-                            run(async () => {
-                              const result = await startEnrollmentCapture({
-                                hotelId,
-                                credentialId: c.id,
-                                capture: 'card',
-                              })
-                              if (!result.success) setError(result.error)
-                              else setMessage(`Card enroll started for ${c.display_name}.`)
-                            })
-                          }
-                        >
-                          Enroll card{c.card_no ? ' ✓' : ''}
-                        </button>
-                        <button
-                          type="button"
-                          className="app-btn app-btn-secondary text-xs"
-                          disabled={pending || !hasEnrollmentStation}
-                          onClick={() =>
-                            run(async () => {
-                              const result = await startEnrollmentCapture({
-                                hotelId,
-                                credentialId: c.id,
-                                capture: 'face',
-                              })
-                              if (!result.success) setError(result.error)
-                              else setMessage(`Face enroll started for ${c.display_name}.`)
-                            })
-                          }
-                        >
-                          Enroll face{c.has_face ? ' ✓' : ''}
-                        </button>
-                        <button
-                          type="button"
-                          className="app-btn app-btn-secondary text-xs"
-                          disabled={pending || !hasEnrollmentStation}
-                          onClick={() =>
-                            run(async () => {
-                              const result = await startEnrollmentCapture({
-                                hotelId,
-                                credentialId: c.id,
-                                capture: 'fingerprint',
-                              })
-                              if (!result.success) setError(result.error)
-                              else setMessage(`Fingerprint enroll started for ${c.display_name}.`)
-                            })
-                          }
-                        >
-                          Enroll fingerprint{c.has_fingerprint ? ' ✓' : ''}
-                        </button>
-                        <input
-                          className={`${APP_FIELD_CLASS} h-8 w-36 text-xs`}
-                          placeholder="Card number"
-                          value={cardDrafts[c.id] ?? ''}
-                          onChange={(e) =>
-                            setCardDrafts((prev) => ({ ...prev, [c.id]: e.target.value }))
-                          }
-                        />
-                        <button
-                          type="button"
-                          className="app-btn app-btn-ghost text-xs"
-                          disabled={pending || !(cardDrafts[c.id] ?? '').trim()}
-                          onClick={() =>
-                            run(async () => {
-                              const result = await assignAccessCard({
-                                hotelId,
-                                credentialId: c.id,
-                                cardNo: (cardDrafts[c.id] ?? '').trim(),
-                              })
-                              if (!result.success) setError(result.error)
-                              else {
-                                setCardDrafts((prev) => ({ ...prev, [c.id]: '' }))
-                                setMessage(`Card assigned for ${c.display_name}.`)
-                              }
-                            })
-                          }
-                        >
-                          Assign card
-                        </button>
-                      </div>
-                    ) : null}
-                  </li>
-                )
-              })}
-            </ul>
-          )}
-        </div>
-      </div>
-
-      <div className="surface-card overflow-hidden">
-        <div className="surface-card-header">
-          <h3 className="text-lg font-semibold text-foreground">Policy door rights</h3>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            Which physical doors each staff policy may open. Guests still get room + shared + gym
-            from physical door zones (Owner → Setup).
-          </p>
         </div>
         <div className="surface-card-body space-y-3">
           {activePoints.length === 0 ? (
             <p className="text-sm text-amber-800 dark:text-amber-300">
               {canCreateOwnerTypes
-                ? 'No physical doors yet. Open Setup → Physical doors, then return here to assign policy door rights.'
-                : 'No physical doors yet. The owner must finish Setup (physical doors) before staff policies can be mapped.'}
+                ? 'No physical doors yet. Open Setup → Physical doors, then return here.'
+                : 'No physical doors yet. The owner must finish Setup before staff policies can be mapped.'}
             </p>
           ) : null}
-          <FormField label="Policy" htmlFor="policy-edit">
+          <FormField label="Staff group (policy)" htmlFor="policy-edit">
             <select
               id="policy-edit"
               className={APP_FIELD_CLASS}
@@ -492,7 +280,9 @@ export function StaffAccessPanel({
             >
               {policies.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.name} ({(p.point_ids ?? []).length} doors)
+                  {p.name} — {(p.point_ids ?? []).length} door
+                  {(p.point_ids ?? []).length === 1 ? '' : 's'}
+                  {!p.assignable_by_manager ? ' (owner-only assign)' : ''}
                 </option>
               ))}
             </select>
@@ -528,7 +318,7 @@ export function StaffAccessPanel({
           <button
             type="button"
             className="app-btn app-btn-primary"
-            disabled={pending || !editingPolicyId}
+            disabled={pending || !editingPolicyId || activePoints.length === 0}
             onClick={() =>
               run(async () => {
                 const result = await setAccessPolicyPoints({
@@ -537,7 +327,7 @@ export function StaffAccessPanel({
                   accessPointIds: selectedPoints,
                 })
                 if (!result.success) setError(result.error)
-                else setMessage('Policy doors saved.')
+                else setMessage('Policy door rights saved.')
               })
             }
           >
@@ -546,8 +336,434 @@ export function StaffAccessPanel({
         </div>
       </div>
 
-      {error && <p className="text-sm text-destructive">{error}</p>}
-      {message && <p className="text-sm text-emerald-700 dark:text-emerald-400">{message}</p>}
+      {/* 2) Staff people */}
+      <div className="surface-card overflow-hidden">
+        <div className="surface-card-header">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <Users className="mt-0.5 h-6 w-6 shrink-0 text-primary" />
+              <div>
+                <h3 className="text-lg font-semibold text-foreground">Staff badges</h3>
+                <p className="mt-0.5 text-sm text-muted-foreground">
+                  Physical access only — separate from PMS logins. Reception cannot see these.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="app-btn app-btn-primary h-11 shrink-0"
+              disabled={pending || !anyPolicyHasDoors}
+              title={
+                anyPolicyHasDoors
+                  ? undefined
+                  : 'Save policy door rights above before adding staff'
+              }
+              onClick={openCreate}
+            >
+              Add staff
+            </button>
+          </div>
+        </div>
+        <div className="surface-card-body space-y-3">
+          {!anyPolicyHasDoors ? (
+            <p className="text-sm text-amber-800 dark:text-amber-300">
+              Save policy door rights above before creating staff access.
+            </p>
+          ) : null}
+
+          {staffCredentials.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No staff badges yet. Add someone after their policy has doors.
+            </p>
+          ) : (
+            <ul className="divide-y divide-border rounded-xl border border-border">
+              {staffCredentials.map((c) => {
+                const inactive =
+                  c.staff_status === 'suspended' ||
+                  c.staff_status === 'terminated' ||
+                  c.staff_status === 'on_leave' ||
+                  c.status === 'revoked'
+                const chip = staffSyncChip(c)
+                const needsRetry = c.sync_status === 'failed' || c.status === 'error'
+                return (
+                  <li
+                    key={c.id}
+                    className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-medium text-foreground">{c.display_name}</p>
+                        <span
+                          className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${chip.className}`}
+                        >
+                          {chip.label}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {c.person_type?.replace(/_/g, ' ')} · {c.policy_name ?? 'no policy'}
+                        {c.card_no ? ` · Card ${c.card_no}` : ''}
+                        {c.has_face ? ' · Face' : ''}
+                        {c.has_fingerprint ? ' · Fingerprint' : ''}
+                      </p>
+                      {c.last_error ? (
+                        <p className="mt-1 text-xs text-destructive">{c.last_error}</p>
+                      ) : null}
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2" data-staff-access-menu>
+                      {!inactive ? (
+                        <div className="relative">
+                          <button
+                            type="button"
+                            className="app-btn app-btn-primary h-11 min-w-[7.5rem] text-sm"
+                            disabled={pending || !hasEnrollmentStation}
+                            title={
+                              hasEnrollmentStation
+                                ? 'Enroll at the station'
+                                : canCreateOwnerTypes
+                                  ? 'Save an enrollment station under Setup first'
+                                  : 'Ask the owner to save an enrollment station under Setup'
+                            }
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setMoreMenuId(null)
+                              setEnrollMenuId((id) => (id === c.id ? null : c.id))
+                            }}
+                          >
+                            Enroll
+                            <ChevronDown className="ml-1 inline h-4 w-4" aria-hidden />
+                          </button>
+                          {enrollMenuId === c.id ? (
+                            <div className="absolute right-0 z-20 mt-1 min-w-[11rem] rounded-xl border border-border bg-card p-1 shadow-lg">
+                              {(
+                                [
+                                  ['card', `Card${c.card_no ? ' ✓' : ''}`],
+                                  ['face', `Face${c.has_face ? ' ✓' : ''}`],
+                                  [
+                                    'fingerprint',
+                                    `Fingerprint${c.has_fingerprint ? ' ✓' : ''}`,
+                                  ],
+                                ] as const
+                              ).map(([kind, label]) => (
+                                <button
+                                  key={kind}
+                                  type="button"
+                                  className="flex min-h-11 w-full items-center rounded-lg px-3 text-left text-sm hover:bg-muted/60"
+                                  disabled={pending || !hasEnrollmentStation}
+                                  onClick={() => queueEnroll(c.id, c.display_name, kind)}
+                                >
+                                  {label}
+                                </button>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          className="app-btn app-btn-primary h-11 text-sm"
+                          disabled={pending}
+                          onClick={() =>
+                            run(async () => {
+                              const result = await updateStaffAccessStatusAction({
+                                hotelId,
+                                credentialId: c.id,
+                                staffStatus: 'active',
+                              })
+                              if (!result.success) setError(result.error)
+                              else setMessage(`Reactivated ${c.display_name} — sync queued.`)
+                            })
+                          }
+                        >
+                          Resume
+                        </button>
+                      )}
+
+                      <div className="relative">
+                        <button
+                          type="button"
+                          className="app-btn app-btn-ghost h-11 w-11 px-0"
+                          aria-label={`More actions for ${c.display_name}`}
+                          disabled={pending}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setEnrollMenuId(null)
+                            setMoreMenuId((id) => (id === c.id ? null : c.id))
+                          }}
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                        </button>
+                        {moreMenuId === c.id ? (
+                          <div className="absolute right-0 z-20 mt-1 w-64 space-y-2 rounded-xl border border-border bg-card p-3 shadow-lg">
+                            {!inactive ? (
+                              <>
+                                <div className="flex gap-2">
+                                  <input
+                                    className="app-field h-9 flex-1 text-xs"
+                                    placeholder={c.card_no ?? 'Card number'}
+                                    value={cardDrafts[c.id] ?? ''}
+                                    onChange={(e) =>
+                                      setCardDrafts((prev) => ({
+                                        ...prev,
+                                        [c.id]: e.target.value,
+                                      }))
+                                    }
+                                  />
+                                  <button
+                                    type="button"
+                                    className="app-btn app-btn-secondary h-9 text-xs"
+                                    disabled={pending || !(cardDrafts[c.id] ?? '').trim()}
+                                    onClick={() => {
+                                      setMoreMenuId(null)
+                                      run(async () => {
+                                        const result = await assignAccessCard({
+                                          hotelId,
+                                          credentialId: c.id,
+                                          cardNo: (cardDrafts[c.id] ?? '').trim(),
+                                        })
+                                        if (!result.success) setError(result.error)
+                                        else {
+                                          setCardDrafts((prev) => ({ ...prev, [c.id]: '' }))
+                                          setMessage(`Card assigned for ${c.display_name}.`)
+                                        }
+                                      })
+                                    }}
+                                  >
+                                    Assign
+                                  </button>
+                                </div>
+                                {needsRetry ? (
+                                  <button
+                                    type="button"
+                                    className="app-btn app-btn-secondary h-9 w-full text-xs"
+                                    disabled={pending}
+                                    onClick={() => {
+                                      setMoreMenuId(null)
+                                      run(async () => {
+                                        const result = await retryAccessCredential(hotelId, c.id)
+                                        if (!result.success) setError(result.error)
+                                        else
+                                          setMessage(`Re-provision queued for ${c.display_name}.`)
+                                      })
+                                    }}
+                                  >
+                                    Retry sync
+                                  </button>
+                                ) : null}
+                                <button
+                                  type="button"
+                                  className="app-btn app-btn-secondary h-9 w-full text-xs"
+                                  disabled={pending}
+                                  onClick={() => {
+                                    setMoreMenuId(null)
+                                    run(async () => {
+                                      const result = await updateStaffAccessStatusAction({
+                                        hotelId,
+                                        credentialId: c.id,
+                                        staffStatus: 'suspended',
+                                      })
+                                      if (!result.success) setError(result.error)
+                                      else setMessage(`Suspended ${c.display_name}.`)
+                                    })
+                                  }}
+                                >
+                                  Suspend
+                                </button>
+                                <button
+                                  type="button"
+                                  className="app-btn app-btn-ghost h-9 w-full text-xs text-destructive"
+                                  disabled={pending}
+                                  onClick={() => {
+                                    setMoreMenuId(null)
+                                    run(async () => {
+                                      const result = await updateStaffAccessStatusAction({
+                                        hotelId,
+                                        credentialId: c.id,
+                                        staffStatus: 'terminated',
+                                      })
+                                      if (!result.success) setError(result.error)
+                                      else
+                                        setMessage(`Terminated access for ${c.display_name}.`)
+                                    })
+                                  }}
+                                >
+                                  Terminate
+                                </button>
+                              </>
+                            ) : needsRetry ? (
+                              <button
+                                type="button"
+                                className="app-btn app-btn-secondary h-9 w-full text-xs"
+                                disabled={pending}
+                                onClick={() => {
+                                  setMoreMenuId(null)
+                                  run(async () => {
+                                    const result = await retryAccessCredential(hotelId, c.id)
+                                    if (!result.success) setError(result.error)
+                                    else setMessage(`Re-provision queued for ${c.display_name}.`)
+                                  })
+                                }}
+                              >
+                                Retry sync
+                              </button>
+                            ) : (
+                              <p className="text-xs text-muted-foreground">
+                                Use Resume to restore access.
+                              </p>
+                            )}
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </div>
+      </div>
+
+      {creating ? (
+        <CenteredModal
+          open
+          onClose={() => {
+            setCreating(false)
+            setFormError(null)
+          }}
+          className="max-w-lg"
+          aria-label="Add staff access"
+        >
+          <ModalHeader
+            onClose={() => {
+              setCreating(false)
+              setFormError(null)
+            }}
+          >
+            <h3 className="text-lg font-semibold text-foreground">Add staff access</h3>
+          </ModalHeader>
+          <ModalBody className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Choose a policy that already has door rights. Enroll at the station after creating.
+            </p>
+            {linkableProfiles.length > 0 ? (
+              <FormField label="Link PMS login (optional)" htmlFor="staff-access-profile">
+                <select
+                  id="staff-access-profile"
+                  className={APP_FIELD_CLASS}
+                  value={profileId}
+                  onChange={(e) => onProfileChange(e.target.value)}
+                >
+                  <option value="">No login link</option>
+                  {linkableProfiles.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} ({p.role})
+                    </option>
+                  ))}
+                </select>
+              </FormField>
+            ) : null}
+            <FormField label="Name" htmlFor="staff-access-name">
+              <input
+                id="staff-access-name"
+                className={APP_FIELD_CLASS}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                autoFocus
+              />
+            </FormField>
+            <FormField label="Staff type" htmlFor="staff-access-type">
+              <select
+                id="staff-access-type"
+                className={APP_FIELD_CLASS}
+                value={personType}
+                onChange={(e) => setPersonType(e.target.value as StaffPersonType)}
+              >
+                {typeOptions.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+            </FormField>
+            <FormField label="Access policy" htmlFor="staff-access-policy">
+              <select
+                id="staff-access-policy"
+                className={APP_FIELD_CLASS}
+                value={policyId}
+                onChange={(e) => setPolicyId(e.target.value)}
+                required
+              >
+                {policies.map((p) => {
+                  const count = policyDoorCount(p)
+                  return (
+                    <option key={p.id} value={p.id} disabled={count === 0}>
+                      {p.name} — {count} door{count === 1 ? '' : 's'}
+                      {count === 0 ? ' (no doors yet)' : ''}
+                      {!p.assignable_by_manager ? ' (owner)' : ''}
+                    </option>
+                  )
+                })}
+              </select>
+              {selectedDoorCount === 0 ? (
+                <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
+                  This policy has no door rights. Close this and save doors under Policy door rights.
+                </p>
+              ) : null}
+            </FormField>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <FormField label="Valid from" htmlFor="staff-access-from">
+                <input
+                  id="staff-access-from"
+                  type="date"
+                  className={APP_FIELD_CLASS}
+                  value={validFrom}
+                  onChange={(e) => setValidFrom(e.target.value)}
+                  required
+                />
+              </FormField>
+              <FormField label="Valid to" htmlFor="staff-access-to">
+                <input
+                  id="staff-access-to"
+                  type="date"
+                  className={APP_FIELD_CLASS}
+                  value={validTo}
+                  onChange={(e) => setValidTo(e.target.value)}
+                  required
+                />
+              </FormField>
+            </div>
+            {!datesOk ? (
+              <p className="text-xs text-destructive">Valid from must be on or before valid to.</p>
+            ) : null}
+            {formError ? <p className="text-sm text-destructive">{formError}</p> : null}
+          </ModalBody>
+          <ModalFooter>
+            <button
+              type="button"
+              className="app-btn app-btn-ghost"
+              onClick={() => {
+                setCreating(false)
+                setFormError(null)
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="app-btn app-btn-primary"
+              disabled={
+                pending || !name.trim() || !policyId || selectedDoorCount === 0 || !datesOk
+              }
+              onClick={submitCreate}
+            >
+              Create & sync
+            </button>
+          </ModalFooter>
+        </CenteredModal>
+      ) : null}
+
+      <AccessFeedback error={error} message={message} />
     </div>
   )
 }

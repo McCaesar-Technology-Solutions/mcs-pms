@@ -228,6 +228,7 @@ export type Database = {
           floor: number | null
           category_id: string | null
           nightly_rate: number | null
+          weekly_rate: number | null
           monthly_rate: number | null
           status:
             | 'available'
@@ -247,6 +248,7 @@ export type Database = {
           floor?: number | null
           category_id?: string | null
           nightly_rate?: number | null
+          weekly_rate?: number | null
           monthly_rate?: number | null
           status?:
             | 'available'
@@ -266,6 +268,7 @@ export type Database = {
           floor?: number | null
           category_id?: string | null
           nightly_rate?: number | null
+          weekly_rate?: number | null
           monthly_rate?: number | null
           status?:
             | 'available'
@@ -301,6 +304,7 @@ export type Database = {
           hotel_id: string
           name: string
           default_nightly_rate: number
+          default_weekly_rate: number | null
           default_monthly_rate: number | null
           created_at: string | null
         }
@@ -309,6 +313,7 @@ export type Database = {
           hotel_id: string
           name: string
           default_nightly_rate?: number
+          default_weekly_rate?: number | null
           default_monthly_rate?: number | null
           created_at?: string | null
         }
@@ -317,6 +322,7 @@ export type Database = {
           hotel_id?: string
           name?: string
           default_nightly_rate?: number
+          default_weekly_rate?: number | null
           default_monthly_rate?: number | null
           created_at?: string | null
         }
@@ -670,8 +676,9 @@ export type Database = {
             | 'walkout'
             | null
           channel: 'airbnb' | 'booking_com' | 'direct' | 'walk_in' | 'other' | null
-          rate_type: 'nightly' | 'monthly' | null
+          rate_type: 'nightly' | 'weekly' | 'monthly' | null
           nightly_rate: number | null
+          weekly_rate: number | null
           monthly_rate: number | null
           total_amount: number | null
           payment_status:
@@ -730,8 +737,9 @@ export type Database = {
             | 'walkout'
             | null
           channel?: 'airbnb' | 'booking_com' | 'direct' | 'walk_in' | 'other' | null
-          rate_type?: 'nightly' | 'monthly' | null
+          rate_type?: 'nightly' | 'weekly' | 'monthly' | null
           nightly_rate?: number | null
+          weekly_rate?: number | null
           monthly_rate?: number | null
           total_amount?: number | null
           payment_status?:
@@ -790,8 +798,9 @@ export type Database = {
             | 'walkout'
             | null
           channel?: 'airbnb' | 'booking_com' | 'direct' | 'walk_in' | 'other' | null
-          rate_type?: 'nightly' | 'monthly' | null
+          rate_type?: 'nightly' | 'weekly' | 'monthly' | null
           nightly_rate?: number | null
+          weekly_rate?: number | null
           monthly_rate?: number | null
           total_amount?: number | null
           payment_status?:

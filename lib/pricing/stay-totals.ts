@@ -1,22 +1,39 @@
 import { stayNights } from '@/lib/stays/helpers'
 
-export type RateType = 'nightly' | 'monthly'
+export type RateType = 'nightly' | 'weekly' | 'monthly'
 
+const DAYS_PER_WEEK = 7
 const DAYS_PER_MONTH = 30
 
-/** Stay total — monthly rates prorate daily (rate ÷ 30 × nights). */
+/** Stay total — weekly/monthly rates prorate daily (rate ÷ 7 or ÷ 30 × nights). */
 export function calculateStayTotal(
   rateType: RateType,
   checkIn: string,
   checkOut: string,
   nightlyRate: number,
   monthlyRate: number,
+  weeklyRate = 0,
 ): number {
   const nights = stayNights(checkIn, checkOut)
   if (rateType === 'monthly') {
     return roundMoney((monthlyRate / DAYS_PER_MONTH) * nights)
   }
+  if (rateType === 'weekly') {
+    return roundMoney((weeklyRate / DAYS_PER_WEEK) * nights)
+  }
   return roundMoney(nightlyRate * nights)
+}
+
+/** Daily equivalent used for one-night fees (no-show / overstay). */
+export function dailyRateForType(
+  rateType: RateType,
+  nightlyRate: number,
+  monthlyRate: number,
+  weeklyRate = 0,
+): number {
+  if (rateType === 'monthly') return roundMoney(monthlyRate / DAYS_PER_MONTH)
+  if (rateType === 'weekly') return roundMoney(weeklyRate / DAYS_PER_WEEK)
+  return roundMoney(nightlyRate)
 }
 
 export function roundMoney(amount: number): number {
@@ -24,5 +41,7 @@ export function roundMoney(amount: number): number {
 }
 
 export function rateTypeLabel(rateType: RateType): string {
-  return rateType === 'monthly' ? 'Monthly (prorated)' : 'Nightly'
+  if (rateType === 'monthly') return 'Monthly (prorated)'
+  if (rateType === 'weekly') return 'Weekly (prorated)'
+  return 'Nightly'
 }

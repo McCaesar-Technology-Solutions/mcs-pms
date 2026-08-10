@@ -1,5 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { calculateStayTotal, type RateType } from '@/lib/pricing/stay-totals'
+import {
+  calculateStayTotal,
+  dailyRateForType,
+  type RateType,
+} from '@/lib/pricing/stay-totals'
 import { derivePreCheckoutPaymentStatus } from '@/lib/billing/reservation-payment'
 import type { NoShowChargePolicy } from '@/types'
 
@@ -15,6 +19,7 @@ export interface ChargeableReservation {
   check_out: string
   room_id: string | null
   nightly_rate?: number | null
+  weekly_rate?: number | null
   monthly_rate?: number | null
   rate_type?: string | null
   total_amount?: number | null
@@ -29,14 +34,14 @@ export function calculateNoShowChargeAmount(
   policy: NoShowChargePolicy,
   nightlyRate: number,
   monthlyRate: number,
+  weeklyRate = 0,
 ): number {
   if (policy === 'none') return 0
 
   const rateType = (reservation.rate_type ?? 'nightly') as RateType
 
   if (policy === 'one_night') {
-    if (rateType === 'monthly') return round2(monthlyRate / 30)
-    return round2(nightlyRate)
+    return dailyRateForType(rateType, nightlyRate, monthlyRate, weeklyRate)
   }
 
   const bookedTotal = Number(reservation.total_amount ?? 0)
@@ -48,6 +53,7 @@ export function calculateNoShowChargeAmount(
     reservation.check_out,
     nightlyRate,
     monthlyRate,
+    weeklyRate,
   )
 }
 
@@ -56,10 +62,10 @@ export function calculateOverstayChargeAmount(
   reservation: ChargeableReservation,
   nightlyRate: number,
   monthlyRate: number,
+  weeklyRate = 0,
 ): number {
   const rateType = (reservation.rate_type ?? 'nightly') as RateType
-  if (rateType === 'monthly') return round2(monthlyRate / 30)
-  return round2(nightlyRate)
+  return dailyRateForType(rateType, nightlyRate, monthlyRate, weeklyRate)
 }
 
 export async function hasLifecycleChargeEvent(
@@ -80,27 +86,33 @@ export async function hasLifecycleChargeEvent(
 async function resolveRoomRates(
   admin: SupabaseClient,
   reservation: ChargeableReservation,
-): Promise<{ nightlyRate: number; monthlyRate: number }> {
+): Promise<{ nightlyRate: number; weeklyRate: number; monthlyRate: number }> {
   let nightlyRate = Number(reservation.nightly_rate ?? 0)
+  let weeklyRate = Number(reservation.weekly_rate ?? 0)
   let monthlyRate = Number(reservation.monthly_rate ?? 0)
 
   if (reservation.room_id && nightlyRate <= 0) {
     const { data } = await admin
       .from('rooms')
-      .select('nightly_rate, room_categories(default_nightly_rate, default_monthly_rate)')
+      .select(
+        'nightly_rate, weekly_rate, room_categories(default_nightly_rate, default_weekly_rate, default_monthly_rate)',
+      )
       .eq('id', reservation.room_id)
       .maybeSingle()
 
     if (data?.nightly_rate != null) nightlyRate = Number(data.nightly_rate)
+    if (data?.weekly_rate != null && weeklyRate <= 0) weeklyRate = Number(data.weekly_rate)
     const cat = data?.room_categories as {
       default_nightly_rate?: number
+      default_weekly_rate?: number
       default_monthly_rate?: number
     } | null
     if (nightlyRate <= 0) nightlyRate = Number(cat?.default_nightly_rate ?? 0)
+    if (weeklyRate <= 0) weeklyRate = Number(cat?.default_weekly_rate ?? nightlyRate * 7)
     if (monthlyRate <= 0) monthlyRate = Number(cat?.default_monthly_rate ?? nightlyRate * 30)
   }
 
-  return { nightlyRate, monthlyRate }
+  return { nightlyRate, weeklyRate, monthlyRate }
 }
 
 export async function applyNoShowCharge(
@@ -113,8 +125,14 @@ export async function applyNoShowCharge(
     return { posted: false, amount: 0 }
   }
 
-  const { nightlyRate, monthlyRate } = await resolveRoomRates(admin, reservation)
-  const amount = calculateNoShowChargeAmount(reservation, policy, nightlyRate, monthlyRate)
+  const { nightlyRate, weeklyRate, monthlyRate } = await resolveRoomRates(admin, reservation)
+  const amount = calculateNoShowChargeAmount(
+    reservation,
+    policy,
+    nightlyRate,
+    monthlyRate,
+    weeklyRate,
+  )
   if (amount <= 0) return { posted: false, amount: 0 }
 
   if (reservation.guest_id) {
@@ -166,8 +184,13 @@ export async function applyOverstayCharge(
 
   if (!reservation.guest_id) return { posted: false, amount: 0 }
 
-  const { nightlyRate, monthlyRate } = await resolveRoomRates(admin, reservation)
-  const amount = calculateOverstayChargeAmount(reservation, nightlyRate, monthlyRate)
+  const { nightlyRate, weeklyRate, monthlyRate } = await resolveRoomRates(admin, reservation)
+  const amount = calculateOverstayChargeAmount(
+    reservation,
+    nightlyRate,
+    monthlyRate,
+    weeklyRate,
+  )
   if (amount <= 0) return { posted: false, amount: 0 }
 
   await admin.from('guest_charges').insert({

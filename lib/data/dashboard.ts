@@ -34,6 +34,7 @@ export interface RoomOption {
   id: string
   number: string
   nightlyRate: number
+  weeklyRate: number
   monthlyRate: number
 }
 
@@ -108,10 +109,11 @@ function mapReservation(row: ReservationRow, folioMap: Map<string, number>): Res
   const nights = nightsBetween(row.check_in, row.check_out)
   const rateType = (row.rate_type ?? 'nightly') as Reservation['rateType']
   const nightlyRate = Number(row.nightly_rate ?? 0)
+  const weeklyRate = Number(row.weekly_rate ?? 0)
   const monthlyRate = Number(row.monthly_rate ?? 0)
   const total =
     row.total_amount ??
-    calculateStayTotal(rateType, row.check_in, row.check_out, nightlyRate, monthlyRate)
+    calculateStayTotal(rateType, row.check_in, row.check_out, nightlyRate, monthlyRate, weeklyRate)
   const status = (row.status ?? 'confirmed') as Reservation['status']
   const paidAmount = Number(row.amount_paid ?? 0)
   const paymentStatus = (row.payment_status ?? 'unpaid') as ReservationPaymentStatus
@@ -151,6 +153,7 @@ function mapReservation(row: ReservationRow, folioMap: Map<string, number>): Res
     channel,
     rateType,
     nightlyRate,
+    weeklyRate,
     monthlyRate,
     createdAt: row.created_at ?? new Date().toISOString(),
     updatedAt: row.created_at ?? new Date().toISOString(),
@@ -286,7 +289,9 @@ export async function getDashboardData(): Promise<DashboardData> {
     const [roomsRes, reservationsRes, invoicesRes, occupancySpans, timeline] = await Promise.all([
       supabase
         .from('rooms')
-        .select('*, room_categories(name, default_nightly_rate, default_monthly_rate)')
+        .select(
+          '*, room_categories(name, default_nightly_rate, default_weekly_rate, default_monthly_rate)',
+        )
         .eq('hotel_id', hotelId)
         .order('number'),
       supabase
@@ -331,6 +336,10 @@ export async function getDashboardData(): Promise<DashboardData> {
           r.nightly_rate != null
             ? Number(r.nightly_rate)
             : Number(r.room_categories?.default_nightly_rate ?? 0),
+        weeklyRate:
+          r.weekly_rate != null
+            ? Number(r.weekly_rate)
+            : Number(r.room_categories?.default_weekly_rate ?? 0),
         monthlyRate:
           r.monthly_rate != null
             ? Number(r.monthly_rate)
@@ -375,7 +384,9 @@ export async function getStaffReservationsPageData(): Promise<StaffReservationsP
     const [roomsRes, reservationsRes, occupancySpans, timeline] = await Promise.all([
       supabase
         .from('rooms')
-        .select('*, room_categories(name, default_nightly_rate, default_monthly_rate)')
+        .select(
+          '*, room_categories(name, default_nightly_rate, default_weekly_rate, default_monthly_rate)',
+        )
         .eq('hotel_id', hotelId)
         .order('number'),
       supabase
@@ -406,6 +417,10 @@ export async function getStaffReservationsPageData(): Promise<StaffReservationsP
           r.nightly_rate != null
             ? Number(r.nightly_rate)
             : Number(r.room_categories?.default_nightly_rate ?? 0),
+        weeklyRate:
+          r.weekly_rate != null
+            ? Number(r.weekly_rate)
+            : Number(r.room_categories?.default_weekly_rate ?? 0),
         monthlyRate:
           r.monthly_rate != null
             ? Number(r.monthly_rate)

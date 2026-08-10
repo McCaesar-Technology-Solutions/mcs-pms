@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { KeyRound, Copy, Check, Circle, CircleCheck } from 'lucide-react'
+import { AccessFeedback } from '@/components/dashboard/access-feedback'
 import {
   setAccessControlEnabled,
   startAccessSetup,
@@ -233,10 +234,13 @@ export function AccessControlSettingsPanel({
       <div className="surface-card-body space-y-8">
         {!showEditor ? (
           <section className="space-y-3">
-            <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
-              {setupComplete
-                ? 'Setup healthy — guest check-in/out and unlocks can run normally.'
-                : 'Core setup healthy — daily ops can run. Recommended items below still open.'}
+            <p className="flex items-start gap-2 text-sm font-medium text-emerald-700 dark:text-emerald-400">
+              <CircleCheck className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+              <span>
+                {setupComplete
+                  ? 'Setup healthy — guest check-in/out and unlocks can run normally.'
+                  : 'Core setup healthy — daily ops can run. Recommended items below still open.'}
+              </span>
             </p>
             {recommendedPending.length > 0 ? (
               <ul className="space-y-1.5">
@@ -268,10 +272,7 @@ export function AccessControlSettingsPanel({
                 </button>
               </div>
             ) : null}
-            {error && <p className="text-sm text-destructive">{error}</p>}
-            {message && (
-              <p className="text-sm text-emerald-700 dark:text-emerald-400">{message}</p>
-            )}
+            <AccessFeedback error={error} message={message} />
           </section>
         ) : null}
 
@@ -924,8 +925,7 @@ export function AccessControlSettingsPanel({
           </div>
         ) : null}
 
-        {error && <p className="text-sm text-destructive">{error}</p>}
-        {message && <p className="text-sm text-emerald-700 dark:text-emerald-400">{message}</p>}
+        <AccessFeedback error={error} message={message} />
           </>
         ) : null}
       </div>

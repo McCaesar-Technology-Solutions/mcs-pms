@@ -71,6 +71,7 @@ describe('outstanding balance', () => {
       channel: 'walk_in',
       rateType: 'nightly',
       nightlyRate: 100,
+      weeklyRate: 0,
       monthlyRate: 0,
       createdAt: '',
       updatedAt: '',

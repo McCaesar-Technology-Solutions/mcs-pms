@@ -17,14 +17,23 @@ export const ACCESS_HASH_TO_TAB: Record<string, string> = {
   settings: 'setup',
 }
 
+export type AccessTabOptions = {
+  openJobBadge?: number
+  /** Owner: mute Setup tab when core setup is healthy. */
+  setupHealthy?: boolean
+}
+
 export function accessTabsForRole(
   role: 'owner' | 'manager' | 'receptionist',
-  openJobBadge?: number,
+  options: AccessTabOptions | number = {},
 ): PageTab[] {
+  const opts: AccessTabOptions =
+    typeof options === 'number' ? { openJobBadge: options } : options
+
   const today: PageTab = {
     id: 'today',
     label: 'Today',
-    badge: openJobBadge && openJobBadge > 0 ? openJobBadge : undefined,
+    badge: opts.openJobBadge && opts.openJobBadge > 0 ? opts.openJobBadge : undefined,
   }
   const guests: PageTab = { id: 'guests', label: 'Guests' }
 
@@ -39,5 +48,15 @@ export function accessTabsForRole(
     return [today, guests, staff, attendance]
   }
 
-  return [today, guests, staff, attendance, { id: 'setup', label: 'Setup' }]
+  return [
+    today,
+    guests,
+    staff,
+    attendance,
+    {
+      id: 'setup',
+      label: opts.setupHealthy ? 'Setup · OK' : 'Setup',
+      muted: Boolean(opts.setupHealthy),
+    },
+  ]
 }

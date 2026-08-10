@@ -29,6 +29,7 @@ function reservation(overrides: Partial<Reservation>): Reservation {
     channel: 'walk_in',
     rateType: 'nightly',
     nightlyRate: 100,
+    weeklyRate: 0,
     monthlyRate: 0,
     createdAt: '2026-05-01T00:00:00Z',
     updatedAt: '2026-05-01T00:00:00Z',

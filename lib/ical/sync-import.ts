@@ -191,6 +191,7 @@ async function createFromEvent(
     event.checkOut,
     rates.nightlyRate,
     rates.monthlyRate,
+    rates.weeklyRate,
   )
 
   const channel =
@@ -212,6 +213,7 @@ async function createFromEvent(
       channel,
       rate_type: 'nightly',
       nightly_rate: rates.nightlyRate,
+      weekly_rate: rates.weeklyRate,
       monthly_rate: rates.monthlyRate,
       total_amount: total,
       payment_status: 'unpaid',
@@ -316,6 +318,7 @@ async function updateFromEvent(
       checkOut,
       rates.nightlyRate,
       rates.monthlyRate,
+      rates.weeklyRate,
     )
 
     const { error } = await admin
@@ -325,6 +328,7 @@ async function updateFromEvent(
         check_in: checkIn,
         check_out: checkOut,
         nightly_rate: rates.nightlyRate,
+        weekly_rate: rates.weeklyRate,
         monthly_rate: rates.monthlyRate,
         total_amount: total,
       })

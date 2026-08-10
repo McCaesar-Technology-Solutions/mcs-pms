@@ -18,6 +18,7 @@ export interface ReservationRow {
   amount_paid: number | null
   total_amount: number | null
   nightly_rate?: number | null
+  weekly_rate?: number | null
   monthly_rate?: number | null
   rate_type?: string | null
   folio_locked?: boolean
