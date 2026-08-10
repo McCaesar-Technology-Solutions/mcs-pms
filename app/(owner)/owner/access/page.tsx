@@ -107,7 +107,7 @@ export default async function OwnerAccessPage() {
           .map((d) => d.device_key)}
         canManage
         agentDownloads={agentDownloads}
-        hasStaffPolicyDoors={policies.some((p) => p.point_ids.length > 0)}
+        hasStaffPolicyDoors={policies.some((p) => (p.point_ids?.length ?? 0) > 0)}
       />
 
       <StaffAccessPanel
