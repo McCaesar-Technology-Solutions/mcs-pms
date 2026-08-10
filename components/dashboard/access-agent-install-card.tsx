@@ -41,7 +41,7 @@ export function AccessAgentInstallCard({ links, compact = false }: Props) {
               <h3 className="text-lg font-semibold text-foreground">Install Access Agent</h3>
               <p className="mt-0.5 text-sm text-muted-foreground">
                 Desktop app for the apartment PC (same LAN as the doors). Version {version}.
-                After install, paste the config from Owner → Access → Start setup.
+                After install, paste the config from Owner → Access → Setup → Start setup.
               </p>
             </div>
           </div>

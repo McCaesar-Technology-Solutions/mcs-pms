@@ -28,7 +28,7 @@ Maps the Mojo Suites Hikvision SRS onto the existing stack:
 | 3 | D Staff ops completeness | Done |
 | 3b | E Door edit UX + gym remap | Done |
 | 4 | F Attendance ISAPI pull | Done |
-| 5 | G Hardening / docs / tests | Planned |
+| 5 | G Hardening / docs / tests | Partial (UX-1 wayfinding Done) |
 
 ## Source of truth
 

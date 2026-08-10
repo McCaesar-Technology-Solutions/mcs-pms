@@ -1,10 +1,11 @@
 import { redirect } from 'next/navigation'
 import { PageHeader } from '@/components/dashboard/page-header'
+import { PageTabShell } from '@/components/dashboard/page-tab-shell'
 import { AccessOpsPanel } from '@/components/dashboard/access-ops-panel'
-import { AccessAgentInstallCard } from '@/components/dashboard/access-agent-install-card'
+import { AccessStatusStrip } from '@/components/dashboard/access-status-strip'
 import { StaffAccessPanel } from '@/components/dashboard/staff-access-panel'
 import { AttendancePanel } from '@/components/dashboard/attendance-panel'
-import { getAccessAgentDownloadLinks } from '@/lib/access/agent-downloads'
+import { ACCESS_HASH_TO_TAB, accessTabsForRole } from '@/lib/access/access-page-tabs'
 import { getProfile } from '@/lib/auth/get-profile'
 import {
   getAccessCredentials,
@@ -17,6 +18,12 @@ import {
   getRecentAccessJobs,
   getStaffAccessCredentials,
 } from '@/lib/data/access-control'
+
+function openJobBadge(jobs: { status: string }[]) {
+  return jobs.filter(
+    (j) => j.status === 'pending' || j.status === 'claimed' || j.status === 'failed',
+  ).length
+}
 
 export default async function ManagerAccessPage() {
   const profile = await getProfile()
@@ -47,45 +54,87 @@ export default async function ManagerAccessPage() {
     getAccessLinkableProfiles(hotelId),
   ])
 
+  const summary =
+    integration ??
+    ({
+      hotelId,
+      enabled: false,
+      hotelFlagEnabled: false,
+      hasAgentToken: false,
+      agentTokenPrefix: null,
+      agentLastSeenAt: null,
+      agentVersion: null,
+      agentHostname: null,
+      agentOnline: false,
+      deviceCredentialMode: 'cloud' as const,
+    } as const)
+
+  const lastPullJob = jobs.find((j) => j.job_type === 'pull_attendance') ?? null
+
   return (
     <div className="page-shell page-content-stack">
       <PageHeader
         badge="Access"
         title="Access control"
-        description={
-          integration?.agentOnline
-            ? 'Agent online — unlock doors and manage guest + approved staff access.'
-            : 'Agent offline or not configured — unlock jobs will queue until it reconnects.'
-        }
+        description="Unlock doors and manage guest + approved staff access."
       />
 
-      <AccessAgentInstallCard links={getAccessAgentDownloadLinks()} />
-
-      <StaffAccessPanel
-        hotelId={hotelId}
-        policies={policies}
-        points={points}
-        staffCredentials={staffCredentials}
-        linkableProfiles={linkableProfiles}
-        hasEnrollmentStation={devices.some(
-          (d) => d.device_role === 'enrollment' && d.managed_in_cloud,
-        )}
-        canCreateOwnerTypes={false}
-      />
-
-      <AttendancePanel
-        hotelId={hotelId}
-        records={attendance}
-        lastPullJob={jobs.find((j) => j.job_type === 'pull_attendance') ?? null}
-      />
-
-      <AccessOpsPanel
-        hotelId={hotelId}
-        points={points}
-        credentials={credentials}
+      <AccessStatusStrip
+        integration={summary}
         jobs={jobs}
-        devices={devices}
+        lastPullJob={lastPullJob}
         viewerRole="manager"
+      />
+
+      <PageTabShell
+        stickyNav
+        defaultTab="today"
+        hashToTab={ACCESS_HASH_TO_TAB}
+        tabs={accessTabsForRole('manager', openJobBadge(jobs))}
+        panels={{
+          today: (
+            <AccessOpsPanel
+              hotelId={hotelId}
+              points={points}
+              credentials={credentials}
+              jobs={jobs}
+              devices={devices}
+              viewerRole="manager"
+              focus="today"
+            />
+          ),
+          guests: (
+            <AccessOpsPanel
+              hotelId={hotelId}
+              points={points}
+              credentials={credentials}
+              jobs={jobs}
+              devices={devices}
+              viewerRole="manager"
+              focus="guests"
+            />
+          ),
+          staff: (
+            <StaffAccessPanel
+              hotelId={hotelId}
+              policies={policies}
+              points={points}
+              staffCredentials={staffCredentials}
+              linkableProfiles={linkableProfiles}
+              hasEnrollmentStation={devices.some(
+                (d) => d.device_role === 'enrollment' && d.managed_in_cloud,
+              )}
+              canCreateOwnerTypes={false}
+            />
+          ),
+          attendance: (
+            <AttendancePanel
+              hotelId={hotelId}
+              records={attendance}
+              lastPullJob={lastPullJob}
+            />
+          ),
+        }}
       />
     </div>
   )

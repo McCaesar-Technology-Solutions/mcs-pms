@@ -1,10 +1,13 @@
 import { redirect } from 'next/navigation'
 import { PageHeader } from '@/components/dashboard/page-header'
+import { PageTabShell } from '@/components/dashboard/page-tab-shell'
 import { AccessControlSettingsPanel } from '@/components/dashboard/access-control-settings-panel'
 import { AccessOpsPanel } from '@/components/dashboard/access-ops-panel'
 import { AccessAgentInstallCard } from '@/components/dashboard/access-agent-install-card'
+import { AccessStatusStrip } from '@/components/dashboard/access-status-strip'
 import { StaffAccessPanel } from '@/components/dashboard/staff-access-panel'
 import { AttendancePanel } from '@/components/dashboard/attendance-panel'
+import { ACCESS_HASH_TO_TAB, accessTabsForRole } from '@/lib/access/access-page-tabs'
 import { getAccessAgentDownloadLinks } from '@/lib/access/agent-downloads'
 import { getProfile } from '@/lib/auth/get-profile'
 import { getActiveHotelSettings } from '@/lib/data/settings'
@@ -20,6 +23,12 @@ import {
   getStaffAccessCredentials,
 } from '@/lib/data/access-control'
 import { createAdminClient } from '@/lib/supabase/admin'
+
+function openJobBadge(jobs: { status: string }[]) {
+  return jobs.filter(
+    (j) => j.status === 'pending' || j.status === 'claimed' || j.status === 'failed',
+  ).length
+}
 
 export default async function OwnerAccessPage() {
   const profile = await getProfile()
@@ -84,57 +93,92 @@ export default async function OwnerAccessPage() {
     } as const)
 
   const agentDownloads = getAccessAgentDownloadLinks()
+  const lastPullJob = jobs.find((j) => j.job_type === 'pull_attendance') ?? null
+  const hasEnrollmentStation = devices.some(
+    (d) => d.device_role === 'enrollment' && d.managed_in_cloud,
+  )
 
   return (
     <div className="page-shell page-content-stack">
       <PageHeader
         badge="Access"
         title="Access control"
-        description="Hikvision door enrollment driven by check-in and checkout — no separate iVMS for guests."
+        description="Unlock doors, issue guest badges, manage staff access — setup stays under Setup."
       />
 
-      <AccessAgentInstallCard links={agentDownloads} />
-
-      <AccessControlSettingsPanel
-        hotelId={hotelId}
-        propertyName={hotelSettings.name}
+      <AccessStatusStrip
         integration={summary}
-        points={points}
-        rooms={(rooms ?? []).map((r) => ({ id: r.id, number: r.number }))}
-        devices={devices}
-        deviceKeys={devices
-          .filter((d) => d.device_role === 'door')
-          .map((d) => d.device_key)}
-        canManage
-        agentDownloads={agentDownloads}
-        hasStaffPolicyDoors={policies.some((p) => (p.point_ids?.length ?? 0) > 0)}
-      />
-
-      <StaffAccessPanel
-        hotelId={hotelId}
-        policies={policies}
-        points={points}
-        staffCredentials={staffCredentials}
-        linkableProfiles={linkableProfiles}
-        hasEnrollmentStation={devices.some(
-          (d) => d.device_role === 'enrollment' && d.managed_in_cloud,
-        )}
-        canCreateOwnerTypes
-      />
-
-      <AttendancePanel
-        hotelId={hotelId}
-        records={attendance}
-        lastPullJob={jobs.find((j) => j.job_type === 'pull_attendance') ?? null}
-      />
-
-      <AccessOpsPanel
-        hotelId={hotelId}
-        points={points}
-        credentials={credentials}
         jobs={jobs}
-        devices={devices}
+        lastPullJob={lastPullJob}
         viewerRole="owner"
+      />
+
+      <PageTabShell
+        stickyNav
+        defaultTab="today"
+        hashToTab={ACCESS_HASH_TO_TAB}
+        tabs={accessTabsForRole('owner', openJobBadge(jobs))}
+        panels={{
+          today: (
+            <AccessOpsPanel
+              hotelId={hotelId}
+              points={points}
+              credentials={credentials}
+              jobs={jobs}
+              devices={devices}
+              viewerRole="owner"
+              focus="today"
+            />
+          ),
+          guests: (
+            <AccessOpsPanel
+              hotelId={hotelId}
+              points={points}
+              credentials={credentials}
+              jobs={jobs}
+              devices={devices}
+              viewerRole="owner"
+              focus="guests"
+            />
+          ),
+          staff: (
+            <StaffAccessPanel
+              hotelId={hotelId}
+              policies={policies}
+              points={points}
+              staffCredentials={staffCredentials}
+              linkableProfiles={linkableProfiles}
+              hasEnrollmentStation={hasEnrollmentStation}
+              canCreateOwnerTypes
+            />
+          ),
+          attendance: (
+            <AttendancePanel
+              hotelId={hotelId}
+              records={attendance}
+              lastPullJob={lastPullJob}
+            />
+          ),
+          setup: (
+            <>
+              <AccessControlSettingsPanel
+                hotelId={hotelId}
+                propertyName={hotelSettings.name}
+                integration={summary}
+                points={points}
+                rooms={(rooms ?? []).map((r) => ({ id: r.id, number: r.number }))}
+                devices={devices}
+                deviceKeys={devices
+                  .filter((d) => d.device_role === 'door')
+                  .map((d) => d.device_key)}
+                canManage
+                agentDownloads={agentDownloads}
+                hasStaffPolicyDoors={policies.some((p) => (p.point_ids?.length ?? 0) > 0)}
+              />
+              <AccessAgentInstallCard links={agentDownloads} />
+            </>
+          ),
+        }}
       />
     </div>
   )

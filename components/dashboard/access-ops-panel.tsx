@@ -27,6 +27,12 @@ interface AccessOpsPanelProps {
   devices?: AccessDeviceRow[]
   /** When receptionist, unlock list is limited to guest-facing zones. */
   viewerRole?: 'owner' | 'manager' | 'receptionist'
+  /**
+   * today = unlock + recent jobs (default daily ops)
+   * guests = guest credential enroll only
+   * all = legacy full stack
+   */
+  focus?: 'today' | 'guests' | 'all'
 }
 
 export function AccessOpsPanel({
@@ -36,6 +42,7 @@ export function AccessOpsPanel({
   jobs,
   devices = [],
   viewerRole = 'manager',
+  focus = 'all',
 }: AccessOpsPanelProps) {
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
@@ -50,6 +57,8 @@ export function AccessOpsPanel({
   )
   const guestCredentials = credentials.filter((c) => (c.person_type ?? 'tenant') === 'tenant')
   const canBulkManageJobs = viewerRole !== 'receptionist'
+  const showToday = focus === 'today' || focus === 'all'
+  const showGuests = focus === 'guests' || focus === 'all'
 
   function run(action: () => Promise<void>) {
     setError(null)
@@ -65,6 +74,7 @@ export function AccessOpsPanel({
 
   return (
     <div className="space-y-6">
+      {showToday ? (
       <div className="surface-card overflow-hidden">
         <div className="surface-card-accent" />
         <div className="surface-card-header">
@@ -112,7 +122,9 @@ export function AccessOpsPanel({
           )}
         </div>
       </div>
+      ) : null}
 
+      {showGuests ? (
       <div className="surface-card overflow-hidden">
         <div className="surface-card-header">
           <h3 className="text-lg font-semibold text-foreground">Guest credentials</h3>
@@ -125,7 +137,7 @@ export function AccessOpsPanel({
                 {enrollmentStation.is_online ? ' (online)' : ''}.
               </>
             ) : (
-              <> No enrollment station saved yet (Owner → Access).</>
+              <> No enrollment station saved yet (Owner → Access → Setup).</>
             )}
           </p>
         </div>
@@ -295,7 +307,9 @@ export function AccessOpsPanel({
           )}
         </div>
       </div>
+      ) : null}
 
+      {showToday ? (
       <div className="surface-card overflow-hidden">
         <div className="surface-card-header flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -406,6 +420,7 @@ export function AccessOpsPanel({
           )}
         </div>
       </div>
+      ) : null}
 
       {error && <p className="text-sm text-destructive">{error}</p>}
       {message && <p className="text-sm text-emerald-700 dark:text-emerald-400">{message}</p>}

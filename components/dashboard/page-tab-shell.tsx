@@ -15,6 +15,8 @@ interface PageTabShellProps {
   hashToTab?: Record<string, string>
   panels: Record<string, ReactNode>
   scrollable?: boolean
+  /** Stick tab nav below the app topbar while scrolling the active panel. */
+  stickyNav?: boolean
   className?: string
 }
 
@@ -24,6 +26,7 @@ export function PageTabShell({
   hashToTab = {},
   panels,
   scrollable = true,
+  stickyNav = false,
   className,
 }: PageTabShellProps) {
   const fallback = defaultTab ?? tabs[0]?.id ?? 'overview'
@@ -68,7 +71,13 @@ export function PageTabShell({
   return (
     <div className={className}>
       <nav
-        className={`page-tab-nav ${scrollable ? 'page-tab-nav--scroll' : ''}`}
+        className={[
+          'page-tab-nav',
+          scrollable ? 'page-tab-nav--scroll' : '',
+          stickyNav ? 'page-tab-nav--sticky' : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
         role="tablist"
         aria-label="Page sections"
       >

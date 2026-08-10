@@ -1,8 +1,9 @@
 import { redirect } from 'next/navigation'
 import { PageHeader } from '@/components/dashboard/page-header'
+import { PageTabShell } from '@/components/dashboard/page-tab-shell'
 import { AccessOpsPanel } from '@/components/dashboard/access-ops-panel'
-import { AccessAgentInstallCard } from '@/components/dashboard/access-agent-install-card'
-import { getAccessAgentDownloadLinks } from '@/lib/access/agent-downloads'
+import { AccessStatusStrip } from '@/components/dashboard/access-status-strip'
+import { ACCESS_HASH_TO_TAB, accessTabsForRole } from '@/lib/access/access-page-tabs'
 import { getProfile } from '@/lib/auth/get-profile'
 import {
   getAccessCredentials,
@@ -11,6 +12,12 @@ import {
   getAccessPoints,
   getRecentAccessJobs,
 } from '@/lib/data/access-control'
+
+function openJobBadge(jobs: { status: string }[]) {
+  return jobs.filter(
+    (j) => j.status === 'pending' || j.status === 'claimed' || j.status === 'failed',
+  ).length
+}
 
 export default async function ReceptionistAccessPage() {
   const profile = await getProfile()
@@ -27,27 +34,60 @@ export default async function ReceptionistAccessPage() {
     getAccessDevices(hotelId),
   ])
 
+  const summary =
+    integration ??
+    ({
+      hotelId,
+      enabled: false,
+      hotelFlagEnabled: false,
+      hasAgentToken: false,
+      agentTokenPrefix: null,
+      agentLastSeenAt: null,
+      agentVersion: null,
+      agentHostname: null,
+      agentOnline: false,
+      deviceCredentialMode: 'cloud' as const,
+    } as const)
+
   return (
     <div className="page-shell page-content-stack">
       <PageHeader
         badge="Access"
         title="Access control"
-        description={
-          integration?.agentOnline
-            ? 'Issue cards and unlock doors for in-house guests.'
-            : 'Agent offline — jobs will run when the on-site agent reconnects.'
-        }
+        description="Issue cards and unlock doors for in-house guests."
       />
 
-      <AccessAgentInstallCard links={getAccessAgentDownloadLinks()} />
+      <AccessStatusStrip integration={summary} jobs={jobs} viewerRole="receptionist" />
 
-      <AccessOpsPanel
-        hotelId={hotelId}
-        points={points}
-        credentials={credentials}
-        jobs={jobs}
-        devices={devices}
-        viewerRole="receptionist"
+      <PageTabShell
+        stickyNav
+        defaultTab="today"
+        hashToTab={ACCESS_HASH_TO_TAB}
+        tabs={accessTabsForRole('receptionist', openJobBadge(jobs))}
+        panels={{
+          today: (
+            <AccessOpsPanel
+              hotelId={hotelId}
+              points={points}
+              credentials={credentials}
+              jobs={jobs}
+              devices={devices}
+              viewerRole="receptionist"
+              focus="today"
+            />
+          ),
+          guests: (
+            <AccessOpsPanel
+              hotelId={hotelId}
+              points={points}
+              credentials={credentials}
+              jobs={jobs}
+              devices={devices}
+              viewerRole="receptionist"
+              focus="guests"
+            />
+          ),
+        }}
       />
     </div>
   )
