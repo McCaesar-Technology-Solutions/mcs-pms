@@ -81,11 +81,17 @@
   </head>
   <body>
     <h1>Connect to MOJO</h1>
-    <p>One-time setup. After this, the agent runs in the background from the menu bar / system tray.</p>
+    <p id="intro">
+      One-time setup. After this, the agent runs in the background from the menu bar / system tray.
+    </p>
+    <p id="banner" class="err" hidden></p>
     <ol>
-      <li>On any computer, open MOJO → <strong>Owner → Access</strong></li>
-      <li>Click <strong>Start setup</strong>, then <strong>Copy full .env</strong></li>
-      <li>Paste it below. URL must be <code>https://portal.mojoapartmentsgh.com</code> (no page path)</li>
+      <li>On any computer, open MOJO → <strong>Owner → Access → Setup</strong></li>
+      <li>
+        Click <strong>Start setup</strong> (or <strong>Rotate token</strong>), then
+        <strong>Copy full .env</strong>
+      </li>
+      <li>Paste the fresh block below (old tokens stop working after rotate)</li>
       <li>Click Save &amp; start — leave the app in the tray on the apartment PC (same LAN as doors)</li>
     </ol>
     <textarea id="env" placeholder="Paste the MOJO Access Agent config here…"></textarea>

@@ -99,10 +99,28 @@ export function AccessAgentInstallCard({ links, compact = false }: Props) {
             ) : null}
           </div>
         )}
-        <p className="text-xs text-muted-foreground">
-          Mac: open the .dmg and drag to Applications. Windows: run the setup .exe. Keep the tray
-          app running so unlock and enroll jobs can reach the doors.
-        </p>
+        <div className="space-y-2 text-xs text-muted-foreground">
+          <p>
+            Windows: run the setup .exe. Mac: open the .dmg and drag to Applications. Keep the tray
+            / menu-bar app running so unlock and enroll jobs can reach the doors.
+          </p>
+          {macDmg || macZip ? (
+            <div className="soft-panel space-y-1.5 p-3 text-foreground">
+              <p className="font-semibold">Mac: if macOS says the app is “damaged”</p>
+              <p className="text-muted-foreground">
+                That is Gatekeeper blocking an unsigned download — the file is fine. After dragging
+                to Applications, open <span className="font-medium text-foreground">Terminal</span>{' '}
+                and run:
+              </p>
+              <code className="block break-all rounded-lg bg-background/80 px-2.5 py-2 font-mono text-[11px] text-foreground">
+                xattr -cr &quot;/Applications/MOJO Access Agent.app&quot;
+              </code>
+              <p className="text-muted-foreground">
+                Then open the app from Applications (or right-click → Open).
+              </p>
+            </div>
+          ) : null}
+        </div>
       </div>
     </div>
   )

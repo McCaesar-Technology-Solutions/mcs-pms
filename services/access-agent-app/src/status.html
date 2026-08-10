@@ -89,12 +89,34 @@
         font-size: 0.85rem;
         color: var(--muted);
       }
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 0 0 16px;
+      }
+      button.primary {
+        border: 0;
+        background: #0f766e;
+        color: #fff;
+        border-radius: 8px;
+        padding: 8px 12px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      button.primary:hover {
+        background: #0d9488;
+      }
     </style>
   </head>
   <body>
     <h1>MOJO Access Agent</h1>
     <div id="badge" class="warn">Checking…</div>
     <p id="detail">—</p>
+    <div class="actions">
+      <button type="button" class="primary" id="editConfig">Update connection settings…</button>
+    </div>
     <div class="logs-head">
       <h2>Recent activity</h2>
       <button type="button" class="clear" id="clearLogs">Clear logs</button>

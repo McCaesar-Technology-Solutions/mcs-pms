@@ -14,6 +14,7 @@ let running = null
 let lastStatus = { online: false, detail: 'Starting…', devices: [] }
 const logs = []
 let showedLocalNetworkHelp = false
+let openedSetupForBadToken = false
 
 function openLocalNetworkSettings() {
   if (process.platform !== 'darwin') return
@@ -107,7 +108,7 @@ function rebuildTrayMenu() {
     },
     {
       label: 'Edit connection settings…',
-      click: () => openSetupWindow(true),
+      click: () => openSetupWindow({ force: true, reason: 'edit' }),
     },
     ...(process.platform === 'darwin'
       ? [
@@ -141,9 +142,16 @@ function rebuildTrayMenu() {
   tray.setImage(trayIcon(lastStatus.online))
 }
 
-function openSetupWindow(force = false) {
+function openSetupWindow(opts = {}) {
+  const force = opts === true || opts.force === true
+  const reason = typeof opts === 'object' && opts.reason ? String(opts.reason) : force ? 'edit' : ''
   if (setupWindow) {
     setupWindow.focus()
+    if (reason) {
+      setupWindow.loadFile(path.join(__dirname, 'setup.html'), {
+        query: { edit: '1', reason },
+      })
+    }
     return
   }
   setupWindow = new BrowserWindow({
@@ -158,12 +166,31 @@ function openSetupWindow(force = false) {
       sandbox: false,
     },
   })
-  setupWindow.loadFile(path.join(__dirname, 'setup.html'), {
-    query: force ? { edit: '1' } : {},
-  })
+  const query = {}
+  if (force || reason) query.edit = '1'
+  if (reason) query.reason = reason
+  setupWindow.loadFile(path.join(__dirname, 'setup.html'), { query })
   setupWindow.on('closed', () => {
     setupWindow = null
   })
+}
+
+function noteMaybeInvalidAgentToken(message) {
+  const text = String(message || '')
+  if (!/401:\s*Invalid agent token/i.test(text) && !/Invalid agent token/i.test(text)) {
+    return
+  }
+  lastStatus = {
+    online: false,
+    detail: 'Invalid agent token — paste a fresh config from Owner → Access → Start setup / Rotate token',
+    devices: lastStatus.devices || [],
+  }
+  rebuildTrayMenu()
+  statusWindow?.webContents.send('status', lastStatus)
+  if (openedSetupForBadToken) return
+  openedSetupForBadToken = true
+  if (process.platform === 'darwin') app.dock?.show()
+  openSetupWindow({ force: true, reason: 'token' })
 }
 
 function openStatusWindow() {
@@ -295,11 +322,13 @@ async function startAgentProcess() {
         if (msg.message) {
           pushLog(msg.level || 'info', msg.message)
           noteMaybeLocalNetworkBlocked(msg.message)
+          noteMaybeInvalidAgentToken(msg.message)
           return
         }
       } catch {
         pushLog('info', text)
         noteMaybeLocalNetworkBlocked(text)
+        noteMaybeInvalidAgentToken(text)
       }
     }
 
@@ -351,6 +380,7 @@ async function startAgentProcess() {
     log: (level, message) => {
       pushLog(level, message)
       noteMaybeLocalNetworkBlocked(message)
+      noteMaybeInvalidAgentToken(message)
     },
     onStatus: (status) => {
       lastStatus = status
@@ -442,6 +472,7 @@ ipcMain.handle('save-env', async (_event, contents) => {
   }
   fs.mkdirSync(userDataEnvDir(), { recursive: true })
   fs.writeFileSync(envPath(), text, 'utf8')
+  openedSetupForBadToken = false
   try {
     await startAgentProcess()
     lastStatus = { online: true, detail: 'Connected — syncing…', devices: [] }
@@ -470,6 +501,10 @@ ipcMain.handle('get-logs', () => logs.slice(-50))
 ipcMain.handle('clear-logs', () => {
   logs.length = 0
   statusWindow?.webContents.send('logs', [])
+  return { ok: true }
+})
+ipcMain.handle('open-setup', () => {
+  openSetupWindow({ force: true, reason: 'edit' })
   return { ok: true }
 })
 

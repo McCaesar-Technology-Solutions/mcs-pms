@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('mojoAgent', {
   getStatus: () => ipcRenderer.invoke('get-status'),
   getLogs: () => ipcRenderer.invoke('get-logs'),
   clearLogs: () => ipcRenderer.invoke('clear-logs'),
+  openSetup: () => ipcRenderer.invoke('open-setup'),
   onStatus: (cb) => {
     ipcRenderer.on('status', (_e, data) => cb(data))
   },
