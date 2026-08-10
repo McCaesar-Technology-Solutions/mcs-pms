@@ -590,7 +590,7 @@ export async function cancelReservation(
   const { data: reservation } = await supabase
     .from('reservations')
     .select(
-      'hotel_id, guest_name, check_in, check_out, status, guest_id, room_id, amount_paid, nightly_rate, total_amount, guests(phone)',
+      'hotel_id, guest_name, check_in, check_out, status, guest_id, room_id, amount_paid, rate_type, nightly_rate, weekly_rate, monthly_rate, total_amount, guests(phone)',
     )
     .eq('id', id)
     .eq('hotel_id', profile.hotel_id!)
