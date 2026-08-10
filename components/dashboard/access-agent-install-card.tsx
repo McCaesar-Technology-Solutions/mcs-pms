@@ -59,7 +59,8 @@ export function AccessAgentInstallCard({ links, compact = false }: Props) {
               <a
                 href={macDmg}
                 className={`app-btn ${preferred === 'mac' ? 'app-btn-primary' : 'app-btn-secondary'} inline-flex items-center gap-2`}
-                download
+                target="_blank"
+                rel="noopener noreferrer"
               >
                 <Apple className="h-4 w-4" />
                 Download for Mac (.dmg)
@@ -69,7 +70,8 @@ export function AccessAgentInstallCard({ links, compact = false }: Props) {
               <a
                 href={macZip}
                 className="app-btn app-btn-ghost inline-flex items-center gap-2 text-xs"
-                download
+                target="_blank"
+                rel="noopener noreferrer"
               >
                 Mac (.zip)
               </a>
@@ -78,7 +80,8 @@ export function AccessAgentInstallCard({ links, compact = false }: Props) {
               <a
                 href={winSetup}
                 className={`app-btn ${preferred === 'windows' ? 'app-btn-primary' : 'app-btn-secondary'} inline-flex items-center gap-2`}
-                download
+                target="_blank"
+                rel="noopener noreferrer"
               >
                 <Monitor className="h-4 w-4" />
                 Download for Windows
@@ -88,7 +91,8 @@ export function AccessAgentInstallCard({ links, compact = false }: Props) {
               <a
                 href={winPortable}
                 className="app-btn app-btn-ghost inline-flex items-center gap-2 text-xs"
-                download
+                target="_blank"
+                rel="noopener noreferrer"
               >
                 Windows (portable)
               </a>

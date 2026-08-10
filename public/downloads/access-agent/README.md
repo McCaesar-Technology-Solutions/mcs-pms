@@ -2,7 +2,7 @@
 
 Production downloads use **GitHub Releases**:
 
-https://github.com/McCaesar-Technology-Solutions/mcs-pms/releases/tag/access-agent-v1.3.7
+https://github.com/McCaesar-Technology-Solutions/mcs-pms/releases/tag/access-agent-v1.3.8
 
 ## Publish a new version
 

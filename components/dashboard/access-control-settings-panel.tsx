@@ -357,13 +357,23 @@ export function AccessControlSettingsPanel({
                 <p className="text-xs text-muted-foreground">
                   Downloads:{' '}
                   {agentDownloads.macDmg ? (
-                    <a href={agentDownloads.macDmg} className="underline" download>
+                    <a
+                      href={agentDownloads.macDmg}
+                      className="underline"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
                       Mac
                     </a>
                   ) : null}
                   {agentDownloads.macDmg && agentDownloads.windowsSetup ? ' · ' : null}
                   {agentDownloads.windowsSetup ? (
-                    <a href={agentDownloads.windowsSetup} className="underline" download>
+                    <a
+                      href={agentDownloads.windowsSetup}
+                      className="underline"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
                       Windows
                     </a>
                   ) : null}
