@@ -3,6 +3,8 @@ import { PageHeader } from '@/components/dashboard/page-header'
 import { AccessControlSettingsPanel } from '@/components/dashboard/access-control-settings-panel'
 import { AccessOpsPanel } from '@/components/dashboard/access-ops-panel'
 import { AccessAgentInstallCard } from '@/components/dashboard/access-agent-install-card'
+import { StaffAccessPanel } from '@/components/dashboard/staff-access-panel'
+import { AttendancePanel } from '@/components/dashboard/attendance-panel'
 import { getAccessAgentDownloadLinks } from '@/lib/access/agent-downloads'
 import { getProfile } from '@/lib/auth/get-profile'
 import { getActiveHotelSettings } from '@/lib/data/settings'
@@ -11,7 +13,10 @@ import {
   getAccessDevices,
   getAccessIntegrationSummary,
   getAccessPoints,
+  getAccessPoliciesForHotel,
+  getAttendanceRecords,
   getRecentAccessJobs,
+  getStaffAccessCredentials,
 } from '@/lib/data/access-control'
 import { createAdminClient } from '@/lib/supabase/admin'
 
@@ -33,12 +38,24 @@ export default async function OwnerAccessPage() {
   }
 
   const hotelId = hotelSettings.id
-  const [integration, points, credentials, jobs, devices] = await Promise.all([
+  const [
+    integration,
+    points,
+    credentials,
+    jobs,
+    devices,
+    policies,
+    staffCredentials,
+    attendance,
+  ] = await Promise.all([
     getAccessIntegrationSummary(hotelId),
     getAccessPoints(hotelId),
     getAccessCredentials(hotelId),
     getRecentAccessJobs(hotelId),
     getAccessDevices(hotelId),
+    getAccessPoliciesForHotel(hotelId),
+    getStaffAccessCredentials(hotelId),
+    getAttendanceRecords(hotelId),
   ])
 
   const admin = createAdminClient()
@@ -83,11 +100,21 @@ export default async function OwnerAccessPage() {
         rooms={(rooms ?? []).map((r) => ({ id: r.id, number: r.number }))}
         devices={devices}
         deviceKeys={devices
-          .filter((d) => d.device_role !== 'enrollment')
+          .filter((d) => d.device_role === 'door')
           .map((d) => d.device_key)}
         canManage
         agentDownloads={agentDownloads}
       />
+
+      <StaffAccessPanel
+        hotelId={hotelId}
+        policies={policies}
+        points={points}
+        staffCredentials={staffCredentials}
+        canCreateOwnerTypes
+      />
+
+      <AttendancePanel hotelId={hotelId} records={attendance} />
 
       <AccessOpsPanel
         hotelId={hotelId}
@@ -95,6 +122,7 @@ export default async function OwnerAccessPage() {
         credentials={credentials}
         jobs={jobs}
         devices={devices}
+        viewerRole="owner"
       />
     </div>
   )

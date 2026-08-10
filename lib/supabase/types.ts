@@ -1997,7 +1997,7 @@ export type Database = {
           username: string | null
           use_https: boolean
           managed_in_cloud: boolean
-          device_role: 'door' | 'enrollment'
+          device_role: 'door' | 'enrollment' | 'attendance'
           created_at: string
           updated_at: string
         }
@@ -2016,7 +2016,7 @@ export type Database = {
           username?: string | null
           use_https?: boolean
           managed_in_cloud?: boolean
-          device_role?: 'door' | 'enrollment'
+          device_role?: 'door' | 'enrollment' | 'attendance'
           created_at?: string
           updated_at?: string
         }
@@ -2035,7 +2035,7 @@ export type Database = {
           username?: string | null
           use_https?: boolean
           managed_in_cloud?: boolean
-          device_role?: 'door' | 'enrollment'
+          device_role?: 'door' | 'enrollment' | 'attendance'
           created_at?: string
           updated_at?: string
         }
@@ -2069,7 +2069,7 @@ export type Database = {
           device_key: string
           door_no: number
           label: string
-          zone: 'unit' | 'lobby' | 'gate' | 'elevator' | 'other'
+          zone: 'unit' | 'lobby' | 'gate' | 'elevator' | 'gym' | 'other'
           room_id: string | null
           grants_shared_access: boolean
           is_active: boolean
@@ -2082,7 +2082,7 @@ export type Database = {
           device_key: string
           door_no?: number
           label: string
-          zone?: 'unit' | 'lobby' | 'gate' | 'elevator' | 'other'
+          zone?: 'unit' | 'lobby' | 'gate' | 'elevator' | 'gym' | 'other'
           room_id?: string | null
           grants_shared_access?: boolean
           is_active?: boolean
@@ -2095,7 +2095,7 @@ export type Database = {
           device_key?: string
           door_no?: number
           label?: string
-          zone?: 'unit' | 'lobby' | 'gate' | 'elevator' | 'other'
+          zone?: 'unit' | 'lobby' | 'gate' | 'elevator' | 'gym' | 'other'
           room_id?: string | null
           grants_shared_access?: boolean
           is_active?: boolean
@@ -2110,6 +2110,19 @@ export type Database = {
           hotel_id: string
           guest_id: string | null
           reservation_id: string | null
+          person_type:
+            | 'tenant'
+            | 'owner'
+            | 'manager'
+            | 'receptionist'
+            | 'housekeeping'
+            | 'security'
+            | 'maintenance'
+            | 'other_staff'
+            | 'technical_admin'
+          profile_id: string | null
+          staff_status: 'active' | 'suspended' | 'on_leave' | 'terminated' | null
+          access_policy_id: string | null
           employee_no: string
           display_name: string
           card_no: string | null
@@ -2130,6 +2143,19 @@ export type Database = {
           hotel_id: string
           guest_id?: string | null
           reservation_id?: string | null
+          person_type?:
+            | 'tenant'
+            | 'owner'
+            | 'manager'
+            | 'receptionist'
+            | 'housekeeping'
+            | 'security'
+            | 'maintenance'
+            | 'other_staff'
+            | 'technical_admin'
+          profile_id?: string | null
+          staff_status?: 'active' | 'suspended' | 'on_leave' | 'terminated' | null
+          access_policy_id?: string | null
           employee_no: string
           display_name: string
           card_no?: string | null
@@ -2150,6 +2176,19 @@ export type Database = {
           hotel_id?: string
           guest_id?: string | null
           reservation_id?: string | null
+          person_type?:
+            | 'tenant'
+            | 'owner'
+            | 'manager'
+            | 'receptionist'
+            | 'housekeeping'
+            | 'security'
+            | 'maintenance'
+            | 'other_staff'
+            | 'technical_admin'
+          profile_id?: string | null
+          staff_status?: 'active' | 'suspended' | 'on_leave' | 'terminated' | null
+          access_policy_id?: string | null
           employee_no?: string
           display_name?: string
           card_no?: string | null
@@ -2164,6 +2203,108 @@ export type Database = {
           last_synced_at?: string | null
           created_at?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      access_policies: {
+        Row: {
+          id: string
+          hotel_id: string
+          code: string
+          name: string
+          audience: 'staff' | 'guest'
+          assignable_by_manager: boolean
+          is_system: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          hotel_id: string
+          code: string
+          name: string
+          audience?: 'staff' | 'guest'
+          assignable_by_manager?: boolean
+          is_system?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          hotel_id?: string
+          code?: string
+          name?: string
+          audience?: 'staff' | 'guest'
+          assignable_by_manager?: boolean
+          is_system?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      access_policy_points: {
+        Row: {
+          id: string
+          hotel_id: string
+          policy_id: string
+          access_point_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          hotel_id: string
+          policy_id: string
+          access_point_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          hotel_id?: string
+          policy_id?: string
+          access_point_id?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      attendance_records: {
+        Row: {
+          id: string
+          hotel_id: string
+          credential_id: string | null
+          profile_id: string | null
+          employee_no: string
+          display_name: string | null
+          event_type: 'clock_in' | 'clock_out' | 'unknown'
+          occurred_at: string
+          device_key: string | null
+          raw_ref: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          hotel_id: string
+          credential_id?: string | null
+          profile_id?: string | null
+          employee_no: string
+          display_name?: string | null
+          event_type?: 'clock_in' | 'clock_out' | 'unknown'
+          occurred_at: string
+          device_key?: string | null
+          raw_ref?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          hotel_id?: string
+          credential_id?: string | null
+          profile_id?: string | null
+          employee_no?: string
+          display_name?: string | null
+          event_type?: 'clock_in' | 'clock_out' | 'unknown'
+          occurred_at?: string
+          device_key?: string | null
+          raw_ref?: string | null
+          created_at?: string
         }
         Relationships: []
       }
@@ -2182,6 +2323,8 @@ export type Database = {
             | 'enroll_card_capture'
             | 'enroll_face_capture'
             | 'enroll_fingerprint_capture'
+            | 'pull_attendance'
+            | 'pull_attendance'
           status: 'pending' | 'claimed' | 'succeeded' | 'failed' | 'dead' | 'cancelled'
           priority: number
           payload: Json
@@ -2210,6 +2353,7 @@ export type Database = {
             | 'enroll_card_capture'
             | 'enroll_face_capture'
             | 'enroll_fingerprint_capture'
+            | 'pull_attendance'
           status?: 'pending' | 'claimed' | 'succeeded' | 'failed' | 'dead' | 'cancelled'
           priority?: number
           payload?: Json
@@ -2238,6 +2382,7 @@ export type Database = {
             | 'enroll_card_capture'
             | 'enroll_face_capture'
             | 'enroll_fingerprint_capture'
+            | 'pull_attendance'
           status?: 'pending' | 'claimed' | 'succeeded' | 'failed' | 'dead' | 'cancelled'
           priority?: number
           payload?: Json

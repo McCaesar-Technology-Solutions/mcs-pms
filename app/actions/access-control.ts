@@ -13,9 +13,21 @@ import {
   enqueueAccessJob,
 } from '@/lib/access/jobs'
 import { provisionGuestAccess } from '@/lib/access/lifecycle'
+import { provisionStaffAccess, setStaffAccessStatus } from '@/lib/access/staff-lifecycle'
+import {
+  ensureDefaultAccessPolicies,
+  MANAGER_CREATABLE_STAFF_TYPES,
+  resolvePolicyDoors,
+} from '@/lib/access/policies'
+import { receptionMayUnlockZone, resolveGuestDoors } from '@/lib/access/doors'
 import { writeAuditLog } from '@/lib/audit/log'
 import { getAppOrigin } from '@/lib/env'
-import type { AccessZone, DeviceCredentialMode } from '@/lib/access/types'
+import type {
+  AccessStaffStatus,
+  AccessZone,
+  DeviceCredentialMode,
+  StaffPersonType,
+} from '@/lib/access/types'
 
 type ActionResult<T = undefined> =
   | { success: true; data?: T }
@@ -88,6 +100,8 @@ export async function startAccessSetup(hotelId: string): Promise<
   if (!rotated.success || !rotated.data) {
     return { success: false, error: rotated.success ? 'No token returned.' : rotated.error }
   }
+
+  await ensureDefaultAccessPolicies(hotelId)
 
   let appUrl = 'https://portal.mojoapartmentsgh.com'
   try {
@@ -242,7 +256,7 @@ const pointSchema = z.object({
   deviceKey: z.string().min(1).max(64),
   doorNo: z.number().int().min(1).max(64),
   label: z.string().min(1).max(120),
-  zone: z.enum(['unit', 'lobby', 'gate', 'elevator', 'other']),
+  zone: z.enum(['unit', 'lobby', 'gate', 'elevator', 'gym', 'other']),
   roomId: z.string().uuid().nullable().optional(),
   grantsSharedAccess: z.boolean(),
   isActive: z.boolean().optional(),
@@ -266,14 +280,17 @@ export async function upsertAccessPoint(
 
   const admin = createAdminClient()
   const now = new Date().toISOString()
+  const zone = parsed.data.zone as AccessZone
+  const sharedDefault = zone === 'lobby' || zone === 'gate' || zone === 'elevator'
   const row = {
     hotel_id: parsed.data.hotelId,
     device_key: parsed.data.deviceKey.trim(),
     door_no: parsed.data.doorNo,
     label: parsed.data.label.trim(),
-    zone: parsed.data.zone as AccessZone,
-    room_id: parsed.data.zone === 'unit' ? (parsed.data.roomId ?? null) : null,
-    grants_shared_access: parsed.data.zone !== 'unit' ? true : parsed.data.grantsSharedAccess,
+    zone,
+    room_id: zone === 'unit' ? (parsed.data.roomId ?? null) : null,
+    grants_shared_access:
+      zone === 'unit' || zone === 'gym' ? false : (parsed.data.grantsSharedAccess ?? sharedDefault),
     is_active: parsed.data.isActive ?? true,
     updated_at: now,
   }
@@ -313,8 +330,16 @@ export async function deleteAccessPoint(hotelId: string, pointId: string): Promi
 async function resolveCredentialDoors(
   admin: ReturnType<typeof createAdminClient>,
   hotelId: string,
-  cred: { guest_id: string | null },
+  cred: {
+    guest_id: string | null
+    person_type?: string | null
+    access_policy_id?: string | null
+  },
 ) {
+  if (cred.person_type && cred.person_type !== 'tenant' && cred.access_policy_id) {
+    return resolvePolicyDoors(admin, hotelId, cred.access_policy_id)
+  }
+
   let guestRoomId: string | null = null
   if (cred.guest_id) {
     const { data: guest } = await admin
@@ -331,17 +356,17 @@ async function resolveCredentialDoors(
     .eq('hotel_id', hotelId)
     .eq('is_active', true)
 
-  return (points ?? [])
-    .filter((p) => {
-      if (p.grants_shared_access || p.zone !== 'unit') return true
-      return guestRoomId != null && p.room_id === guestRoomId
-    })
-    .map((p) => ({
-      deviceKey: p.device_key,
-      doorNo: p.door_no,
-      label: p.label,
-      zone: p.zone,
-    }))
+  return resolveGuestDoors(points ?? [], guestRoomId)
+}
+
+function assertOpsMayTouchCredential(
+  role: string,
+  personType: string | null | undefined,
+): string | null {
+  if (role === 'receptionist' && personType && personType !== 'tenant') {
+    return 'Reception can only manage tenant (guest) access.'
+  }
+  return null
 }
 
 async function resolveEnrollmentStation(
@@ -411,6 +436,12 @@ export async function startEnrollmentCapture(input: {
 
   if (!cred) return { success: false, error: 'Credential not found.' }
 
+  const scopeErr = assertOpsMayTouchCredential(
+    auth.profile.role,
+    (cred as { person_type?: string }).person_type,
+  )
+  if (scopeErr) return { success: false, error: scopeErr }
+
   const station = await resolveEnrollmentStation(admin, input.hotelId)
   if (!station) {
     return {
@@ -457,6 +488,16 @@ export async function startEnrollmentCapture(input: {
     return { success: false, error: 'Access control is not enabled.' }
   }
 
+  void writeAuditLog({
+    hotelId: input.hotelId,
+    actorId: auth.userId,
+    actorName: auth.profile.name,
+    entityType: 'access',
+    entityId: cred.id,
+    action: 'credential_enroll',
+    summary: `Enrollment started (${input.capture}) — ${cred.display_name}`,
+  })
+
   revalidateAccess()
   return { success: true }
 }
@@ -484,33 +525,17 @@ export async function assignAccessCard(input: {
 
   if (!cred) return { success: false, error: 'Credential not found.' }
 
-  let guestRoomId: string | null = null
-  if (cred.guest_id) {
-    const { data: guest } = await admin
-      .from('guests')
-      .select('room_id')
-      .eq('id', cred.guest_id)
-      .maybeSingle()
-    guestRoomId = guest?.room_id ?? null
-  }
+  const scopeErr = assertOpsMayTouchCredential(
+    auth.profile.role,
+    (cred as { person_type?: string }).person_type,
+  )
+  if (scopeErr) return { success: false, error: scopeErr }
 
-  const { data: points } = await admin
-    .from('access_points')
-    .select('device_key, door_no, label, zone, room_id, grants_shared_access, is_active')
-    .eq('hotel_id', input.hotelId)
-    .eq('is_active', true)
-
-  const doors = (points ?? [])
-    .filter((p) => {
-      if (p.grants_shared_access || p.zone !== 'unit') return true
-      return guestRoomId != null && p.room_id === guestRoomId
-    })
-    .map((p) => ({
-      deviceKey: p.device_key,
-      doorNo: p.door_no,
-      label: p.label,
-      zone: p.zone,
-    }))
+  const doors = await resolveCredentialDoors(admin, input.hotelId, {
+    guest_id: cred.guest_id,
+    person_type: (cred as { person_type?: string }).person_type,
+    access_policy_id: (cred as { access_policy_id?: string | null }).access_policy_id,
+  })
 
   const now = new Date().toISOString()
   await admin
@@ -540,6 +565,16 @@ export async function assignAccessCard(input: {
     return { success: false, error: 'Access control is not enabled.' }
   }
 
+  void writeAuditLog({
+    hotelId: input.hotelId,
+    actorId: auth.userId,
+    actorName: auth.profile.name,
+    entityType: 'access',
+    entityId: cred.id,
+    action: 'credential_card_assigned',
+    summary: `Card assigned — ${cred.display_name}`,
+  })
+
   revalidateAccess()
   return { success: true }
 }
@@ -562,6 +597,13 @@ export async function remoteUnlockDoor(input: {
 
   if (!point || !point.is_active) {
     return { success: false, error: 'Door not found or inactive.' }
+  }
+
+  if (auth.profile.role === 'receptionist' && !receptionMayUnlockZone(point.zone)) {
+    return {
+      success: false,
+      error: 'Reception can only unlock guest-facing doors (room, lobby, gate, gym).',
+    }
   }
 
   const enqueued = await enqueueAccessJob({
@@ -611,8 +653,31 @@ export async function retryAccessCredential(
     .eq('hotel_id', hotelId)
     .maybeSingle()
 
-  if (!cred || !cred.guest_id || !cred.reservation_id) {
+  if (!cred) {
     return { success: false, error: 'Credential not found.' }
+  }
+
+  const personType = (cred as { person_type?: string }).person_type ?? 'tenant'
+  const scopeErr = assertOpsMayTouchCredential(auth.profile.role, personType)
+  if (scopeErr) return { success: false, error: scopeErr }
+
+  if (personType !== 'tenant' || !cred.guest_id || !cred.reservation_id) {
+    const policyId = (cred as { access_policy_id?: string | null }).access_policy_id
+    if (!policyId) return { success: false, error: 'Staff credential has no access policy.' }
+    const result = await provisionStaffAccess({
+      hotelId,
+      displayName: cred.display_name,
+      personType: personType as StaffPersonType,
+      accessPolicyId: policyId,
+      profileId: (cred as { profile_id?: string | null }).profile_id ?? null,
+      validFrom: cred.valid_from,
+      validTo: cred.valid_to,
+      cardNo: cred.card_no,
+      existingCredentialId: cred.id,
+    })
+    if (!result.ok) return { success: false, error: result.error }
+    revalidateAccess()
+    return { success: true }
   }
 
   const { data: guest } = await admin
@@ -634,6 +699,16 @@ export async function retryAccessCredential(
     checkIn: cred.valid_from,
     checkOut: cred.valid_to,
     cardNo: cred.card_no,
+  })
+
+  void writeAuditLog({
+    hotelId,
+    actorId: auth.userId,
+    actorName: auth.profile.name,
+    entityType: 'access',
+    entityId: cred.id,
+    action: 'credential_retry',
+    summary: `Access re-provision queued — ${cred.display_name}`,
   })
 
   revalidateAccess()
@@ -695,7 +770,7 @@ const cloudDeviceSchema = z.object({
   username: z.string().min(1).max(120),
   password: z.string().min(1).max(200).optional(),
   useHttps: z.boolean().default(false),
-  deviceRole: z.enum(['door', 'enrollment']).default('door'),
+  deviceRole: z.enum(['door', 'enrollment', 'attendance']).default('door'),
   model: z.string().max(120).optional(),
   id: z.string().uuid().optional(),
 })
@@ -717,7 +792,11 @@ export async function upsertCloudAccessDevice(
   const role = parsed.data.deviceRole
   const model =
     parsed.data.model?.trim() ||
-    (role === 'enrollment' ? 'DS-K1F600U-D6E-F' : null)
+    (role === 'enrollment'
+      ? 'DS-K1F600U-D6E-F'
+      : role === 'attendance'
+        ? 'DS-K1A8503MF-B'
+        : null)
 
   let deviceId = parsed.data.id ?? null
 
@@ -810,6 +889,266 @@ export async function deleteCloudAccessDevice(
     .eq('id', deviceId)
     .eq('hotel_id', hotelId)
   if (error) return { success: false, error: error.message }
+
+  revalidateAccess()
+  return { success: true }
+}
+
+const staffPersonSchema = z.object({
+  hotelId: z.string().uuid(),
+  displayName: z.string().min(1).max(120),
+  personType: z.enum([
+    'owner',
+    'manager',
+    'receptionist',
+    'housekeeping',
+    'security',
+    'maintenance',
+    'other_staff',
+    'technical_admin',
+  ]),
+  accessPolicyId: z.string().uuid(),
+  profileId: z.string().uuid().nullable().optional(),
+  validFrom: z.string().min(8).max(32),
+  validTo: z.string().min(8).max(32),
+  cardNo: z.string().max(32).nullable().optional(),
+  credentialId: z.string().uuid().optional(),
+})
+
+export async function createOrUpdateStaffAccess(
+  input: z.infer<typeof staffPersonSchema>,
+): Promise<ActionResult<{ credentialId: string }>> {
+  const parsed = staffPersonSchema.safeParse(input)
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid staff access.' }
+  }
+
+  const auth = await requireAccessEditor(parsed.data.hotelId)
+  if (!auth.ok) return { success: false, error: auth.error }
+
+  const personType = parsed.data.personType as StaffPersonType
+  if (auth.profile.role === 'manager') {
+    if (!MANAGER_CREATABLE_STAFF_TYPES.has(personType)) {
+      return {
+        success: false,
+        error: 'Managers cannot create Owner, Manager, or Technical Admin physical access.',
+      }
+    }
+  }
+
+  await ensureDefaultAccessPolicies(parsed.data.hotelId)
+
+  const admin = createAdminClient()
+  const { data: policy } = await admin
+    .from('access_policies')
+    .select('id, code, assignable_by_manager')
+    .eq('id', parsed.data.accessPolicyId)
+    .eq('hotel_id', parsed.data.hotelId)
+    .maybeSingle()
+
+  if (!policy) return { success: false, error: 'Access policy not found.' }
+  if (auth.profile.role === 'manager' && !policy.assignable_by_manager) {
+    return {
+      success: false,
+      error: 'You are not authorized to assign this staff access policy.',
+    }
+  }
+
+  const result = await provisionStaffAccess({
+    hotelId: parsed.data.hotelId,
+    displayName: parsed.data.displayName.trim(),
+    personType,
+    accessPolicyId: parsed.data.accessPolicyId,
+    profileId: parsed.data.profileId ?? null,
+    validFrom: parsed.data.validFrom,
+    validTo: parsed.data.validTo,
+    cardNo: parsed.data.cardNo ?? null,
+    existingCredentialId: parsed.data.credentialId ?? null,
+  })
+
+  if (!result.ok) return { success: false, error: result.error }
+
+  void writeAuditLog({
+    hotelId: parsed.data.hotelId,
+    actorId: auth.userId,
+    actorName: auth.profile.name,
+    entityType: 'access',
+    entityId: result.credentialId,
+    action: parsed.data.credentialId ? 'staff_access_updated' : 'staff_access_granted',
+    summary: `Staff access ${parsed.data.credentialId ? 'updated' : 'created'} — ${parsed.data.displayName} (${policy.code})`,
+  })
+
+  revalidateAccess()
+  revalidatePath('/owner/staff')
+  revalidatePath('/manager/staff')
+  return { success: true, data: { credentialId: result.credentialId } }
+}
+
+export async function updateStaffAccessStatusAction(input: {
+  hotelId: string
+  credentialId: string
+  staffStatus: AccessStaffStatus
+}): Promise<ActionResult> {
+  const auth = await requireAccessEditor(input.hotelId)
+  if (!auth.ok) return { success: false, error: auth.error }
+
+  const admin = createAdminClient()
+  const { data: cred } = await admin
+    .from('access_credentials')
+    .select('id, person_type, display_name, profile_id')
+    .eq('id', input.credentialId)
+    .eq('hotel_id', input.hotelId)
+    .maybeSingle()
+
+  if (!cred || cred.person_type === 'tenant') {
+    return { success: false, error: 'Staff credential not found.' }
+  }
+
+  if (auth.profile.role === 'manager' && cred.profile_id && cred.profile_id === auth.userId) {
+    return {
+      success: false,
+      error: 'Managers cannot change their own protected physical access.',
+    }
+  }
+
+  if (
+    auth.profile.role === 'manager' &&
+    (cred.person_type === 'owner' ||
+      cred.person_type === 'manager' ||
+      cred.person_type === 'technical_admin')
+  ) {
+    return { success: false, error: 'Not authorized to change this staff person.' }
+  }
+
+  const result = await setStaffAccessStatus(input)
+  if (!result.ok) return { success: false, error: result.error }
+
+  void writeAuditLog({
+    hotelId: input.hotelId,
+    actorId: auth.userId,
+    actorName: auth.profile.name,
+    entityType: 'access',
+    entityId: cred.id,
+    action: 'staff_access_status',
+    summary: `Staff access ${input.staffStatus} — ${cred.display_name}`,
+  })
+
+  revalidateAccess()
+  return { success: true }
+}
+
+export async function setAccessPolicyPoints(input: {
+  hotelId: string
+  policyId: string
+  accessPointIds: string[]
+}): Promise<ActionResult> {
+  const auth = await requireAccessEditor(input.hotelId)
+  if (!auth.ok) return { success: false, error: auth.error }
+
+  await ensureDefaultAccessPolicies(input.hotelId)
+
+  const admin = createAdminClient()
+  const { data: policy } = await admin
+    .from('access_policies')
+    .select('id, assignable_by_manager, code')
+    .eq('id', input.policyId)
+    .eq('hotel_id', input.hotelId)
+    .maybeSingle()
+
+  if (!policy) return { success: false, error: 'Policy not found.' }
+  if (auth.profile.role === 'manager' && !policy.assignable_by_manager) {
+    return { success: false, error: 'You are not authorized to edit this policy.' }
+  }
+
+  const pointIds = [...new Set(input.accessPointIds)]
+  if (pointIds.length) {
+    const { data: points } = await admin
+      .from('access_points')
+      .select('id')
+      .eq('hotel_id', input.hotelId)
+      .in('id', pointIds)
+    if ((points ?? []).length !== pointIds.length) {
+      return { success: false, error: 'One or more doors are invalid.' }
+    }
+  }
+
+  await admin
+    .from('access_policy_points')
+    .delete()
+    .eq('hotel_id', input.hotelId)
+    .eq('policy_id', input.policyId)
+
+  if (pointIds.length) {
+    const { error } = await admin.from('access_policy_points').insert(
+      pointIds.map((access_point_id) => ({
+        hotel_id: input.hotelId,
+        policy_id: input.policyId,
+        access_point_id,
+      })),
+    )
+    if (error) return { success: false, error: error.message }
+  }
+
+  void writeAuditLog({
+    hotelId: input.hotelId,
+    actorId: auth.userId,
+    actorName: auth.profile.name,
+    entityType: 'access',
+    entityId: input.policyId,
+    action: 'access_policy_points_updated',
+    summary: `Policy doors updated — ${policy.code} (${pointIds.length} doors)`,
+  })
+
+  revalidateAccess()
+  return { success: true }
+}
+
+export async function ensureAccessPoliciesAction(hotelId: string): Promise<ActionResult> {
+  const auth = await requireAccessEditor(hotelId)
+  if (!auth.ok) return { success: false, error: auth.error }
+  await ensureDefaultAccessPolicies(hotelId)
+  revalidateAccess()
+  return { success: true }
+}
+
+export async function requestAttendancePull(hotelId: string): Promise<ActionResult> {
+  const auth = await requireAccessEditor(hotelId)
+  if (!auth.ok) return { success: false, error: auth.error }
+
+  const admin = createAdminClient()
+  const { data: device } = await admin
+    .from('access_devices')
+    .select('device_key, label')
+    .eq('hotel_id', hotelId)
+    .eq('device_role', 'attendance')
+    .eq('managed_in_cloud', true)
+    .order('label', { ascending: true })
+    .limit(1)
+    .maybeSingle()
+
+  if (!device) {
+    return {
+      success: false,
+      error:
+        'No attendance terminal saved. Owner → Access → add DS-K1A8503MF-B (role: Attendance).',
+    }
+  }
+
+  const enqueued = await enqueueAccessJob({
+    hotelId,
+    jobType: 'pull_attendance',
+    priority: 40,
+    idempotencyKey: `pull-attendance:${hotelId}:${device.device_key}:${new Date().toISOString().slice(0, 13)}`,
+    payload: {
+      deviceKey: device.device_key,
+      label: device.label,
+    },
+  })
+
+  if ('error' in enqueued) return { success: false, error: enqueued.error }
+  if ('skipped' in enqueued) {
+    return { success: false, error: 'Access control is not enabled.' }
+  }
 
   revalidateAccess()
   return { success: true }

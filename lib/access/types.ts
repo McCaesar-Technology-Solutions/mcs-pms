@@ -10,6 +10,35 @@ export type AccessJobType =
   | 'enroll_card_capture'
   | 'enroll_face_capture'
   | 'enroll_fingerprint_capture'
+  | 'pull_attendance'
+
+export type AccessPersonType =
+  | 'tenant'
+  | 'owner'
+  | 'manager'
+  | 'receptionist'
+  | 'housekeeping'
+  | 'security'
+  | 'maintenance'
+  | 'other_staff'
+  | 'technical_admin'
+
+export type StaffPersonType = Exclude<AccessPersonType, 'tenant'>
+
+export type AccessStaffStatus = 'active' | 'suspended' | 'on_leave' | 'terminated'
+
+export type AccessPolicyAudience = 'staff' | 'guest'
+
+export interface AccessPolicyRow {
+  id: string
+  hotel_id: string
+  code: string
+  name: string
+  audience: AccessPolicyAudience
+  assignable_by_manager: boolean
+  is_system: boolean
+  point_ids?: string[]
+}
 
 export type AccessJobStatus =
   | 'pending'
@@ -21,9 +50,9 @@ export type AccessJobStatus =
 
 export type AccessCredentialStatus = 'pending' | 'active' | 'revoking' | 'revoked' | 'error'
 export type AccessSyncStatus = 'pending' | 'synced' | 'failed'
-export type AccessZone = 'unit' | 'lobby' | 'gate' | 'elevator' | 'other'
+export type AccessZone = 'unit' | 'lobby' | 'gate' | 'elevator' | 'gym' | 'other'
 export type DeviceCredentialMode = 'local' | 'cloud'
-export type AccessDeviceRole = 'door' | 'enrollment'
+export type AccessDeviceRole = 'door' | 'enrollment' | 'attendance'
 
 export interface AccessDoorTarget {
   deviceKey: string
@@ -165,6 +194,10 @@ export interface AccessCredentialRow {
   hotel_id: string
   guest_id: string | null
   reservation_id: string | null
+  person_type: AccessPersonType
+  profile_id: string | null
+  staff_status: AccessStaffStatus | null
+  access_policy_id: string | null
   employee_no: string
   display_name: string
   card_no: string | null
@@ -179,4 +212,19 @@ export interface AccessCredentialRow {
   last_synced_at: string | null
   guest_name?: string | null
   room_number?: string | null
+  policy_name?: string | null
+  policy_code?: string | null
+}
+
+export interface AttendanceRecordRow {
+  id: string
+  hotel_id: string
+  credential_id: string | null
+  profile_id: string | null
+  employee_no: string
+  display_name: string | null
+  event_type: 'clock_in' | 'clock_out' | 'unknown'
+  occurred_at: string
+  device_key: string | null
+  raw_ref: string | null
 }

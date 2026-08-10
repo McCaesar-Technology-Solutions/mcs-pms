@@ -47,6 +47,7 @@ export default async function ReceptionistAccessPage() {
         credentials={credentials}
         jobs={jobs}
         devices={devices}
+        viewerRole="receptionist"
       />
     </div>
   )

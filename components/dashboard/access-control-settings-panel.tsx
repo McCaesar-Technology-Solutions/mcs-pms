@@ -59,7 +59,7 @@ export function AccessControlSettingsPanel({
   const [label, setLabel] = useState('')
   const [deviceKey, setDeviceKey] = useState(deviceKeys[0] ?? 'lobby')
   const [doorNo, setDoorNo] = useState('1')
-  const [zone, setZone] = useState<'unit' | 'lobby' | 'gate' | 'elevator' | 'other'>('lobby')
+  const [zone, setZone] = useState<'unit' | 'lobby' | 'gate' | 'elevator' | 'gym' | 'other'>('lobby')
   const [roomId, setRoomId] = useState(rooms[0]?.id ?? '')
 
   const [ctrlKey, setCtrlKey] = useState('lobby')
@@ -68,7 +68,7 @@ export function AccessControlSettingsPanel({
   const [ctrlPort, setCtrlPort] = useState('80')
   const [ctrlUser, setCtrlUser] = useState('admin')
   const [ctrlPassword, setCtrlPassword] = useState('')
-  const [ctrlRole, setCtrlRole] = useState<'door' | 'enrollment'>('door')
+  const [ctrlRole, setCtrlRole] = useState<'door' | 'enrollment' | 'attendance'>('door')
 
   const enabled = integration.hotelFlagEnabled && integration.enabled
   const mode = integration.deviceCredentialMode ?? 'local'
@@ -492,7 +492,12 @@ export function AccessControlSettingsPanel({
                         password: ctrlPassword || undefined,
                         useHttps: false,
                         deviceRole: ctrlRole,
-                        model: ctrlRole === 'enrollment' ? 'DS-K1F600U-D6E-F' : undefined,
+                        model:
+                          ctrlRole === 'enrollment'
+                            ? 'DS-K1F600U-D6E-F'
+                            : ctrlRole === 'attendance'
+                              ? 'DS-K1A8503MF-B'
+                              : undefined,
                       })
                       if (!result.success) {
                         setError(result.error)
@@ -502,7 +507,9 @@ export function AccessControlSettingsPanel({
                       setMessage(
                         ctrlRole === 'enrollment'
                           ? 'Enrollment station (DS-K1F600U-D6E-F) saved.'
-                          : 'Door controller saved in MOJO.',
+                          : ctrlRole === 'attendance'
+                            ? 'Attendance terminal (DS-K1A8503MF-B) saved.'
+                            : 'Door controller saved in MOJO.',
                       )
                     })
                   }}
@@ -513,18 +520,24 @@ export function AccessControlSettingsPanel({
                       className={APP_FIELD_CLASS}
                       value={ctrlRole}
                       onChange={(e) => {
-                        const role = e.target.value as 'door' | 'enrollment'
+                        const role = e.target.value as 'door' | 'enrollment' | 'attendance'
                         setCtrlRole(role)
                         if (role === 'enrollment') {
                           setCtrlKey((k) => (k === 'lobby' ? 'enroll1' : k))
                           setCtrlLabel((l) =>
                             l === 'Lobby controller' ? 'DS-K1F600U-D6E-F enrollment' : l,
                           )
+                        } else if (role === 'attendance') {
+                          setCtrlKey((k) =>
+                            k === 'lobby' || k === 'enroll1' ? 'attend1' : k,
+                          )
+                          setCtrlLabel('DS-K1A8503MF-B attendance')
                         }
                       }}
                     >
                       <option value="door">Door controller</option>
                       <option value="enrollment">Enrollment station (DS-K1F600U-D6E-F)</option>
+                      <option value="attendance">Attendance terminal (DS-K1A8503MF-B)</option>
                     </select>
                   </FormField>
                   <FormField label="Device key" htmlFor="ctrl-key">
@@ -651,14 +664,19 @@ export function AccessControlSettingsPanel({
                     label,
                     zone,
                     roomId: zone === 'unit' ? roomId || null : null,
-                    grantsSharedAccess: zone !== 'unit',
+                    grantsSharedAccess:
+                      zone === 'lobby' || zone === 'gate' || zone === 'elevator',
                   })
                   if (!result.success) {
                     setError(result.error)
                     return
                   }
                   setLabel('')
-                  setMessage('Door mapping saved.')
+                  setMessage(
+                    zone === 'gym'
+                      ? 'Gymnasium mapped — all in-house guests get gym access.'
+                      : 'Door mapping saved.',
+                  )
                 })
               }}
             >
@@ -706,8 +724,9 @@ export function AccessControlSettingsPanel({
                   value={zone}
                   onChange={(e) => setZone(e.target.value as typeof zone)}
                 >
-                  <option value="lobby">Lobby</option>
-                  <option value="unit">Unit</option>
+                  <option value="lobby">Lobby / shared</option>
+                  <option value="unit">Unit (room)</option>
+                  <option value="gym">Gymnasium</option>
                   <option value="gate">Gate</option>
                   <option value="elevator">Elevator</option>
                   <option value="other">Other</option>

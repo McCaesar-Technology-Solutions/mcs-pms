@@ -1,7 +1,8 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { employeeNoFromGuestId, encryptAccessSecret } from '@/lib/access/crypto'
+import { resolveGuestDoors } from '@/lib/access/doors'
 import { enqueueAccessJob, isAccessControlEnabled } from '@/lib/access/jobs'
-import type { AccessDoorTarget, AccessZone } from '@/lib/access/types'
+import type { AccessDoorTarget } from '@/lib/access/types'
 
 type Admin = ReturnType<typeof createAdminClient>
 
@@ -12,25 +13,11 @@ async function resolveDoorsForRoom(
 ): Promise<AccessDoorTarget[]> {
   const { data: points } = await admin
     .from('access_points')
-    .select('device_key, door_no, label, zone, room_id, grants_shared_access')
+    .select('device_key, door_no, label, zone, room_id, grants_shared_access, is_active')
     .eq('hotel_id', hotelId)
     .eq('is_active', true)
 
-  if (!points?.length) return []
-
-  const doors: AccessDoorTarget[] = []
-  for (const p of points) {
-    const shared = p.grants_shared_access || p.zone !== 'unit'
-    const unitMatch = roomId && p.room_id === roomId
-    if (!shared && !unitMatch) continue
-    doors.push({
-      deviceKey: p.device_key,
-      doorNo: p.door_no,
-      label: p.label,
-      zone: p.zone as AccessZone,
-    })
-  }
-  return doors
+  return resolveGuestDoors(points ?? [], roomId)
 }
 
 /**
@@ -93,6 +80,7 @@ export async function provisionGuestAccess(input: {
       const { data: created, error } = await admin
         .from('access_credentials')
         .insert({
+          person_type: 'tenant',
           hotel_id: input.hotelId,
           guest_id: input.guestId,
           reservation_id: input.reservationId,

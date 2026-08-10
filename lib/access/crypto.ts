@@ -85,3 +85,13 @@ export function employeeNoFromGuestId(guestId: string): string {
   }
   return String((n % 800_000_000) + 100_000_000)
 }
+
+/** Staff employeeNo in a disjoint numeric band from guest IDs. */
+export function employeeNoFromStaffKey(key: string): string {
+  const hex = key.replace(/-/g, '').slice(0, 12)
+  const n = Number.parseInt(hex, 16)
+  if (!Number.isFinite(n)) {
+    return String(900_000_000 + Math.floor(Math.random() * 99_000_000))
+  }
+  return String((n % 99_000_000) + 900_000_000)
+}

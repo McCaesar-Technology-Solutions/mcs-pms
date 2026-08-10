@@ -173,7 +173,9 @@ export async function startAgent(options = {}) {
   }
 
   function doorDevices() {
-    return [...config.devices.values()].filter((d) => d.role !== 'enrollment')
+    return [...config.devices.values()].filter(
+      (d) => d.role !== 'enrollment' && d.role !== 'attendance',
+    )
   }
 
   function devicesForDoors(doors = []) {
@@ -181,8 +183,8 @@ export async function startAgent(options = {}) {
     return keys.map((key) => {
       const device = config.devices.get(key)
       if (!device) throw new Error(`Unknown device key "${key}" — not in agent devices`)
-      if (device.role === 'enrollment') {
-        throw new Error(`Device "${key}" is an enrollment station, not a door controller`)
+      if (device.role === 'enrollment' || device.role === 'attendance') {
+        throw new Error(`Device "${key}" is not a door controller`)
       }
       return device
     })
@@ -195,6 +197,18 @@ export async function startAgent(options = {}) {
     if (!fallback) {
       throw new Error(
         'No enrollment station in agent devices. Save DS-K1F600U-D6E-F in Owner → Access (role: Enrollment).',
+      )
+    }
+    return fallback
+  }
+
+  function attendanceDevice(deviceKey) {
+    const device = deviceKey ? config.devices.get(deviceKey) : null
+    if (device?.role === 'attendance') return device
+    const fallback = [...config.devices.values()].find((d) => d.role === 'attendance')
+    if (!fallback) {
+      throw new Error(
+        'No attendance terminal in agent devices. Save DS-K1A8503MF-B in Owner → Access (role: Attendance).',
       )
     }
     return fallback
@@ -322,6 +336,20 @@ export async function startAgent(options = {}) {
         })
       }
       return { hasFingerprint: true, devices: targets.map((d) => d.key) }
+    }
+
+    if (type === 'pull_attendance') {
+      const device = attendanceDevice(payload.deviceKey)
+      log('info', `Pulling attendance events from ${device.key}…`)
+      if (typeof device.pullAttendanceEvents !== 'function') {
+        return {
+          records: [],
+          deviceKey: device.key,
+          note: 'Attendance pull not yet supported on this agent build — upgrade Access Agent.',
+        }
+      }
+      const records = await device.pullAttendanceEvents({ sinceHours: 48 })
+      return { records: records ?? [], deviceKey: device.key }
     }
 
     throw new Error(`Unsupported job type: ${type}`)

@@ -2,61 +2,55 @@
 
 Production path for the apartment with Hikvision already installed: **MOJO enqueues jobs → on-site agent applies ISAPI**.
 
+See also: [hikvision-srs-roadmap.md](hikvision-srs-roadmap.md) (phased SRS implementation).
+
 **Who uses Access in the app**
 
 | Role | Can do |
 |------|--------|
-| Owner | Full setup + day-to-day ops (`/owner/access`) |
-| Manager | Unlock, assign card, retry (`/manager/access`) |
-| Receptionist | Unlock, assign card, retry (`/receptionist/access`) |
-
-Day-to-day steps for staff are in the [owner](owner-guide.md#8-access-control-hikvision), [manager](manager-guide.md#8-access-ops-only), and [receptionist](receptionist-guide.md#8-access) guides. This page is the **technical setup** checklist.
+| Owner | Full setup, staff + guest access, policies, attendance (`/owner/access`) |
+| Manager | Guest ops + approved staff physical access + attendance (`/manager/access`) |
+| Receptionist | Guest credentials only; guest-facing unlock (`/receptionist/access`) |
 
 ## What was built
 
 | Piece | Location |
 |-------|----------|
-| Schema | `supabase/migrations/061_access_control.sql` |
-| Lifecycle hooks | `app/actions/stays.ts` (check-in, checkout, extend, move) |
+| Schema | `061`–`065`, `068` (persons, policies, gym, attendance) |
+| Guest lifecycle | `lib/access/lifecycle.ts` + `app/actions/stays.ts` |
+| Staff lifecycle | `lib/access/staff-lifecycle.ts` |
+| Door resolution | `lib/access/doors.ts` (room + shared + gym) |
 | Job queue | `lib/access/jobs.ts` |
 | Agent API | `app/api/access/agent/*` |
-| Stuck-job reclaim | Agent poll + GitHub Actions every 5 min; daily Vercel backup (`04:45` UTC) |
 | Staff UI | `/owner/access`, `/manager/access`, `/receptionist/access` |
-| On-site agent | **MOJO Access Agent** desktop app (`services/access-agent-app`) — tray icon + `.dmg`/`.exe` |
+| On-site agent | **MOJO Access Agent** (`services/access-agent-app`) |
 
-## Security model
+## Guest door policy
 
-- **Two password options:**
-  - **Local** — Hikvision admin passwords stay only in the agent `.env` on site.
-  - **Cloud** — passwords are entered in Owner → Access, stored encrypted (`access_device_secrets`, service role only), and downloaded by the authenticated agent over HTTPS.
-- Agent bearer token is stored as **SHA-256 hash** in `access_integrations` (plaintext shown once on rotate).
-- Door PINs in job payloads are **AES-GCM encrypted** at rest and stripped after success.
-- Staff RLS is **SELECT-only** on access tables; device password ciphertext is never selected in browser loaders.
-- Agent endpoints are rate-limited and require `Authorization: Bearer` + `X-Mojo-Hotel-Id`.
+On check-in, guests receive:
 
-## Enrollment station (DS-K1F600U-D6E-F)
+1. Unit door(s) mapped to their room
+2. Doors with `grants_shared_access` (lobby / corridor)
+3. Doors with zone `gym`
 
-Phase 1–2: save the station in Owner → Access with role **Enrollment station**, then use **Enroll card / face / fingerprint** on guest credentials. The agent waits on the station, then pushes credentials to door controllers. Migration `065` adds `device_role` and enroll job types.
+They do **not** automatically receive every non-unit door.
 
-## Go-live steps (simplified)
+## Staff access
 
-1. Apply migrations through `065` (cloud device secrets + enrollment station).
-2. Owner → **Access**:
-   - Choose **Store in MOJO** (easier) or **Apartment PC only**
-   - If cloud: save door controller(s) and optionally **DS-K1F600U-D6E-F** enrollment station
-   - **Start setup** → **Copy full .env**
-3. On the apartment PC:
-   - Install **MOJO Access Agent** (Windows `.exe` / Mac `.dmg` from `services/access-agent-app/dist`)
-   - Paste **Start setup → Copy full .env** when the app asks
-   - Leave it running in the tray (auto-starts at login)
-4. Map doors (device key must match **door** controller key, not the enrollment station).
-5. Confirm **Agent online**, then test one check-in / checkout and optional station enroll.
+Owner/Manager create staff physical persons with an access policy (door group). Reception never sees staff credentials (RLS + server filters).
 
-- If the agent is offline, jobs stay `pending`/`failed` and retry with backoff.
-- Stuck `claimed` jobs are reclaimed on each agent poll, via GitHub Actions every 5 min (Hobby-friendly), and a daily Vercel cron backup.
-- Remote unlock is audited as `access` / `remote_unlock`.
-- Portal PIN is also used as the door PIN on provision (best-effort per firmware).
+## Attendance
 
-## Firmware caveats
+Save DS-K1A8503MF-B as device role **Attendance**, then use **Pull from terminal** on Access. Agent job `pull_attendance` (ISAPI event pull TBD per device firmware).
 
-ISAPI paths/fields vary slightly by controller model. If provision fails, check agent logs and adjust `services/hikvision-agent/src/isapi.js` for your exact series (still keep MOJO as the source of truth for who should have access).
+## Deferred
+
+Payment-gated door provision is deferred (Paystack not the live gate yet).
+
+## Go-live steps
+
+1. Apply migrations through `068`.
+2. Owner → Access: Start setup, save controllers + optional enrollment + attendance terminals.
+3. Map room doors (zone unit), lobby (shared), gymnasium (zone gym).
+4. Map staff policy doors, create staff access, enroll at station.
+5. Install MOJO Access Agent; leave tray running.

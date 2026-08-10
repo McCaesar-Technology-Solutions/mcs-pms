@@ -17,6 +17,7 @@ import type {
   AccessPointRow,
   AccessJobRow,
 } from '@/lib/access/types'
+import { receptionMayUnlockZone } from '@/lib/access/doors'
 
 interface AccessOpsPanelProps {
   hotelId: string
@@ -24,6 +25,8 @@ interface AccessOpsPanelProps {
   credentials: AccessCredentialRow[]
   jobs: AccessJobRow[]
   devices?: AccessDeviceRow[]
+  /** When receptionist, unlock list is limited to guest-facing zones. */
+  viewerRole?: 'owner' | 'manager' | 'receptionist'
 }
 
 export function AccessOpsPanel({
@@ -32,6 +35,7 @@ export function AccessOpsPanel({
   credentials,
   jobs,
   devices = [],
+  viewerRole = 'manager',
 }: AccessOpsPanelProps) {
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
@@ -39,6 +43,12 @@ export function AccessOpsPanel({
   const [cardDrafts, setCardDrafts] = useState<Record<string, string>>({})
 
   const enrollmentStation = devices.find((d) => d.device_role === 'enrollment' && d.managed_in_cloud)
+  const unlockPoints = points.filter(
+    (p) =>
+      p.is_active &&
+      (viewerRole !== 'receptionist' || receptionMayUnlockZone(p.zone)),
+  )
+  const guestCredentials = credentials.filter((c) => (c.person_type ?? 'tenant') === 'tenant')
 
   function run(action: () => Promise<void>) {
     setError(null)
@@ -68,13 +78,11 @@ export function AccessOpsPanel({
           </div>
         </div>
         <div className="surface-card-body">
-          {points.filter((p) => p.is_active).length === 0 ? (
+          {unlockPoints.length === 0 ? (
             <p className="text-sm text-muted-foreground">No active doors mapped.</p>
           ) : (
             <ul className="grid gap-2 sm:grid-cols-2">
-              {points
-                .filter((p) => p.is_active)
-                .map((p) => (
+              {unlockPoints.map((p) => (
                   <li
                     key={p.id}
                     className="flex items-center justify-between gap-2 rounded-xl border border-border px-3 py-2"
@@ -121,8 +129,8 @@ export function AccessOpsPanel({
           </p>
         </div>
         <div className="surface-card-body overflow-x-auto">
-          {credentials.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No credentials yet.</p>
+          {guestCredentials.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No guest credentials yet.</p>
           ) : (
             <table className="w-full min-w-[760px] text-left text-sm">
               <thead className="text-xs uppercase text-muted-foreground">
@@ -135,7 +143,7 @@ export function AccessOpsPanel({
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {credentials.map((c) => (
+                {guestCredentials.map((c) => (
                   <tr key={c.id}>
                     <td className="py-3 pr-3">
                       <div className="font-medium text-foreground">

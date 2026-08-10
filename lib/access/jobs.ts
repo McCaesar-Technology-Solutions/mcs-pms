@@ -185,6 +185,9 @@ export async function completeAccessJob(input: {
       .eq('id', job.id)
 
     await applyCredentialSuccess(admin, job, input.result)
+    if (job.job_type === 'pull_attendance') {
+      await ingestAttendancePull(admin, input.hotelId, input.result)
+    }
     return { ok: true }
   }
 
@@ -224,6 +227,57 @@ function stripTransientSecrets(payload: Json): Json {
   const next = { ...(payload as Record<string, unknown>) }
   if ('doorPin' in next) next.doorPin = null
   return next as Json
+}
+
+async function ingestAttendancePull(
+  admin: Admin,
+  hotelId: string,
+  result?: Record<string, unknown>,
+) {
+  const records = result?.records
+  if (!Array.isArray(records) || !records.length) return
+
+  const deviceKey = typeof result?.deviceKey === 'string' ? result.deviceKey : null
+  const rows = []
+
+  for (const raw of records) {
+    if (!raw || typeof raw !== 'object') continue
+    const r = raw as Record<string, unknown>
+    const employeeNo = String(r.employeeNo ?? r.employee_no ?? '').trim()
+    if (!employeeNo) continue
+    const occurredAt = String(r.occurredAt ?? r.occurred_at ?? '')
+    if (!occurredAt) continue
+    const eventTypeRaw = String(r.eventType ?? r.event_type ?? 'unknown')
+    const event_type: 'clock_in' | 'clock_out' | 'unknown' =
+      eventTypeRaw === 'clock_in' || eventTypeRaw === 'clock_out' ? eventTypeRaw : 'unknown'
+
+    const { data: cred } = await admin
+      .from('access_credentials')
+      .select('id, profile_id, display_name, person_type')
+      .eq('hotel_id', hotelId)
+      .eq('employee_no', employeeNo)
+      .neq('person_type', 'tenant')
+      .maybeSingle()
+
+    // Never attribute attendance to tenants.
+    if (cred?.person_type === 'tenant') continue
+
+    rows.push({
+      hotel_id: hotelId,
+      credential_id: cred?.id ?? null,
+      profile_id: cred?.profile_id ?? null,
+      employee_no: employeeNo,
+      display_name:
+        (typeof r.displayName === 'string' ? r.displayName : null) ?? cred?.display_name ?? null,
+      event_type,
+      occurred_at: occurredAt,
+      device_key: deviceKey,
+      raw_ref: typeof r.rawRef === 'string' ? r.rawRef : null,
+    })
+  }
+
+  if (!rows.length) return
+  await admin.from('attendance_records').insert(rows)
 }
 
 async function applyCredentialSuccess(
