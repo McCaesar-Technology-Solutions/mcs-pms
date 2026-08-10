@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useMemo, useState, useTransition } from 'react'
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { ChevronDown, MoreHorizontal, Shield, Users } from 'lucide-react'
 import { AccessFeedback } from '@/components/dashboard/access-feedback'
+import { HeaderDropdownPanel } from '@/components/dashboard/header-dropdown-panel'
 import {
   assignAccessCard,
   createOrUpdateStaffAccess,
@@ -120,6 +121,8 @@ export function StaffAccessPanel({
   const [cardDrafts, setCardDrafts] = useState<Record<string, string>>({})
   const [enrollMenuId, setEnrollMenuId] = useState<string | null>(null)
   const [moreMenuId, setMoreMenuId] = useState<string | null>(null)
+  const enrollAnchorRef = useRef<HTMLElement | null>(null)
+  const moreAnchorRef = useRef<HTMLElement | null>(null)
 
   useEffect(() => {
     if (!policyId && policies[0]?.id) setPolicyId(firstPolicyWithDoors(policies))
@@ -131,17 +134,6 @@ export function StaffAccessPanel({
       setSelectedPoints(policies[0].point_ids ?? [])
     }
   }, [policies, editingPolicyId])
-
-  useEffect(() => {
-    function onDocClick(e: MouseEvent) {
-      const target = e.target as HTMLElement | null
-      if (target?.closest('[data-staff-access-menu]')) return
-      setEnrollMenuId(null)
-      setMoreMenuId(null)
-    }
-    document.addEventListener('click', onDocClick)
-    return () => document.removeEventListener('click', onDocClick)
-  }, [])
 
   const typeOptions = STAFF_TYPES.filter((t) => canCreateOwnerTypes || !t.ownerOnly)
   const activePoints = points.filter((p) => p.is_active)
@@ -293,7 +285,11 @@ export function StaffAccessPanel({
               return (
                 <label
                   key={p.id}
-                  className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm"
+                  className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-shadow ${
+                    checked
+                      ? 'bg-primary/5 shadow-elevation-1 ring-1 ring-primary/20'
+                      : 'bg-card shadow-elevation-1'
+                  }`}
                 >
                   <input
                     type="checkbox"
@@ -376,7 +372,7 @@ export function StaffAccessPanel({
               No staff badges yet. Add someone after their policy has doors.
             </p>
           ) : (
-            <ul className="divide-y divide-border rounded-xl border border-border">
+            <ul className="soft-list">
               {staffCredentials.map((c) => {
                 const inactive =
                   c.staff_status === 'suspended' ||
@@ -384,11 +380,10 @@ export function StaffAccessPanel({
                   c.staff_status === 'on_leave' ||
                   c.status === 'revoked'
                 const chip = staffSyncChip(c)
-                const needsRetry = c.sync_status === 'failed' || c.status === 'error'
                 return (
                   <li
                     key={c.id}
-                    className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                    className="soft-list-item flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
                   >
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
@@ -410,54 +405,30 @@ export function StaffAccessPanel({
                       ) : null}
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2" data-staff-access-menu>
+                    <div className="flex flex-wrap items-center gap-2">
                       {!inactive ? (
-                        <div className="relative">
-                          <button
-                            type="button"
-                            className="app-btn app-btn-primary h-11 min-w-[7.5rem] text-sm"
-                            disabled={pending || !hasEnrollmentStation}
-                            title={
-                              hasEnrollmentStation
-                                ? 'Enroll at the station'
-                                : canCreateOwnerTypes
-                                  ? 'Save an enrollment station under Setup first'
-                                  : 'Ask the owner to save an enrollment station under Setup'
-                            }
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setMoreMenuId(null)
-                              setEnrollMenuId((id) => (id === c.id ? null : c.id))
-                            }}
-                          >
-                            Enroll
-                            <ChevronDown className="ml-1 inline h-4 w-4" aria-hidden />
-                          </button>
-                          {enrollMenuId === c.id ? (
-                            <div className="absolute right-0 z-20 mt-1 min-w-[11rem] rounded-xl border border-border bg-card p-1 shadow-lg">
-                              {(
-                                [
-                                  ['card', `Card${c.card_no ? ' ✓' : ''}`],
-                                  ['face', `Face${c.has_face ? ' ✓' : ''}`],
-                                  [
-                                    'fingerprint',
-                                    `Fingerprint${c.has_fingerprint ? ' ✓' : ''}`,
-                                  ],
-                                ] as const
-                              ).map(([kind, label]) => (
-                                <button
-                                  key={kind}
-                                  type="button"
-                                  className="flex min-h-11 w-full items-center rounded-lg px-3 text-left text-sm hover:bg-muted/60"
-                                  disabled={pending || !hasEnrollmentStation}
-                                  onClick={() => queueEnroll(c.id, c.display_name, kind)}
-                                >
-                                  {label}
-                                </button>
-                              ))}
-                            </div>
-                          ) : null}
-                        </div>
+                        <button
+                          type="button"
+                          className="app-btn app-btn-primary h-11 min-w-[7.5rem] text-sm"
+                          disabled={pending || !hasEnrollmentStation}
+                          aria-expanded={enrollMenuId === c.id}
+                          title={
+                            hasEnrollmentStation
+                              ? 'Enroll at the station'
+                              : canCreateOwnerTypes
+                                ? 'Save an enrollment station under Setup first'
+                                : 'Ask the owner to save an enrollment station under Setup'
+                          }
+                          onClick={(e) => {
+                            const next = enrollMenuId === c.id ? null : c.id
+                            enrollAnchorRef.current = e.currentTarget
+                            setMoreMenuId(null)
+                            setEnrollMenuId(next)
+                          }}
+                        >
+                          Enroll
+                          <ChevronDown className="ml-1 inline h-4 w-4" aria-hidden />
+                        </button>
                       ) : (
                         <button
                           type="button"
@@ -479,141 +450,21 @@ export function StaffAccessPanel({
                         </button>
                       )}
 
-                      <div className="relative">
-                        <button
-                          type="button"
-                          className="app-btn app-btn-ghost h-11 w-11 px-0"
-                          aria-label={`More actions for ${c.display_name}`}
-                          disabled={pending}
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setEnrollMenuId(null)
-                            setMoreMenuId((id) => (id === c.id ? null : c.id))
-                          }}
-                        >
-                          <MoreHorizontal className="h-4 w-4" />
-                        </button>
-                        {moreMenuId === c.id ? (
-                          <div className="absolute right-0 z-20 mt-1 w-64 space-y-2 rounded-xl border border-border bg-card p-3 shadow-lg">
-                            {!inactive ? (
-                              <>
-                                <div className="flex gap-2">
-                                  <input
-                                    className="app-field h-9 flex-1 text-xs"
-                                    placeholder={c.card_no ?? 'Card number'}
-                                    value={cardDrafts[c.id] ?? ''}
-                                    onChange={(e) =>
-                                      setCardDrafts((prev) => ({
-                                        ...prev,
-                                        [c.id]: e.target.value,
-                                      }))
-                                    }
-                                  />
-                                  <button
-                                    type="button"
-                                    className="app-btn app-btn-secondary h-9 text-xs"
-                                    disabled={pending || !(cardDrafts[c.id] ?? '').trim()}
-                                    onClick={() => {
-                                      setMoreMenuId(null)
-                                      run(async () => {
-                                        const result = await assignAccessCard({
-                                          hotelId,
-                                          credentialId: c.id,
-                                          cardNo: (cardDrafts[c.id] ?? '').trim(),
-                                        })
-                                        if (!result.success) setError(result.error)
-                                        else {
-                                          setCardDrafts((prev) => ({ ...prev, [c.id]: '' }))
-                                          setMessage(`Card assigned for ${c.display_name}.`)
-                                        }
-                                      })
-                                    }}
-                                  >
-                                    Assign
-                                  </button>
-                                </div>
-                                {needsRetry ? (
-                                  <button
-                                    type="button"
-                                    className="app-btn app-btn-secondary h-9 w-full text-xs"
-                                    disabled={pending}
-                                    onClick={() => {
-                                      setMoreMenuId(null)
-                                      run(async () => {
-                                        const result = await retryAccessCredential(hotelId, c.id)
-                                        if (!result.success) setError(result.error)
-                                        else
-                                          setMessage(`Re-provision queued for ${c.display_name}.`)
-                                      })
-                                    }}
-                                  >
-                                    Retry sync
-                                  </button>
-                                ) : null}
-                                <button
-                                  type="button"
-                                  className="app-btn app-btn-secondary h-9 w-full text-xs"
-                                  disabled={pending}
-                                  onClick={() => {
-                                    setMoreMenuId(null)
-                                    run(async () => {
-                                      const result = await updateStaffAccessStatusAction({
-                                        hotelId,
-                                        credentialId: c.id,
-                                        staffStatus: 'suspended',
-                                      })
-                                      if (!result.success) setError(result.error)
-                                      else setMessage(`Suspended ${c.display_name}.`)
-                                    })
-                                  }}
-                                >
-                                  Suspend
-                                </button>
-                                <button
-                                  type="button"
-                                  className="app-btn app-btn-ghost h-9 w-full text-xs text-destructive"
-                                  disabled={pending}
-                                  onClick={() => {
-                                    setMoreMenuId(null)
-                                    run(async () => {
-                                      const result = await updateStaffAccessStatusAction({
-                                        hotelId,
-                                        credentialId: c.id,
-                                        staffStatus: 'terminated',
-                                      })
-                                      if (!result.success) setError(result.error)
-                                      else
-                                        setMessage(`Terminated access for ${c.display_name}.`)
-                                    })
-                                  }}
-                                >
-                                  Terminate
-                                </button>
-                              </>
-                            ) : needsRetry ? (
-                              <button
-                                type="button"
-                                className="app-btn app-btn-secondary h-9 w-full text-xs"
-                                disabled={pending}
-                                onClick={() => {
-                                  setMoreMenuId(null)
-                                  run(async () => {
-                                    const result = await retryAccessCredential(hotelId, c.id)
-                                    if (!result.success) setError(result.error)
-                                    else setMessage(`Re-provision queued for ${c.display_name}.`)
-                                  })
-                                }}
-                              >
-                                Retry sync
-                              </button>
-                            ) : (
-                              <p className="text-xs text-muted-foreground">
-                                Use Resume to restore access.
-                              </p>
-                            )}
-                          </div>
-                        ) : null}
-                      </div>
+                      <button
+                        type="button"
+                        className="app-btn app-btn-ghost h-11 w-11 px-0"
+                        aria-label={`More actions for ${c.display_name}`}
+                        aria-expanded={moreMenuId === c.id}
+                        disabled={pending}
+                        onClick={(e) => {
+                          const next = moreMenuId === c.id ? null : c.id
+                          moreAnchorRef.current = e.currentTarget
+                          setEnrollMenuId(null)
+                          setMoreMenuId(next)
+                        }}
+                      >
+                        <MoreHorizontal className="h-4 w-4" />
+                      </button>
                     </div>
                   </li>
                 )
@@ -764,6 +615,179 @@ export function StaffAccessPanel({
       ) : null}
 
       <AccessFeedback error={error} message={message} />
+
+      <HeaderDropdownPanel
+        open={Boolean(enrollMenuId)}
+        anchorRef={enrollAnchorRef}
+        width={176}
+        align="end"
+        onClose={() => setEnrollMenuId(null)}
+        className="access-menu-panel p-1"
+      >
+        {(() => {
+          const c = staffCredentials.find((s) => s.id === enrollMenuId)
+          if (!c) return null
+          return (
+            <>
+              {(
+                [
+                  ['card', `Card${c.card_no ? ' ✓' : ''}`],
+                  ['face', `Face${c.has_face ? ' ✓' : ''}`],
+                  ['fingerprint', `Fingerprint${c.has_fingerprint ? ' ✓' : ''}`],
+                ] as const
+              ).map(([kind, label]) => (
+                <button
+                  key={kind}
+                  type="button"
+                  className="flex min-h-11 w-full items-center rounded-lg px-3 text-left text-sm hover:bg-muted/60"
+                  disabled={pending || !hasEnrollmentStation}
+                  onClick={() => queueEnroll(c.id, c.display_name, kind)}
+                >
+                  {label}
+                </button>
+              ))}
+            </>
+          )
+        })()}
+      </HeaderDropdownPanel>
+
+      <HeaderDropdownPanel
+        open={Boolean(moreMenuId)}
+        anchorRef={moreAnchorRef}
+        width={256}
+        align="end"
+        onClose={() => setMoreMenuId(null)}
+        className="access-menu-panel space-y-2 p-3"
+      >
+        {(() => {
+          const c = staffCredentials.find((s) => s.id === moreMenuId)
+          if (!c) return null
+          const inactive =
+            c.staff_status === 'suspended' ||
+            c.staff_status === 'terminated' ||
+            c.staff_status === 'on_leave' ||
+            c.status === 'revoked'
+          const needsRetry = c.sync_status === 'failed' || c.status === 'error'
+          if (!inactive) {
+            return (
+              <>
+                <div className="flex gap-2">
+                  <input
+                    className="app-field h-9 flex-1 text-xs"
+                    placeholder={c.card_no ?? 'Card number'}
+                    value={cardDrafts[c.id] ?? ''}
+                    onChange={(e) =>
+                      setCardDrafts((prev) => ({
+                        ...prev,
+                        [c.id]: e.target.value,
+                      }))
+                    }
+                  />
+                  <button
+                    type="button"
+                    className="app-btn app-btn-secondary h-9 text-xs"
+                    disabled={pending || !(cardDrafts[c.id] ?? '').trim()}
+                    onClick={() => {
+                      setMoreMenuId(null)
+                      run(async () => {
+                        const result = await assignAccessCard({
+                          hotelId,
+                          credentialId: c.id,
+                          cardNo: (cardDrafts[c.id] ?? '').trim(),
+                        })
+                        if (!result.success) setError(result.error)
+                        else {
+                          setCardDrafts((prev) => ({ ...prev, [c.id]: '' }))
+                          setMessage(`Card assigned for ${c.display_name}.`)
+                        }
+                      })
+                    }}
+                  >
+                    Assign
+                  </button>
+                </div>
+                {needsRetry ? (
+                  <button
+                    type="button"
+                    className="app-btn app-btn-secondary h-9 w-full text-xs"
+                    disabled={pending}
+                    onClick={() => {
+                      setMoreMenuId(null)
+                      run(async () => {
+                        const result = await retryAccessCredential(hotelId, c.id)
+                        if (!result.success) setError(result.error)
+                        else setMessage(`Re-provision queued for ${c.display_name}.`)
+                      })
+                    }}
+                  >
+                    Retry sync
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className="app-btn app-btn-secondary h-9 w-full text-xs"
+                  disabled={pending}
+                  onClick={() => {
+                    setMoreMenuId(null)
+                    run(async () => {
+                      const result = await updateStaffAccessStatusAction({
+                        hotelId,
+                        credentialId: c.id,
+                        staffStatus: 'suspended',
+                      })
+                      if (!result.success) setError(result.error)
+                      else setMessage(`Suspended ${c.display_name}.`)
+                    })
+                  }}
+                >
+                  Suspend
+                </button>
+                <button
+                  type="button"
+                  className="app-btn app-btn-ghost h-9 w-full text-xs text-destructive"
+                  disabled={pending}
+                  onClick={() => {
+                    setMoreMenuId(null)
+                    run(async () => {
+                      const result = await updateStaffAccessStatusAction({
+                        hotelId,
+                        credentialId: c.id,
+                        staffStatus: 'terminated',
+                      })
+                      if (!result.success) setError(result.error)
+                      else setMessage(`Terminated access for ${c.display_name}.`)
+                    })
+                  }}
+                >
+                  Terminate
+                </button>
+              </>
+            )
+          }
+          if (needsRetry) {
+            return (
+              <button
+                type="button"
+                className="app-btn app-btn-secondary h-9 w-full text-xs"
+                disabled={pending}
+                onClick={() => {
+                  setMoreMenuId(null)
+                  run(async () => {
+                    const result = await retryAccessCredential(hotelId, c.id)
+                    if (!result.success) setError(result.error)
+                    else setMessage(`Re-provision queued for ${c.display_name}.`)
+                  })
+                }}
+              >
+                Retry sync
+              </button>
+            )
+          }
+          return (
+            <p className="text-xs text-muted-foreground">Use Resume to restore access.</p>
+          )
+        })()}
+      </HeaderDropdownPanel>
     </div>
   )
 }

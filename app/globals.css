@@ -4123,22 +4123,53 @@
     border-radius: calc(var(--radius) - 2px);
     background: var(--card);
     color: var(--foreground);
-    border: 1px solid var(--border);
+    border: none;
     box-shadow:
       0 2px 4px rgba(var(--shadow-tint), 0.06),
       0 8px 20px rgba(var(--shadow-tint), 0.07);
     transition:
       box-shadow 0.25s ease,
-      transform 0.25s ease,
-      border-color 0.25s ease;
+      transform 0.25s ease;
   }
 
   .elevated-list-item:hover {
-    border-color: rgba(var(--glow-purple), 0.22);
     box-shadow:
       0 4px 10px rgba(var(--shadow-tint), 0.08),
       0 12px 28px rgba(var(--glow-purple), 0.12);
     transform: translateY(-2px);
+  }
+
+  /* Soft nested panels / menus — elevation instead of hard borders */
+  .soft-panel {
+    border-radius: calc(var(--radius) - 2px);
+    background: rgba(var(--glow-purple), 0.035);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.65),
+      0 1px 3px rgba(var(--shadow-tint), 0.04);
+  }
+
+  .soft-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .soft-list-item {
+    border-radius: calc(var(--radius) - 2px);
+    background: var(--card);
+    box-shadow:
+      0 1px 2px rgba(var(--shadow-tint), 0.04),
+      0 6px 16px -8px rgba(var(--shadow-tint), 0.12);
+  }
+
+  .access-menu-panel {
+    overflow: auto;
+    border-radius: calc(var(--radius) - 2px);
+    background: var(--card);
+    color: var(--foreground);
+    box-shadow:
+      0 4px 12px rgba(var(--shadow-tint), 0.08),
+      0 16px 40px rgba(var(--glow-purple), 0.12);
   }
 
   .kanban-column-body {

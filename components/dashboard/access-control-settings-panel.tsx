@@ -341,7 +341,7 @@ export function AccessControlSettingsPanel({
           </div>
 
           {canManage ? (
-            <div className="space-y-3 rounded-xl border border-border p-4">
+            <div className="soft-panel space-y-3 p-4">
               <p className="text-sm font-semibold text-foreground">
                 {coreComplete ? 'Agent token' : 'Start here'}
               </p>
@@ -488,10 +488,10 @@ export function AccessControlSettingsPanel({
                       else setMessage(`Credential mode set to ${opt.value}.`)
                     })
                   }
-                  className={`rounded-xl border p-4 text-left transition-colors ${
+                  className={`rounded-xl p-4 text-left transition-shadow ${
                     mode === opt.value
-                      ? 'border-primary bg-primary/5'
-                      : 'border-border hover:bg-muted/40'
+                      ? 'bg-primary/5 shadow-elevation-2 ring-2 ring-primary/25'
+                      : 'bg-card shadow-elevation-1 hover:shadow-elevation-2'
                   }`}
                 >
                   <span className="block text-sm font-semibold text-foreground">{opt.title}</span>
@@ -501,7 +501,7 @@ export function AccessControlSettingsPanel({
             </div>
 
             {mode === 'cloud' && (
-              <div className="space-y-3 rounded-xl border border-border p-4">
+              <div className="soft-panel space-y-3 p-4">
                 <p className="text-sm font-medium text-foreground">Devices in MOJO</p>
                 <p className="text-xs text-muted-foreground">
                   Door controllers grant access. Enrollment station captures cards / face /
@@ -514,11 +514,11 @@ export function AccessControlSettingsPanel({
                 {cloudDevices.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No devices saved yet.</p>
                 ) : (
-                  <ul className="divide-y divide-border rounded-lg border border-border">
+                  <ul className="soft-list">
                     {cloudDevices.map((d) => (
                       <li
                         key={d.id}
-                        className="flex flex-wrap items-center justify-between gap-2 px-3 py-2"
+                        className="soft-list-item flex flex-wrap items-center justify-between gap-2 px-3 py-2.5"
                       >
                         <div>
                           <p className="text-sm font-medium text-foreground">
@@ -707,9 +707,12 @@ export function AccessControlSettingsPanel({
           {points.length === 0 ? (
             <p className="text-sm text-muted-foreground">No doors mapped yet.</p>
           ) : (
-            <ul className="divide-y divide-border rounded-xl border border-border">
+            <ul className="soft-list">
               {points.map((p) => (
-                <li key={p.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
+                <li
+                  key={p.id}
+                  className="soft-list-item flex flex-wrap items-center justify-between gap-2 px-4 py-3"
+                >
                   <div>
                     <p className="text-sm font-medium text-foreground">{p.label}</p>
                     <p className="text-xs text-muted-foreground">

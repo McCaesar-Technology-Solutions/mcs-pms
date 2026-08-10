@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useMemo, useState, useTransition } from 'react'
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { ChevronDown, CreditCard, DoorOpen, ListTodo, MoreHorizontal, Search } from 'lucide-react'
 import { AccessFeedback } from '@/components/dashboard/access-feedback'
+import { HeaderDropdownPanel } from '@/components/dashboard/header-dropdown-panel'
 import {
   assignAccessCard,
   cancelAccessJobAction,
@@ -131,6 +132,8 @@ export function AccessOpsPanel({
   const [lastUnlockedId, setLastUnlockedId] = useState<string | null>(null)
   const [enrollMenuId, setEnrollMenuId] = useState<string | null>(null)
   const [moreMenuId, setMoreMenuId] = useState<string | null>(null)
+  const enrollAnchorRef = useRef<HTMLElement | null>(null)
+  const moreAnchorRef = useRef<HTMLElement | null>(null)
 
   useEffect(() => {
     try {
@@ -139,17 +142,6 @@ export function AccessOpsPanel({
       setLastUnlockedId(null)
     }
   }, [hotelId])
-
-  useEffect(() => {
-    function onDocClick(e: MouseEvent) {
-      const target = e.target as HTMLElement | null
-      if (target?.closest('[data-access-menu]')) return
-      setEnrollMenuId(null)
-      setMoreMenuId(null)
-    }
-    document.addEventListener('click', onDocClick)
-    return () => document.removeEventListener('click', onDocClick)
-  }, [])
 
   const enrollmentStation = devices.find((d) => d.device_role === 'enrollment' && d.managed_in_cloud)
   const unlockPoints = points.filter(
@@ -299,10 +291,10 @@ export function AccessOpsPanel({
                             setMessage(`Unlock queued for ${p.label}.`)
                           })
                         }
-                        className={`flex min-h-14 w-full items-center justify-between gap-3 rounded-xl border px-4 py-3.5 text-left transition-colors sm:min-h-[4.5rem] ${
+                        className={`flex min-h-14 w-full items-center justify-between gap-3 rounded-xl px-4 py-3.5 text-left transition-shadow sm:min-h-[4.5rem] ${
                           isLast
-                            ? 'border-primary bg-primary/5 shadow-sm'
-                            : 'border-border hover:bg-muted/40'
+                            ? 'bg-primary/5 shadow-elevation-2 ring-2 ring-primary/25'
+                            : 'bg-card shadow-elevation-1 hover:shadow-elevation-2'
                         }`}
                       >
                         <span>
@@ -377,14 +369,13 @@ export function AccessOpsPanel({
             ) : filteredGuests.length === 0 ? (
               <p className="text-sm text-muted-foreground">No guests match “{guestQuery.trim()}”.</p>
             ) : (
-              <ul className="divide-y divide-border rounded-xl border border-border">
+              <ul className="soft-list">
                 {filteredGuests.map((c) => {
                   const chip = guestSyncChip(c)
-                  const needsRetry = c.sync_status === 'failed' || c.status === 'error'
                   return (
                     <li
                       key={c.id}
-                      className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                      className="soft-list-item flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
                     >
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
@@ -411,120 +402,43 @@ export function AccessOpsPanel({
                         ) : null}
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-2" data-access-menu>
-                        <div className="relative">
-                          <button
-                            type="button"
-                            className="app-btn app-btn-primary h-11 min-w-[7.5rem] text-sm"
-                            disabled={pending || !enrollmentStation}
-                            title={
-                              enrollmentStation
-                                ? 'Enroll at the station'
-                                : `Save enrollment station first (${setupHint(viewerRole)})`
-                            }
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setMoreMenuId(null)
-                              setEnrollMenuId((id) => (id === c.id ? null : c.id))
-                            }}
-                          >
-                            Enroll
-                            <ChevronDown className="ml-1 inline h-4 w-4" aria-hidden />
-                          </button>
-                          {enrollMenuId === c.id ? (
-                            <div className="absolute right-0 z-20 mt-1 min-w-[11rem] rounded-xl border border-border bg-card p-1 shadow-lg">
-                              {(
-                                [
-                                  ['card', 'Card'],
-                                  ['face', `Face${c.has_face ? ' ✓' : ''}`],
-                                  ['fingerprint', `Fingerprint${c.has_fingerprint ? ' ✓' : ''}`],
-                                ] as const
-                              ).map(([kind, label]) => (
-                                <button
-                                  key={kind}
-                                  type="button"
-                                  className="flex min-h-11 w-full items-center rounded-lg px-3 text-left text-sm hover:bg-muted/60"
-                                  disabled={pending || !enrollmentStation}
-                                  onClick={() => queueEnroll(c.id, kind)}
-                                >
-                                  {label}
-                                </button>
-                              ))}
-                            </div>
-                          ) : null}
-                        </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          className="app-btn app-btn-primary h-11 min-w-[7.5rem] text-sm"
+                          disabled={pending || !enrollmentStation}
+                          aria-expanded={enrollMenuId === c.id}
+                          title={
+                            enrollmentStation
+                              ? 'Enroll at the station'
+                              : `Save enrollment station first (${setupHint(viewerRole)})`
+                          }
+                          onClick={(e) => {
+                            const next = enrollMenuId === c.id ? null : c.id
+                            enrollAnchorRef.current = e.currentTarget
+                            setMoreMenuId(null)
+                            setEnrollMenuId(next)
+                          }}
+                        >
+                          Enroll
+                          <ChevronDown className="ml-1 inline h-4 w-4" aria-hidden />
+                        </button>
 
-                        <div className="relative">
-                          <button
-                            type="button"
-                            className="app-btn app-btn-ghost h-11 w-11 px-0"
-                            aria-label="More guest access actions"
-                            disabled={pending}
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setEnrollMenuId(null)
-                              setMoreMenuId((id) => (id === c.id ? null : c.id))
-                            }}
-                          >
-                            <MoreHorizontal className="h-4 w-4" />
-                          </button>
-                          {moreMenuId === c.id ? (
-                            <div className="absolute right-0 z-20 mt-1 w-64 space-y-2 rounded-xl border border-border bg-card p-3 shadow-lg">
-                              <div className="flex gap-2">
-                                <input
-                                  className="app-field h-9 flex-1 text-xs"
-                                  placeholder={c.card_no ?? 'Card number'}
-                                  value={cardDrafts[c.id] ?? ''}
-                                  onChange={(e) =>
-                                    setCardDrafts((prev) => ({
-                                      ...prev,
-                                      [c.id]: e.target.value,
-                                    }))
-                                  }
-                                />
-                                <button
-                                  type="button"
-                                  className="app-btn app-btn-secondary h-9 text-xs"
-                                  disabled={pending || !(cardDrafts[c.id] ?? '').trim()}
-                                  onClick={() => {
-                                    setMoreMenuId(null)
-                                    run(async () => {
-                                      const result = await assignAccessCard({
-                                        hotelId,
-                                        credentialId: c.id,
-                                        cardNo: cardDrafts[c.id] ?? '',
-                                      })
-                                      if (!result.success) setError(result.error)
-                                      else {
-                                        setMessage('Card assignment queued.')
-                                        setCardDrafts((prev) => ({ ...prev, [c.id]: '' }))
-                                      }
-                                    })
-                                  }}
-                                >
-                                  Assign
-                                </button>
-                              </div>
-                              {needsRetry ? (
-                                <button
-                                  type="button"
-                                  className="app-btn app-btn-secondary h-9 w-full text-xs"
-                                  disabled={pending}
-                                  onClick={() => {
-                                    setMoreMenuId(null)
-                                    run(async () => {
-                                      const result = await retryAccessCredential(hotelId, c.id)
-                                      if (!result.success) setError(result.error)
-                                      else setMessage('Re-provision queued.')
-                                    })
-                                  }}
-                                >
-                                  Retry sync
-                                </button>
-                              ) : null}
-                            </div>
-                          ) : null}
-                        </div>
+                        <button
+                          type="button"
+                          className="app-btn app-btn-ghost h-11 w-11 px-0"
+                          aria-label="More guest access actions"
+                          aria-expanded={moreMenuId === c.id}
+                          disabled={pending}
+                          onClick={(e) => {
+                            const next = moreMenuId === c.id ? null : c.id
+                            moreAnchorRef.current = e.currentTarget
+                            setEnrollMenuId(null)
+                            setMoreMenuId(next)
+                          }}
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                        </button>
                       </div>
                     </li>
                   )
@@ -622,14 +536,14 @@ export function AccessOpsPanel({
                 </button>
               </p>
             ) : (
-              <ul className="divide-y divide-border rounded-xl border border-border">
+              <ul className="soft-list">
                 {filteredJobs.map((j) => {
                   const canCancel =
                     j.status === 'pending' || j.status === 'failed' || j.status === 'claimed'
                   return (
                     <li
                       key={j.id}
-                      className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                      className="soft-list-item flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
                     >
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
@@ -679,6 +593,112 @@ export function AccessOpsPanel({
       ) : null}
 
       <AccessFeedback error={error} message={message} />
+
+      <HeaderDropdownPanel
+        open={Boolean(enrollMenuId)}
+        anchorRef={enrollAnchorRef}
+        width={176}
+        align="end"
+        onClose={() => setEnrollMenuId(null)}
+        className="access-menu-panel p-1"
+      >
+        {(() => {
+          const c = guestCredentials.find((g) => g.id === enrollMenuId)
+          if (!c) return null
+          return (
+            <>
+              {(
+                [
+                  ['card', 'Card'],
+                  ['face', `Face${c.has_face ? ' ✓' : ''}`],
+                  ['fingerprint', `Fingerprint${c.has_fingerprint ? ' ✓' : ''}`],
+                ] as const
+              ).map(([kind, label]) => (
+                <button
+                  key={kind}
+                  type="button"
+                  className="flex min-h-11 w-full items-center rounded-lg px-3 text-left text-sm hover:bg-muted/60"
+                  disabled={pending || !enrollmentStation}
+                  onClick={() => queueEnroll(c.id, kind)}
+                >
+                  {label}
+                </button>
+              ))}
+            </>
+          )
+        })()}
+      </HeaderDropdownPanel>
+
+      <HeaderDropdownPanel
+        open={Boolean(moreMenuId)}
+        anchorRef={moreAnchorRef}
+        width={256}
+        align="end"
+        onClose={() => setMoreMenuId(null)}
+        className="access-menu-panel space-y-2 p-3"
+      >
+        {(() => {
+          const c = guestCredentials.find((g) => g.id === moreMenuId)
+          if (!c) return null
+          const needsRetry = c.sync_status === 'failed' || c.status === 'error'
+          return (
+            <>
+              <div className="flex gap-2">
+                <input
+                  className="app-field h-9 flex-1 text-xs"
+                  placeholder={c.card_no ?? 'Card number'}
+                  value={cardDrafts[c.id] ?? ''}
+                  onChange={(e) =>
+                    setCardDrafts((prev) => ({
+                      ...prev,
+                      [c.id]: e.target.value,
+                    }))
+                  }
+                />
+                <button
+                  type="button"
+                  className="app-btn app-btn-secondary h-9 text-xs"
+                  disabled={pending || !(cardDrafts[c.id] ?? '').trim()}
+                  onClick={() => {
+                    setMoreMenuId(null)
+                    run(async () => {
+                      const result = await assignAccessCard({
+                        hotelId,
+                        credentialId: c.id,
+                        cardNo: cardDrafts[c.id] ?? '',
+                      })
+                      if (!result.success) setError(result.error)
+                      else {
+                        setMessage('Card assignment queued.')
+                        setCardDrafts((prev) => ({ ...prev, [c.id]: '' }))
+                      }
+                    })
+                  }}
+                >
+                  Assign
+                </button>
+              </div>
+              {needsRetry ? (
+                <button
+                  type="button"
+                  className="app-btn app-btn-secondary h-9 w-full text-xs"
+                  disabled={pending}
+                  onClick={() => {
+                    setMoreMenuId(null)
+                    run(async () => {
+                      const result = await retryAccessCredential(hotelId, c.id)
+                      if (!result.success) setError(result.error)
+                      else setMessage('Re-provision queued.')
+                    })
+                  }}
+                >
+                  Retry sync
+                </button>
+              ) : null}
+            </>
+          )
+        })()}
+      </HeaderDropdownPanel>
     </div>
   )
 }

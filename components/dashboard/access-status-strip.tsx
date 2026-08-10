@@ -61,7 +61,7 @@ export function AccessStatusStrip({
 
   return (
     <div
-      className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-border bg-card px-4 py-3 text-sm shadow-sm"
+      className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl bg-card px-4 py-3 text-sm shadow-elevation-2"
       role="status"
       aria-live="polite"
     >
@@ -88,6 +88,8 @@ export function AccessStatusStrip({
             ? 'Install the agent under Setup when ready.'
             : 'Ask the owner if unlocks are not running.'}
         </span>
+      ) : host ? (
+        <span className="text-muted-foreground">{host}</span>
       ) : null}
 
       <span

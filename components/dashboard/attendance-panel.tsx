@@ -299,13 +299,13 @@ export function AttendancePanel({
             </button>
           </p>
         ) : (
-          <ul className="divide-y divide-border rounded-xl border border-border">
+          <ul className="soft-list">
             {filtered.map((r) => {
               const badge = eventBadge(r.event_type)
               return (
                 <li
                   key={r.id}
-                  className="flex flex-col gap-1.5 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
+                  className="soft-list-item flex flex-col gap-1.5 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
                 >
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
