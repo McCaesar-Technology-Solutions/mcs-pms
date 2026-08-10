@@ -118,7 +118,7 @@ export function StaffAccessPanel({
             <div>
               <h3 className="text-lg font-semibold text-foreground">Staff physical access</h3>
               <p className="mt-0.5 text-sm text-muted-foreground">
-                Separate from PMS logins. Map policy doors first, then create and enroll.
+                Separate from PMS logins. Set policy door rights below first, then create and enroll.
                 Reception cannot see these records.
               </p>
             </div>
@@ -130,7 +130,7 @@ export function StaffAccessPanel({
             onSubmit={(e) => {
               e.preventDefault()
               if (selectedDoorCount === 0) {
-                setError('Map doors to this policy before creating staff access.')
+                setError('Assign policy door rights below before creating staff access.')
                 return
               }
               if (!datesOk) {
@@ -217,7 +217,7 @@ export function StaffAccessPanel({
               </select>
               {selectedDoorCount === 0 ? (
                 <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
-                  This policy has no doors. Map doors below before creating staff.
+                  This policy has no door rights yet. Set them in Policy door rights below.
                 </p>
               ) : null}
             </FormField>
@@ -370,7 +370,9 @@ export function StaffAccessPanel({
                           title={
                             hasEnrollmentStation
                               ? undefined
-                              : 'Save an enrollment station in Access setup first'
+                              : canCreateOwnerTypes
+                                ? 'Save an enrollment station under Setup first'
+                                : 'Ask the owner to save an enrollment station under Setup'
                           }
                           onClick={() =>
                             run(async () => {
@@ -463,16 +465,18 @@ export function StaffAccessPanel({
 
       <div className="surface-card overflow-hidden">
         <div className="surface-card-header">
-          <h3 className="text-lg font-semibold text-foreground">Staff access policies</h3>
+          <h3 className="text-lg font-semibold text-foreground">Policy door rights</h3>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            Map which doors each policy unlocks. Guests still get room + shared + gym from door
-            zones.
+            Which physical doors each staff policy may open. Guests still get room + shared + gym
+            from physical door zones (Owner → Setup).
           </p>
         </div>
         <div className="surface-card-body space-y-3">
           {activePoints.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No active doors mapped yet. Add door mappings in Access setup first.
+            <p className="text-sm text-amber-800 dark:text-amber-300">
+              {canCreateOwnerTypes
+                ? 'No physical doors yet. Open Setup → Physical doors, then return here to assign policy door rights.'
+                : 'No physical doors yet. The owner must finish Setup (physical doors) before staff policies can be mapped.'}
             </p>
           ) : null}
           <FormField label="Policy" htmlFor="policy-edit">
@@ -537,7 +541,7 @@ export function StaffAccessPanel({
               })
             }
           >
-            Save policy doors
+            Save policy door rights
           </button>
         </div>
       </div>

@@ -14,6 +14,8 @@ See also: [hikvision-srs-roadmap.md](hikvision-srs-roadmap.md) (phased SRS imple
 
 Deep links: `#today`, `#guests`, `#staff`, `#attendance`, `#setup` (also `#unlock` → Today, `#install` → Setup).
 
+**Setup tab (Owner):** collapses to “Setup healthy” once Core checklist is done (sync, token, controller, agent online, ≥1 physical door). Recommended: enrollment station, gym zone, staff policy door rights. Single action: **Start setup** / **Rotate token**. Physical doors ≠ policy door rights (Staff tab).
+
 ## What was built
 
 | Piece | Location |

@@ -4,7 +4,6 @@ import { useState, useTransition } from 'react'
 import { KeyRound, Copy, Check, Circle, CircleCheck } from 'lucide-react'
 import {
   setAccessControlEnabled,
-  rotateAccessAgentToken,
   startAccessSetup,
   upsertAccessPoint,
   deleteAccessPoint,
@@ -77,6 +76,8 @@ export function AccessControlSettingsPanel({
   const [freshToken, setFreshToken] = useState<string | null>(null)
   const [envFile, setEnvFile] = useState<string | null>(null)
   const [copied, setCopied] = useState<'token' | 'env' | null>(null)
+  /** When core setup is done, stay collapsed until Owner clicks Edit. */
+  const [expanded, setExpanded] = useState(false)
 
   const [editingPointId, setEditingPointId] = useState<string | null>(null)
   const [label, setLabel] = useState('')
@@ -104,7 +105,8 @@ export function AccessControlSettingsPanel({
   const doorReady = mode !== 'cloud' || doorDevices.some((d) => d.has_password)
   const enrollmentReady = mode !== 'cloud' || enrollmentDevices.some((d) => d.has_password)
   const hasGymMapped = points.some((p) => p.zone === 'gym' && p.is_active)
-  const steps = [
+
+  const coreSteps = [
     { id: 'enable', label: 'Sync enabled', done: enabled },
     { id: 'token', label: 'Agent token created', done: integration.hasAgentToken },
     {
@@ -115,25 +117,42 @@ export function AccessControlSettingsPanel({
           : 'Controller password set on apartment PC (.env)',
       done: doorReady,
     },
+    { id: 'agent', label: 'Agent online on apartment PC', done: integration.agentOnline },
+    { id: 'doors', label: 'At least one physical door mapped', done: points.length > 0 },
+  ]
+  const recommendedSteps = [
     {
       id: 'enrollment',
       label: 'Enrollment station (DS-K1F600U-D6E-F) saved',
       done: enrollmentReady,
     },
-    { id: 'agent', label: 'Agent online on apartment PC', done: integration.agentOnline },
-    { id: 'doors', label: 'At least one door mapped', done: points.length > 0 },
-    {
-      id: 'gym',
-      label: 'Gymnasium mapped (zone: gym)',
-      done: hasGymMapped,
-    },
+    { id: 'gym', label: 'Gymnasium mapped (zone: gym)', done: hasGymMapped },
     {
       id: 'staff-policy',
-      label: 'Staff policy has at least one door',
+      label: 'Staff policy has policy door rights',
       done: hasStaffPolicyDoors,
     },
   ]
-  const setupComplete = steps.every((s) => s.done)
+  const coreComplete = coreSteps.every((s) => s.done)
+  const recommendedPending = recommendedSteps.filter((s) => !s.done)
+  const setupComplete = coreComplete && recommendedPending.length === 0
+  const showEditor = !coreComplete || expanded || Boolean(envFile || freshToken)
+
+  async function runStartOrRotateSetup() {
+    const result = await startAccessSetup(hotelId)
+    if (!result.success || !result.data) {
+      setError(result.success ? 'Setup failed.' : result.error)
+      return
+    }
+    setFreshToken(result.data.token)
+    setEnvFile(result.data.envFile)
+    setExpanded(true)
+    setMessage(
+      coreComplete
+        ? 'New agent config ready — update the apartment PC.'
+        : 'Setup started. Copy the agent config below, then start the agent.',
+    )
+  }
 
   function resetDoorForm() {
     setEditingPointId(null)
@@ -187,18 +206,77 @@ export function AccessControlSettingsPanel({
     <div className="surface-card overflow-hidden">
       <div className="surface-card-accent" />
       <div className="surface-card-header">
-        <div className="flex items-center gap-3">
-          <KeyRound className="h-6 w-6 shrink-0 text-primary" />
-          <div>
-            <h3 className="text-lg font-semibold text-foreground">Hikvision access control</h3>
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              One-time setup for {propertyName}. After this, check-in/out handles enrollment.
-            </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <KeyRound className="h-6 w-6 shrink-0 text-primary" />
+            <div>
+              <h3 className="text-lg font-semibold text-foreground">Property setup</h3>
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                One-time Hikvision setup for {propertyName}. Daily unlock and enroll live under
+                Today / Guests / Staff.
+              </p>
+            </div>
           </div>
+          {coreComplete && canManage ? (
+            <button
+              type="button"
+              className="app-btn app-btn-secondary shrink-0"
+              disabled={pending}
+              onClick={() => setExpanded((v) => !v)}
+            >
+              {showEditor ? 'Hide setup details' : 'Edit setup'}
+            </button>
+          ) : null}
         </div>
       </div>
 
       <div className="surface-card-body space-y-8">
+        {!showEditor ? (
+          <section className="space-y-3">
+            <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
+              {setupComplete
+                ? 'Setup healthy — guest check-in/out and unlocks can run normally.'
+                : 'Core setup healthy — daily ops can run. Recommended items below still open.'}
+            </p>
+            {recommendedPending.length > 0 ? (
+              <ul className="space-y-1.5">
+                {recommendedPending.map((step) => (
+                  <li key={step.id} className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Circle className="h-4 w-4 shrink-0" />
+                    {step.label}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            {canManage ? (
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className="app-btn app-btn-secondary"
+                  disabled={pending}
+                  onClick={() => setExpanded(true)}
+                >
+                  Edit setup
+                </button>
+                <button
+                  type="button"
+                  className="app-btn app-btn-ghost"
+                  disabled={pending}
+                  onClick={() => run(runStartOrRotateSetup)}
+                >
+                  Rotate token
+                </button>
+              </div>
+            ) : null}
+            {error && <p className="text-sm text-destructive">{error}</p>}
+            {message && (
+              <p className="text-sm text-emerald-700 dark:text-emerald-400">{message}</p>
+            )}
+          </section>
+        ) : null}
+
+        {showEditor ? (
+          <>
         <section className="space-y-3">
           <div className="flex flex-wrap items-center gap-3">
             <span
@@ -220,74 +298,106 @@ export function AccessControlSettingsPanel({
             )}
           </div>
 
-          <ul className="space-y-2">
-            {steps.map((step) => (
-              <li key={step.id} className="flex items-center gap-2 text-sm">
-                {step.done ? (
-                  <CircleCheck className="h-4 w-4 text-emerald-600" />
-                ) : (
-                  <Circle className="h-4 w-4 text-muted-foreground" />
-                )}
-                <span className={step.done ? 'text-foreground' : 'text-muted-foreground'}>
-                  {step.label}
-                </span>
-              </li>
-            ))}
-          </ul>
-
-          {setupComplete ? (
-            <p className="text-sm text-emerald-700 dark:text-emerald-400">
-              Setup complete. Normal check-in/out will enroll and revoke guests automatically.
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Core ({coreSteps.filter((s) => s.done).length}/{coreSteps.length})
             </p>
-          ) : canManage ? (
-            <div className="space-y-3 rounded-xl border border-border p-4">
-              <p className="text-sm font-semibold text-foreground">Simplified setup (3 steps)</p>
-              <ol className="list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
-                <li>Choose where controller passwords live (MOJO cloud or apartment PC only).</li>
-                <li>Click Start setup — enables sync and creates your agent config.</li>
-                <li>
-                  On the apartment PC: download <strong>MOJO Access Agent</strong>
-                  {agentDownloads?.macDmg || agentDownloads?.windowsSetup ? (
-                    <>
-                      {' '}
-                      (
-                      {agentDownloads.macDmg ? (
-                        <a href={agentDownloads.macDmg} className="underline" download>
-                          Mac
-                        </a>
-                      ) : null}
-                      {agentDownloads.macDmg && agentDownloads.windowsSetup ? ' / ' : null}
-                      {agentDownloads.windowsSetup ? (
-                        <a href={agentDownloads.windowsSetup} className="underline" download>
-                          Windows
-                        </a>
-                      ) : null}
-                      )
-                    </>
-                  ) : null}
-                  , install it, paste the config when asked, leave the tray app running.
+            <ul className="mt-2 space-y-2">
+              {coreSteps.map((step) => (
+                <li key={step.id} className="flex items-center gap-2 text-sm">
+                  {step.done ? (
+                    <CircleCheck className="h-4 w-4 text-emerald-600" />
+                  ) : (
+                    <Circle className="h-4 w-4 text-muted-foreground" />
+                  )}
+                  <span className={step.done ? 'text-foreground' : 'text-muted-foreground'}>
+                    {step.label}
+                  </span>
                 </li>
-                <li>Map doors below (device key must match the controller key, e.g. lobby).</li>
-              </ol>
-              <button
-                type="button"
-                disabled={pending}
-                className="app-btn app-btn-primary"
-                onClick={() =>
-                  run(async () => {
-                    const result = await startAccessSetup(hotelId)
-                    if (!result.success || !result.data) {
-                      setError(result.success ? 'Setup failed.' : result.error)
-                      return
-                    }
-                    setFreshToken(result.data.token)
-                    setEnvFile(result.data.envFile)
-                    setMessage('Setup started. Copy the agent config below, then start the agent.')
-                  })
-                }
-              >
-                Start setup
-              </button>
+              ))}
+            </ul>
+          </div>
+
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Recommended ({recommendedSteps.filter((s) => s.done).length}/
+              {recommendedSteps.length})
+            </p>
+            <ul className="mt-2 space-y-2">
+              {recommendedSteps.map((step) => (
+                <li key={step.id} className="flex items-center gap-2 text-sm">
+                  {step.done ? (
+                    <CircleCheck className="h-4 w-4 text-emerald-600" />
+                  ) : (
+                    <Circle className="h-4 w-4 text-muted-foreground" />
+                  )}
+                  <span className={step.done ? 'text-foreground' : 'text-muted-foreground'}>
+                    {step.label}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {canManage ? (
+            <div className="space-y-3 rounded-xl border border-border p-4">
+              <p className="text-sm font-semibold text-foreground">
+                {coreComplete ? 'Agent token' : 'Start here'}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {coreComplete
+                  ? 'Rotate only when replacing the apartment PC. This creates a new config to paste into the agent.'
+                  : 'Start setup enables sync and creates the agent config in one step. Then install the agent and map physical doors below.'}
+                {integration.agentTokenPrefix
+                  ? ` Current token prefix: ${integration.agentTokenPrefix}…`
+                  : ''}
+              </p>
+              {!coreComplete && (agentDownloads?.macDmg || agentDownloads?.windowsSetup) ? (
+                <p className="text-xs text-muted-foreground">
+                  Downloads:{' '}
+                  {agentDownloads.macDmg ? (
+                    <a href={agentDownloads.macDmg} className="underline" download>
+                      Mac
+                    </a>
+                  ) : null}
+                  {agentDownloads.macDmg && agentDownloads.windowsSetup ? ' · ' : null}
+                  {agentDownloads.windowsSetup ? (
+                    <a href={agentDownloads.windowsSetup} className="underline" download>
+                      Windows
+                    </a>
+                  ) : null}
+                </p>
+              ) : null}
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={pending}
+                  className="app-btn app-btn-primary"
+                  onClick={() => run(runStartOrRotateSetup)}
+                >
+                  {coreComplete ? 'Rotate token' : 'Start setup'}
+                </button>
+                {coreComplete ? (
+                  <label className="surface-inset flex cursor-pointer items-center gap-2 rounded-xl px-3 py-2">
+                    <input
+                      type="checkbox"
+                      checked={enabled}
+                      disabled={pending}
+                      onChange={(e) =>
+                        run(async () => {
+                          const result = await setAccessControlEnabled({
+                            hotelId,
+                            enabled: e.target.checked,
+                          })
+                          if (!result.success) setError(result.error)
+                        })
+                      }
+                      className="h-4 w-4 shrink-0 rounded border-border text-primary focus:ring-primary"
+                    />
+                    <span className="text-sm text-foreground">Sync enabled</span>
+                  </label>
+                ) : null}
+              </div>
             </div>
           ) : null}
         </section>
@@ -297,8 +407,9 @@ export function AccessControlSettingsPanel({
             <div>
               <p className="text-sm font-semibold text-foreground">Agent config (copy once)</p>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                Paste into <code>services/hikvision-agent/.env</code> on the apartment PC. Change only
-                the controller IP and password.
+                Paste into the Access Agent on the apartment PC (or{' '}
+                <code>services/hikvision-agent/.env</code>). Change only controller IP/password when
+                needed.
               </p>
             </div>
             {envFile && (
@@ -335,116 +446,6 @@ export function AccessControlSettingsPanel({
                 </button>
               </div>
             )}
-            <p className="text-xs text-muted-foreground">
-              Apartment PC: install <strong>MOJO Access Agent</strong> (Windows/Mac app), paste this
-              config once, keep the tray icon running.
-            </p>
-          </section>
-        )}
-
-        {canManage && setupComplete && (
-          <section className="space-y-3">
-            <div>
-              <p className="text-sm font-semibold text-foreground">Advanced</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                Disable sync or rotate the agent token if the apartment PC is replaced.
-                {integration.agentTokenPrefix
-                  ? ` Current token prefix: ${integration.agentTokenPrefix}…`
-                  : ''}
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <label className="surface-inset flex cursor-pointer items-start gap-3 rounded-xl p-3">
-                <input
-                  type="checkbox"
-                  checked={enabled}
-                  disabled={pending}
-                  onChange={(e) =>
-                    run(async () => {
-                      const result = await setAccessControlEnabled({
-                        hotelId,
-                        enabled: e.target.checked,
-                      })
-                      if (!result.success) setError(result.error)
-                    })
-                  }
-                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-border text-primary focus:ring-primary"
-                />
-                <span className="text-sm text-foreground">Sync enabled</span>
-              </label>
-              <button
-                type="button"
-                disabled={pending}
-                className="app-btn app-btn-secondary"
-                onClick={() =>
-                  run(async () => {
-                    const result = await startAccessSetup(hotelId)
-                    if (!result.success || !result.data) {
-                      setError(result.success ? 'Could not rotate token.' : result.error)
-                      return
-                    }
-                    setFreshToken(result.data.token)
-                    setEnvFile(result.data.envFile)
-                    setMessage('New agent config ready — update the apartment PC .env.')
-                  })
-                }
-              >
-                Rotate token / re-copy config
-              </button>
-            </div>
-          </section>
-        )}
-
-        {!setupComplete && canManage && (
-          <section className="space-y-3">
-            <label className="surface-inset flex cursor-pointer items-start gap-3 rounded-xl p-4">
-              <input
-                type="checkbox"
-                checked={enabled}
-                disabled={pending}
-                onChange={(e) =>
-                  run(async () => {
-                    const result = await setAccessControlEnabled({
-                      hotelId,
-                      enabled: e.target.checked,
-                    })
-                    if (!result.success) {
-                      setError(result.error)
-                      return
-                    }
-                    setMessage(e.target.checked ? 'Access control enabled.' : 'Access control disabled.')
-                  })
-                }
-                className="mt-0.5 h-4 w-4 shrink-0 rounded border-border text-primary focus:ring-primary"
-              />
-              <span className="min-w-0">
-                <span className="block text-sm font-semibold text-foreground">
-                  Enable Hikvision sync
-                </span>
-                <span className="mt-0.5 block text-xs text-muted-foreground">
-                  Prefer Start setup above — it enables this and creates the config together.
-                </span>
-              </span>
-            </label>
-            <button
-              type="button"
-              disabled={pending}
-              className="app-btn app-btn-secondary"
-              onClick={() =>
-                run(async () => {
-                  const result = await rotateAccessAgentToken(hotelId)
-                  if (!result.success || !result.data) {
-                    setError(result.success ? 'No token returned.' : result.error)
-                    return
-                  }
-                  setFreshToken(result.data.token)
-                  setEnvFile(null)
-                  setMessage('Token created. Prefer Start setup next time for a full .env.')
-                })
-              }
-            >
-              Rotate agent token only
-            </button>
           </section>
         )}
 
@@ -688,10 +689,11 @@ export function AccessControlSettingsPanel({
 
         <section className="space-y-4">
           <div>
-            <p className="text-sm font-semibold text-foreground">Door mappings</p>
+            <p className="text-sm font-semibold text-foreground">Physical doors</p>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Unit = one room. Lobby/gate with &quot;shared&quot; = all in-house guests. Gymnasium zone =
-              amenity for all guests (not the shared flag). Device key must match the controller key.
+              Map Hikvision doors to rooms and zones. Staff who may open which doors is set under
+              Staff → Policy door rights (not here). Unit = one room. Lobby/gate with
+              &quot;shared&quot; = all in-house guests. Gymnasium zone = amenity for all guests.
             </p>
             {!hasGymMapped ? (
               <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">
@@ -740,7 +742,7 @@ export function AccessControlSettingsPanel({
                             if (!result.success) setError(result.error)
                             else {
                               if (editingPointId === p.id) resetDoorForm()
-                              setMessage('Door mapping removed.')
+                              setMessage('Physical door removed.')
                             }
                           })
                         }
@@ -780,8 +782,8 @@ export function AccessControlSettingsPanel({
                     zone === 'gym'
                       ? 'Gymnasium mapped — all in-house guests get gym access.'
                       : editingPointId
-                        ? 'Door mapping updated.'
-                        : 'Door mapping saved.',
+                        ? 'Physical door updated.'
+                        : 'Physical door saved.',
                   )
                 })
               }}
@@ -888,7 +890,7 @@ export function AccessControlSettingsPanel({
                   className="app-btn app-btn-primary"
                   disabled={pending || !label.trim()}
                 >
-                  {editingPointId ? 'Save door mapping' : 'Add door mapping'}
+                  {editingPointId ? 'Save physical door' : 'Add physical door'}
                 </button>
                 {editingPointId ? (
                   <button
@@ -905,8 +907,27 @@ export function AccessControlSettingsPanel({
           )}
         </section>
 
+        {coreComplete && canManage ? (
+          <div className="flex justify-end">
+            <button
+              type="button"
+              className="app-btn app-btn-secondary"
+              disabled={pending}
+              onClick={() => {
+                setExpanded(false)
+                setFreshToken(null)
+                setEnvFile(null)
+              }}
+            >
+              Done editing
+            </button>
+          </div>
+        ) : null}
+
         {error && <p className="text-sm text-destructive">{error}</p>}
         {message && <p className="text-sm text-emerald-700 dark:text-emerald-400">{message}</p>}
+          </>
+        ) : null}
       </div>
     </div>
   )
