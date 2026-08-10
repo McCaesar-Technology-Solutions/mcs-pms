@@ -16,7 +16,7 @@ export const DEFAULT_STAFF_POLICIES: Array<{
   {
     code: 'MANAGER_APPROVED_AREAS',
     name: 'Manager — approved areas',
-    assignableByManager: false,
+    assignableByManager: true,
   },
   {
     code: 'HOUSEKEEPING_ACCESS',
@@ -59,11 +59,22 @@ export async function ensureDefaultAccessPolicies(hotelId: string): Promise<void
   for (const p of DEFAULT_STAFF_POLICIES) {
     const { data: existing } = await admin
       .from('access_policies')
-      .select('id')
+      .select('id, assignable_by_manager')
       .eq('hotel_id', hotelId)
       .eq('code', p.code)
       .maybeSingle()
-    if (existing) continue
+    if (existing) {
+      if (existing.assignable_by_manager !== p.assignableByManager) {
+        await admin
+          .from('access_policies')
+          .update({
+            assignable_by_manager: p.assignableByManager,
+            updated_at: now,
+          })
+          .eq('id', existing.id)
+      }
+      continue
+    }
     await admin.from('access_policies').insert({
       hotel_id: hotelId,
       code: p.code,

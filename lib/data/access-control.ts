@@ -348,3 +348,34 @@ export async function getAttendanceRecords(
     raw_ref: row.raw_ref,
   }))
 }
+
+export type AccessLinkableProfile = {
+  id: string
+  name: string
+  role: string
+}
+
+/** PMS logins that can optionally be linked to a staff physical-access person. */
+export async function getAccessLinkableProfiles(
+  hotelId: string,
+): Promise<AccessLinkableProfile[]> {
+  const profile = await resolveHotelTenantAccess(hotelId, {
+    roles: ['owner', 'manager'],
+  })
+  if (!profile) return []
+
+  const admin = createAdminClient()
+  const { data } = await admin
+    .from('profiles')
+    .select('id, name, role')
+    .eq('hotel_id', hotelId)
+    .eq('is_active', true)
+    .in('role', ['owner', 'manager', 'receptionist', 'technician'])
+    .order('name', { ascending: true })
+
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    name: row.name,
+    role: row.role,
+  }))
+}

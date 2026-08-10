@@ -10,6 +10,7 @@ import {
   getAccessCredentials,
   getAccessDevices,
   getAccessIntegrationSummary,
+  getAccessLinkableProfiles,
   getAccessPoints,
   getAccessPoliciesForHotel,
   getAttendanceRecords,
@@ -33,6 +34,7 @@ export default async function ManagerAccessPage() {
     policies,
     staffCredentials,
     attendance,
+    linkableProfiles,
   ] = await Promise.all([
     getAccessIntegrationSummary(hotelId),
     getAccessPoints(hotelId),
@@ -42,6 +44,7 @@ export default async function ManagerAccessPage() {
     getAccessPoliciesForHotel(hotelId),
     getStaffAccessCredentials(hotelId),
     getAttendanceRecords(hotelId),
+    getAccessLinkableProfiles(hotelId),
   ])
 
   return (
@@ -63,6 +66,10 @@ export default async function ManagerAccessPage() {
         policies={policies}
         points={points}
         staffCredentials={staffCredentials}
+        linkableProfiles={linkableProfiles}
+        hasEnrollmentStation={devices.some(
+          (d) => d.device_role === 'enrollment' && d.managed_in_cloud,
+        )}
         canCreateOwnerTypes={false}
       />
 

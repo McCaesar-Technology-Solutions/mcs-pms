@@ -51,6 +51,7 @@ Payment-gated door provision is deferred (Paystack not the live gate yet).
 
 1. Apply migrations through `068`.
 2. Owner → Access: Start setup, save controllers + optional enrollment + attendance terminals.
-3. Map room doors (zone unit), lobby (shared), gymnasium (zone gym).
-4. Map staff policy doors, create staff access, enroll at station.
+3. Map room doors (zone unit), lobby (shared), gymnasium (zone **gym** — not “Lobby + shared”).
+   If Gymnasium was saved earlier as lobby/other with shared access, **Edit** it and set zone to Gymnasium.
+4. Map staff policy doors (setup checklist requires ≥1), create staff access, enroll at station.
 5. Install MOJO Access Agent; leave tray running.

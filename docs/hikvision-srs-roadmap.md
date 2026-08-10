@@ -17,7 +17,7 @@ Maps the Mojo Suites Hikvision SRS onto the existing stack:
 | 3 | Harden Reception unlock/enroll + audit | Done (cancel/jobs — Phase C) |
 | 4 | Access policies / door groups for staff | Done |
 | 5 | Attendance (DS-K1A8503MF-B) schema + pull job + UI | Partial (role fixed; ISAPI pull TBD — Phase F) |
-| 6 | Staff / attendance UI on Access pages | Partial (enroll/reactivate — Phase D) |
+| 6 | Staff / attendance UI on Access pages | Done (Phase D staff ops) |
 
 ## Fix sprints
 
@@ -25,7 +25,8 @@ Maps the Mojo Suites Hikvision SRS onto the existing stack:
 |--------|--------|--------|
 | 1 | A (attendance role) + B (multi-door rights) | Done |
 | 2 | C Reception job isolation | Done |
-| 3 | D+E Staff ops + door edit UX | Planned |
+| 3 | D Staff ops completeness | Done |
+| 3b | E Door edit UX + gym remap | Done |
 | 4 | F Attendance ISAPI pull | Planned |
 | 5 | G Hardening / docs / tests | Planned |
 

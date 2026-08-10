@@ -995,6 +995,10 @@ export async function createOrUpdateStaffAccess(
 
   await ensureDefaultAccessPolicies(parsed.data.hotelId)
 
+  if (parsed.data.validFrom > parsed.data.validTo) {
+    return { success: false, error: 'Valid from must be on or before valid to.' }
+  }
+
   const admin = createAdminClient()
   const { data: policy } = await admin
     .from('access_policies')
@@ -1008,6 +1012,19 @@ export async function createOrUpdateStaffAccess(
     return {
       success: false,
       error: 'You are not authorized to assign this staff access policy.',
+    }
+  }
+
+  const { data: policyDoors } = await admin
+    .from('access_policy_points')
+    .select('id')
+    .eq('hotel_id', parsed.data.hotelId)
+    .eq('policy_id', parsed.data.accessPolicyId)
+    .limit(1)
+  if (!policyDoors?.length) {
+    return {
+      success: false,
+      error: 'This access policy has no doors mapped. Map doors to the policy first.',
     }
   }
 

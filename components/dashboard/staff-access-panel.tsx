@@ -1,10 +1,13 @@
 'use client'
 
-import { useMemo, useState, useTransition } from 'react'
+import { useEffect, useMemo, useState, useTransition } from 'react'
 import { Users } from 'lucide-react'
 import {
+  assignAccessCard,
   createOrUpdateStaffAccess,
+  retryAccessCredential,
   setAccessPolicyPoints,
+  startEnrollmentCapture,
   updateStaffAccessStatusAction,
 } from '@/app/actions/access-control'
 import { FormField, APP_FIELD_CLASS } from '@/components/ui/form-field'
@@ -14,12 +17,15 @@ import type {
   AccessPolicyRow,
   StaffPersonType,
 } from '@/lib/access/types'
+import type { AccessLinkableProfile } from '@/lib/data/access-control'
 
 type Props = {
   hotelId: string
   policies: AccessPolicyRow[]
   points: AccessPointRow[]
   staffCredentials: AccessCredentialRow[]
+  linkableProfiles?: AccessLinkableProfile[]
+  hasEnrollmentStation?: boolean
   canCreateOwnerTypes: boolean
 }
 
@@ -44,11 +50,17 @@ function defaultValidRange() {
   }
 }
 
+function policyDoorCount(policy: AccessPolicyRow | undefined) {
+  return policy?.point_ids?.length ?? 0
+}
+
 export function StaffAccessPanel({
   hotelId,
   policies,
   points,
   staffCredentials,
+  linkableProfiles = [],
+  hasEnrollmentStation = false,
   canCreateOwnerTypes,
 }: Props) {
   const [pending, startTransition] = useTransition()
@@ -58,15 +70,24 @@ export function StaffAccessPanel({
   const [name, setName] = useState('')
   const [personType, setPersonType] = useState<StaffPersonType>('housekeeping')
   const [policyId, setPolicyId] = useState(policies[0]?.id ?? '')
+  const [profileId, setProfileId] = useState('')
   const [validFrom, setValidFrom] = useState(range.validFrom)
   const [validTo, setValidTo] = useState(range.validTo)
   const [editingPolicyId, setEditingPolicyId] = useState(policies[0]?.id ?? '')
   const [selectedPoints, setSelectedPoints] = useState<string[]>(
     () => policies[0]?.point_ids ?? [],
   )
+  const [cardDrafts, setCardDrafts] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    if (!policyId && policies[0]?.id) setPolicyId(policies[0].id)
+  }, [policies, policyId])
 
   const typeOptions = STAFF_TYPES.filter((t) => canCreateOwnerTypes || !t.ownerOnly)
   const activePoints = points.filter((p) => p.is_active)
+  const selectedPolicy = policies.find((p) => p.id === policyId)
+  const selectedDoorCount = policyDoorCount(selectedPolicy)
+  const datesOk = Boolean(validFrom && validTo && validFrom <= validTo)
 
   function run(action: () => Promise<void>) {
     setError(null)
@@ -80,6 +101,13 @@ export function StaffAccessPanel({
     })
   }
 
+  function onProfileChange(id: string) {
+    setProfileId(id)
+    if (!id) return
+    const profile = linkableProfiles.find((p) => p.id === id)
+    if (profile && !name.trim()) setName(profile.name)
+  }
+
   return (
     <div className="space-y-6">
       <div className="surface-card overflow-hidden">
@@ -90,7 +118,8 @@ export function StaffAccessPanel({
             <div>
               <h3 className="text-lg font-semibold text-foreground">Staff physical access</h3>
               <p className="mt-0.5 text-sm text-muted-foreground">
-                Separate from PMS logins. Reception cannot see or manage these records.
+                Separate from PMS logins. Map policy doors first, then create and enroll.
+                Reception cannot see these records.
               </p>
             </div>
           </div>
@@ -100,12 +129,21 @@ export function StaffAccessPanel({
             className="grid gap-3 sm:grid-cols-2"
             onSubmit={(e) => {
               e.preventDefault()
+              if (selectedDoorCount === 0) {
+                setError('Map doors to this policy before creating staff access.')
+                return
+              }
+              if (!datesOk) {
+                setError('Valid from must be on or before valid to.')
+                return
+              }
               run(async () => {
                 const result = await createOrUpdateStaffAccess({
                   hotelId,
                   displayName: name,
                   personType,
                   accessPolicyId: policyId,
+                  profileId: profileId || null,
                   validFrom,
                   validTo,
                 })
@@ -114,10 +152,28 @@ export function StaffAccessPanel({
                   return
                 }
                 setName('')
+                setProfileId('')
                 setMessage('Staff access queued for sync.')
               })
             }}
           >
+            {linkableProfiles.length > 0 ? (
+              <FormField label="Link PMS login (optional)" htmlFor="staff-access-profile">
+                <select
+                  id="staff-access-profile"
+                  className={APP_FIELD_CLASS}
+                  value={profileId}
+                  onChange={(e) => onProfileChange(e.target.value)}
+                >
+                  <option value="">No login link</option>
+                  {linkableProfiles.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} ({p.role})
+                    </option>
+                  ))}
+                </select>
+              </FormField>
+            ) : null}
             <FormField label="Name" htmlFor="staff-access-name">
               <input
                 id="staff-access-name"
@@ -149,13 +205,21 @@ export function StaffAccessPanel({
                 onChange={(e) => setPolicyId(e.target.value)}
                 required
               >
-                {policies.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                    {!p.assignable_by_manager ? ' (owner)' : ''}
-                  </option>
-                ))}
+                {policies.map((p) => {
+                  const count = policyDoorCount(p)
+                  return (
+                    <option key={p.id} value={p.id}>
+                      {p.name} — {count} door{count === 1 ? '' : 's'}
+                      {!p.assignable_by_manager ? ' (owner)' : ''}
+                    </option>
+                  )
+                })}
               </select>
+              {selectedDoorCount === 0 ? (
+                <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
+                  This policy has no doors. Map doors below before creating staff.
+                </p>
+              ) : null}
             </FormField>
             <FormField label="Valid from" htmlFor="staff-access-from">
               <input
@@ -181,7 +245,9 @@ export function StaffAccessPanel({
               <button
                 type="submit"
                 className="app-btn app-btn-primary"
-                disabled={pending || !name.trim() || !policyId}
+                disabled={
+                  pending || !name.trim() || !policyId || selectedDoorCount === 0 || !datesOk
+                }
               >
                 Create staff access
               </button>
@@ -191,60 +257,205 @@ export function StaffAccessPanel({
           {staffCredentials.length === 0 ? (
             <p className="text-sm text-muted-foreground">No staff credentials yet.</p>
           ) : (
-            <ul className="space-y-2">
-              {staffCredentials.map((c) => (
-                <li
-                  key={c.id}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border px-3 py-2"
-                >
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-foreground">{c.display_name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {c.person_type} · {c.policy_name ?? 'no policy'} · {c.status} /{' '}
-                      {c.sync_status}
-                      {c.staff_status ? ` · ${c.staff_status}` : ''}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      className="app-btn app-btn-secondary text-xs"
-                      disabled={pending}
-                      onClick={() =>
-                        run(async () => {
-                          const result = await updateStaffAccessStatusAction({
-                            hotelId,
-                            credentialId: c.id,
-                            staffStatus: 'suspended',
-                          })
-                          if (!result.success) setError(result.error)
-                          else setMessage(`Suspended ${c.display_name}.`)
-                        })
-                      }
-                    >
-                      Suspend
-                    </button>
-                    <button
-                      type="button"
-                      className="app-btn app-btn-ghost text-xs"
-                      disabled={pending}
-                      onClick={() =>
-                        run(async () => {
-                          const result = await updateStaffAccessStatusAction({
-                            hotelId,
-                            credentialId: c.id,
-                            staffStatus: 'terminated',
-                          })
-                          if (!result.success) setError(result.error)
-                          else setMessage(`Terminated access for ${c.display_name}.`)
-                        })
-                      }
-                    >
-                      Terminate
-                    </button>
-                  </div>
-                </li>
-              ))}
+            <ul className="space-y-3">
+              {staffCredentials.map((c) => {
+                const inactive =
+                  c.staff_status === 'suspended' ||
+                  c.staff_status === 'terminated' ||
+                  c.staff_status === 'on_leave' ||
+                  c.status === 'revoked'
+                return (
+                  <li
+                    key={c.id}
+                    className="space-y-2 rounded-xl border border-border px-3 py-3"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-foreground">{c.display_name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {c.person_type} · {c.policy_name ?? 'no policy'} · {c.status} /{' '}
+                          {c.sync_status}
+                          {c.staff_status ? ` · ${c.staff_status}` : ''}
+                          {c.card_no ? ` · card ${c.card_no}` : ''}
+                          {c.has_face ? ' · face' : ''}
+                          {c.has_fingerprint ? ' · fingerprint' : ''}
+                        </p>
+                        {c.last_error ? (
+                          <p className="mt-1 text-xs text-destructive">{c.last_error}</p>
+                        ) : null}
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {inactive ? (
+                          <button
+                            type="button"
+                            className="app-btn app-btn-primary text-xs"
+                            disabled={pending}
+                            onClick={() =>
+                              run(async () => {
+                                const result = await updateStaffAccessStatusAction({
+                                  hotelId,
+                                  credentialId: c.id,
+                                  staffStatus: 'active',
+                                })
+                                if (!result.success) setError(result.error)
+                                else setMessage(`Reactivated ${c.display_name} — sync queued.`)
+                              })
+                            }
+                          >
+                            Resume
+                          </button>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              className="app-btn app-btn-secondary text-xs"
+                              disabled={pending}
+                              onClick={() =>
+                                run(async () => {
+                                  const result = await updateStaffAccessStatusAction({
+                                    hotelId,
+                                    credentialId: c.id,
+                                    staffStatus: 'suspended',
+                                  })
+                                  if (!result.success) setError(result.error)
+                                  else setMessage(`Suspended ${c.display_name}.`)
+                                })
+                              }
+                            >
+                              Suspend
+                            </button>
+                            <button
+                              type="button"
+                              className="app-btn app-btn-ghost text-xs"
+                              disabled={pending}
+                              onClick={() =>
+                                run(async () => {
+                                  const result = await updateStaffAccessStatusAction({
+                                    hotelId,
+                                    credentialId: c.id,
+                                    staffStatus: 'terminated',
+                                  })
+                                  if (!result.success) setError(result.error)
+                                  else setMessage(`Terminated access for ${c.display_name}.`)
+                                })
+                              }
+                            >
+                              Terminate
+                            </button>
+                          </>
+                        )}
+                        <button
+                          type="button"
+                          className="app-btn app-btn-ghost text-xs"
+                          disabled={pending || inactive}
+                          onClick={() =>
+                            run(async () => {
+                              const result = await retryAccessCredential(hotelId, c.id)
+                              if (!result.success) setError(result.error)
+                              else setMessage(`Re-provision queued for ${c.display_name}.`)
+                            })
+                          }
+                        >
+                          Retry sync
+                        </button>
+                      </div>
+                    </div>
+
+                    {!inactive ? (
+                      <div className="flex flex-wrap items-center gap-2 border-t border-border pt-2">
+                        <button
+                          type="button"
+                          className="app-btn app-btn-secondary text-xs"
+                          disabled={pending || !hasEnrollmentStation}
+                          title={
+                            hasEnrollmentStation
+                              ? undefined
+                              : 'Save an enrollment station in Access setup first'
+                          }
+                          onClick={() =>
+                            run(async () => {
+                              const result = await startEnrollmentCapture({
+                                hotelId,
+                                credentialId: c.id,
+                                capture: 'card',
+                              })
+                              if (!result.success) setError(result.error)
+                              else setMessage(`Card enroll started for ${c.display_name}.`)
+                            })
+                          }
+                        >
+                          Enroll card{c.card_no ? ' ✓' : ''}
+                        </button>
+                        <button
+                          type="button"
+                          className="app-btn app-btn-secondary text-xs"
+                          disabled={pending || !hasEnrollmentStation}
+                          onClick={() =>
+                            run(async () => {
+                              const result = await startEnrollmentCapture({
+                                hotelId,
+                                credentialId: c.id,
+                                capture: 'face',
+                              })
+                              if (!result.success) setError(result.error)
+                              else setMessage(`Face enroll started for ${c.display_name}.`)
+                            })
+                          }
+                        >
+                          Enroll face{c.has_face ? ' ✓' : ''}
+                        </button>
+                        <button
+                          type="button"
+                          className="app-btn app-btn-secondary text-xs"
+                          disabled={pending || !hasEnrollmentStation}
+                          onClick={() =>
+                            run(async () => {
+                              const result = await startEnrollmentCapture({
+                                hotelId,
+                                credentialId: c.id,
+                                capture: 'fingerprint',
+                              })
+                              if (!result.success) setError(result.error)
+                              else setMessage(`Fingerprint enroll started for ${c.display_name}.`)
+                            })
+                          }
+                        >
+                          Enroll fingerprint{c.has_fingerprint ? ' ✓' : ''}
+                        </button>
+                        <input
+                          className={`${APP_FIELD_CLASS} h-8 w-36 text-xs`}
+                          placeholder="Card number"
+                          value={cardDrafts[c.id] ?? ''}
+                          onChange={(e) =>
+                            setCardDrafts((prev) => ({ ...prev, [c.id]: e.target.value }))
+                          }
+                        />
+                        <button
+                          type="button"
+                          className="app-btn app-btn-ghost text-xs"
+                          disabled={pending || !(cardDrafts[c.id] ?? '').trim()}
+                          onClick={() =>
+                            run(async () => {
+                              const result = await assignAccessCard({
+                                hotelId,
+                                credentialId: c.id,
+                                cardNo: (cardDrafts[c.id] ?? '').trim(),
+                              })
+                              if (!result.success) setError(result.error)
+                              else {
+                                setCardDrafts((prev) => ({ ...prev, [c.id]: '' }))
+                                setMessage(`Card assigned for ${c.display_name}.`)
+                              }
+                            })
+                          }
+                        >
+                          Assign card
+                        </button>
+                      </div>
+                    ) : null}
+                  </li>
+                )
+              })}
             </ul>
           )}
         </div>
@@ -259,6 +470,11 @@ export function StaffAccessPanel({
           </p>
         </div>
         <div className="surface-card-body space-y-3">
+          {activePoints.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No active doors mapped yet. Add door mappings in Access setup first.
+            </p>
+          ) : null}
           <FormField label="Policy" htmlFor="policy-edit">
             <select
               id="policy-edit"

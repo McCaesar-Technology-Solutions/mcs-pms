@@ -6,6 +6,7 @@ import type { AccessStaffStatus, StaffPersonType } from '@/lib/access/types'
 
 /**
  * Create or update a staff physical-access credential and enqueue provision.
+ * Reuses revoked/existing rows by credentialId, profileId, or employee_no.
  */
 export async function provisionStaffAccess(input: {
   hotelId: string
@@ -23,6 +24,10 @@ export async function provisionStaffAccess(input: {
       return { ok: false, error: 'Access control is not enabled.' }
     }
 
+    if (input.validFrom > input.validTo) {
+      return { ok: false, error: 'Valid from must be on or before valid to.' }
+    }
+
     const admin = createAdminClient()
     const doors = await resolvePolicyDoors(admin, input.hotelId, input.accessPolicyId)
     if (!doors.length) {
@@ -34,7 +39,23 @@ export async function provisionStaffAccess(input: {
 
     const now = new Date().toISOString()
     let credentialId = input.existingCredentialId ?? null
-    let employeeNo: string
+    let employeeNo: string | null = null
+
+    if (!credentialId && input.profileId) {
+      const { data: byProfile } = await admin
+        .from('access_credentials')
+        .select('id, employee_no, person_type')
+        .eq('hotel_id', input.hotelId)
+        .eq('profile_id', input.profileId)
+        .neq('person_type', 'tenant')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (byProfile) {
+        credentialId = byProfile.id
+        employeeNo = byProfile.employee_no
+      }
+    }
 
     if (credentialId) {
       const { data: existing } = await admin
@@ -99,7 +120,7 @@ export async function provisionStaffAccess(input: {
       hotelId: input.hotelId,
       jobType: 'provision',
       credentialId,
-      idempotencyKey: `staff-provision:${credentialId}:${input.accessPolicyId}:${input.validTo}`,
+      idempotencyKey: `staff-provision:${credentialId}:${input.accessPolicyId}:${input.validTo}:${now.slice(0, 13)}`,
       payload: {
         credentialId,
         employeeNo,
@@ -133,7 +154,9 @@ export async function setStaffAccessStatus(input: {
     const admin = createAdminClient()
     const { data: cred } = await admin
       .from('access_credentials')
-      .select('id, employee_no, person_type, status')
+      .select(
+        'id, employee_no, person_type, status, display_name, access_policy_id, profile_id, valid_from, valid_to, card_no',
+      )
       .eq('id', input.credentialId)
       .eq('hotel_id', input.hotelId)
       .maybeSingle()
@@ -148,29 +171,45 @@ export async function setStaffAccessStatus(input: {
       input.staffStatus === 'terminated' ||
       input.staffStatus === 'on_leave'
 
+    if (!revoke && input.staffStatus === 'active') {
+      if (!cred.access_policy_id) {
+        return { ok: false, error: 'Staff credential has no access policy — cannot reactivate.' }
+      }
+      const result = await provisionStaffAccess({
+        hotelId: input.hotelId,
+        displayName: cred.display_name,
+        personType: cred.person_type as StaffPersonType,
+        accessPolicyId: cred.access_policy_id,
+        profileId: cred.profile_id,
+        validFrom: cred.valid_from,
+        validTo: cred.valid_to,
+        cardNo: cred.card_no,
+        existingCredentialId: cred.id,
+      })
+      return result.ok ? { ok: true } : result
+    }
+
     await admin
       .from('access_credentials')
       .update({
         staff_status: input.staffStatus,
-        status: revoke ? 'revoking' : 'pending',
+        status: 'revoking',
         sync_status: 'pending',
         updated_at: now,
       })
       .eq('id', cred.id)
 
-    if (revoke) {
-      await enqueueAccessJob({
-        hotelId: input.hotelId,
-        jobType: 'revoke',
+    await enqueueAccessJob({
+      hotelId: input.hotelId,
+      jobType: 'revoke',
+      credentialId: cred.id,
+      idempotencyKey: `staff-revoke:${cred.id}:${input.staffStatus}:${now}`,
+      priority: 20,
+      payload: {
         credentialId: cred.id,
-        idempotencyKey: `staff-revoke:${cred.id}:${input.staffStatus}:${now}`,
-        priority: 20,
-        payload: {
-          credentialId: cred.id,
-          employeeNo: cred.employee_no,
-        },
-      })
-    }
+        employeeNo: cred.employee_no,
+      },
+    })
 
     return { ok: true }
   } catch (err) {

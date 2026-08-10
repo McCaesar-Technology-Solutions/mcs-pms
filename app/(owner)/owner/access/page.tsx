@@ -12,6 +12,7 @@ import {
   getAccessCredentials,
   getAccessDevices,
   getAccessIntegrationSummary,
+  getAccessLinkableProfiles,
   getAccessPoints,
   getAccessPoliciesForHotel,
   getAttendanceRecords,
@@ -47,6 +48,7 @@ export default async function OwnerAccessPage() {
     policies,
     staffCredentials,
     attendance,
+    linkableProfiles,
   ] = await Promise.all([
     getAccessIntegrationSummary(hotelId),
     getAccessPoints(hotelId),
@@ -56,6 +58,7 @@ export default async function OwnerAccessPage() {
     getAccessPoliciesForHotel(hotelId),
     getStaffAccessCredentials(hotelId),
     getAttendanceRecords(hotelId),
+    getAccessLinkableProfiles(hotelId),
   ])
 
   const admin = createAdminClient()
@@ -104,6 +107,7 @@ export default async function OwnerAccessPage() {
           .map((d) => d.device_key)}
         canManage
         agentDownloads={agentDownloads}
+        hasStaffPolicyDoors={policies.some((p) => p.point_ids.length > 0)}
       />
 
       <StaffAccessPanel
@@ -111,6 +115,10 @@ export default async function OwnerAccessPage() {
         policies={policies}
         points={points}
         staffCredentials={staffCredentials}
+        linkableProfiles={linkableProfiles}
+        hasEnrollmentStation={devices.some(
+          (d) => d.device_role === 'enrollment' && d.managed_in_cloud,
+        )}
         canCreateOwnerTypes
       />
 

@@ -36,6 +36,27 @@ interface AccessControlSettingsPanelProps {
   deviceKeys: string[]
   canManage: boolean
   agentDownloads?: AccessAgentDownloadLinks
+  /** At least one staff access policy has doors mapped. */
+  hasStaffPolicyDoors?: boolean
+}
+
+type DoorZone = 'unit' | 'lobby' | 'gate' | 'elevator' | 'gym' | 'other'
+
+function zoneLabel(zone: string) {
+  switch (zone) {
+    case 'unit':
+      return 'Unit (room)'
+    case 'lobby':
+      return 'Lobby / shared'
+    case 'gym':
+      return 'Gymnasium'
+    case 'gate':
+      return 'Gate'
+    case 'elevator':
+      return 'Elevator'
+    default:
+      return 'Other'
+  }
 }
 
 export function AccessControlSettingsPanel({
@@ -48,6 +69,7 @@ export function AccessControlSettingsPanel({
   deviceKeys,
   canManage,
   agentDownloads,
+  hasStaffPolicyDoors = false,
 }: AccessControlSettingsPanelProps) {
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
@@ -56,11 +78,14 @@ export function AccessControlSettingsPanel({
   const [envFile, setEnvFile] = useState<string | null>(null)
   const [copied, setCopied] = useState<'token' | 'env' | null>(null)
 
+  const [editingPointId, setEditingPointId] = useState<string | null>(null)
   const [label, setLabel] = useState('')
   const [deviceKey, setDeviceKey] = useState(deviceKeys[0] ?? 'lobby')
   const [doorNo, setDoorNo] = useState('1')
-  const [zone, setZone] = useState<'unit' | 'lobby' | 'gate' | 'elevator' | 'gym' | 'other'>('lobby')
+  const [zone, setZone] = useState<DoorZone>('lobby')
   const [roomId, setRoomId] = useState(rooms[0]?.id ?? '')
+  const [grantsShared, setGrantsShared] = useState(true)
+  const [pointActive, setPointActive] = useState(true)
 
   const [ctrlKey, setCtrlKey] = useState('lobby')
   const [ctrlLabel, setCtrlLabel] = useState('Lobby controller')
@@ -78,6 +103,7 @@ export function AccessControlSettingsPanel({
   const attendanceDevices = cloudDevices.filter((d) => d.device_role === 'attendance')
   const doorReady = mode !== 'cloud' || doorDevices.some((d) => d.has_password)
   const enrollmentReady = mode !== 'cloud' || enrollmentDevices.some((d) => d.has_password)
+  const hasGymMapped = points.some((p) => p.zone === 'gym' && p.is_active)
   const steps = [
     { id: 'enable', label: 'Sync enabled', done: enabled },
     { id: 'token', label: 'Agent token created', done: integration.hasAgentToken },
@@ -96,8 +122,48 @@ export function AccessControlSettingsPanel({
     },
     { id: 'agent', label: 'Agent online on apartment PC', done: integration.agentOnline },
     { id: 'doors', label: 'At least one door mapped', done: points.length > 0 },
+    {
+      id: 'gym',
+      label: 'Gymnasium mapped (zone: gym)',
+      done: hasGymMapped,
+    },
+    {
+      id: 'staff-policy',
+      label: 'Staff policy has at least one door',
+      done: hasStaffPolicyDoors,
+    },
   ]
   const setupComplete = steps.every((s) => s.done)
+
+  function resetDoorForm() {
+    setEditingPointId(null)
+    setLabel('')
+    setDeviceKey(deviceKeys[0] ?? 'lobby')
+    setDoorNo('1')
+    setZone('lobby')
+    setRoomId(rooms[0]?.id ?? '')
+    setGrantsShared(true)
+    setPointActive(true)
+  }
+
+  function startEditPoint(p: AccessPointRow) {
+    setEditingPointId(p.id)
+    setLabel(p.label)
+    setDeviceKey(p.device_key)
+    setDoorNo(String(p.door_no))
+    setZone(p.zone as DoorZone)
+    setRoomId(p.room_id ?? rooms[0]?.id ?? '')
+    setGrantsShared(Boolean(p.grants_shared_access))
+    setPointActive(p.is_active)
+    setError(null)
+    setMessage(null)
+  }
+
+  function sharedAccessForSubmit(z: DoorZone, shared: boolean) {
+    if (z === 'unit' || z === 'gym') return false
+    if (z === 'lobby' || z === 'gate' || z === 'elevator') return shared
+    return shared
+  }
 
   function run(action: () => Promise<void>) {
     setError(null)
@@ -624,9 +690,15 @@ export function AccessControlSettingsPanel({
           <div>
             <p className="text-sm font-semibold text-foreground">Door mappings</p>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Tell MOJO which Hikvision door is which room. Device key must match the agent{' '}
-              <code>DEVICES</code> key (example: lobby).
+              Unit = one room. Lobby/gate with &quot;shared&quot; = all in-house guests. Gymnasium zone =
+              amenity for all guests (not the shared flag). Device key must match the controller key.
             </p>
+            {!hasGymMapped ? (
+              <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">
+                Tip: if Gymnasium was saved as Lobby/Other with shared access, edit it and set zone to{' '}
+                <strong>Gymnasium</strong> so it is not treated as a corridor door.
+              </p>
+            ) : null}
           </div>
 
           {points.length === 0 ? (
@@ -638,26 +710,44 @@ export function AccessControlSettingsPanel({
                   <div>
                     <p className="text-sm font-medium text-foreground">{p.label}</p>
                     <p className="text-xs text-muted-foreground">
-                      {p.device_key} · door {p.door_no} · {p.zone}
+                      {p.device_key} · door {p.door_no} · {zoneLabel(p.zone)}
                       {p.room_number ? ` · Room ${p.room_number}` : ''}
+                      {p.zone === 'gym'
+                        ? ' · guest amenity'
+                        : p.grants_shared_access
+                          ? ' · shared with all guests'
+                          : ' · not shared'}
                       {!p.is_active ? ' · inactive' : ''}
                     </p>
                   </div>
                   {canManage && (
-                    <button
-                      type="button"
-                      className="app-btn app-btn-ghost text-destructive"
-                      disabled={pending}
-                      onClick={() =>
-                        run(async () => {
-                          const result = await deleteAccessPoint(hotelId, p.id)
-                          if (!result.success) setError(result.error)
-                          else setMessage('Door mapping removed.')
-                        })
-                      }
-                    >
-                      Remove
-                    </button>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        className="app-btn app-btn-secondary text-xs"
+                        disabled={pending}
+                        onClick={() => startEditPoint(p)}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        className="app-btn app-btn-ghost text-destructive text-xs"
+                        disabled={pending}
+                        onClick={() =>
+                          run(async () => {
+                            const result = await deleteAccessPoint(hotelId, p.id)
+                            if (!result.success) setError(result.error)
+                            else {
+                              if (editingPointId === p.id) resetDoorForm()
+                              setMessage('Door mapping removed.')
+                            }
+                          })
+                        }
+                      >
+                        Remove
+                      </button>
+                    </div>
                   )}
                 </li>
               ))}
@@ -672,23 +762,26 @@ export function AccessControlSettingsPanel({
                 run(async () => {
                   const result = await upsertAccessPoint({
                     hotelId,
+                    id: editingPointId ?? undefined,
                     deviceKey,
                     doorNo: Number(doorNo),
                     label,
                     zone,
                     roomId: zone === 'unit' ? roomId || null : null,
-                    grantsSharedAccess:
-                      zone === 'lobby' || zone === 'gate' || zone === 'elevator',
+                    grantsSharedAccess: sharedAccessForSubmit(zone, grantsShared),
+                    isActive: pointActive,
                   })
                   if (!result.success) {
                     setError(result.error)
                     return
                   }
-                  setLabel('')
+                  resetDoorForm()
                   setMessage(
                     zone === 'gym'
                       ? 'Gymnasium mapped — all in-house guests get gym access.'
-                      : 'Door mapping saved.',
+                      : editingPointId
+                        ? 'Door mapping updated.'
+                        : 'Door mapping saved.',
                   )
                 })
               }}
@@ -699,7 +792,7 @@ export function AccessControlSettingsPanel({
                   className={APP_FIELD_CLASS}
                   value={label}
                   onChange={(e) => setLabel(e.target.value)}
-                  placeholder="Lobby entrance"
+                  placeholder="Lobby entrance / Gymnasium"
                   required
                 />
               </FormField>
@@ -735,7 +828,14 @@ export function AccessControlSettingsPanel({
                   id="ac-zone"
                   className={APP_FIELD_CLASS}
                   value={zone}
-                  onChange={(e) => setZone(e.target.value as typeof zone)}
+                  onChange={(e) => {
+                    const next = e.target.value as DoorZone
+                    setZone(next)
+                    if (next === 'unit' || next === 'gym') setGrantsShared(false)
+                    else if (next === 'lobby' || next === 'gate' || next === 'elevator') {
+                      setGrantsShared(true)
+                    }
+                  }}
                 >
                   <option value="lobby">Lobby / shared</option>
                   <option value="unit">Unit (room)</option>
@@ -762,14 +862,44 @@ export function AccessControlSettingsPanel({
                   </select>
                 </FormField>
               )}
-              <div className="sm:col-span-2">
+              {zone !== 'unit' && zone !== 'gym' ? (
+                <label className="flex items-center gap-2 text-sm text-foreground sm:col-span-2">
+                  <input
+                    type="checkbox"
+                    checked={grantsShared}
+                    onChange={(e) => setGrantsShared(e.target.checked)}
+                  />
+                  Shared with all in-house guests
+                </label>
+              ) : null}
+              {editingPointId ? (
+                <label className="flex items-center gap-2 text-sm text-foreground sm:col-span-2">
+                  <input
+                    type="checkbox"
+                    checked={pointActive}
+                    onChange={(e) => setPointActive(e.target.checked)}
+                  />
+                  Active
+                </label>
+              ) : null}
+              <div className="flex flex-wrap gap-2 sm:col-span-2">
                 <button
                   type="submit"
                   className="app-btn app-btn-primary"
                   disabled={pending || !label.trim()}
                 >
-                  Add door mapping
+                  {editingPointId ? 'Save door mapping' : 'Add door mapping'}
                 </button>
+                {editingPointId ? (
+                  <button
+                    type="button"
+                    className="app-btn app-btn-ghost"
+                    disabled={pending}
+                    onClick={() => resetDoorForm()}
+                  >
+                    Cancel edit
+                  </button>
+                ) : null}
               </div>
             </form>
           )}
