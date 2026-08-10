@@ -10,7 +10,7 @@ See also: [hikvision-srs-roadmap.md](hikvision-srs-roadmap.md) (phased SRS imple
 |------|--------|
 | Owner | Full setup, staff + guest access, policies, attendance (`/owner/access`) |
 | Manager | Guest ops + approved staff physical access + attendance (`/manager/access`) |
-| Receptionist | Guest credentials only; guest-facing unlock (`/receptionist/access`) |
+| Receptionist | Guest credentials only; guest-facing unlock; guest jobs only (`/receptionist/access`) |
 
 ## What was built
 

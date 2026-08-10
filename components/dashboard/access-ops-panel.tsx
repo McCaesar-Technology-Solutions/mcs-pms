@@ -49,6 +49,7 @@ export function AccessOpsPanel({
       (viewerRole !== 'receptionist' || receptionMayUnlockZone(p.zone)),
   )
   const guestCredentials = credentials.filter((c) => (c.person_type ?? 'tenant') === 'tenant')
+  const canBulkManageJobs = viewerRole !== 'receptionist'
 
   function run(action: () => Promise<void>) {
     setError(null)
@@ -300,44 +301,48 @@ export function AccessOpsPanel({
           <div>
             <h3 className="text-lg font-semibold text-foreground">Recent jobs</h3>
             <p className="mt-0.5 text-sm text-muted-foreground">
-              Cancel open jobs to stop retries, or clear the list entirely.
+              {canBulkManageJobs
+                ? 'Cancel open jobs to stop retries, or clear the list entirely.'
+                : 'Guest unlock and credential sync only. Staff jobs are hidden.'}
             </p>
           </div>
-          <div className="flex shrink-0 flex-wrap gap-2">
-            <button
-              type="button"
-              className="app-btn app-btn-secondary h-8 text-xs"
-              disabled={
-                pending ||
-                !jobs.some(
-                  (j) => j.status === 'pending' || j.status === 'failed' || j.status === 'claimed',
-                )
-              }
-              onClick={() =>
-                run(async () => {
-                  const result = await cancelOpenAccessJobsAction(hotelId)
-                  if (!result.success) setError(result.error)
-                  else setMessage(`Cancelled ${result.data?.count ?? 0} open job(s).`)
-                })
-              }
-            >
-              Cancel open jobs
-            </button>
-            <button
-              type="button"
-              className="app-btn app-btn-ghost h-8 text-xs"
-              disabled={pending || jobs.length === 0}
-              onClick={() =>
-                run(async () => {
-                  const result = await clearAccessJobsAction(hotelId)
-                  if (!result.success) setError(result.error)
-                  else setMessage(`Cleared ${result.data?.count ?? 0} job(s) from the list.`)
-                })
-              }
-            >
-              Clear jobs
-            </button>
-          </div>
+          {canBulkManageJobs ? (
+            <div className="flex shrink-0 flex-wrap gap-2">
+              <button
+                type="button"
+                className="app-btn app-btn-secondary h-8 text-xs"
+                disabled={
+                  pending ||
+                  !jobs.some(
+                    (j) => j.status === 'pending' || j.status === 'failed' || j.status === 'claimed',
+                  )
+                }
+                onClick={() =>
+                  run(async () => {
+                    const result = await cancelOpenAccessJobsAction(hotelId)
+                    if (!result.success) setError(result.error)
+                    else setMessage(`Cancelled ${result.data?.count ?? 0} open job(s).`)
+                  })
+                }
+              >
+                Cancel open jobs
+              </button>
+              <button
+                type="button"
+                className="app-btn app-btn-ghost h-8 text-xs"
+                disabled={pending || jobs.length === 0}
+                onClick={() =>
+                  run(async () => {
+                    const result = await clearAccessJobsAction(hotelId)
+                    if (!result.success) setError(result.error)
+                    else setMessage(`Cleared ${result.data?.count ?? 0} job(s) from the list.`)
+                  })
+                }
+              >
+                Clear jobs
+              </button>
+            </div>
+          ) : null}
         </div>
         <div className="surface-card-body overflow-x-auto">
           {jobs.length === 0 ? (

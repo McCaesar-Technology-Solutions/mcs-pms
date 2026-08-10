@@ -2,6 +2,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { resolveHotelTenantAccess } from '@/lib/data/tenant-guard'
 import { isAgentOnline } from '@/lib/access/agent-auth'
 import { ensureDefaultAccessPolicies } from '@/lib/access/policies'
+import { isReceptionVisibleJob } from '@/lib/access/reception-scope'
 import type {
   AccessCredentialRow,
   AccessDeviceRow,
@@ -222,14 +223,42 @@ export async function getRecentAccessJobs(hotelId: string, limit = 30): Promise<
   if (!profile) return []
 
   const admin = createAdminClient()
+  const fetchLimit = profile.role === 'receptionist' ? Math.min(limit * 4, 120) : limit
+
   const { data } = await admin
     .from('access_jobs')
     .select('*')
     .eq('hotel_id', hotelId)
     .order('created_at', { ascending: false })
-    .limit(limit)
+    .limit(fetchLimit)
 
-  return (data ?? []) as AccessJobRow[]
+  const rows = (data ?? []) as AccessJobRow[]
+  if (profile.role !== 'receptionist') return rows.slice(0, limit)
+
+  const credIds = [
+    ...new Set(rows.map((j) => j.credential_id).filter((id): id is string => Boolean(id))),
+  ]
+  const personByCred = new Map<string, string>()
+  if (credIds.length) {
+    const { data: creds } = await admin
+      .from('access_credentials')
+      .select('id, person_type')
+      .eq('hotel_id', hotelId)
+      .in('id', credIds)
+    for (const c of creds ?? []) {
+      personByCred.set(c.id, (c as { person_type?: string }).person_type ?? 'tenant')
+    }
+  }
+
+  return rows
+    .filter((j) =>
+      isReceptionVisibleJob({
+        jobType: j.job_type,
+        credentialId: j.credential_id,
+        personType: j.credential_id ? (personByCred.get(j.credential_id) ?? null) : null,
+      }),
+    )
+    .slice(0, limit)
 }
 
 export async function getAccessDevices(hotelId: string): Promise<AccessDeviceRow[]> {
@@ -245,13 +274,23 @@ export async function getAccessDevices(hotelId: string): Promise<AccessDeviceRow
     .eq('hotel_id', hotelId)
     .order('label', { ascending: true })
 
-  const devices = data ?? []
+  let devices = data ?? []
   if (!devices.length) return []
 
-  const { data: secrets } = await admin
-    .from('access_device_secrets')
-    .select('device_id')
-    .eq('hotel_id', hotelId)
+  // Reception: enrollment station status only — no controller/attendance inventory.
+  if (profile.role === 'receptionist') {
+    devices = devices.filter(
+      (d) => (d as { device_role?: string }).device_role === 'enrollment',
+    )
+  }
+
+  const { data: secrets } =
+    profile.role === 'receptionist'
+      ? { data: [] as { device_id: string }[] }
+      : await admin
+          .from('access_device_secrets')
+          .select('device_id')
+          .eq('hotel_id', hotelId)
 
   const withSecret = new Set((secrets ?? []).map((s) => s.device_id))
 
@@ -259,21 +298,22 @@ export async function getAccessDevices(hotelId: string): Promise<AccessDeviceRow
     const role = (d as { device_role?: string }).device_role
     const device_role: AccessDeviceRole =
       role === 'enrollment' ? 'enrollment' : role === 'attendance' ? 'attendance' : 'door'
+    const isReception = profile.role === 'receptionist'
     return {
       id: d.id,
       hotel_id: d.hotel_id,
-      device_key: d.device_key,
+      device_key: isReception ? d.device_key : d.device_key,
       label: d.label,
-      host: d.host ?? null,
-      port: d.port ?? null,
-      username: d.username ?? null,
-      use_https: Boolean(d.use_https),
+      host: isReception ? null : (d.host ?? null),
+      port: isReception ? null : (d.port ?? null),
+      username: isReception ? null : (d.username ?? null),
+      use_https: isReception ? false : Boolean(d.use_https),
       managed_in_cloud: Boolean(d.managed_in_cloud),
       device_role,
-      model: d.model ?? null,
+      model: isReception ? null : (d.model ?? null),
       is_online: Boolean(d.is_online),
       last_seen_at: d.last_seen_at ?? null,
-      has_password: withSecret.has(d.id),
+      has_password: isReception ? false : withSecret.has(d.id),
     }
   })
 }

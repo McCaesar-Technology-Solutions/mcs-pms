@@ -20,6 +20,7 @@ import {
   resolvePolicyDoors,
 } from '@/lib/access/policies'
 import { receptionMayUnlockZone, resolveGuestDoors } from '@/lib/access/doors'
+import { receptionMayCancelJob } from '@/lib/access/reception-scope'
 import { writeAuditLog } from '@/lib/audit/log'
 import { getAppOrigin } from '@/lib/env'
 import type {
@@ -392,6 +393,42 @@ export async function cancelAccessJobAction(input: {
   const auth = await requireAccessOps(input.hotelId)
   if (!auth.ok) return { success: false, error: auth.error }
 
+  if (auth.profile.role === 'receptionist') {
+    const admin = createAdminClient()
+    const { data: job } = await admin
+      .from('access_jobs')
+      .select('id, job_type, credential_id')
+      .eq('id', input.jobId)
+      .eq('hotel_id', input.hotelId)
+      .maybeSingle()
+
+    if (!job) return { success: false, error: 'Job not found.' }
+
+    let personType: string | null = null
+    if (job.credential_id) {
+      const { data: cred } = await admin
+        .from('access_credentials')
+        .select('person_type')
+        .eq('id', job.credential_id)
+        .eq('hotel_id', input.hotelId)
+        .maybeSingle()
+      personType = (cred as { person_type?: string } | null)?.person_type ?? null
+    }
+
+    if (
+      !receptionMayCancelJob({
+        jobType: job.job_type,
+        credentialId: job.credential_id,
+        personType,
+      })
+    ) {
+      return {
+        success: false,
+        error: 'Reception can only cancel guest unlock or guest credential jobs.',
+      }
+    }
+  }
+
   const result = await cancelAccessJob({ hotelId: input.hotelId, jobId: input.jobId })
   if ('error' in result) return { success: false, error: result.error }
   revalidateAccess()
@@ -399,7 +436,7 @@ export async function cancelAccessJobAction(input: {
 }
 
 export async function cancelOpenAccessJobsAction(hotelId: string): Promise<ActionResult<{ count: number }>> {
-  const auth = await requireAccessOps(hotelId)
+  const auth = await requireAccessEditor(hotelId)
   if (!auth.ok) return { success: false, error: auth.error }
 
   const result = await cancelOpenAccessJobs({ hotelId })
@@ -409,7 +446,7 @@ export async function cancelOpenAccessJobsAction(hotelId: string): Promise<Actio
 }
 
 export async function clearAccessJobsAction(hotelId: string): Promise<ActionResult<{ count: number }>> {
-  const auth = await requireAccessOps(hotelId)
+  const auth = await requireAccessEditor(hotelId)
   if (!auth.ok) return { success: false, error: auth.error }
 
   const result = await clearAccessJobs({ hotelId })
