@@ -11,6 +11,7 @@ test.describe('public auth pages', () => {
 
   test('signup page has password confirmation fields', async ({ page }) => {
     await page.goto('/signup')
+    await expect(page).toHaveURL(/\/signup/)
     await expect(page.getByLabel(/^password$/i)).toBeVisible()
     await expect(page.getByLabel(/confirm password/i)).toBeVisible()
     await expect(page.getByText(/at least 12 characters/i)).toBeVisible()

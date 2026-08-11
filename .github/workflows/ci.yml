@@ -51,3 +51,4 @@ jobs:
         run: npm run test:e2e
         env:
           CI: true
+          DISABLE_PUBLIC_SIGNUP: "false"

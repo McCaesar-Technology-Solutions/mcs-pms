@@ -25,5 +25,10 @@ export default defineConfig({
     url: `${baseURL}/login`,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
+    // Production start disables public signup by default; e2e needs the form.
+    env: {
+      ...process.env,
+      DISABLE_PUBLIC_SIGNUP: 'false',
+    },
   },
 })
