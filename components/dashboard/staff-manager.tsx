@@ -13,7 +13,7 @@ import { BulkSelectCheckbox } from '@/components/dashboard/bulk-select-checkbox'
 import { downloadCsv } from '@/lib/export/download-csv'
 import { copyToClipboard, staffRef } from '@/lib/export/entity-refs'
 import { useRowSelection } from '@/lib/hooks/use-row-selection'
-import { hasPhoneNumber } from '@/lib/phone'
+import { hasPhoneNumber, whatsAppHref } from '@/lib/phone'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -76,6 +76,21 @@ function inviteLink(token: string) {
   return `${window.location.origin}/accept-invite?t=${token}`
 }
 
+function inviteWhatsAppMessage(token: string, role: UserRole) {
+  const roleLabel = ROLE_BADGE[role]?.label ?? role
+  return `You're invited to join the team as a ${roleLabel}. Accept your invite here: ${inviteLink(token)}`
+}
+
+/** Opens WhatsApp with a prefilled invite — uses phone when known, otherwise contact picker. */
+function inviteWhatsAppHref(token: string, role: UserRole, phone?: string | null) {
+  const message = inviteWhatsAppMessage(token, role)
+  if (phone?.trim()) {
+    const href = whatsAppHref(phone, message)
+    if (href) return href
+  }
+  return `https://wa.me/?text=${encodeURIComponent(message)}`
+}
+
 export function StaffManager({
   currentProfile,
   staff,
@@ -97,6 +112,7 @@ export function StaffManager({
   const [submitting, setSubmitting] = useState(false)
   const [createdToken, setCreatedToken] = useState<string | null>(null)
   const [createdContact, setCreatedContact] = useState<string | null>(null)
+  const [createdPhone, setCreatedPhone] = useState<string | null>(null)
   const [deliveryDetail, setDeliveryDetail] = useState<string | null>(null)
   const [deliverySent, setDeliverySent] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -177,6 +193,7 @@ export function StaffManager({
     setError(null)
     setCreatedToken(null)
     setCreatedContact(null)
+    setCreatedPhone(null)
     setDeliveryDetail(null)
     setDeliverySent(false)
     setCopied(false)
@@ -201,6 +218,7 @@ export function StaffManager({
     if (result.data) {
       setCreatedToken(result.data.token)
       setCreatedContact(result.data.phone ?? result.data.email ?? contact)
+      setCreatedPhone(result.data.phone ?? null)
       setDeliveryDetail(result.data.delivery.detail)
       setDeliverySent(result.data.delivery.sent)
     }
@@ -515,6 +533,11 @@ export function StaffManager({
                 const inviteContact =
                   invite.role === 'technician' && invite.phone ? invite.phone : invite.email
                 const InviteIcon = invite.role === 'technician' ? Phone : Mail
+                const waHref = inviteWhatsAppHref(
+                  invite.token,
+                  invite.role,
+                  invite.phone,
+                )
                 return (
                 <div
                   key={invite.id}
@@ -535,7 +558,16 @@ export function StaffManager({
                       </span>
                     </div>
                   </div>
-                  <div className="flex shrink-0 items-center gap-2">
+                  <div className="flex shrink-0 flex-wrap items-center gap-2">
+                    <a
+                      href={waHref}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-[#25D366] px-2.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[#1ebe57]"
+                    >
+                      <MessageCircle className="h-3.5 w-3.5" />
+                      WhatsApp
+                    </a>
                     <button
                       type="button"
                       onClick={() => copyLink(invite.token)}
@@ -570,7 +602,7 @@ export function StaffManager({
         <ModalHeader onClose={() => setOpen(false)}>
           <h3 className="text-lg font-semibold">Invite staff</h3>
           <p className="modal-panel-subtle text-sm">
-            Send a registration link to a new team member.
+            Create a registration link, then send it on WhatsApp.
           </p>
         </ModalHeader>
 
@@ -587,6 +619,15 @@ export function StaffManager({
                 <Check className="h-4 w-4 shrink-0" />
                 {deliveryDetail ?? `Invite created for ${createdContact}.`}
               </div>
+              <a
+                href={inviteWhatsAppHref(createdToken, role, createdPhone)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#1ebe57]"
+              >
+                <MessageCircle className="h-4 w-4" />
+                Send via WhatsApp
+              </a>
               <div className="space-y-2">
                 <Label>Invite link</Label>
                 <div className="flex items-center gap-2 rounded-xl surface-inset px-3 py-2.5">
@@ -603,9 +644,9 @@ export function StaffManager({
                   </button>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {deliverySent
-                    ? 'Automatic delivery can lag or fail — share this link on WhatsApp or in person if they do not receive it.'
-                    : 'Share this link manually (WhatsApp, SMS, or in person).'}
+                  {createdPhone
+                    ? 'WhatsApp opens with their number and the invite message ready to send.'
+                    : 'WhatsApp opens with the invite message — pick their chat to send it.'}
                 </p>
               </div>
               <p className="text-xs text-muted-foreground">
@@ -653,12 +694,13 @@ export function StaffManager({
                 />
                 {inviteUsesPhone && (
                   <p className="text-xs text-muted-foreground">
-                    The invite link is sent by SMS and WhatsApp (Arkesel + Termii).
+                    We also try SMS when configured. You can always send the link on WhatsApp.
                   </p>
                 )}
                 {!inviteUsesPhone && (
                   <p className="text-xs text-muted-foreground">
-                    The invite link is sent to their email automatically.
+                    Used for their login email. After creating, you&apos;ll send the invite link on
+                    WhatsApp.
                   </p>
                 )}
               </div>

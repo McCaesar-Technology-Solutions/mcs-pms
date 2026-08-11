@@ -163,36 +163,19 @@ export async function inviteStaff(
     revalidatePath('/owner/staff')
     revalidatePath('/manager/staff')
 
-    const { data: hotel } = await admin
-      .from('hotels')
-      .select('name')
-      .eq('id', profile.hotel_id!)
-      .maybeSingle()
-
-    const { notifyStaffInviteEmail } = await import('@/lib/notifications/staff-invite-email')
-    const emailResult = await notifyStaffInviteEmail({
-      hotelId: profile.hotel_id!,
-      email: normalizedEmail,
-      role: inviteRole,
-      inviteToken: invite.token,
-      hotelName: hotel?.name ?? undefined,
-    })
-
-    const delivery = emailResult.success
-      ? {
-          sent: true,
-          channel: 'email' as const,
-          detail: `Invite email submitted to ${normalizedEmail}. If it doesn't arrive, check spam or copy the link below.`,
-        }
-      : {
-          sent: false,
-          channel: 'none' as const,
-          detail: emailResult.error ?? 'Could not send the invite email. Copy the link below.',
-        }
-
+    // Email delivery is not wired yet — issuer shares the link on WhatsApp.
     return {
       success: true,
-      data: { token: invite.token, email: normalizedEmail, role: inviteRole, delivery },
+      data: {
+        token: invite.token,
+        email: normalizedEmail,
+        role: inviteRole,
+        delivery: {
+          sent: false,
+          channel: 'none',
+          detail: `Invite created for ${normalizedEmail}. Open WhatsApp to send them the link.`,
+        },
+      },
     }
   }
 

@@ -4,7 +4,8 @@ import { enqueueEmailOutbox } from '@/lib/notifications/outbox'
 import { reportNotificationFailure } from '@/lib/notifications/notify-failure'
 import { appUrl } from '@/lib/notifications/app-url'
 
-/** Manager or receptionist invite — email with accept-invite link. */
+/** Manager or receptionist invite — email with accept-invite link.
+ *  Not used while staff invites are shared manually via WhatsApp. */
 export async function notifyStaffInviteEmail(input: {
   hotelId: string
   email: string

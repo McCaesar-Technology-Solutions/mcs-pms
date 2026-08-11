@@ -399,8 +399,16 @@ function pathToFileUrl(filePath) {
 
 function createTray() {
   tray = new Tray(trayIcon(false))
-  // macOS menu-bar: single click should open status (double-click is easy to miss)
-  tray.on('click', () => openStatusWindow())
+  // Left-click must show the menu (Edit connection settings lives there).
+  // Previously click opened status only — staff never saw the setup item.
+  tray.on('click', () => {
+    if (!tray) return
+    tray.popUpContextMenu()
+  })
+  tray.on('right-click', () => {
+    if (!tray) return
+    tray.popUpContextMenu()
+  })
   tray.on('double-click', () => openStatusWindow())
   rebuildTrayMenu()
 }

@@ -97,7 +97,8 @@ export const ownerHelpTopics: HelpTopic[] = [
     title: 'Invite staff',
     summary: 'Managers, receptionists, and technicians.',
     steps: [
-      'Staff → invite by email (managers, receptionists) or phone (technicians).',
+      'Staff → invite managers and receptionists by email, technicians by phone.',
+      'After creating an invite, send the link on WhatsApp to the new team member.',
       'Managers run daily ops; receptionists handle front desk only.',
       'Technicians see assigned tasks on their phones.',
     ],
