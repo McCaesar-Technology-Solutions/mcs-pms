@@ -92,6 +92,20 @@ export const managerHelpTopics: HelpTopic[] = [
     pathPrefixes: ['/manager/guests'],
   },
   {
+    id: 'register-in-house',
+    title: 'Register guests already in house',
+    summary: 'Go-live: put current occupants on the system with real stay dates.',
+    steps: [
+      'Guests → Register in-house guest.',
+      'Enter real arrival (can be past) and planned departure.',
+      'Share the portal link or PIN — do not use Check in now for people already staying.',
+    ],
+    href: '/manager/guests',
+    hrefLabel: 'Open guests',
+    keywords: ['enroll', 'register', 'in house', 'go live', 'existing guest'],
+    pathPrefixes: ['/manager/guests'],
+  },
+  {
     id: 'night-audit',
     title: 'Night audit',
     summary: 'Close the business day with the owner.',

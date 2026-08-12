@@ -1,6 +1,7 @@
 import { GuestsTable } from '@/components/dashboard/guests-table'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { PropertyPortalQrPanel } from '@/components/guest/property-portal-qr-panel'
+import { RegisterInHouseGuestCta } from '@/components/guest/register-in-house-guest'
 import { WalkInCheckInCta } from '@/components/guest/walk-in-check-in-cta'
 import { getGuestsPage, type GuestStatus } from '@/lib/data/guests'
 import { parsePageParam } from '@/lib/data/pagination'
@@ -27,9 +28,10 @@ export default async function OwnerGuestsPage({
       <PageHeader
         badge="CRM"
         title="Guests"
-        description="View guest directory and stay history across your property."
+        description="Register in-house guests, walk-ins, and view stay history."
       />
       <PropertyPortalQrPanel />
+      <RegisterInHouseGuestCta />
       <WalkInCheckInCta reservationsHref="/owner/reservations" />
       <GuestsTable
         guests={guestsPage.guests}

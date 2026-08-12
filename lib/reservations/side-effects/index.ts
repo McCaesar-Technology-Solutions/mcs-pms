@@ -73,7 +73,7 @@ export async function runNotificationsSideEffect(ctx: SideEffectContext): Promis
     '@/lib/notifications/stays'
   )
 
-  if (ctx.toStatus === 'confirmed' && ctx.payload?.guestPhone) {
+  if (ctx.toStatus === 'confirmed' && ctx.payload?.guestPhone && !ctx.payload?.suppressGuestNotify) {
     const phone = String(ctx.payload.guestPhone)
     const roomNumber = ctx.payload.roomNumber ? String(ctx.payload.roomNumber) : null
     runNotifyTask(
@@ -93,7 +93,12 @@ export async function runNotificationsSideEffect(ctx: SideEffectContext): Promis
     )
   }
 
-  if (ctx.toStatus === 'checked_in' && ctx.payload?.guestPhone && ctx.payload?.portalToken) {
+  if (
+    ctx.toStatus === 'checked_in' &&
+    ctx.payload?.guestPhone &&
+    ctx.payload?.portalToken &&
+    !ctx.payload?.suppressGuestNotify
+  ) {
     runNotifyTask(
       notifyGuestCheckedIn({
         hotelId: ctx.reservation.hotel_id,

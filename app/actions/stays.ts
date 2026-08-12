@@ -204,6 +204,7 @@ export async function searchGuests(query: string): Promise<
 export async function checkInStay(
   reservationId: string,
   input: { phone: string; email?: string; guestId?: string; guestName?: string },
+  opts?: { quiet?: boolean },
 ): Promise<
   StayActionResult<{ loginUrl: string; token: string; guestId: string; portalPin: string }>
 > {
@@ -371,6 +372,7 @@ export async function checkInStay(
       guestPhone: parsed.data.phone.trim(),
       roomNumber: roomBeforeCheckIn?.number ?? null,
       portalToken: token,
+      ...(opts?.quiet ? { suppressGuestNotify: true } : {}),
     },
   })
   if (!transition.success) {
@@ -426,7 +428,9 @@ export async function checkInStay(
     entityType: 'reservation',
     entityId: reservationId,
     action: 'checked_in',
-    summary: `${guestName} checked in${roomRow?.number ? ` — Room ${roomRow.number}` : ''} (${reservation.check_in} → ${reservation.check_out})`,
+    summary: opts?.quiet
+      ? `${guestName} registered in house${roomRow?.number ? ` — Room ${roomRow.number}` : ''} (${reservation.check_in} → ${reservation.check_out})`
+      : `${guestName} checked in${roomRow?.number ? ` — Room ${roomRow.number}` : ''} (${reservation.check_in} → ${reservation.check_out})`,
   })
 
   void provisionGuestAccess({

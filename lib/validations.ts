@@ -77,8 +77,12 @@ export const enrollGuestSchema = z.object({
   phone: phoneSchema,
   email: z.string().email().optional().or(z.literal('')),
   roomId: z.string().uuid(),
-  checkIn: z.string().min(1),
-  checkOut: z.string().min(1),
+  checkIn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Enter arrival date'),
+  checkOut: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Enter departure date'),
+  rateType: z.enum(['nightly', 'weekly', 'monthly']).default('nightly'),
+  nightlyRate: z.coerce.number().min(0).optional(),
+  weeklyRate: z.coerce.number().min(0).optional(),
+  monthlyRate: z.coerce.number().min(0).optional(),
 })
 
 export const submitComplaintSchema = z.object({

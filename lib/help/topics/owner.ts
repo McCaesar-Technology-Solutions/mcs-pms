@@ -135,4 +135,19 @@ export const ownerHelpTopics: HelpTopic[] = [
     keywords: ['guest portal', 'wifi', 'welcome', 'local guide'],
     pathPrefixes: ['/owner/settings'],
   },
+  {
+    id: 'register-in-house',
+    title: 'Register guests already in house',
+    summary: 'Go-live: put current occupants on the system with real stay dates.',
+    steps: [
+      'Guests → Register in-house guest.',
+      'Enter real arrival (can be past) and planned departure.',
+      'Share the portal link or PIN on WhatsApp — automatic welcome SMS is skipped.',
+      'Use Walk-in check-in only for guests arriving now.',
+    ],
+    href: '/owner/guests',
+    hrefLabel: 'Open guests',
+    keywords: ['enroll', 'register', 'in house', 'go live', 'existing guest', 'migration'],
+    pathPrefixes: ['/owner/guests'],
+  },
 ]

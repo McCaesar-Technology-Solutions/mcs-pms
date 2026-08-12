@@ -290,7 +290,7 @@ export function GuestsTable({
 
         {filteredGuests.length === 0 && (
           <p className="px-6 py-12 text-center text-sm text-muted-foreground">
-            No guests found. Enroll a guest to get started.
+            No guests found. Register an in-house guest or check someone in to get started.
           </p>
         )}
 

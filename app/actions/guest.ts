@@ -7,10 +7,12 @@ import { generatePortalPin } from '@/lib/guest/portal-pin'
 import { storeGuestPortalPin } from '@/lib/data/guest-room-access'
 import { getGuestSessionId } from '@/lib/guest-session'
 import { guestNeedsRulesAcceptance } from '@/lib/guest-rules/needs-acceptance'
-import { submitComplaintSchema } from '@/lib/validations'
+import { enrollGuestSchema, submitComplaintSchema } from '@/lib/validations'
 import { canGuestApproveCompletion } from '@/lib/complaints/workflow'
-import { walkInCheckIn, checkOutStay } from '@/app/actions/stays'
+import { checkOutStay } from '@/app/actions/stays'
 import { getOccupancySpans } from '@/lib/data/occupancy'
+import { validateInHouseEnrollmentDates } from '@/lib/guests/enroll-in-house'
+import { todayISO } from '@/lib/stays/helpers'
 import type { Complaint, Guest } from '@/types'
 import { runNotifyTask } from '@/lib/notifications/notify-task'
 
@@ -307,10 +309,13 @@ export async function approveGuestComplaintCompletion(
 export interface EnrollRoomOption {
   id: string
   number: string
+  nightlyRate: number
+  weeklyRate: number
+  monthlyRate: number
 }
 
 export type EnrollGuestResult =
-  | { success: true; data: { token: string; loginUrl: string } }
+  | { success: true; data: { token: string; loginUrl: string; portalPin: string } }
   | { success: false; error: string; suggestions?: EnrollRoomOption[] }
 
 export async function getEnrollmentRooms(): Promise<
@@ -328,14 +333,38 @@ export async function getEnrollmentRooms(): Promise<
 
   const admin = createAdminClient()
   const [{ data: rooms }, spans] = await Promise.all([
-    admin.from('rooms').select('id, number').eq('hotel_id', profile.hotel_id).order('number'),
+    admin
+      .from('rooms')
+      .select(
+        'id, number, nightly_rate, weekly_rate, monthly_rate, room_categories(default_nightly_rate, default_weekly_rate, default_monthly_rate)',
+      )
+      .eq('hotel_id', profile.hotel_id)
+      .order('number'),
     getOccupancySpans(admin, profile.hotel_id),
   ])
 
   return {
     success: true,
     data: {
-      rooms: (rooms ?? []) as EnrollRoomOption[],
+      rooms: (rooms ?? []).map((r) => {
+        const cat = r.room_categories as {
+          default_nightly_rate?: number
+          default_weekly_rate?: number | null
+          default_monthly_rate?: number | null
+        } | null
+        return {
+          id: r.id,
+          number: r.number,
+          nightlyRate:
+            r.nightly_rate != null ? Number(r.nightly_rate) : Number(cat?.default_nightly_rate ?? 0),
+          weeklyRate:
+            r.weekly_rate != null ? Number(r.weekly_rate) : Number(cat?.default_weekly_rate ?? 0),
+          monthlyRate:
+            r.monthly_rate != null
+              ? Number(r.monthly_rate)
+              : Number(cat?.default_monthly_rate ?? 0),
+        }
+      }),
       stays: spans.map((s) => ({ roomId: s.roomId, checkIn: s.checkIn, checkOut: s.checkOut })),
     },
   }
@@ -348,30 +377,89 @@ export async function enrollGuest(input: {
   roomId: string
   checkIn: string
   checkOut: string
+  rateType?: 'nightly' | 'weekly' | 'monthly'
+  nightlyRate?: number
+  weeklyRate?: number
+  monthlyRate?: number
 }): Promise<EnrollGuestResult> {
-  const result = await walkInCheckIn({
-    name: input.name,
-    phone: input.phone,
-    email: input.email,
-    roomId: input.roomId,
-    checkOut: input.checkOut,
+  const parsed = enrollGuestSchema.safeParse(input)
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid input.' }
+  }
+
+  const today = todayISO()
+  const { checkIn, checkOut } = parsed.data
+  const dates = validateInHouseEnrollmentDates(checkIn, checkOut, today)
+  if (!dates.ok) {
+    return { success: false, error: dates.error }
+  }
+
+  const rateType = parsed.data.rateType ?? 'nightly'
+  if (rateType === 'weekly' && (parsed.data.weeklyRate ?? 0) <= 0) {
+    return { success: false, error: 'Enter a weekly rate.' }
+  }
+  if (rateType === 'monthly' && (parsed.data.monthlyRate ?? 0) <= 0) {
+    return { success: false, error: 'Enter a monthly rate.' }
+  }
+
+  const admin = createAdminClient()
+  const { getRoomRates } = await import('@/lib/pricing/room-rates')
+  const roomRates = await getRoomRates(admin, parsed.data.roomId)
+
+  // Match walk-in: omit/zero nightly falls back to room/category default so go-live
+  // doesn't silently create $0 folios when staff leave the field untouched.
+  const nightlyRate =
+    rateType === 'nightly'
+      ? parsed.data.nightlyRate && parsed.data.nightlyRate > 0
+        ? parsed.data.nightlyRate
+        : roomRates.nightlyRate
+      : roomRates.nightlyRate
+  const weeklyRate =
+    rateType === 'weekly'
+      ? (parsed.data.weeklyRate ?? roomRates.weeklyRate)
+      : roomRates.weeklyRate
+  const monthlyRate =
+    rateType === 'monthly'
+      ? (parsed.data.monthlyRate ?? roomRates.monthlyRate)
+      : roomRates.monthlyRate
+
+  const { bookAndCheckIn } = await import('@/app/actions/reservations')
+  const result = await bookAndCheckIn({
+    guestName: parsed.data.name,
+    phone: parsed.data.phone,
+    email: parsed.data.email || undefined,
+    roomId: parsed.data.roomId,
+    checkIn,
+    checkOut,
+    channel: 'other',
+    rateType,
+    nightlyRate,
+    weeklyRate,
+    monthlyRate,
+    quietEnrollment: true,
   })
 
   if (!result.success) {
     return {
       success: false,
       error: result.error,
-      suggestions: result.suggestions,
+      suggestions: result.suggestions?.map((s) => ({
+        id: s.id,
+        number: s.number,
+        nightlyRate: 0,
+        weeklyRate: 0,
+        monthlyRate: 0,
+      })),
     }
-  }
-
-  if (!result.data) {
-    return { success: false, error: 'Could not complete walk-in check-in.' }
   }
 
   return {
     success: true,
-    data: { token: result.data.token, loginUrl: result.data.loginUrl },
+    data: {
+      token: result.data.token,
+      loginUrl: result.data.loginUrl,
+      portalPin: result.data.portalPin,
+    },
   }
 }
 

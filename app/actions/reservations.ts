@@ -65,6 +65,8 @@ export type BookAndCheckInResult =
 const bookAndCheckInSchema = createReservationSchema.extend({
   phone: phoneSchema,
   email: z.string().email().optional().or(z.literal('')),
+  /** Go-live / in-house enrollment — skip welcome + new-booking SMS noise. */
+  quietEnrollment: z.boolean().optional(),
 })
 
 const VALID_CHANNELS: ReservationChannel[] = [
@@ -105,7 +107,10 @@ const VALID_PAYMENT_METHODS: PaymentMethod[] = [
   'bank_transfer',
 ]
 
-export async function createReservation(input: unknown): Promise<CreateReservationResult> {
+export async function createReservation(
+  input: unknown,
+  opts?: { quiet?: boolean },
+): Promise<CreateReservationResult> {
   const parsed = createReservationSchema.safeParse(input)
   if (!parsed.success) {
     return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid input.' }
@@ -239,28 +244,32 @@ export async function createReservation(input: unknown): Promise<CreateReservati
       entityType: 'reservation',
       entityId: row.id,
       action: 'created',
-      summary: `Booking for ${data.guestName.trim()}${room?.number ? ` — Room ${room.number}` : ''} (${data.checkIn} → ${data.checkOut}, ${data.channel})`,
+      summary: opts?.quiet
+        ? `In-house enrollment for ${data.guestName.trim()}${room?.number ? ` — Room ${room.number}` : ''} (${data.checkIn} → ${data.checkOut})`
+        : `Booking for ${data.guestName.trim()}${room?.number ? ` — Room ${room.number}` : ''} (${data.checkIn} → ${data.checkOut}, ${data.channel})`,
     })
   })()
 
-  void import('@/lib/notifications/stays').then(async ({ notifyManagersNewReservation }) => {
-    const admin = createAdminClient()
-    const { data: room } = await admin.from('rooms').select('number').eq('id', data.roomId).maybeSingle()
-    runNotifyTask(
-      notifyManagersNewReservation({
-        hotelId: profile.hotel_id!,
-        guestName: data.guestName,
-        roomNumber: room?.number ?? null,
-        checkIn: data.checkIn,
-        checkOut: data.checkOut,
-        channel: data.channel,
-      }),
-      {
-        templateKey: 'reservation_new_manager',
-        hotelId: profile.hotel_id!,
-      },
-    )
-  })
+  if (!opts?.quiet) {
+    void import('@/lib/notifications/stays').then(async ({ notifyManagersNewReservation }) => {
+      const admin = createAdminClient()
+      const { data: room } = await admin.from('rooms').select('number').eq('id', data.roomId).maybeSingle()
+      runNotifyTask(
+        notifyManagersNewReservation({
+          hotelId: profile.hotel_id!,
+          guestName: data.guestName,
+          roomNumber: room?.number ?? null,
+          checkIn: data.checkIn,
+          checkOut: data.checkOut,
+          channel: data.channel,
+        }),
+        {
+          templateKey: 'reservation_new_manager',
+          hotelId: profile.hotel_id!,
+        },
+      )
+    })
+  }
 
   revalidateReservationViews()
   return { success: true, id: row.id }
@@ -272,17 +281,25 @@ export async function bookAndCheckIn(input: unknown): Promise<BookAndCheckInResu
     return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid input.' }
   }
 
-  const createResult = await createReservation(parsed.data)
+  const { quietEnrollment, phone, email, ...reservationFields } = parsed.data
+
+  const createResult = await createReservation(reservationFields, {
+    quiet: quietEnrollment === true,
+  })
   if (!createResult.success) {
     return createResult
   }
 
-  const checkInResult = await checkInStay(createResult.id, {
-    phone: parsed.data.phone.trim(),
-    email: parsed.data.email || undefined,
-    guestId: parsed.data.guestId ?? undefined,
-    guestName: parsed.data.guestName,
-  })
+  const checkInResult = await checkInStay(
+    createResult.id,
+    {
+      phone: phone.trim(),
+      email: email || undefined,
+      guestId: reservationFields.guestId ?? undefined,
+      guestName: reservationFields.guestName,
+    },
+    { quiet: quietEnrollment === true },
+  )
 
   if (!checkInResult.success || !checkInResult.data) {
     const admin = createAdminClient()

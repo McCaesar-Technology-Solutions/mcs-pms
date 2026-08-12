@@ -8,7 +8,7 @@ export const receptionistHelpTopics: HelpTopic[] = [
     steps: [
       'Dashboard — today’s arrivals, requests, and alerts.',
       'Reservations — bookings, check-in, checkout, deposits.',
-      'Guests — walk-ins, portal links, folio charges.',
+      'Guests — register in-house guests, walk-ins, portal links, folio charges.',
       'Rooms — tap a room to update status (occupied, cleaning, etc.).',
       'Complaints — log issues on behalf of a guest.',
       'Press ⌘K (or use Search) to jump to a page or find a guest quickly.',
@@ -31,6 +31,21 @@ export const receptionistHelpTopics: HelpTopic[] = [
     hrefLabel: 'Open reservations',
     keywords: ['arrival', 'check in', 'check-in', 'portal', 'qr'],
     pathPrefixes: ['/receptionist/reservations', '/receptionist/guests'],
+  },
+  {
+    id: 'register-in-house',
+    title: 'Register guests already in house',
+    summary: 'Go-live: put current occupants on the system without a fake same-day check-in.',
+    steps: [
+      'Open Guests → Register in-house guest.',
+      'Enter their real arrival date (can be in the past) and planned departure.',
+      'Assign their room and rate, then share the portal link or PIN on WhatsApp.',
+      'Use Walk-in check-in only for guests who are arriving now.',
+    ],
+    href: '/receptionist/guests',
+    hrefLabel: 'Open guests',
+    keywords: ['enroll', 'register', 'in house', 'go live', 'existing guest', 'migration'],
+    pathPrefixes: ['/receptionist/guests'],
   },
   {
     id: 'checkout',
