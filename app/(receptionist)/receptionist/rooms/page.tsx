@@ -10,7 +10,7 @@ export default async function ReceptionistRoomsPage({
       routePrefix="/receptionist"
       badge="Rooms"
       title="Room Status"
-      description="Update room availability as guests arrive and leave."
+      description="See room rates and update availability as guests arrive and leave."
       statusOnly
       defaultView="floor"
       searchParams={searchParams}

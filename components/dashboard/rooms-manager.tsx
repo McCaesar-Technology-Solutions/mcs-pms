@@ -56,11 +56,50 @@ function categoryLabel(room: DbRoom): string {
   return room.room_categories?.name ?? 'Uncategorized'
 }
 
+function formatCedi(amount: number | null | undefined): string {
+  if (amount == null || Number.isNaN(Number(amount))) return '—'
+  return `₵${Number(amount).toLocaleString('en-GH', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  })}`
+}
+
+/** Room override, else category default — same resolution used at booking. */
+function effectiveRoomRates(
+  room: DbRoom,
+  categories: RoomCategory[],
+): { nightly: number | null; weekly: number | null; monthly: number | null } {
+  const category =
+    room.room_categories ??
+    categories.find((c) => c.id === room.category_id) ??
+    null
+  return {
+    nightly:
+      room.nightly_rate != null
+        ? Number(room.nightly_rate)
+        : category?.default_nightly_rate != null
+          ? Number(category.default_nightly_rate)
+          : null,
+    weekly:
+      room.weekly_rate != null
+        ? Number(room.weekly_rate)
+        : category?.default_weekly_rate != null
+          ? Number(category.default_weekly_rate)
+          : null,
+    monthly:
+      room.monthly_rate != null
+        ? Number(room.monthly_rate)
+        : category?.default_monthly_rate != null
+          ? Number(category.default_monthly_rate)
+          : null,
+  }
+}
+
 interface RoomsManagerProps {
   rooms: DbRoom[]
   categories: RoomCategory[]
   canDelete?: boolean
-  /** Front-desk mode: change room status only, no add/edit/delete or pricing. */
+  /** Front-desk mode: change room status only; rates are read-only. */
   statusOnly?: boolean
   initialSearch?: string
   routePrefix: StaffRoutePrefix
@@ -171,16 +210,19 @@ export function RoomsManager({
       'Weekly rate',
       'Monthly rate',
     ]
-    const csvRows = selection.selected.map((room) => [
-      roomRef(room),
-      room.number,
-      categoryLabel(room),
-      String(room.floor ?? ''),
-      room.status ?? 'available',
-      String(room.nightly_rate ?? ''),
-      String(room.weekly_rate ?? ''),
-      String(room.monthly_rate ?? ''),
-    ])
+    const csvRows = selection.selected.map((room) => {
+      const rates = effectiveRoomRates(room, categories)
+      return [
+        roomRef(room),
+        room.number,
+        categoryLabel(room),
+        String(room.floor ?? ''),
+        room.status ?? 'available',
+        rates.nightly != null ? String(rates.nightly) : '',
+        rates.weekly != null ? String(rates.weekly) : '',
+        rates.monthly != null ? String(rates.monthly) : '',
+      ]
+    })
     downloadCsv(`rooms-${new Date().toISOString().slice(0, 10)}.csv`, [header, ...csvRows])
     toast.success(`Exported ${selection.selected.length} room${selection.selected.length === 1 ? '' : 's'}`)
   }
@@ -199,6 +241,57 @@ export function RoomsManager({
         ]}
       />
       {!statusOnly && <RoomCategoriesPanel categories={categories} />}
+
+      {statusOnly && rooms.length > 0 && (
+        <div className="surface-card overflow-hidden">
+          <div className="surface-card-header">
+            <h3 className="text-lg font-semibold text-foreground">Room rates</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Nightly, weekly, and monthly rates for every room (read-only).
+            </p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[36rem] text-left text-sm">
+              <thead>
+                <tr className="border-b border-border text-xs uppercase tracking-wide text-muted-foreground">
+                  <th className="px-4 py-3 font-semibold">Room</th>
+                  <th className="px-4 py-3 font-semibold">Category</th>
+                  <th className="px-4 py-3 font-semibold">Nightly</th>
+                  <th className="px-4 py-3 font-semibold">Weekly</th>
+                  <th className="px-4 py-3 font-semibold">Monthly</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[...rooms]
+                  .sort((a, b) =>
+                    a.number.localeCompare(b.number, undefined, { numeric: true, sensitivity: 'base' }),
+                  )
+                  .map((room) => {
+                    const rates = effectiveRoomRates(room, categories)
+                    return (
+                      <tr
+                        key={room.id}
+                        className="border-b border-border/60 last:border-0 hover:bg-secondary/40"
+                      >
+                        <td className="px-4 py-3 font-semibold text-foreground">{room.number}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{categoryLabel(room)}</td>
+                        <td className="px-4 py-3 tabular-nums text-foreground">
+                          {formatCedi(rates.nightly)}
+                        </td>
+                        <td className="px-4 py-3 tabular-nums text-foreground">
+                          {formatCedi(rates.weekly)}
+                        </td>
+                        <td className="px-4 py-3 tabular-nums text-foreground">
+                          {formatCedi(rates.monthly)}
+                        </td>
+                      </tr>
+                    )
+                  })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       <div className="surface-card p-6">
         <div className="surface-card-accent" />
@@ -468,7 +561,7 @@ function RoomModal({ room, categories, canDelete, statusOnly = false, onClose, o
         </h3>
         <p className="mt-0.5 text-sm text-muted-foreground">
           {statusOnly
-            ? 'Update the room status.'
+            ? 'Update status. Rates below are read-only.'
             : isEdit
               ? 'Update room details and status.'
               : 'Create a new room for this property.'}
@@ -483,6 +576,44 @@ function RoomModal({ room, categories, canDelete, statusOnly = false, onClose, o
             roomNumber={room!.number}
             canEdit
           />
+        )}
+
+        {statusOnly && isEdit && (
+          <div className="rounded-xl surface-inset px-4 py-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Rates
+            </p>
+            <dl className="mt-2 grid grid-cols-3 gap-3 text-sm">
+              {(() => {
+                const rates = effectiveRoomRates(room!, categories)
+                return (
+                  <>
+                    <div>
+                      <dt className="text-xs text-muted-foreground">Nightly</dt>
+                      <dd className="mt-0.5 font-semibold tabular-nums text-foreground">
+                        {formatCedi(rates.nightly)}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-muted-foreground">Weekly</dt>
+                      <dd className="mt-0.5 font-semibold tabular-nums text-foreground">
+                        {formatCedi(rates.weekly)}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-muted-foreground">Monthly</dt>
+                      <dd className="mt-0.5 font-semibold tabular-nums text-foreground">
+                        {formatCedi(rates.monthly)}
+                      </dd>
+                    </div>
+                  </>
+                )
+              })()}
+            </dl>
+            <p className="mt-2 text-xs text-muted-foreground">
+              {categoryLabel(room!)} · owners and managers set these rates
+            </p>
+          </div>
         )}
 
         {!statusOnly && (
