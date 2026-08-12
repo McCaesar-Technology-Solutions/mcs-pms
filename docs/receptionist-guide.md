@@ -1,6 +1,6 @@
 # Receptionist guide — MOJO Apartments
 
-You are the **front desk**. You handle bookings, check-in and check-out, guest messages, room status, inventory issues, access ops, and logging complaints. You do **not** handle billing writes, GRA, analytics, pricing, complaint approvals, or the housekeeping board.
+You are the **front desk**. You handle bookings, check-in and check-out, guest messages, room status, inventory issues, access ops, and logging complaints. You do **not** handle billing writes, GRA, analytics, changing room rates, complaint approvals, or the housekeeping board.
 
 ---
 
@@ -24,7 +24,7 @@ One property only. In production you may need **SMS two-factor authentication**.
 | Messages | `/receptionist/messages` | Guest stay chat + team chat |
 | Reservations | `/receptionist/reservations` | Bookings, deposits, check-in/out |
 | Guests | `/receptionist/guests` | Walk-ins, portal links, folio |
-| Rooms | `/receptionist/rooms` | Update room status only |
+| Rooms | `/receptionist/rooms` | View rates (read-only) and update room status |
 | Access | `/receptionist/access` | Unlock, cards, retry sync |
 | Complaints | `/receptionist/complaints` | Log and track issues |
 | Inventory | `/receptionist/inventory` | Issue stock / check levels |
@@ -168,6 +168,8 @@ Use Unpaid / Deposit paid / Paid / etc. to find balances before departure.
 
 **Path:** `/receptionist/rooms`
 
+The **Room rates** table shows nightly, weekly, and monthly prices for every room (read-only — same figures used when you book or check in).
+
 Tap a room → change status:
 
 | Status | When |
@@ -178,7 +180,7 @@ Tap a room → change status:
 | Needs inspection | Clean finished |
 | Maintenance | Broken / repair |
 
-You **cannot** add rooms, delete rooms, or change nightly rates.
+You **cannot** add rooms, delete rooms, or change rates. Ask a manager or owner to update pricing.
 
 ---
 

@@ -9,6 +9,41 @@ export interface RoomRates {
   monthlyRate: number
 }
 
+export type RoomRateSource = {
+  nightly_rate?: number | null
+  weekly_rate?: number | null
+  monthly_rate?: number | null
+}
+
+export type CategoryRateSource = {
+  default_nightly_rate?: number | null
+  default_weekly_rate?: number | null
+  default_monthly_rate?: number | null
+} | null
+
+/**
+ * Room override, else category default, else 0 — same numbers booking / walk-in use.
+ */
+export function resolveRoomRates(
+  room: RoomRateSource | null | undefined,
+  category: CategoryRateSource = null,
+): RoomRates {
+  return {
+    nightlyRate:
+      room?.nightly_rate != null
+        ? Number(room.nightly_rate)
+        : Number(category?.default_nightly_rate ?? 0),
+    weeklyRate:
+      room?.weekly_rate != null
+        ? Number(room.weekly_rate)
+        : Number(category?.default_weekly_rate ?? 0),
+    monthlyRate:
+      room?.monthly_rate != null
+        ? Number(room.monthly_rate)
+        : Number(category?.default_monthly_rate ?? 0),
+  }
+}
+
 export async function getRoomRates(admin: AdminClient, roomId: string): Promise<RoomRates> {
   const { data } = await admin
     .from('rooms')
@@ -18,26 +53,9 @@ export async function getRoomRates(admin: AdminClient, roomId: string): Promise<
     .eq('id', roomId)
     .maybeSingle()
 
-  const cat = data?.room_categories as {
-    default_nightly_rate?: number
-    default_weekly_rate?: number | null
-    default_monthly_rate?: number | null
-  } | null
+  const cat = data?.room_categories as CategoryRateSource
 
-  return {
-    nightlyRate:
-      data?.nightly_rate != null
-        ? Number(data.nightly_rate)
-        : Number(cat?.default_nightly_rate ?? 0),
-    weeklyRate:
-      data?.weekly_rate != null
-        ? Number(data.weekly_rate)
-        : Number(cat?.default_weekly_rate ?? 0),
-    monthlyRate:
-      data?.monthly_rate != null
-        ? Number(data.monthly_rate)
-        : Number(cat?.default_monthly_rate ?? 0),
-  }
+  return resolveRoomRates(data, cat)
 }
 
 export function effectiveRatesForBooking(

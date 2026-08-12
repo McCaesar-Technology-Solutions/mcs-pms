@@ -12,8 +12,10 @@ export type RoomCategoryActionResult =
 function revalidateRoomViews() {
   revalidatePath('/owner/rooms')
   revalidatePath('/manager/rooms')
+  revalidatePath('/receptionist/rooms')
   revalidatePath('/owner/dashboard')
   revalidatePath('/manager/dashboard')
+  revalidatePath('/receptionist/dashboard')
 }
 
 async function requireStaff() {

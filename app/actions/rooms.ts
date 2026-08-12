@@ -27,8 +27,10 @@ async function requireStaff() {
 function revalidateRoomViews() {
   revalidatePath('/owner/rooms')
   revalidatePath('/manager/rooms')
+  revalidatePath('/receptionist/rooms')
   revalidatePath('/owner/dashboard')
   revalidatePath('/manager/dashboard')
+  revalidatePath('/receptionist/dashboard')
 }
 
 async function categoryBelongsToHotel(
@@ -299,8 +301,6 @@ export async function updateRoomStatus(
   }
 
   revalidateRoomViews()
-  revalidatePath('/receptionist/rooms')
-  revalidatePath('/receptionist/dashboard')
   return { success: true }
 }
 

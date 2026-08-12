@@ -9,7 +9,7 @@ export const receptionistHelpTopics: HelpTopic[] = [
       'Dashboard — today’s arrivals, requests, and alerts.',
       'Reservations — bookings, check-in, checkout, deposits.',
       'Guests — register in-house guests, walk-ins, portal links, folio charges.',
-      'Rooms — tap a room to update status (occupied, cleaning, etc.).',
+      'Rooms — view nightly/weekly/monthly rates (read-only) and update status.',
       'Complaints — log issues on behalf of a guest.',
       'Press ⌘K (or use Search) to jump to a page or find a guest quickly.',
     ],

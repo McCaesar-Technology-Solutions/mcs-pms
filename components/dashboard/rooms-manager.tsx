@@ -22,6 +22,7 @@ import {
   ModalHeader,
 } from '@/components/ui/centered-modal'
 import { APP_FIELD_CLASS, FormField } from '@/components/ui/form-field'
+import { resolveRoomRates } from '@/lib/pricing/room-rates'
 import type { DbRoom, DbRoomStatus, RoomCategory } from '@/types'
 
 const STATUS_CONFIG: Record<DbRoomStatus, { label: string; dot: string; chip: string }> = {
@@ -56,43 +57,19 @@ function categoryLabel(room: DbRoom): string {
   return room.room_categories?.name ?? 'Uncategorized'
 }
 
-function formatCedi(amount: number | null | undefined): string {
-  if (amount == null || Number.isNaN(Number(amount))) return '—'
+function formatCedi(amount: number): string {
   return `₵${Number(amount).toLocaleString('en-GH', {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   })}`
 }
 
-/** Room override, else category default — same resolution used at booking. */
-function effectiveRoomRates(
-  room: DbRoom,
-  categories: RoomCategory[],
-): { nightly: number | null; weekly: number | null; monthly: number | null } {
+function roomRatesForDisplay(room: DbRoom, categories: RoomCategory[]) {
   const category =
     room.room_categories ??
     categories.find((c) => c.id === room.category_id) ??
     null
-  return {
-    nightly:
-      room.nightly_rate != null
-        ? Number(room.nightly_rate)
-        : category?.default_nightly_rate != null
-          ? Number(category.default_nightly_rate)
-          : null,
-    weekly:
-      room.weekly_rate != null
-        ? Number(room.weekly_rate)
-        : category?.default_weekly_rate != null
-          ? Number(category.default_weekly_rate)
-          : null,
-    monthly:
-      room.monthly_rate != null
-        ? Number(room.monthly_rate)
-        : category?.default_monthly_rate != null
-          ? Number(category.default_monthly_rate)
-          : null,
-  }
+  return resolveRoomRates(room, category)
 }
 
 interface RoomsManagerProps {
@@ -211,20 +188,41 @@ export function RoomsManager({
       'Monthly rate',
     ]
     const csvRows = selection.selected.map((room) => {
-      const rates = effectiveRoomRates(room, categories)
+      const rates = roomRatesForDisplay(room, categories)
       return [
         roomRef(room),
         room.number,
         categoryLabel(room),
         String(room.floor ?? ''),
         room.status ?? 'available',
-        rates.nightly != null ? String(rates.nightly) : '',
-        rates.weekly != null ? String(rates.weekly) : '',
-        rates.monthly != null ? String(rates.monthly) : '',
+        String(rates.nightlyRate),
+        String(rates.weeklyRate),
+        String(rates.monthlyRate),
       ]
     })
     downloadCsv(`rooms-${new Date().toISOString().slice(0, 10)}.csv`, [header, ...csvRows])
     toast.success(`Exported ${selection.selected.length} room${selection.selected.length === 1 ? '' : 's'}`)
+  }
+
+  function exportAllRatesCsv() {
+    const header = ['Room', 'Category', 'Floor', 'Nightly rate', 'Weekly rate', 'Monthly rate']
+    const csvRows = [...filteredRooms]
+      .sort((a, b) =>
+        a.number.localeCompare(b.number, undefined, { numeric: true, sensitivity: 'base' }),
+      )
+      .map((room) => {
+        const rates = roomRatesForDisplay(room, categories)
+        return [
+          room.number,
+          categoryLabel(room),
+          String(room.floor ?? ''),
+          String(rates.nightlyRate),
+          String(rates.weeklyRate),
+          String(rates.monthlyRate),
+        ]
+      })
+    downloadCsv(`room-rates-${new Date().toISOString().slice(0, 10)}.csv`, [header, ...csvRows])
+    toast.success(`Exported rates for ${filteredRooms.length} room${filteredRooms.length === 1 ? '' : 's'}`)
   }
 
   const canAddRoom = categories.length > 0
@@ -242,13 +240,24 @@ export function RoomsManager({
       />
       {!statusOnly && <RoomCategoriesPanel categories={categories} />}
 
-      {statusOnly && rooms.length > 0 && (
+      {statusOnly && filteredRooms.length > 0 && (
         <div className="surface-card overflow-hidden">
-          <div className="surface-card-header">
-            <h3 className="text-lg font-semibold text-foreground">Room rates</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Nightly, weekly, and monthly rates for every room (read-only).
-            </p>
+          <div className="surface-card-header flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h3 className="text-lg font-semibold text-foreground">Room rates</h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Nightly, weekly, and monthly rates for every room (read-only). Same figures used
+                when you book or check in.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={exportAllRatesCsv}
+              className="inline-flex items-center gap-2 rounded-xl bg-secondary px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-secondary/70"
+            >
+              <Download className="h-3.5 w-3.5" />
+              Export rates
+            </button>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[36rem] text-left text-sm">
@@ -262,12 +271,12 @@ export function RoomsManager({
                 </tr>
               </thead>
               <tbody>
-                {[...rooms]
+                {[...filteredRooms]
                   .sort((a, b) =>
                     a.number.localeCompare(b.number, undefined, { numeric: true, sensitivity: 'base' }),
                   )
                   .map((room) => {
-                    const rates = effectiveRoomRates(room, categories)
+                    const rates = roomRatesForDisplay(room, categories)
                     return (
                       <tr
                         key={room.id}
@@ -276,13 +285,13 @@ export function RoomsManager({
                         <td className="px-4 py-3 font-semibold text-foreground">{room.number}</td>
                         <td className="px-4 py-3 text-muted-foreground">{categoryLabel(room)}</td>
                         <td className="px-4 py-3 tabular-nums text-foreground">
-                          {formatCedi(rates.nightly)}
+                          {formatCedi(rates.nightlyRate)}
                         </td>
                         <td className="px-4 py-3 tabular-nums text-foreground">
-                          {formatCedi(rates.weekly)}
+                          {formatCedi(rates.weeklyRate)}
                         </td>
                         <td className="px-4 py-3 tabular-nums text-foreground">
-                          {formatCedi(rates.monthly)}
+                          {formatCedi(rates.monthlyRate)}
                         </td>
                       </tr>
                     )
@@ -359,7 +368,9 @@ export function RoomsManager({
 
         {rooms.length === 0 ? (
           <p className="py-10 text-center text-sm text-muted-foreground">
-            No rooms yet. Add your first room to get started.
+            {statusOnly
+              ? 'No rooms yet. Ask a manager or owner to add inventory.'
+              : 'No rooms yet. Add your first room to get started.'}
           </p>
         ) : filteredRooms.length === 0 ? (
           <p className="py-10 text-center text-sm text-muted-foreground">No rooms match your search.</p>
@@ -585,25 +596,25 @@ function RoomModal({ room, categories, canDelete, statusOnly = false, onClose, o
             </p>
             <dl className="mt-2 grid grid-cols-3 gap-3 text-sm">
               {(() => {
-                const rates = effectiveRoomRates(room!, categories)
+                const rates = roomRatesForDisplay(room!, categories)
                 return (
                   <>
                     <div>
                       <dt className="text-xs text-muted-foreground">Nightly</dt>
                       <dd className="mt-0.5 font-semibold tabular-nums text-foreground">
-                        {formatCedi(rates.nightly)}
+                        {formatCedi(rates.nightlyRate)}
                       </dd>
                     </div>
                     <div>
                       <dt className="text-xs text-muted-foreground">Weekly</dt>
                       <dd className="mt-0.5 font-semibold tabular-nums text-foreground">
-                        {formatCedi(rates.weekly)}
+                        {formatCedi(rates.weeklyRate)}
                       </dd>
                     </div>
                     <div>
                       <dt className="text-xs text-muted-foreground">Monthly</dt>
                       <dd className="mt-0.5 font-semibold tabular-nums text-foreground">
-                        {formatCedi(rates.monthly)}
+                        {formatCedi(rates.monthlyRate)}
                       </dd>
                     </div>
                   </>
