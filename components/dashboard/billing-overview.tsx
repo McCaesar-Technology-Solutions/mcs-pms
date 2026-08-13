@@ -95,6 +95,7 @@ function toExportRow(inv: InvoiceWithRoom): InvoiceExportRow {
     invoiceNumber: formatInvoiceNumber(inv),
     guestName: inv.guest_name,
     guestPhone: inv.guestPhone,
+    guestTaxId: inv.guest_tax_id ?? null,
     roomNumber: inv.roomNumber,
     checkIn: inv.checkIn,
     checkOut: inv.checkOut,
@@ -603,6 +604,9 @@ export function BillingOverview({
                 {detail.guest_name}
                 {detail.roomNumber ? ` · Room ${detail.roomNumber}` : ''}
               </p>
+              {detail.guest_tax_id && (
+                <p className="modal-panel-subtle text-xs">Tax ID: {detail.guest_tax_id}</p>
+              )}
             </ModalHeader>
             <ModalBody className="space-y-4">
               <div className="rounded-xl surface-inset p-4">

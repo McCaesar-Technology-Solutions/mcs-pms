@@ -25,12 +25,13 @@ export const receptionistHelpTopics: HelpTopic[] = [
     steps: [
       'Open Reservations and find a Confirmed or Pre-arrival booking.',
       'Tap Check in guest — phone number is required.',
+      'Optional: enter Ghana Card (GHA-#########-#) — it appears as Tax ID on the invoice.',
       'Share the portal link or QR so the guest can message you or log complaints.',
       'Confirm the room shows Occupied on the Rooms page.',
     ],
     href: '/receptionist/reservations',
     hrefLabel: 'Open reservations',
-    keywords: ['arrival', 'check in', 'check-in', 'portal', 'qr'],
+    keywords: ['arrival', 'check in', 'check-in', 'portal', 'qr', 'ghana card', 'tax id'],
     pathPrefixes: ['/receptionist/reservations', '/receptionist/guests'],
   },
   {

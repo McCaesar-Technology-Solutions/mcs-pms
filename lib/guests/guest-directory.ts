@@ -7,6 +7,8 @@ export interface GuestRow {
   name: string
   email: string | null
   phone: string | null
+  /** Ghana Card / NIA number (guest tax ID). */
+  ghanaCardNumber: string | null
   roomNumber: string | null
   roomId: string | null
   checkIn: string | null

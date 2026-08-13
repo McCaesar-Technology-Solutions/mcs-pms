@@ -20,6 +20,7 @@ import {
   normalizeDiscountType,
   type DiscountType,
 } from '@/lib/billing/discount'
+import { parseGhanaCard } from '@/lib/billing/ghana-card'
 import {
   buildCheckoutInvoicePaymentState,
   finalizeReservationCheckoutPayment,
@@ -168,6 +169,18 @@ export async function createOrRefreshStayInvoice(
       .eq('hotel_id', reservation.hotel_id)
   }
 
+  let guestCard: string | null = null
+  if (reservation.guest_id) {
+    const { data: guestRow } = await admin
+      .from('guests')
+      .select('ghana_card_number')
+      .eq('id', reservation.guest_id)
+      .eq('hotel_id', reservation.hotel_id)
+      .maybeSingle()
+    const card = parseGhanaCard(guestRow?.ghana_card_number)
+    guestCard = card.ok ? card.value : null
+  }
+
   const { taxes, folioCharges, folioSubtotal } = reservation.guest_id
     ? await prepareCheckoutTaxesWithFolio(
         admin,
@@ -192,14 +205,18 @@ export async function createOrRefreshStayInvoice(
 
   const { data: existing } = await admin
     .from('invoices')
-    .select('id, invoice_number, amount_paid, payment_status, paid_at')
+    .select('id, invoice_number, amount_paid, payment_status, paid_at, guest_tax_id')
     .eq('reservation_id', reservation.id)
     .eq('hotel_id', reservation.hotel_id)
     .maybeSingle()
 
+  // Prefer live guest card; keep prior snapshot if guest card was cleared (e.g. privacy erase).
+  const guestTaxId = guestCard ?? existing?.guest_tax_id ?? null
+
   const previewBase = {
     guestName: reservation.guest_name,
     guestPhone: input.guestPhone ?? null,
+    guestTaxId,
     roomNumber: input.roomNumber ?? null,
     checkIn: reservation.check_in,
     checkOut: effectiveCheckOut,
@@ -238,6 +255,7 @@ export async function createOrRefreshStayInvoice(
           subtotal: taxes.subtotal,
           ...discountFields,
           ...taxPersist,
+          guest_tax_id: guestTaxId,
           total_amount: taxes.total,
           payment_method: input.paymentMethod,
           payment_status: paymentStatus,
@@ -291,6 +309,7 @@ export async function createOrRefreshStayInvoice(
           subtotal: taxes.subtotal,
           ...discountFields,
           ...taxPersist,
+          guest_tax_id: guestTaxId,
           total_amount: taxes.total,
           payment_method: input.paymentMethod,
           payment_status: paymentStatus,
@@ -354,6 +373,7 @@ export async function createOrRefreshStayInvoice(
       subtotal: taxes.subtotal,
       ...discountFields,
       ...taxPersist,
+      guest_tax_id: guestTaxId,
       total_amount: taxes.total,
       payment_method: input.paymentMethod,
       payment_status: checkoutPayment.paymentStatus,

@@ -687,6 +687,7 @@ export async function getGuestInvoiceReceiptExport(
         elevy: Number(row.elevy_amount ?? 0),
         tourism: Number(row.tourism_levy_amount ?? 0),
         taxSnapshot: parseTaxSnapshot(row.tax_snapshot),
+        guestTaxId: row.guest_tax_id ?? null,
         total: Number(row.total_amount),
         paymentMethod: row.payment_method,
         paymentStatus: row.payment_status,

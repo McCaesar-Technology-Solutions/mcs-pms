@@ -374,6 +374,7 @@ export async function enrollGuest(input: {
   name: string
   phone: string
   email?: string
+  ghanaCardNumber?: string
   roomId: string
   checkIn: string
   checkOut: string
@@ -428,6 +429,7 @@ export async function enrollGuest(input: {
     guestName: parsed.data.name,
     phone: parsed.data.phone,
     email: parsed.data.email || undefined,
+    ghanaCardNumber: parsed.data.ghanaCardNumber || undefined,
     roomId: parsed.data.roomId,
     checkIn,
     checkOut,
@@ -486,13 +488,21 @@ export async function updateGuest(input: {
   name: string
   email?: string
   phone: string
+  ghanaCardNumber?: string
 }): Promise<GuestActionResult> {
   const { phoneSchema } = await import('@/lib/phone')
+  const { parseGhanaCard } = await import('@/lib/billing/ghana-card')
   const name = input.name.trim()
   if (name.length < 2) return { success: false, error: 'Name is required.' }
   const phoneParsed = phoneSchema.safeParse(input.phone)
   if (!phoneParsed.success) {
     return { success: false, error: phoneParsed.error.issues[0]?.message ?? 'Invalid phone.' }
+  }
+  let ghanaCardNumber: string | null | undefined
+  if (input.ghanaCardNumber !== undefined) {
+    const cardParsed = parseGhanaCard(input.ghanaCardNumber)
+    if (!cardParsed.ok) return { success: false, error: cardParsed.error }
+    ghanaCardNumber = cardParsed.value
   }
 
   const manager = await requireHotelManager()
@@ -507,6 +517,7 @@ export async function updateGuest(input: {
       name,
       phone: phoneParsed.data,
       email: input.email?.trim() || null,
+      ...(ghanaCardNumber !== undefined ? { ghana_card_number: ghanaCardNumber } : {}),
     })
     .eq('id', input.guestId)
     .eq('hotel_id', manager.hotel_id)

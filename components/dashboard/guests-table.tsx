@@ -18,6 +18,7 @@ import {
   KeyRound,
   LogOut,
   Trash2,
+  FileText,
 } from 'lucide-react'
 import { CenteredModal, ModalBody, ModalFooter, ModalHeader } from '@/components/ui/centered-modal'
 import { GuestDndBadge } from '@/components/ui/guest-dnd-badge'
@@ -525,6 +526,14 @@ export function GuestsTable({
                     <div className="flex items-center gap-3 surface-inset p-3 rounded-xl">
                       <Phone className="h-5 w-5 text-primary" />
                       <span className="text-sm">{selectedGuest.phone ?? 'No phone on file'}</span>
+                    </div>
+                    <div className="flex items-center gap-3 surface-inset p-3 rounded-xl">
+                      <FileText className="h-5 w-5 text-primary" />
+                      <span className="text-sm">
+                        {selectedGuest.ghanaCardNumber
+                          ? `Tax ID ${selectedGuest.ghanaCardNumber}`
+                          : 'No Ghana Card on file'}
+                      </span>
                     </div>
                     <div className="flex items-center gap-3 surface-inset p-3 rounded-xl">
                       <BedDouble className="h-5 w-5 text-primary" />
@@ -1119,6 +1128,7 @@ function GuestEditForm({
   const [name, setName] = useState(guest.name)
   const [email, setEmail] = useState(guest.email ?? '')
   const [phone, setPhone] = useState(guest.phone ?? '')
+  const [ghanaCardNumber, setGhanaCardNumber] = useState(guest.ghanaCardNumber ?? '')
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
@@ -1130,6 +1140,7 @@ function GuestEditForm({
         name,
         email: email || undefined,
         phone,
+        ghanaCardNumber,
       })
       if (result.success) {
         toast.success('Guest profile updated')
@@ -1167,6 +1178,20 @@ function GuestEditForm({
           onChange={(e) => setPhone(e.target.value)}
           className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm"
         />
+      </div>
+      <div>
+        <label className="text-xs font-semibold text-muted-foreground">
+          Ghana Card (tax ID)
+        </label>
+        <input
+          value={ghanaCardNumber}
+          onChange={(e) => setGhanaCardNumber(e.target.value.toUpperCase())}
+          placeholder="GHA-728071939-8"
+          className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm uppercase"
+        />
+        <p className="mt-1 text-xs text-muted-foreground">
+          Shown on invoices as Tax ID. Format GHA-#########-#
+        </p>
       </div>
       {error && <p className="text-sm text-destructive">{error}</p>}
       <div className="flex gap-2">

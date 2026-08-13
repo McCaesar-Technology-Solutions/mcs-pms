@@ -114,6 +114,9 @@ export function CheckoutInvoiceDialog({
                 <div>
                   <p className="font-mono text-xs text-muted-foreground">{invoice.invoiceNumber}</p>
                   <p className="mt-1 text-lg font-bold text-foreground">{invoice.guestName}</p>
+                  {invoice.guestTaxId && (
+                    <p className="text-sm text-muted-foreground">Tax ID: {invoice.guestTaxId}</p>
+                  )}
                   {invoice.roomNumber && (
                     <p className="text-sm text-muted-foreground">Room {invoice.roomNumber}</p>
                   )}

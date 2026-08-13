@@ -10,6 +10,7 @@ export interface GuestSearchMatch {
   name: string
   phone: string | null
   email: string | null
+  ghanaCardNumber: string | null
 }
 
 interface GuestSearchFieldProps {

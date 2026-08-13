@@ -17,6 +17,7 @@ import {
   parseTaxSnapshot,
   taxSnapshotFromRates,
 } from '@/lib/tax'
+import { parseGhanaCard } from '@/lib/billing/ghana-card'
 import { getHotelTaxConfig } from '@/lib/data/settings'
 import {
   invoiceBalanceDue,
@@ -241,6 +242,7 @@ export async function getStaffInvoiceExport(invoiceId: string): Promise<StaffInv
         elevy: Number(row.elevy_amount ?? 0),
         tourism: Number(row.tourism_levy_amount ?? 0),
         taxSnapshot: parseTaxSnapshot(row.tax_snapshot),
+        guestTaxId: row.guest_tax_id ?? null,
         total: Number(row.total_amount),
         paymentMethod: row.payment_method,
         paymentStatus: row.payment_status,
@@ -630,6 +632,18 @@ export async function createManualInvoice(
   const paidNow = parsed.data.markAsPaid
   const invoiceNumber = await allocateInvoiceNumber(profile.hotel_id)
 
+  let guestTaxId: string | null = null
+  if (parsed.data.guestId) {
+    const { data: guestRow } = await admin
+      .from('guests')
+      .select('ghana_card_number')
+      .eq('id', parsed.data.guestId)
+      .eq('hotel_id', profile.hotel_id)
+      .maybeSingle()
+    const card = parseGhanaCard(guestRow?.ghana_card_number)
+    guestTaxId = card.ok ? card.value : null
+  }
+
   const { error } = await admin.from('invoices').insert({
     hotel_id: profile.hotel_id,
     guest_id: parsed.data.guestId ?? null,
@@ -643,6 +657,7 @@ export async function createManualInvoice(
     elevy_amount: taxes.elevy,
     tourism_levy_amount: taxes.tourism,
     tax_snapshot: taxSnapshotFromRates(rates),
+    guest_tax_id: guestTaxId,
     total_amount: taxes.total,
     payment_method: parsed.data.paymentMethod,
     payment_status: paidNow ? 'paid' : 'pending',

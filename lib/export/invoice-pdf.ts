@@ -251,6 +251,10 @@ async function buildInvoicePdf(hotelInput: ExportHotelInfo, invoice: InvoiceExpo
     doc.text(invoice.guestPhone, margin, y)
     y += 4.5
   }
+  if (invoice.guestTaxId) {
+    doc.text(`Tax ID: ${invoice.guestTaxId}`, margin, y)
+    y += 4.5
+  }
   if (invoice.checkIn && invoice.checkOut) {
     const nights = invoice.nights ?? 1
     doc.text(

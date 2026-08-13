@@ -1193,6 +1193,7 @@ export type Database = {
           elevy_amount: number | null
           tourism_levy_amount: number
           tax_snapshot: Json | null
+          guest_tax_id: string | null
           total_amount: number
           payment_method:
             | 'mtn_momo'
@@ -1226,6 +1227,7 @@ export type Database = {
           elevy_amount?: number | null
           tourism_levy_amount?: number
           tax_snapshot?: Json | null
+          guest_tax_id?: string | null
           total_amount: number
           payment_method?:
             | 'mtn_momo'
@@ -1258,6 +1260,7 @@ export type Database = {
           elevy_amount?: number | null
           tourism_levy_amount?: number
           tax_snapshot?: Json | null
+          guest_tax_id?: string | null
           total_amount?: number
           payment_method?:
             | 'mtn_momo'

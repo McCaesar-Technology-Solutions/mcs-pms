@@ -66,6 +66,7 @@ export type BookAndCheckInResult =
 const bookAndCheckInSchema = createReservationSchema.extend({
   phone: phoneSchema,
   email: z.string().email().optional().or(z.literal('')),
+  ghanaCardNumber: z.string().optional().or(z.literal('')),
   /** Go-live / in-house enrollment — skip welcome + new-booking SMS noise. */
   quietEnrollment: z.boolean().optional(),
 })
@@ -291,7 +292,7 @@ export async function bookAndCheckIn(input: unknown): Promise<BookAndCheckInResu
     return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid input.' }
   }
 
-  const { quietEnrollment, phone, email, ...reservationFields } = parsed.data
+  const { quietEnrollment, phone, email, ghanaCardNumber, ...reservationFields } = parsed.data
 
   const createResult = await createReservation(reservationFields, {
     quiet: quietEnrollment === true,
@@ -307,6 +308,7 @@ export async function bookAndCheckIn(input: unknown): Promise<BookAndCheckInResu
       email: email || undefined,
       guestId: reservationFields.guestId ?? undefined,
       guestName: reservationFields.guestName,
+      ghanaCardNumber: ghanaCardNumber || undefined,
     },
     { quiet: quietEnrollment === true },
   )

@@ -16,6 +16,8 @@ export interface InvoiceExportRow {
   invoiceNumber: string
   guestName: string
   guestPhone?: string | null
+  /** Guest Ghana Card / tax ID (snapshot). */
+  guestTaxId?: string | null
   roomNumber: string | null
   checkIn: string | null
   checkOut: string | null

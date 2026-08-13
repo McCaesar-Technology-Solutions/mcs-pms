@@ -77,6 +77,7 @@ function RegisterInHouseGuestModal({ onClose }: { onClose: () => void }) {
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
+  const [ghanaCardNumber, setGhanaCardNumber] = useState('')
   const [roomId, setRoomId] = useState('')
   const [checkIn, setCheckIn] = useState(today)
   const [checkOut, setCheckOut] = useState(addDaysISO(today, 1))
@@ -175,6 +176,7 @@ function RegisterInHouseGuestModal({ onClose }: { onClose: () => void }) {
         name: name.trim(),
         phone: phoneParsed.data,
         email: email.trim() || undefined,
+        ghanaCardNumber: ghanaCardNumber.trim() || undefined,
         roomId,
         checkIn,
         checkOut,
@@ -289,6 +291,15 @@ function RegisterInHouseGuestModal({ onClose }: { onClose: () => void }) {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className={APP_FIELD_CLASS}
+          />
+        </FormField>
+
+        <FormField label="Ghana Card (tax ID, optional)" hint="Shown on invoices as Tax ID">
+          <input
+            value={ghanaCardNumber}
+            onChange={(e) => setGhanaCardNumber(e.target.value.toUpperCase())}
+            placeholder="GHA-728071939-8"
+            className={`${APP_FIELD_CLASS} uppercase`}
           />
         </FormField>
 

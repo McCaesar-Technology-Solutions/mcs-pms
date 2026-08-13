@@ -5,6 +5,7 @@ function guest(overrides: Partial<GuestRow> & Pick<GuestRow, 'id' | 'name'>): Gu
   return {
     email: null,
     phone: null,
+    ghanaCardNumber: null,
     roomNumber: null,
     roomId: null,
     checkIn: null,

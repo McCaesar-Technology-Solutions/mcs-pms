@@ -863,6 +863,7 @@ function ReservationDrawer({
   const [includeTax, setIncludeTax] = useState(true)
   const [phone, setPhone] = useState(reservation.guestPhone)
   const [email, setEmail] = useState(reservation.guestEmail)
+  const [ghanaCardNumber, setGhanaCardNumber] = useState('')
   const [guestName, setGuestName] = useState(reservation.guestName)
   const [editGuestName, setEditGuestName] = useState(reservation.guestName)
   const [editRoomId, setEditRoomId] = useState(reservation.roomId)
@@ -1612,6 +1613,14 @@ function ReservationDrawer({
                       className={APP_FIELD_CLASS}
                     />
                   </FormField>
+                  <FormField label="Ghana Card (tax ID, optional)">
+                    <input
+                      value={ghanaCardNumber}
+                      onChange={(e) => setGhanaCardNumber(e.target.value.toUpperCase())}
+                      placeholder="GHA-728071939-8"
+                      className={`${APP_FIELD_CLASS} uppercase`}
+                    />
+                  </FormField>
                   <GuestSearchField
                     label="Find returning guest"
                     selectedGuestId={selectedGuestId}
@@ -1621,6 +1630,7 @@ function ReservationDrawer({
                         setGuestName(g.name)
                         setPhone(g.phone ?? '')
                         setEmail(g.email ?? '')
+                        setGhanaCardNumber(g.ghanaCardNumber ?? '')
                       } else {
                         setSelectedGuestId(null)
                       }
@@ -1646,6 +1656,7 @@ function ReservationDrawer({
                             email,
                             guestId: selectedGuestId ?? undefined,
                             guestName,
+                            ghanaCardNumber,
                           })
                           if (result.success && result.data) {
                             setPortalUrl(result.data.loginUrl)
@@ -2142,6 +2153,7 @@ function ReservationFormModal({
   const [guestName, setGuestName] = useState('')
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
+  const [ghanaCardNumber, setGhanaCardNumber] = useState('')
   const [roomId, setRoomId] = useState(roomOptions[0]?.id ?? '')
   const [checkIn, setCheckIn] = useState(today)
   const [checkOut, setCheckOut] = useState(tomorrow)
@@ -2238,6 +2250,7 @@ function ReservationFormModal({
           ...basePayload,
           phone: phone.trim(),
           email: email.trim() || undefined,
+          ghanaCardNumber: ghanaCardNumber.trim() || undefined,
         })
         if (result.success) {
           setPortalUrl(result.data.loginUrl)
@@ -2352,6 +2365,7 @@ function ReservationFormModal({
               setGuestName(g.name)
               setPhone(g.phone ?? '')
               setEmail(g.email ?? '')
+              setGhanaCardNumber(g.ghanaCardNumber ?? '')
             } else {
               setSelectedGuestId(null)
             }
@@ -2448,6 +2462,14 @@ function ReservationFormModal({
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className={APP_FIELD_CLASS}
+              />
+            </FormField>
+            <FormField label="Ghana Card (tax ID, optional)">
+              <input
+                value={ghanaCardNumber}
+                onChange={(e) => setGhanaCardNumber(e.target.value.toUpperCase())}
+                placeholder="GHA-728071939-8"
+                className={`${APP_FIELD_CLASS} uppercase`}
               />
             </FormField>
           </>

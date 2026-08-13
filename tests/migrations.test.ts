@@ -3,7 +3,7 @@ import { readdirSync } from 'node:fs'
 import { join } from 'node:path'
 
 const MIGRATION_DIR = join(process.cwd(), 'supabase', 'migrations')
-const EXPECTED_COUNT = 73
+const EXPECTED_COUNT = 74
 
 describe('supabase migrations', () => {
   it(`has contiguous files 001–${String(EXPECTED_COUNT).padStart(3, '0')}`, () => {

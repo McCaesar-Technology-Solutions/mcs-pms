@@ -33,6 +33,7 @@ function invoicesForPeriod(invoices: DbInvoice[], yearMonth: string): DbInvoice[
 const CSV_HEADER = [
   'Invoice Number',
   'Guest Name',
+  'Guest Tax ID',
   'Issued Date',
   'Subtotal',
   'NHIL',
@@ -55,6 +56,7 @@ function invoiceToCsvRow(inv: DbInvoice): string {
   return [
     num,
     inv.guest_name,
+    inv.guest_tax_id ?? '',
     issued,
     money(inv.subtotal ?? 0),
     money(inv.nhil_amount ?? 0),
@@ -75,6 +77,7 @@ function summaryCsvRow(report: GraReportRow): string {
   return [
     '',
     'SUMMARY',
+    '',
     report.month,
     '',
     '',

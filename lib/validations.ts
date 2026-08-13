@@ -76,6 +76,7 @@ export const enrollGuestSchema = z.object({
   name: z.string().min(2, 'Name is required'),
   phone: phoneSchema,
   email: z.string().email().optional().or(z.literal('')),
+  ghanaCardNumber: z.string().optional().or(z.literal('')),
   roomId: z.string().uuid(),
   checkIn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Enter arrival date'),
   checkOut: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Enter departure date'),

@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { computeInvoiceTaxes, noTaxInvoice, taxSnapshotFromRates } from '@/lib/tax'
+import { parseGhanaCard } from '@/lib/billing/ghana-card'
 import { getHotelTaxConfig } from '@/lib/data/settings'
 import { allocateInvoiceNumber } from '@/lib/invoices/numbering'
 import { createOrRefreshStayInvoice } from '@/lib/billing/build-stay-invoice'
@@ -60,17 +61,33 @@ const VALID_PAYMENT_METHODS: PaymentMethod[] = [
   'bank_transfer',
 ]
 
+/** Undefined = leave existing guest card unchanged; empty string clears. */
+const ghanaCardField = z
+  .union([z.string(), z.null(), z.undefined()])
+  .optional()
+  .transform((v, ctx) => {
+    if (v === undefined) return undefined
+    const parsed = parseGhanaCard(v)
+    if (!parsed.ok) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: parsed.error })
+      return z.NEVER
+    }
+    return parsed.value
+  })
+
 const checkInStaySchema = z.object({
   phone: phoneSchema,
   email: z.string().email().optional().or(z.literal('')),
   guestId: z.string().uuid().optional(),
   guestName: z.string().min(2).optional(),
+  ghanaCardNumber: ghanaCardField,
 })
 
 const walkInCheckInSchema = z.object({
   name: z.string().trim().min(2).max(120),
   phone: phoneSchema,
   email: z.string().email().optional().or(z.literal('')),
+  ghanaCardNumber: ghanaCardField,
   roomId: z.string().uuid(),
   checkOut: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   rateType: z.enum(['nightly', 'weekly', 'monthly']).optional(),
@@ -178,7 +195,13 @@ async function findInHouseGuestByPhone(
 }
 
 export async function searchGuests(query: string): Promise<
-  StayActionResult<{ id: string; name: string; phone: string | null; email: string | null }[]>
+  StayActionResult<{
+    id: string
+    name: string
+    phone: string | null
+    email: string | null
+    ghanaCardNumber: string | null
+  }[]>
 > {
   const { profile } = await requireManager()
   if (!profile?.hotel_id || !['owner', 'manager', 'receptionist'].includes(profile.role)) {
@@ -191,19 +214,34 @@ export async function searchGuests(query: string): Promise<
   const admin = createAdminClient()
   const { data, error } = await admin
     .from('guests')
-    .select('id, name, phone, email')
+    .select('id, name, phone, email, ghana_card_number')
     .eq('hotel_id', profile.hotel_id)
     .or(`name.ilike.%${q}%,phone.ilike.%${q}%,email.ilike.%${q}%`)
     .order('name')
     .limit(8)
 
   if (error) return { success: false, error: error.message }
-  return { success: true, data: data ?? [] }
+  return {
+    success: true,
+    data: (data ?? []).map((g) => ({
+      id: g.id,
+      name: g.name,
+      phone: g.phone,
+      email: g.email,
+      ghanaCardNumber: g.ghana_card_number ?? null,
+    })),
+  }
 }
 
 export async function checkInStay(
   reservationId: string,
-  input: { phone: string; email?: string; guestId?: string; guestName?: string },
+  input: {
+    phone: string
+    email?: string
+    guestId?: string
+    guestName?: string
+    ghanaCardNumber?: string
+  },
   opts?: { quiet?: boolean },
 ): Promise<
   StayActionResult<{ loginUrl: string; token: string; guestId: string; portalPin: string }>
@@ -312,6 +350,9 @@ export async function checkInStay(
         name: guestName,
         phone: parsed.data.phone.trim(),
         email: parsed.data.email || null,
+        ...(parsed.data.ghanaCardNumber !== undefined
+          ? { ghana_card_number: parsed.data.ghanaCardNumber }
+          : {}),
         room_id: reservation.room_id,
         check_in: reservation.check_in,
         check_out: reservation.check_out,
@@ -331,6 +372,7 @@ export async function checkInStay(
         name: guestName,
         phone: parsed.data.phone.trim(),
         email: parsed.data.email || null,
+        ghana_card_number: parsed.data.ghanaCardNumber ?? null,
         check_in: reservation.check_in,
         check_out: reservation.check_out,
         token,
@@ -573,6 +615,7 @@ export async function walkInCheckIn(input: unknown): Promise<
     phone: parsed.data.phone,
     email: parsed.data.email,
     guestName: parsed.data.name.trim(),
+    ghanaCardNumber: parsed.data.ghanaCardNumber ?? undefined,
   })
 
   if (!checkInResult.success || !checkInResult.data) {
@@ -1037,6 +1080,10 @@ export async function checkOutStay(input: {
         elevy_amount: taxes.elevy,
         tourism_levy_amount: taxes.tourism,
         tax_snapshot: taxSnapshotFromRates(rates),
+        guest_tax_id: (() => {
+          const card = parseGhanaCard(guest.ghana_card_number)
+          return card.ok ? card.value : null
+        })(),
         total_amount: taxes.total,
         payment_method: input.paymentMethod,
         payment_status: checkoutPayment.paymentStatus,

@@ -508,6 +508,8 @@ export interface DbInvoice {
     elevy: number
     tourism: number
   } | null
+  /** Guest Ghana Card frozen at issue (Bill-to tax ID). */
+  guest_tax_id?: string | null
   total_amount: number
   payment_method: PaymentMethod | null
   payment_status: PaymentStatus | null

@@ -32,6 +32,7 @@ interface GuestQueryRow {
   name: string
   email: string | null
   phone: string | null
+  ghana_card_number?: string | null
   room_id: string | null
   check_in: string | null
   check_out: string | null
@@ -110,6 +111,7 @@ async function mapGuestRows(
         name: guest.name,
         email: guest.email,
         phone: guest.phone,
+        ghanaCardNumber: guest.ghana_card_number ?? null,
         roomNumber: guest.rooms?.number ?? null,
         roomId: guest.room_id,
         checkIn: guest.check_in,
@@ -178,7 +180,7 @@ export async function getGuestsPage(options?: {
     const { data: allGuests } = await supabase
       .from('guests')
       .select(
-        'id, name, email, phone, room_id, check_in, check_out, created_at, token, token_expires_at, portal_pin, do_not_disturb, rooms(number)',
+        'id, name, email, phone, ghana_card_number, room_id, check_in, check_out, created_at, token, token_expires_at, portal_pin, do_not_disturb, rooms(number)',
       )
       .eq('hotel_id', hotelId)
       .order('created_at', { ascending: false })
@@ -216,7 +218,7 @@ export async function getGuestsPage(options?: {
   let guestQuery = supabase
     .from('guests')
     .select(
-      'id, name, email, phone, room_id, check_in, check_out, created_at, token, token_expires_at, portal_pin, do_not_disturb, rooms(number)',
+      'id, name, email, phone, ghana_card_number, room_id, check_in, check_out, created_at, token, token_expires_at, portal_pin, do_not_disturb, rooms(number)',
       { count: 'exact' },
     )
     .eq('hotel_id', hotelId)

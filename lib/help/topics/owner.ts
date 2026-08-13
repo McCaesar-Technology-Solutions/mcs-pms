@@ -130,10 +130,11 @@ export const ownerHelpTopics: HelpTopic[] = [
       'GRA Reports — export period summaries and invoice lists.',
       'Checkout invoices include NHIL, GETFund, VAT, and levies when enabled.',
       'Tourism levy (if set) is added outside the NHIL/GETFund/VAT base and appears on GRA exports.',
+      'Guest Ghana Card (Tax ID) is snapshotted on the invoice Bill-to; hotel VAT Reg stays separate.',
     ],
     href: '/owner/gra-reports',
     hrefLabel: 'Open GRA reports',
-    keywords: ['gra', 'tax', 'vat', 'tin', 'levy', 'tourism'],
+    keywords: ['gra', 'tax', 'vat', 'tin', 'levy', 'tourism', 'ghana card'],
     pathPrefixes: ['/owner/gra-reports'],
   },
   {
