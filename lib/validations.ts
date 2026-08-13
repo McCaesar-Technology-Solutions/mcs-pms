@@ -143,24 +143,28 @@ export const staffComplaintSchema = z.object({
   guestId: z.string().uuid().optional(),
 })
 
-const reservationDiscountSchema = z
-  .object({
-    // Optional so updateReservation without discount fields does not wipe existing discounts.
-    discountType: z.enum(['none', 'percent', 'fixed']).optional(),
-    discountValue: z.coerce.number().min(0, 'Discount cannot be negative').optional(),
-    discountReason: z.string().max(200).optional().or(z.literal('')),
-  })
-  .superRefine((data, ctx) => {
-    if (data.discountType === 'percent' && (data.discountValue ?? 0) > 100) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Percent discount cannot exceed 100%.',
-        path: ['discountValue'],
-      })
-    }
-  })
+/** Shape only — Zod v4 forbids `.partial()` on schemas that already have refinements. */
+const reservationDiscountFields = z.object({
+  // Optional so updateReservation without discount fields does not wipe existing discounts.
+  discountType: z.enum(['none', 'percent', 'fixed']).optional(),
+  discountValue: z.coerce.number().min(0, 'Discount cannot be negative').optional(),
+  discountReason: z.string().max(200).optional().or(z.literal('')),
+})
 
-export const createReservationSchema = z
+function refineReservationDiscount(
+  data: { discountType?: 'none' | 'percent' | 'fixed'; discountValue?: number },
+  ctx: z.RefinementCtx,
+) {
+  if (data.discountType === 'percent' && (data.discountValue ?? 0) > 100) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Percent discount cannot exceed 100%.',
+      path: ['discountValue'],
+    })
+  }
+}
+
+const createReservationObjectSchema = z
   .object({
     guestName: z.string().min(2, 'Guest name is required'),
     roomId: z.string().uuid('Select a room'),
@@ -173,9 +177,13 @@ export const createReservationSchema = z
     monthlyRate: z.coerce.number().min(0, 'Rate cannot be negative').optional(),
     guestId: z.string().uuid().optional(),
   })
-  .merge(reservationDiscountSchema)
+  .merge(reservationDiscountFields)
 
-export const updateReservationSchema = createReservationSchema
+export const createReservationSchema = createReservationObjectSchema.superRefine(
+  refineReservationDiscount,
+)
+
+export const updateReservationSchema = createReservationObjectSchema
   .partial()
   .extend({
     guestName: z.string().min(2, 'Guest name is required').optional(),
@@ -183,6 +191,7 @@ export const updateReservationSchema = createReservationSchema
     checkIn: z.string().min(1).optional(),
     checkOut: z.string().min(1).optional(),
   })
+  .superRefine(refineReservationDiscount)
 
 export const createHousekeepingTaskSchema = z.object({
   roomId: z.string().uuid(),
