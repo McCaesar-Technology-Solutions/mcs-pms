@@ -21,7 +21,7 @@ function round2(value: number): number {
 export function mergeRoomTaxesWithFolio(
   roomTaxes: InvoiceTaxes,
   folioSubtotal: number,
-  includeTax = true,
+  includeTax = false,
   rates: HotelTaxRates = defaultHotelTaxRates(),
 ): InvoiceTaxes {
   if (folioSubtotal === 0) return roomTaxes
@@ -134,7 +134,7 @@ export async function prepareCheckoutTaxesWithFolio(
   guestId: string,
   reservationId: string | null | undefined,
   roomTaxes: InvoiceTaxes,
-  includeTax = true,
+  includeTax = false,
   rates: HotelTaxRates = defaultHotelTaxRates(),
 ): Promise<{
   taxes: InvoiceTaxes

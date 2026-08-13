@@ -165,7 +165,7 @@ export function BillingOverview({
   const [newSubtotal, setNewSubtotal] = useState('')
   const [newPaymentMethod, setNewPaymentMethod] = useState<PaymentMethod>('cash')
   const [newMarkPaid, setNewMarkPaid] = useState(true)
-  const [newIncludeTax, setNewIncludeTax] = useState(true)
+  const [newIncludeTax, setNewIncludeTax] = useState(false)
   const [partialAmount, setPartialAmount] = useState('')
   const [partialMethod, setPartialMethod] = useState<PaymentMethod>('cash')
   const [whatsAppInvoice, setWhatsAppInvoice] = useState<InvoiceWithRoom | null>(null)

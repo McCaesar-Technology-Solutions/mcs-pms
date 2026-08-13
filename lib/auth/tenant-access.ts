@@ -47,14 +47,6 @@ export function canApplyGuestDiscount(role: UserRole | string | null | undefined
   return role === 'owner' || role === 'manager'
 }
 
-/**
- * Front desk always issues GRA tax invoices.
- * Only managers/owners may deliberately omit tax (untaxed invoice).
- */
-export function canOmitInvoiceTax(role: UserRole | string | null | undefined): boolean {
-  return role === 'owner' || role === 'manager'
-}
-
 /** Payroll overview: owners manage fully; managers may view and prepare drafts. */
 export function canAccessPayroll(role: UserRole | string | null | undefined): boolean {
   return role === 'owner' || role === 'manager'

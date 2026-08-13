@@ -5,7 +5,6 @@ import {
   canCreateManualInvoice,
   canIssueStayInvoice,
   canEraseGuestData,
-  canOmitInvoiceTax,
   canOwnerEraseGuestData,
   canRecordInvoicePayment,
   canRefundInvoice,
@@ -66,13 +65,6 @@ describe('tenant access — billing', () => {
     expect(canApplyGuestDiscount('manager')).toBe(true)
     expect(canApplyGuestDiscount('receptionist')).toBe(false)
     expect(canApplyGuestDiscount('technician')).toBe(false)
-  })
-
-  it('keeps tax invoices for reception; only manager/owner may omit tax', () => {
-    expect(canOmitInvoiceTax('owner')).toBe(true)
-    expect(canOmitInvoiceTax('manager')).toBe(true)
-    expect(canOmitInvoiceTax('receptionist')).toBe(false)
-    expect(canIssueStayInvoice('receptionist')).toBe(true)
   })
 
   it('maps billing paths to role prefixes', () => {

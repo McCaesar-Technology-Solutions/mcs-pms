@@ -74,6 +74,7 @@ export function CheckoutInvoiceDialog({
     return method && PAYMENT_METHODS.includes(method) ? method : 'cash'
   })
   const [markAsPaid, setMarkAsPaid] = useState(true)
+  const [includeTax, setIncludeTax] = useState(false)
   const [pending, startTransition] = useTransition()
 
   const alreadyPaid = isPaidStatus(invoice?.paymentStatus)
@@ -137,7 +138,7 @@ export function CheckoutInvoiceDialog({
           reservationId,
           paymentMethod,
           markAsPaid: true,
-          includeTax: true,
+          includeTax,
         })
         if (!result.success) {
           setError(result.error)
@@ -325,6 +326,21 @@ export function CheckoutInvoiceDialog({
                       </option>
                     ))}
                   </select>
+                </label>
+                <label className="flex items-start gap-2 text-sm text-amber-950">
+                  <input
+                    type="checkbox"
+                    checked={includeTax}
+                    onChange={(e) => setIncludeTax(e.target.checked)}
+                    disabled={pending}
+                    className="mt-0.5"
+                  />
+                  <span>
+                    Include Ghana tax
+                    <span className="mt-0.5 block text-xs text-amber-900/80">
+                      Optional — VAT &amp; GRA levies for a tax invoice.
+                    </span>
+                  </span>
                 </label>
                 <label className="flex items-start gap-2 text-sm text-amber-950">
                   <input

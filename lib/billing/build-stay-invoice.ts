@@ -146,7 +146,7 @@ export async function createOrRefreshStayInvoice(
   paymentStatus: PaymentStatus
   amountPaid: number
 }> {
-  const includeTax = input.includeTax !== false
+  const includeTax = input.includeTax === true
   const effectiveCheckOut = input.effectiveCheckOut ?? input.reservation.check_out
   const reservation = input.reservation
   const now = new Date().toISOString()

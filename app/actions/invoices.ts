@@ -8,7 +8,6 @@ import {
   canApplyGuestDiscount,
   canCreateManualInvoice,
   canIssueStayInvoice,
-  canOmitInvoiceTax,
   canRecordInvoicePayment,
   canRefundInvoice,
 } from '@/lib/auth/tenant-access'
@@ -79,7 +78,7 @@ const createManualInvoiceSchema = z.object({
     'bank_transfer',
   ]),
   markAsPaid: z.boolean().default(true),
-  includeTax: z.boolean().default(true),
+  includeTax: z.boolean().default(false),
 })
 
 const partialPaymentSchema = z.object({
@@ -116,7 +115,7 @@ const issueStayInvoiceSchema = z
       'bank_transfer',
     ]),
     markAsPaid: z.boolean().default(false),
-    includeTax: z.boolean().default(true),
+    includeTax: z.boolean().default(false),
     discountType: z.enum(['none', 'percent', 'fixed']).optional(),
     discountValue: z.coerce.number().min(0).optional(),
     discountReason: z.string().max(200).optional().or(z.literal('')),
@@ -575,15 +574,12 @@ export async function issueStayInvoice(input: unknown): Promise<IssueStayInvoice
     roomNumber = roomRow?.number ?? null
   }
 
-  // Front desk always issues GRA tax invoices; only manager/owner may omit tax.
-  const includeTax = canOmitInvoiceTax(profile.role) ? parsed.data.includeTax : true
-
   try {
     const issued = await createOrRefreshStayInvoice(admin, {
       reservation: stayReservation,
       paymentMethod: parsed.data.paymentMethod,
       markAsPaid: parsed.data.markAsPaid,
-      includeTax,
+      includeTax: parsed.data.includeTax,
       guestPhone,
       roomNumber,
     })

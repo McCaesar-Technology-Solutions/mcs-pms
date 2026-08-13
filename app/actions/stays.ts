@@ -38,7 +38,6 @@ import {
 } from '@/lib/folio/rollup'
 import { writeAuditLog, logRoomStatusChange } from '@/lib/audit/log'
 import { canCheckIn, canCheckOut, IN_HOUSE_STATUSES } from '@/lib/reservations/lifecycle'
-import { canOmitInvoiceTax } from '@/lib/auth/tenant-access'
 import { validateCheckoutBalance } from '@/lib/reservations/checkout-validation'
 import { runNotifyTask } from '@/lib/notifications/notify-task'
 import {
@@ -120,7 +119,7 @@ async function computeCheckoutTaxes(
   monthlyRateInput?: number | null,
   totalAmountInput?: number | null,
   plannedCheckOut?: string | null,
-  includeTax = true,
+  includeTax = false,
   weeklyRateInput?: number | null,
 ) {
   const { vatMode, rates } = await getHotelTaxConfig(hotelId)
@@ -510,7 +509,7 @@ export async function checkInStay(
       },
       paymentMethod,
       markAsPaid: false,
-      includeTax: true,
+      includeTax: false,
       guestPhone: parsed.data.phone.trim(),
       roomNumber: roomRow?.number ?? null,
     })
@@ -960,7 +959,7 @@ export async function completeCheckoutStay(input: {
   }
 
   const admin = createAdminClient()
-  const includeTax = canOmitInvoiceTax(profile.role) ? input.includeTax !== false : true
+  const includeTax = input.includeTax === true
   const { data: reservation } = await admin
     .from('reservations')
     .select('*')
@@ -1008,7 +1007,7 @@ export async function checkOutStay(input: {
   }
 
   const admin = createAdminClient()
-  const includeTax = canOmitInvoiceTax(profile.role) ? input.includeTax !== false : true
+  const includeTax = input.includeTax === true
   let reservation: {
     id: string
     hotel_id: string
@@ -1157,7 +1156,7 @@ export async function checkOutStay(input: {
         elevy_amount: taxes.elevy,
         tourism_levy_amount: taxes.tourism,
         tax_snapshot: taxSnapshotFromRates(rates),
-        guest_tax_id: resolveInvoiceTaxId(input.includeTax !== false),
+        guest_tax_id: resolveInvoiceTaxId(input.includeTax === true),
         total_amount: taxes.total,
         payment_method: input.paymentMethod,
         payment_status: checkoutPayment.paymentStatus,
@@ -1302,7 +1301,7 @@ export async function recordWalkoutStay(
     paymentMethod,
     earlyCheckout: input?.earlyCheckout,
     markAsPaid: false,
-    includeTax: canOmitInvoiceTax(profile.role) ? input?.includeTax !== false : true,
+    includeTax: input?.includeTax === true,
     departureStatus: 'walkout',
   })
 }

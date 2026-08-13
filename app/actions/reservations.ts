@@ -573,7 +573,7 @@ export async function completeCheckoutReservation(
   paymentMethod: PaymentMethod = 'cash',
   earlyCheckout = false,
   markAsPaid = true,
-  includeTax = true,
+  includeTax = false,
 ): Promise<ReservationActionResult> {
   if (!VALID_PAYMENT_METHODS.includes(paymentMethod)) {
     return { success: false, error: 'Invalid payment method.' }
@@ -600,7 +600,7 @@ export async function checkOutReservation(
   paymentMethod: PaymentMethod = 'cash',
   earlyCheckout = false,
   markAsPaid = true,
-  includeTax = true,
+  includeTax = false,
 ): Promise<ReservationActionResult> {
   if (!VALID_PAYMENT_METHODS.includes(paymentMethod)) {
     return { success: false, error: 'Invalid payment method.' }
@@ -626,7 +626,7 @@ export async function recordWalkoutReservation(
   id: string,
   paymentMethod: PaymentMethod = 'cash',
   earlyCheckout = false,
-  includeTax = true,
+  includeTax = false,
 ): Promise<ReservationActionResult> {
   if (!VALID_PAYMENT_METHODS.includes(paymentMethod)) {
     return { success: false, error: 'Invalid payment method.' }
@@ -946,7 +946,7 @@ export async function recordReservationDeposit(input: unknown): Promise<Reservat
           reservation: stayRow,
           paymentMethod: parsed.data.paymentMethod,
           markAsPaid: false,
-          includeTax: true,
+          includeTax: false,
         })
       } catch {
         // Deposit already recorded; invoice refresh can retry via Issue invoice.

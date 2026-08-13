@@ -24,7 +24,16 @@ const BRAND = {
 }
 
 const LOGO_PATH = '/icons/icon-192.png'
+const PAYMENT_FOOTER_PATH = '/invoice/payment-footer.png'
 let logoDataUrlCache: string | null = null
+let paymentFooterDataUrlCache: string | null = null
+
+const INVOICE_PAYMENT_DETAILS = {
+  payableTo: 'Mojo Apartment',
+  banking: 'Bank Account Details: Cal Bank. Graphic Road Branch. Account No. 1400008111059',
+  momoName: 'Mojo Apartment',
+  momoNumber: '0530541766',
+} as const
 
 function money(value: number): string {
   return `GHC ${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -116,6 +125,65 @@ async function loadBrandLogo(): Promise<string | null> {
   } catch {
     return null
   }
+}
+
+async function loadPaymentFooterImage(): Promise<string | null> {
+  if (paymentFooterDataUrlCache) return paymentFooterDataUrlCache
+  if (typeof fetch === 'undefined') return null
+  try {
+    const res = await fetch(PAYMENT_FOOTER_PATH)
+    if (!res.ok) return null
+    const blob = await res.blob()
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result as string)
+      reader.onerror = () => reject(new Error('Failed to read payment footer'))
+      reader.readAsDataURL(blob)
+    })
+    paymentFooterDataUrlCache = dataUrl
+    return dataUrl
+  } catch {
+    return null
+  }
+}
+
+/** Drawn fallback when the payment-footer image cannot be loaded. */
+function drawPaymentDetailsFallback(doc: jsPDF, x: number, y: number, width: number): number {
+  const colW = width / 3
+  const pad = 3
+  const headerH = 6
+  const bodyTop = y + headerH
+  const linesPayable = doc.splitTextToSize(INVOICE_PAYMENT_DETAILS.payableTo, colW - pad * 2) as string[]
+  const linesBank = doc.splitTextToSize(INVOICE_PAYMENT_DETAILS.banking, colW - pad * 2) as string[]
+  const linesOther = doc.splitTextToSize(
+    `Mobile Money Name : ${INVOICE_PAYMENT_DETAILS.momoName}\nMobile Money Number : ${INVOICE_PAYMENT_DETAILS.momoNumber}`,
+    colW - pad * 2,
+  ) as string[]
+  const bodyH = Math.max(linesPayable.length, linesBank.length, linesOther.length) * 3.8 + pad * 2
+  const boxH = headerH + bodyH
+
+  doc.setDrawColor(180, 180, 180)
+  doc.setLineWidth(0.3)
+  doc.rect(x, y, width, boxH, 'S')
+  doc.line(x + colW, y, x + colW, y + boxH)
+  doc.line(x + colW * 2, y, x + colW * 2, y + boxH)
+  doc.line(x, y + headerH, x + width, y + headerH)
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(8)
+  doc.setTextColor(40, 40, 40)
+  doc.text('Payable To', x + pad, y + 4.2)
+  doc.text('Banking Details', x + colW + pad, y + 4.2)
+  doc.text('Other Details', x + colW * 2 + pad, y + 4.2)
+
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(7.5)
+  doc.setTextColor(50, 50, 50)
+  doc.text(linesPayable, x + pad, bodyTop + pad + 2.5)
+  doc.text(linesBank, x + colW + pad, bodyTop + pad + 2.5)
+  doc.text(linesOther, x + colW * 2 + pad, bodyTop + pad + 2.5)
+
+  return y + boxH
 }
 
 function invoiceFileName(invoice: InvoiceExportRow): string {
@@ -497,10 +565,35 @@ async function buildInvoicePdf(hotelInput: ExportHotelInfo, invoice: InvoiceExpo
   const words = amountInWordsCedis(invoice.total)
   const wordsLine = doc.splitTextToSize(`Amount In Words : ${words}`, contentW) as string[]
   doc.text(wordsLine, margin, y)
-  y += wordsLine.length * 4.5 + 4
+  y += wordsLine.length * 4.5 + 6
+
+  // ── Payable / banking / MoMo (+ signature image) ─────────────
+  const paymentFooter = await loadPaymentFooterImage()
+  const paymentImgAspect = 348 / 1008
+  const paymentBlockH = contentW * paymentImgAspect
+  const footerReserve = 18
+  if (y + paymentBlockH + footerReserve > pageH) {
+    doc.addPage()
+    y = margin
+  }
+
+  if (paymentFooter) {
+    doc.addImage(paymentFooter, 'PNG', margin, y, contentW, paymentBlockH)
+    y += paymentBlockH + 4
+  } else {
+    // Signature label (right) when image is unavailable
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(9)
+    doc.setTextColor(...BRAND.purpleInk)
+    doc.text('Signature', pageW - margin, y + 10, { align: 'right' })
+    doc.setDrawColor(...BRAND.line)
+    doc.line(pageW - margin - 45, y + 6, pageW - margin, y + 6)
+    y += 16
+    y = drawPaymentDetailsFallback(doc, margin, y, contentW) + 4
+  }
 
   // ── Footer ───────────────────────────────────────────────────
-  const footerY = Math.max(y + 4, pageH - 22)
+  const footerY = Math.max(y + 2, pageH - 18)
   doc.setDrawColor(...BRAND.line)
   doc.setLineWidth(0.4)
   doc.line(margin, footerY, pageW - margin, footerY)
@@ -514,7 +607,7 @@ async function buildInvoicePdf(hotelInput: ExportHotelInfo, invoice: InvoiceExpo
   if (footerContact) {
     doc.text(footerContact, margin, footerY + 5)
   }
-  doc.text(`Page 1 · ${formatDateTime(generatedAt)}`, pageW - margin, footerY + 5, {
+  doc.text(`Page ${doc.getNumberOfPages()} · ${formatDateTime(generatedAt)}`, pageW - margin, footerY + 5, {
     align: 'right',
   })
   doc.text('Thank you for staying with us.', margin, footerY + 10)
