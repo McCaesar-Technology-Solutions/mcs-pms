@@ -126,7 +126,7 @@ export const managerHelpTopics: HelpTopic[] = [
     title: 'Erase or delete a guest',
     summary: 'Remove duplicates or clear personal data after a stay.',
     steps: [
-      'Open Guests → guest who is not in-house → Erase / delete guest.',
+      'Open Guests → Erase / delete guest (in-house guests included — stay ends and room frees).',
       'With history: erase personal data (invoices stay printable).',
       'With no history: permanently delete the orphan row.',
     ],

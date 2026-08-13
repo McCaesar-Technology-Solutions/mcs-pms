@@ -683,23 +683,13 @@ function GuestDeletePanel({
     <>
       <button
         type="button"
-        disabled={guest.isInHouse}
         onClick={openDialog}
-        title={
-          guest.isInHouse
-            ? 'Check out this guest before erasing or deleting'
-            : 'Erase personal data or delete duplicate'
-        }
-        className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 py-3 text-sm font-semibold text-red-800 disabled:cursor-not-allowed disabled:opacity-50"
+        title="Erase personal data or delete duplicate"
+        className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 py-3 text-sm font-semibold text-red-800"
       >
         <Trash2 className="h-4 w-4" />
         {alreadyRedacted ? 'Delete guest record' : 'Erase / delete guest'}
       </button>
-      {guest.isInHouse && (
-        <p className="text-xs text-muted-foreground">
-          In-house guests cannot be erased. Complete checkout first.
-        </p>
-      )}
 
       <CenteredModal
         open={open}
@@ -720,7 +710,7 @@ function GuestDeletePanel({
               {eligibility.blockReason}
             </p>
           )}
-          {eligibility && !eligibility.isInHouse && (
+          {eligibility && (
             <>
               {eligibility.canHardDelete ? (
                 <p className="text-sm text-muted-foreground">

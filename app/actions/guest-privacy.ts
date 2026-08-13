@@ -8,6 +8,8 @@ import { consumeStaffAuthError } from '@/lib/auth/staff-session'
 import { canEraseGuestData, canStaffExportGuestData } from '@/lib/auth/tenant-access'
 import { writeAuditLog } from '@/lib/audit/log'
 import { revokeGuestAccess } from '@/lib/access/lifecycle'
+import { transitionReservation } from '@/lib/reservations/state-machine'
+import { normalizeActorRole } from '@/lib/reservations/transitions'
 
 const GUEST_ID_DOCUMENT_BUCKET = 'guest-id-documents'
 
@@ -113,6 +115,89 @@ async function guestHasActiveStay(
   return (count ?? 0) > 0
 }
 
+/** End in-house stays so erase/delete frees the room (does not require prior checkout). */
+async function releaseInHouseStaysForGuest(input: {
+  admin: ReturnType<typeof createAdminClient>
+  hotelId: string
+  guestId: string
+  actorId: string
+  actorRole: string
+  roomId: string | null
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { admin, hotelId, guestId, actorId, actorRole, roomId } = input
+  const role = normalizeActorRole(actorRole)
+
+  const { data: active } = await admin
+    .from('reservations')
+    .select('id, status')
+    .eq('hotel_id', hotelId)
+    .eq('guest_id', guestId)
+    .in('status', [...IN_HOUSE_STATUSES])
+
+  for (const row of active ?? []) {
+    if (row.status === 'checkout_in_progress') {
+      const done = await transitionReservation({
+        reservationId: row.id,
+        hotelId,
+        toStatus: 'checked_out',
+        actorId,
+        actorRole: role,
+        payload: { reason: 'guest_erase' },
+      })
+      if (!done.success) {
+        return { ok: false, error: done.error ?? 'Could not end active stay.' }
+      }
+      continue
+    }
+
+    const started = await transitionReservation({
+      reservationId: row.id,
+      hotelId,
+      toStatus: 'checkout_in_progress',
+      actorId,
+      actorRole: role,
+      payload: { reason: 'guest_erase' },
+    })
+    if (!started.success) {
+      const walkout = await transitionReservation({
+        reservationId: row.id,
+        hotelId,
+        toStatus: 'walkout',
+        actorId,
+        actorRole: role,
+        payload: { reason: 'guest_erase' },
+      })
+      if (!walkout.success) {
+        return { ok: false, error: walkout.error ?? 'Could not end active stay.' }
+      }
+      continue
+    }
+
+    const done = await transitionReservation({
+      reservationId: row.id,
+      hotelId,
+      toStatus: 'checked_out',
+      actorId,
+      actorRole: role,
+      payload: { reason: 'guest_erase' },
+    })
+    if (!done.success) {
+      return { ok: false, error: done.error ?? 'Could not complete checkout for erase.' }
+    }
+  }
+
+  // Legacy guest row with a room but no reservation — free the room.
+  if (roomId && !(active?.length)) {
+    await admin
+      .from('rooms')
+      .update({ status: 'cleaning', updated_by: actorId })
+      .eq('id', roomId)
+      .eq('hotel_id', hotelId)
+  }
+
+  return { ok: true }
+}
+
 export async function getGuestDeleteEligibility(
   guestId: string,
 ): Promise<GuestDeleteEligibility> {
@@ -141,20 +226,16 @@ export async function getGuestDeleteEligibility(
     counts.charges > 0 ||
     counts.feedback > 0
 
-  let blockReason: string | null = null
-  if (isInHouse) {
-    blockReason =
-      'This guest is still in-house. Check them out (or finish checkout) before erasing.'
-  }
-
   return {
     success: true,
     data: {
       guestName: guest.name,
       isInHouse,
-      canSoftErase: !isInHouse,
-      canHardDelete: !isInHouse && !hasHistory,
-      blockReason,
+      canSoftErase: true,
+      canHardDelete: !hasHistory,
+      blockReason: isInHouse
+        ? 'This guest is still in-house. Erasing will end their stay and free the room.'
+        : null,
       historyCounts: {
         reservations: counts.reservations,
         invoices: counts.invoices,
@@ -233,12 +314,15 @@ export async function eraseGuestPersonalData(guestId: string): Promise<GuestPriv
 
   if (!guest) return { success: false, error: 'Guest not found.' }
 
-  if (guest.room_id || (await guestHasActiveStay(admin, profile.hotel_id, guestId))) {
-    return {
-      success: false,
-      error: 'Cannot erase an in-house guest. Complete checkout first.',
-    }
-  }
+  const released = await releaseInHouseStaysForGuest({
+    admin,
+    hotelId: profile.hotel_id,
+    guestId,
+    actorId: profile.id,
+    actorRole: profile.role,
+    roomId: guest.room_id,
+  })
+  if (!released.ok) return { success: false, error: released.error }
 
   if (guest.pre_arrival_id_path) {
     await admin.storage.from(GUEST_ID_DOCUMENT_BUCKET).remove([guest.pre_arrival_id_path])
@@ -266,6 +350,8 @@ export async function eraseGuestPersonalData(guestId: string): Promise<GuestPriv
       portal_pin: null,
       portal_pin_hash: null,
       room_id: null,
+      check_in: null,
+      check_out: null,
       token: randomUUID(),
       token_expires_at: new Date().toISOString(),
       do_not_disturb: false,
@@ -275,6 +361,12 @@ export async function eraseGuestPersonalData(guestId: string): Promise<GuestPriv
 
   if (error) return { success: false, error: error.message }
 
+  await admin
+    .from('reservations')
+    .update({ guest_name: 'Redacted guest' })
+    .eq('hotel_id', profile.hotel_id)
+    .eq('guest_id', guestId)
+
   void writeAuditLog({
     hotelId: profile.hotel_id,
     actorId: profile.id,
@@ -282,7 +374,7 @@ export async function eraseGuestPersonalData(guestId: string): Promise<GuestPriv
     entityType: 'guest',
     entityId: guestId,
     action: 'erase',
-    summary: `Erased personal data for former guest ${guest.name}`,
+    summary: `Erased personal data for guest ${guest.name}`,
   })
 
   revalidateGuestViews()
@@ -312,13 +404,6 @@ export async function hardDeleteGuest(guestId: string): Promise<GuestPrivacyResu
 
   if (!guest) return { success: false, error: 'Guest not found.' }
 
-  if (guest.room_id || (await guestHasActiveStay(admin, profile.hotel_id, guestId))) {
-    return {
-      success: false,
-      error: 'Cannot delete an in-house guest. Complete checkout first.',
-    }
-  }
-
   const counts = await countGuestLinks(admin, profile.hotel_id, guestId)
   const hasHistory =
     counts.reservations > 0 ||
@@ -335,6 +420,16 @@ export async function hardDeleteGuest(guestId: string): Promise<GuestPrivacyResu
         'This guest has stay or billing history. Use Erase personal data instead — invoices stay printable.',
     }
   }
+
+  const released = await releaseInHouseStaysForGuest({
+    admin,
+    hotelId: profile.hotel_id,
+    guestId,
+    actorId: profile.id,
+    actorRole: profile.role,
+    roomId: guest.room_id,
+  })
+  if (!released.ok) return { success: false, error: released.error }
 
   if (guest.pre_arrival_id_path) {
     await admin.storage.from(GUEST_ID_DOCUMENT_BUCKET).remove([guest.pre_arrival_id_path])

@@ -51,7 +51,7 @@ export const ownerHelpTopics: HelpTopic[] = [
     title: 'Erase or delete a guest',
     summary: 'Privacy erase for past guests; hard-delete only orphans.',
     steps: [
-      'Open Guests → select a guest who is not in-house.',
+      'Open Guests → Erase / delete guest (works for in-house guests too — that ends the stay).',
       'Erase personal data when they have history — invoices and stays remain for compliance.',
       'Permanently delete only when there is no reservation/invoice/complaint history.',
     ],

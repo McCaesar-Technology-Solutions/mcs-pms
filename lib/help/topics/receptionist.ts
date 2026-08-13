@@ -55,10 +55,10 @@ export const receptionistHelpTopics: HelpTopic[] = [
     title: 'Erase or delete a guest',
     summary: 'Remove wrong or duplicate guest records without destroying invoices.',
     steps: [
-      'Open the guest (not in-house) → Erase / delete guest.',
+      'Open the guest → Erase / delete guest (works even if they are still in-house).',
       'If they have stay or invoice history: Erase personal data — name becomes “Redacted guest”; invoices stay printable.',
       'If they have no history (duplicate): Permanently delete removes the row.',
-      'In-house guests cannot be erased until checkout is complete.',
+      'Erasing an in-house guest ends their stay and frees the room.',
     ],
     href: '/receptionist/guests',
     hrefLabel: 'Open guests',
