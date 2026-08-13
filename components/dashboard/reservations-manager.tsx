@@ -2367,7 +2367,18 @@ function ReservationFormModal({
               reservationId: result.data.reservationId,
               preview: result.data.invoicePreview,
             })
-            toast.success('Checked in — collect payment before the guest enters')
+            toast.success('Checked in — stay invoice ready; collect payment')
+            if (onCheckoutInvoice) {
+              onCheckoutInvoice(
+                result.data.invoiceId,
+                guestName.trim(),
+                result.data.invoicePreview,
+                {
+                  reservationId: result.data.reservationId,
+                  mode: 'collect',
+                },
+              )
+            }
           } else {
             toast.success('Checked in')
           }

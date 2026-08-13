@@ -515,8 +515,19 @@ export async function checkInStay(
     })
     invoiceId = issued.invoiceId
     invoicePreview = issued.invoicePreview
+    // Ensure Billing / reservation lists pick up the new stay invoice.
+    revalidateStayViews()
   } catch (err) {
     invoiceError = err instanceof Error ? err.message : 'Could not create stay invoice.'
+    void writeAuditLog({
+      hotelId: profile.hotel_id,
+      actorId: userId,
+      actorName: profile.name,
+      entityType: 'reservation',
+      entityId: reservationId,
+      action: 'invoice_failed',
+      summary: `Check-in invoice failed for ${guestName}: ${invoiceError}`,
+    })
   }
 
   return {
