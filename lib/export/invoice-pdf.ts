@@ -304,14 +304,23 @@ async function buildInvoicePdf(hotelInput: ExportHotelInfo, invoice: InvoiceExpo
     })
   }
 
-  const col = {
-    sr: margin,
-    product: margin + 14,
-    qty: margin + contentW * 0.62,
-    rate: margin + contentW * 0.78,
-    amount: pageW - margin,
-  }
+  // Fixed column widths so numeric cells keep padding from their left borders.
+  const tableLeft = margin
   const tableRight = pageW - margin
+  const wSr = 14
+  const wQty = 18
+  const wRate = 30
+  const wAmount = 32
+  const wProduct = contentW - wSr - wQty - wRate - wAmount
+  const col = {
+    sr: tableLeft,
+    product: tableLeft + wSr,
+    qty: tableLeft + wSr + wProduct,
+    rate: tableLeft + wSr + wProduct + wQty,
+    amount: tableLeft + wSr + wProduct + wQty + wRate,
+    end: tableRight,
+  }
+  const pad = 2
   const rowH = 8
   const headerH = 8
 
@@ -325,17 +334,17 @@ async function buildInvoicePdf(hotelInput: ExportHotelInfo, invoice: InvoiceExpo
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(8)
   doc.setTextColor(...BRAND.white)
-  doc.text('Sr no.', col.sr + 2, y + 5.3)
-  doc.text('Product', col.product + 2, y + 5.3)
-  doc.text('Qty', col.qty - 2, y + 5.3, { align: 'right' })
-  doc.text('Rate', col.rate - 2, y + 5.3, { align: 'right' })
-  doc.text('Amount', col.amount - 2, y + 5.3, { align: 'right' })
+  doc.text('Sr no.', col.sr + pad, y + 5.3)
+  doc.text('Product', col.product + pad, y + 5.3)
+  doc.text('Qty', col.rate - pad, y + 5.3, { align: 'right' })
+  doc.text('Rate', col.amount - pad, y + 5.3, { align: 'right' })
+  doc.text('Amount', col.end - pad, y + 5.3, { align: 'right' })
   y += headerH
 
   const drawVLines = (top: number, bottom: number) => {
     doc.setDrawColor(160, 160, 170)
     doc.setLineWidth(0.2)
-    for (const x of [col.product, col.qty - 10, col.rate - 10]) {
+    for (const x of [col.product, col.qty, col.rate, col.amount]) {
       doc.line(x, top, x, bottom)
     }
   }
@@ -353,12 +362,12 @@ async function buildInvoicePdf(hotelInput: ExportHotelInfo, invoice: InvoiceExpo
     drawVLines(top, top + rowH)
 
     doc.setTextColor(...BRAND.purpleInk)
-    doc.text(String(index + 1), col.sr + 2, top + 5.3)
-    const productLines = doc.splitTextToSize(item.product, col.qty - col.product - 14) as string[]
-    doc.text(productLines[0] ?? item.product, col.product + 2, top + 5.3)
-    doc.text(moneyPlain(item.qty), col.qty - 2, top + 5.3, { align: 'right' })
-    doc.text(moneyPlain(item.rate), col.rate - 2, top + 5.3, { align: 'right' })
-    doc.text(moneyPlain(item.amount), col.amount - 2, top + 5.3, { align: 'right' })
+    doc.text(String(index + 1), col.sr + pad, top + 5.3)
+    const productLines = doc.splitTextToSize(item.product, wProduct - pad * 2) as string[]
+    doc.text(productLines[0] ?? item.product, col.product + pad, top + 5.3)
+    doc.text(moneyPlain(item.qty), col.rate - pad, top + 5.3, { align: 'right' })
+    doc.text(moneyPlain(item.rate), col.amount - pad, top + 5.3, { align: 'right' })
+    doc.text(moneyPlain(item.amount), col.end - pad, top + 5.3, { align: 'right' })
     qtySum += item.qty
     lineTotal += item.amount
     y += rowH
@@ -373,10 +382,10 @@ async function buildInvoicePdf(hotelInput: ExportHotelInfo, invoice: InvoiceExpo
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(9)
   doc.setTextColor(...BRAND.purpleInk)
-  doc.text('Total', col.product + 2, y + 5.3)
-  doc.text(moneyPlain(qtySum), col.qty - 2, y + 5.3, { align: 'right' })
-  doc.text('-', col.rate - 2, y + 5.3, { align: 'right' })
-  doc.text(moneyPlain(lineTotal), col.amount - 2, y + 5.3, { align: 'right' })
+  doc.text('Total', col.product + pad, y + 5.3)
+  doc.text(moneyPlain(qtySum), col.rate - pad, y + 5.3, { align: 'right' })
+  doc.text('-', col.amount - pad, y + 5.3, { align: 'right' })
+  doc.text(moneyPlain(lineTotal), col.end - pad, y + 5.3, { align: 'right' })
   y += rowH + 8
 
   // ── Please Note (left) + Totals (right) ──────────────────────
