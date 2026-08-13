@@ -924,6 +924,11 @@ export function BillingOverview({
             />
             Payment received now
           </label>
+          {!newMarkPaid && (
+            <p className="text-xs text-muted-foreground">
+              Invoice will be created with balance due (unpaid).
+            </p>
+          )}
         </ModalBody>
         <ModalFooter>
           <button
@@ -932,7 +937,7 @@ export function BillingOverview({
             onClick={submitNewInvoice}
             className="app-btn app-btn-primary w-full"
           >
-            {pending ? 'Creating…' : 'Create invoice'}
+            {pending ? 'Creating…' : newMarkPaid ? 'Create & mark paid' : 'Create unpaid invoice'}
           </button>
         </ModalFooter>
       </CenteredModal>

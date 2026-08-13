@@ -135,7 +135,7 @@ export function CheckoutInvoiceDialog({
     setError(null)
     startTransition(async () => {
       if (!markAsPaid) {
-        toast.message('Checked in unpaid — collect before the guest uses the room when possible.')
+        toast.message('Left unpaid — collect before the guest uses the room when possible.')
         onClose()
         return
       }

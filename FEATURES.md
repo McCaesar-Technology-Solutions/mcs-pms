@@ -23,7 +23,7 @@ Production features shipped beyond the original UI prototype.
 - **Housekeeping** — kanban (desktop + `/mobile/housekeeping`); auto clean task on checkout.
 - **Complaints** — guest submit (or staff log on a guest's behalf) → manager assign → technician invoice → manager approve → work → completion approval → resolved. Owners get a **read-only** lifecycle view at `/owner/complaints`; assigned technicians can call/WhatsApp the guest.
 - **Staff** — invite managers and receptionists by **email**, technicians by **phone**; phone numbers editable on profiles.
-- **Billing / GRA / Analytics** — owner only; invoice numbering, PDF export, tax reports, manual payments (cash/MoMo/card), partial payments and refunds, payment ledger reconciliation, guest folio posting with checkout rollup, night audit. Managers' dashboard hides revenue metrics.
+- **Billing / GRA / Analytics** — owner Billing, GRA reports, analytics, refunds, payment ledger, night audit. Managers share invoices/billing (including unpaid ad-hoc bills and unpaid stay invoices); receptionists record stay payments. Guest folio posting with checkout rollup. Managers' dashboard hides revenue metrics.
 - **Payroll** — owner (full) / manager (draft prepare): staff pay profiles, monthly pay runs (draft → approve → paid), housekeeping commission accrual, payslip PDF + MoMo/bank CSV, optional expense posting. See Phase 2 backlog below (PAYE/SSNIT engine, timesheets, booking commissions, self-service slips).
 - **Guest privacy** — owner export/erase PII from the staff dashboard.
 - **Production ops** — health/ready endpoints; daily Vercel crons + GitHub Actions for sub-daily jobs (notifications, lifecycle, access-job reclaim); notification outbox with retries.

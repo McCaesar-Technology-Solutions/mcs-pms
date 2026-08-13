@@ -4,7 +4,8 @@ import { PageHeader } from '@/components/dashboard/page-header'
 import { PageTabShell } from '@/components/dashboard/page-tab-shell'
 import { getInvoicesData } from '@/lib/data/billing'
 import { getOnlinePaymentsData } from '@/lib/data/online-payments'
-import { getHotelExportInfo } from '@/lib/data/settings'
+import { getHotelExportInfo, getHotelTaxRates } from '@/lib/data/settings'
+import { getProfile } from '@/lib/auth/get-profile'
 import { isPaymentsEnabled } from '@/lib/payments/enabled'
 
 export default async function ManagerInvoicesPage({
@@ -14,9 +15,11 @@ export default async function ManagerInvoicesPage({
 }) {
   const { q, open } = await searchParams
   const paymentsEnabled = isPaymentsEnabled()
-  const [invoices, hotel, onlinePayments] = await Promise.all([
+  const profile = await getProfile()
+  const [invoices, hotel, taxRates, onlinePayments] = await Promise.all([
     getInvoicesData(),
     getHotelExportInfo(),
+    profile?.hotel_id ? getHotelTaxRates(profile.hotel_id) : Promise.resolve(undefined),
     getOnlinePaymentsData(100),
   ])
 
@@ -42,6 +45,7 @@ export default async function ManagerInvoicesPage({
               initialQuery={q}
               openInvoiceId={open}
               vatMode={hotel?.vatMode ?? 'exclusive'}
+              taxRates={taxRates}
               canRecordPayment
               canCreateInvoice
               canRefund={false}

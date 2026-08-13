@@ -613,7 +613,7 @@ export async function issueStayInvoice(input: unknown): Promise<IssueStayInvoice
       action: issued.created ? 'created' : 'updated',
       summary: `${issued.created ? 'Issued' : 'Refreshed'} stay invoice ${issued.invoiceNumber} for ${stayReservation.guest_name}${
         issued.discountAmount > 0 ? ` (discount ₵${issued.discountAmount})` : ''
-      }`,
+      }${markAsPaid ? '' : ' (unpaid)'}`,
     })
 
     revalidateBilling()
