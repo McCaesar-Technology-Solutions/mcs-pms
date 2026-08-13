@@ -49,6 +49,12 @@ export interface Hotel {
   invoice_seq_year: number | null
   guest_portal_slug: string | null
   vat_mode: VatMode | null
+  tax_nhil_rate?: number | null
+  tax_getfund_rate?: number | null
+  tax_vat_rate?: number | null
+  tax_elevy_rate?: number | null
+  tax_covid_rate?: number | null
+  tax_tourism_levy_rate?: number | null
   profile_image_path: string | null
   notification_sms_prefs?: Record<string, boolean> | null
   notification_email_prefs?: Record<string, boolean> | null
@@ -148,6 +154,12 @@ export interface Reservation {
   balanceDue: number
   paymentStatus: ReservationPaymentStatus
   depositAmount: number
+  /** Stay-linked invoice when one exists. */
+  invoiceId?: string | null
+  discountType?: 'none' | 'percent' | 'fixed'
+  discountValue?: number
+  discountAmount?: number
+  discountReason?: string | null
   paymentMethod?: PaymentMethod | null
   currency: string
   source: 'website' | 'airbnb' | 'booking' | 'walk_in' | 'other'
@@ -415,6 +427,10 @@ export interface DbReservation {
   weekly_rate: number | null
   monthly_rate: number | null
   total_amount: number | null
+  discount_type?: 'none' | 'percent' | 'fixed' | null
+  discount_value?: number | null
+  discount_amount?: number | null
+  discount_reason?: string | null
   payment_status: ReservationPaymentStatus | null
   amount_paid: number | null
   deposit_amount: number | null
@@ -476,11 +492,22 @@ export interface DbInvoice {
   guest_name: string
   invoice_number: string | null
   subtotal: number
+  discount_amount?: number | null
+  discount_reason?: string | null
   vat_amount: number | null
   nhil_amount: number | null
   getfund_amount: number | null
   covid_levy_amount: number | null
   elevy_amount: number | null
+  tourism_levy_amount?: number | null
+  tax_snapshot?: {
+    nhil: number
+    getfund: number
+    covid: number
+    vat: number
+    elevy: number
+    tourism: number
+  } | null
   total_amount: number
   payment_method: PaymentMethod | null
   payment_status: PaymentStatus | null

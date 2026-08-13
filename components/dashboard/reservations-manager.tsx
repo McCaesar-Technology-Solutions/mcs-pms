@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState, useTransition } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
-import { ChevronRight, LogIn, LogOut, Plus, Search, X, XCircle, CalendarPlus, ArrowRightLeft, UserX, Pencil } from 'lucide-react'
+import { ChevronRight, LogIn, LogOut, Plus, Receipt, Search, X, XCircle, CalendarPlus, ArrowRightLeft, UserX, Pencil } from 'lucide-react'
+import { issueStayInvoice } from '@/app/actions/invoices'
 import { CheckoutInvoiceDialog } from '@/components/dashboard/checkout-invoice-dialog'
 import {
   bookAndCheckIn,
@@ -42,6 +43,7 @@ import {
 import type { InvoiceExportRow } from '@/lib/export/types'
 import type { PaymentMethod, Reservation, ReservationChannel, ReservationPaymentStatus, RateType, UserRole } from '@/types'
 import type { DepositDisposition } from '@/lib/billing/deposit-disposition'
+import { computeDiscountAmount, type DiscountType } from '@/lib/billing/discount'
 import {
   canCheckIn,
   canCancelReservationStatus,
@@ -744,6 +746,69 @@ function formatDate(value: string) {
   })
 }
 
+function DiscountFields({
+  type,
+  value,
+  reason,
+  stayTotal,
+  onTypeChange,
+  onValueChange,
+  onReasonChange,
+}: {
+  type: DiscountType
+  value: string
+  reason: string
+  stayTotal: number
+  onTypeChange: (type: DiscountType) => void
+  onValueChange: (value: string) => void
+  onReasonChange: (reason: string) => void
+}) {
+  const computed = computeDiscountAmount(stayTotal, type, Number(value || 0))
+  return (
+    <div className="space-y-2 rounded-xl surface-inset p-3">
+      <p className="text-xs font-medium text-muted-foreground">Guest discount (before tax)</p>
+      <div className="grid grid-cols-2 gap-2">
+        <select
+          value={type}
+          onChange={(e) => onTypeChange(e.target.value as DiscountType)}
+          className={APP_FIELD_CLASS}
+        >
+          <option value="none">No discount</option>
+          <option value="percent">Percent %</option>
+          <option value="fixed">Fixed ₵</option>
+        </select>
+        <input
+          type="number"
+          min={0}
+          max={type === 'percent' ? 100 : undefined}
+          step="0.01"
+          disabled={type === 'none'}
+          value={value}
+          onChange={(e) => onValueChange(e.target.value)}
+          placeholder={type === 'percent' ? 'e.g. 10' : 'e.g. 50'}
+          className={APP_FIELD_CLASS}
+        />
+      </div>
+      {type !== 'none' && (
+        <>
+          <input
+            type="text"
+            value={reason}
+            onChange={(e) => onReasonChange(e.target.value)}
+            placeholder="Reason (optional)"
+            maxLength={200}
+            className={APP_FIELD_CLASS}
+          />
+          <p className="text-xs text-muted-foreground">
+            Applies ₵{computed.toLocaleString()} off the stay base
+            {stayTotal > 0 ? ` (of ₵${stayTotal.toLocaleString()})` : ''}.
+          </p>
+        </>
+      )}
+    </div>
+  )
+}
+
 interface ReservationDrawerProps {
   reservation: Reservation
   roomOptions: RoomOption[]
@@ -792,6 +857,7 @@ function ReservationDrawer({
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
   const [depositAmount, setDepositAmount] = useState('')
   const [recordingDeposit, setRecordingDeposit] = useState(false)
+  const [issuingInvoice, setIssuingInvoice] = useState(false)
   const [earlyCheckout, setEarlyCheckout] = useState(false)
   const [markAsPaid, setMarkAsPaid] = useState(true)
   const [includeTax, setIncludeTax] = useState(true)
@@ -807,6 +873,24 @@ function ReservationDrawer({
   const [editNightlyRate, setEditNightlyRate] = useState(String(reservation.nightlyRate))
   const [editWeeklyRate, setEditWeeklyRate] = useState(String(reservation.weeklyRate))
   const [editMonthlyRate, setEditMonthlyRate] = useState(String(reservation.monthlyRate))
+  const [editDiscountType, setEditDiscountType] = useState<DiscountType>(
+    reservation.discountType ?? 'none',
+  )
+  const [editDiscountValue, setEditDiscountValue] = useState(
+    String(reservation.discountValue ?? 0),
+  )
+  const [editDiscountReason, setEditDiscountReason] = useState(
+    reservation.discountReason ?? '',
+  )
+  const [issueDiscountType, setIssueDiscountType] = useState<DiscountType>(
+    reservation.discountType ?? 'none',
+  )
+  const [issueDiscountValue, setIssueDiscountValue] = useState(
+    String(reservation.discountValue ?? 0),
+  )
+  const [issueDiscountReason, setIssueDiscountReason] = useState(
+    reservation.discountReason ?? '',
+  )
   const [selectedGuestId, setSelectedGuestId] = useState<string | null>(null)
   const [portalUrl, setPortalUrl] = useState<string | null>(null)
   const [portalPin, setPortalPin] = useState<string | null>(null)
@@ -997,13 +1081,25 @@ function ReservationDrawer({
                 </span>
                 <span className="font-bold text-foreground">₵{reservation.totalPrice}</span>
               </div>
+              {(reservation.discountAmount ?? 0) > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">
+                    {reservation.discountReason
+                      ? `Discount — ${reservation.discountReason}`
+                      : 'Discount'}
+                  </span>
+                  <span className="font-semibold text-foreground">
+                    -₵{reservation.discountAmount}
+                  </span>
+                </div>
+              )}
               {reservation.folioSubtotal > 0 && (
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Folio (unbilled)</span>
                   <span className="font-semibold text-foreground">₵{reservation.folioSubtotal}</span>
                 </div>
               )}
-              {reservation.folioSubtotal > 0 && (
+              {(reservation.folioSubtotal > 0 || (reservation.discountAmount ?? 0) > 0) && (
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Estimated total</span>
                   <span className="font-bold text-foreground">₵{reservation.estimatedTotal}</span>
@@ -1025,6 +1121,129 @@ function ReservationDrawer({
                 </p>
               )}
             </div>
+
+            {(reservation.status === 'checked_in' ||
+              reservation.status === 'overstay' ||
+              reservation.status === 'checkout_in_progress') &&
+              !issuingInvoice && (
+              <div className="mt-4 flex flex-col gap-2">
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() => setIssuingInvoice(true)}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-white py-2.5 text-sm font-semibold text-foreground shadow-elevation-1 transition-all hover:shadow-elevation-2 disabled:opacity-50"
+                >
+                  <Receipt className="h-4 w-4" />
+                  {reservation.invoiceId ? 'Refresh invoice & collect' : 'Issue invoice & collect'}
+                </button>
+                {reservation.invoiceId && onCheckoutInvoice && (
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() => onCheckoutInvoice(reservation.invoiceId!, reservation.guestName)}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-white py-2.5 text-sm font-semibold text-muted-foreground shadow-elevation-1 disabled:opacity-50"
+                  >
+                    View invoice
+                  </button>
+                )}
+              </div>
+            )}
+
+            {issuingInvoice && (
+              <div className="mt-4 space-y-3 rounded-xl border border-border bg-background p-3">
+                <p className="text-xs font-medium text-muted-foreground">
+                  {reservation.invoiceId
+                    ? 'Refresh stay invoice with current folio, then optionally record payment.'
+                    : 'Create a stay invoice now. Checkout will reuse this invoice (no duplicate).'}
+                </p>
+                <DiscountFields
+                  type={issueDiscountType}
+                  value={issueDiscountValue}
+                  reason={issueDiscountReason}
+                  stayTotal={reservation.totalPrice}
+                  onTypeChange={setIssueDiscountType}
+                  onValueChange={setIssueDiscountValue}
+                  onReasonChange={setIssueDiscountReason}
+                />
+                <label className="block text-xs font-medium text-muted-foreground">
+                  Payment method
+                  <select
+                    value={paymentMethod}
+                    onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
+                    className="mt-1 w-full rounded-lg border border-[#E9ECEF] px-3 py-2 text-sm"
+                  >
+                    {PAYMENT_METHODS.map((m) => (
+                      <option key={m} value={m}>
+                        {PAYMENT_METHOD_LABELS[m]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="flex items-center gap-2 text-sm text-foreground">
+                  <input
+                    type="checkbox"
+                    checked={markAsPaid}
+                    onChange={(e) => setMarkAsPaid(e.target.checked)}
+                  />
+                  Guest paid full balance now
+                </label>
+                <label className="flex items-center gap-2 text-sm text-foreground">
+                  <input
+                    type="checkbox"
+                    checked={includeTax}
+                    onChange={(e) => setIncludeTax(e.target.checked)}
+                  />
+                  Include Ghana tax
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() => setIssuingInvoice(false)}
+                    className="flex-1 rounded-xl bg-white py-2.5 text-sm font-semibold text-muted-foreground shadow-elevation-1"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() => {
+                      setError(null)
+                      startTransition(async () => {
+                        const result = await issueStayInvoice({
+                          reservationId: reservation.id,
+                          paymentMethod,
+                          markAsPaid,
+                          includeTax,
+                          discountType: issueDiscountType,
+                          discountValue: Number(issueDiscountValue || 0),
+                          discountReason: issueDiscountReason,
+                        })
+                        if (!result.success) {
+                          setError(result.error)
+                          return
+                        }
+                        toast.success(
+                          result.created ? 'Invoice issued' : 'Invoice refreshed',
+                        )
+                        setIssuingInvoice(false)
+                        onMutated()
+                        if (onCheckoutInvoice) {
+                          onCheckoutInvoice(
+                            result.invoiceId,
+                            reservation.guestName,
+                            result.invoicePreview,
+                          )
+                        }
+                      })
+                    }}
+                    className="flex-[2] rounded-xl bg-[#D4A62E] py-2.5 text-sm font-semibold text-gray-900 disabled:opacity-50"
+                  >
+                    {pending ? 'Saving…' : markAsPaid ? 'Issue & mark paid' : 'Issue invoice'}
+                  </button>
+                </div>
+              </div>
+            )}
 
             {canRecordDeposit && !recordingDeposit && (
               <div className="mt-4 flex flex-col gap-2 sm:flex-row">
@@ -1282,9 +1501,29 @@ function ReservationDrawer({
                       />
                     </FormField>
                   )}
+                  <DiscountFields
+                    type={editDiscountType}
+                    value={editDiscountValue}
+                    reason={editDiscountReason}
+                    stayTotal={editTotal}
+                    onTypeChange={setEditDiscountType}
+                    onValueChange={setEditDiscountValue}
+                    onReasonChange={setEditDiscountReason}
+                  />
                   <div className="flex items-center justify-between rounded-xl bg-white px-3 py-2 text-sm shadow-elevation-1">
                     <span className="text-muted-foreground">{editNights} nights</span>
-                    <span className="font-bold">₵{editTotal.toLocaleString()}</span>
+                    <span className="font-bold">
+                      ₵
+                      {Math.max(
+                        0,
+                        editTotal -
+                          computeDiscountAmount(
+                            editTotal,
+                            editDiscountType,
+                            Number(editDiscountValue || 0),
+                          ),
+                      ).toLocaleString()}
+                    </span>
                   </div>
                   <div className="flex gap-2">
                     <button
@@ -1317,6 +1556,9 @@ function ReservationDrawer({
                               nightlyRate: Number(editNightlyRate || 0),
                               weeklyRate: Number(editWeeklyRate || 0),
                               monthlyRate: Number(editMonthlyRate || 0),
+                              discountType: editDiscountType,
+                              discountValue: Number(editDiscountValue || 0),
+                              discountReason: editDiscountReason,
                             }),
                           () => {
                             setEditing(false)
@@ -1910,6 +2152,9 @@ function ReservationFormModal({
   const [nightlyRate, setNightlyRate] = useState(String(roomOptions[0]?.nightlyRate ?? 0))
   const [weeklyRate, setWeeklyRate] = useState(String(roomOptions[0]?.weeklyRate ?? 0))
   const [monthlyRate, setMonthlyRate] = useState(String(roomOptions[0]?.monthlyRate ?? 0))
+  const [discountType, setDiscountType] = useState<DiscountType>('none')
+  const [discountValue, setDiscountValue] = useState('0')
+  const [discountReason, setDiscountReason] = useState('')
   const [selectedGuestId, setSelectedGuestId] = useState<string | null>(null)
   const [portalUrl, setPortalUrl] = useState<string | null>(null)
   const [portalPin, setPortalPin] = useState<string | null>(null)
@@ -1983,6 +2228,9 @@ function ReservationFormModal({
         weeklyRate: Number(weeklyRate || 0),
         monthlyRate: Number(monthlyRate || 0),
         guestId: selectedGuestId ?? undefined,
+        discountType,
+        discountValue: Number(discountValue || 0),
+        discountReason,
       }
 
       if (flowMode === 'check_in_now') {
@@ -2265,11 +2513,27 @@ function ReservationFormModal({
           </FormField>
         )}
 
+        <DiscountFields
+          type={discountType}
+          value={discountValue}
+          reason={discountReason}
+          stayTotal={total}
+          onTypeChange={setDiscountType}
+          onValueChange={setDiscountValue}
+          onReasonChange={setDiscountReason}
+        />
+
         <div className="flex items-center justify-between rounded-xl surface-inset px-4 py-3 text-sm">
           <span className="text-muted-foreground">
             {nights} night{nights > 1 ? 's' : ''} · {rateTypeLabel(rateType)}
           </span>
-          <span className="font-bold text-foreground">₵{total.toLocaleString()}</span>
+          <span className="font-bold text-foreground">
+            ₵
+            {Math.max(
+              0,
+              total - computeDiscountAmount(total, discountType, Number(discountValue || 0)),
+            ).toLocaleString()}
+          </span>
         </div>
 
         {error && (

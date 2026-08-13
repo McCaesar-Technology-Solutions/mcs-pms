@@ -24,7 +24,8 @@ function invoiceTax(inv: DbInvoice): number {
     (inv.nhil_amount ?? 0) +
     (inv.getfund_amount ?? 0) +
     (inv.covid_levy_amount ?? 0) +
-    (inv.elevy_amount ?? 0)
+    (inv.elevy_amount ?? 0) +
+    (inv.tourism_levy_amount ?? 0)
   )
 }
 

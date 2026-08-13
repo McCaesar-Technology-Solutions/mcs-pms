@@ -5,6 +5,7 @@ import { propertyImagePublicUrl } from '@/lib/properties/image-storage'
 import type { Hotel, NoShowChargePolicy, VatMode } from '@/types'
 import { withInvoiceHotelContact } from '@/lib/export/invoice-hotel-contact'
 import type { ExportHotelInfo } from '@/lib/export/types'
+import { resolveHotelTaxRates, type HotelTaxRates } from '@/lib/tax'
 import {
   mergeNotificationPrefs,
   NOTIFICATION_TEMPLATE_KEYS,
@@ -40,6 +41,17 @@ export interface HotelSettings {
   noShowHoldRoom: boolean
   useLifecycleV2: boolean
   timezone: string
+  /** Resolved fractions used for new invoices. */
+  taxRates: HotelTaxRates
+  /** Raw hotel overrides (null = system default). Percents for UI = rate * 100. */
+  taxRateOverrides: {
+    nhil: number | null
+    getfund: number | null
+    vat: number | null
+    elevy: number | null
+    covid: number | null
+    tourism: number | null
+  }
 }
 
 export async function getActiveHotelSettings(): Promise<HotelSettings | null> {
@@ -80,6 +92,15 @@ export async function getActiveHotelSettings(): Promise<HotelSettings | null> {
     EMAIL_STAFF_TEMPLATE_KEYS.map((key) => [key, mergeEmailPrefs(storedEmailPrefs)[key]]),
   ) as NotificationEmailPrefs
 
+  const rateRow = h as Hotel & {
+    tax_nhil_rate?: number | null
+    tax_getfund_rate?: number | null
+    tax_vat_rate?: number | null
+    tax_elevy_rate?: number | null
+    tax_covid_rate?: number | null
+    tax_tourism_levy_rate?: number | null
+  }
+
   return {
     id: h.id,
     name: h.name,
@@ -103,6 +124,16 @@ export async function getActiveHotelSettings(): Promise<HotelSettings | null> {
     noShowHoldRoom: h.no_show_hold_room ?? false,
     useLifecycleV2: h.use_lifecycle_v2 ?? false,
     timezone: normalizeHotelTimezone(h.timezone ?? DEFAULT_HOTEL_TIMEZONE),
+    taxRates: resolveHotelTaxRates(rateRow),
+    taxRateOverrides: {
+      nhil: rateRow.tax_nhil_rate != null ? Number(rateRow.tax_nhil_rate) : null,
+      getfund: rateRow.tax_getfund_rate != null ? Number(rateRow.tax_getfund_rate) : null,
+      vat: rateRow.tax_vat_rate != null ? Number(rateRow.tax_vat_rate) : null,
+      elevy: rateRow.tax_elevy_rate != null ? Number(rateRow.tax_elevy_rate) : null,
+      covid: rateRow.tax_covid_rate != null ? Number(rateRow.tax_covid_rate) : null,
+      tourism:
+        rateRow.tax_tourism_levy_rate != null ? Number(rateRow.tax_tourism_levy_rate) : null,
+    },
   }
 }
 
@@ -137,4 +168,33 @@ export async function getHotelVatMode(hotelId: string): Promise<VatMode> {
   const admin = createAdminClient()
   const { data } = await admin.from('hotels').select('vat_mode').eq('id', hotelId).maybeSingle()
   return (data?.vat_mode ?? 'exclusive') as VatMode
+}
+
+export async function getHotelTaxRates(hotelId: string): Promise<HotelTaxRates> {
+  const admin = createAdminClient()
+  const { data } = await admin
+    .from('hotels')
+    .select(
+      'tax_nhil_rate, tax_getfund_rate, tax_vat_rate, tax_elevy_rate, tax_covid_rate, tax_tourism_levy_rate',
+    )
+    .eq('id', hotelId)
+    .maybeSingle()
+  return resolveHotelTaxRates(data)
+}
+
+export async function getHotelTaxConfig(
+  hotelId: string,
+): Promise<{ vatMode: VatMode; rates: HotelTaxRates }> {
+  const admin = createAdminClient()
+  const { data } = await admin
+    .from('hotels')
+    .select(
+      'vat_mode, tax_nhil_rate, tax_getfund_rate, tax_vat_rate, tax_elevy_rate, tax_covid_rate, tax_tourism_levy_rate',
+    )
+    .eq('id', hotelId)
+    .maybeSingle()
+  return {
+    vatMode: (data?.vat_mode ?? 'exclusive') as VatMode,
+    rates: resolveHotelTaxRates(data),
+  }
 }

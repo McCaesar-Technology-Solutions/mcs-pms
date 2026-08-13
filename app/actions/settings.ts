@@ -47,19 +47,14 @@ async function requireOwnerOrManagerSettings(hotelId: string) {
   return { ok: true as const, userId: result.userId, profile: result.profile }
 }
 
-export async function updateHotelSettings(input: {
-  hotelId: string
-  name: string
-  address: string
-  city: string
-  region: string
-  vat_registration_number?: string
-  vat_mode?: 'exclusive' | 'inclusive'
-  invoice_prefix?: string
-}): Promise<SettingsActionResult> {
+export async function updateHotelSettings(input: unknown): Promise<SettingsActionResult> {
   const parsed = updateHotelSettingsSchema.safeParse(input)
   if (!parsed.success) {
-    return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid input.' }
+    const msg = parsed.error.issues[0]?.message
+    return {
+      success: false,
+      error: msg?.includes('Tax rate') ? msg : (msg ?? 'Invalid input.'),
+    }
   }
 
   const auth = await requireOwnerSettings(parsed.data.hotelId)
@@ -68,7 +63,9 @@ export async function updateHotelSettings(input: {
   const admin = createAdminClient()
   const { data: before } = await admin
     .from('hotels')
-    .select('name, vat_mode, invoice_prefix')
+    .select(
+      'name, vat_mode, invoice_prefix, tax_nhil_rate, tax_getfund_rate, tax_vat_rate, tax_elevy_rate, tax_covid_rate, tax_tourism_levy_rate',
+    )
     .eq('id', parsed.data.hotelId)
     .maybeSingle()
 
@@ -83,6 +80,24 @@ export async function updateHotelSettings(input: {
       ...(parsed.data.vat_mode ? { vat_mode: parsed.data.vat_mode } : {}),
       ...(parsed.data.invoice_prefix?.trim()
         ? { invoice_prefix: parsed.data.invoice_prefix.trim().toUpperCase() }
+        : {}),
+      ...(parsed.data.taxNhilPercent !== undefined
+        ? { tax_nhil_rate: parsed.data.taxNhilPercent }
+        : {}),
+      ...(parsed.data.taxGetfundPercent !== undefined
+        ? { tax_getfund_rate: parsed.data.taxGetfundPercent }
+        : {}),
+      ...(parsed.data.taxVatPercent !== undefined
+        ? { tax_vat_rate: parsed.data.taxVatPercent }
+        : {}),
+      ...(parsed.data.taxElevyPercent !== undefined
+        ? { tax_elevy_rate: parsed.data.taxElevyPercent }
+        : {}),
+      ...(parsed.data.taxCovidPercent !== undefined
+        ? { tax_covid_rate: parsed.data.taxCovidPercent }
+        : {}),
+      ...(parsed.data.taxTourismPercent !== undefined
+        ? { tax_tourism_levy_rate: parsed.data.taxTourismPercent }
         : {}),
     })
     .eq('id', parsed.data.hotelId)
@@ -99,6 +114,20 @@ export async function updateHotelSettings(input: {
   if (nextPrefix && before?.invoice_prefix !== nextPrefix) {
     changes.push(`Invoice prefix: ${before?.invoice_prefix ?? '—'} → ${nextPrefix}`)
   }
+  const rateChanged =
+    (parsed.data.taxNhilPercent !== undefined &&
+      before?.tax_nhil_rate !== parsed.data.taxNhilPercent) ||
+    (parsed.data.taxGetfundPercent !== undefined &&
+      before?.tax_getfund_rate !== parsed.data.taxGetfundPercent) ||
+    (parsed.data.taxVatPercent !== undefined &&
+      before?.tax_vat_rate !== parsed.data.taxVatPercent) ||
+    (parsed.data.taxElevyPercent !== undefined &&
+      before?.tax_elevy_rate !== parsed.data.taxElevyPercent) ||
+    (parsed.data.taxCovidPercent !== undefined &&
+      before?.tax_covid_rate !== parsed.data.taxCovidPercent) ||
+    (parsed.data.taxTourismPercent !== undefined &&
+      before?.tax_tourism_levy_rate !== parsed.data.taxTourismPercent)
+  if (rateChanged) changes.push('Tax rates updated')
 
   void writeAuditLog({
     hotelId: parsed.data.hotelId,

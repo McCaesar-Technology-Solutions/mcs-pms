@@ -2,9 +2,10 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { computeInvoiceTaxes, noTaxInvoice } from '@/lib/tax'
-import { getHotelVatMode } from '@/lib/data/settings'
+import { computeInvoiceTaxes, noTaxInvoice, taxSnapshotFromRates } from '@/lib/tax'
+import { getHotelTaxConfig } from '@/lib/data/settings'
 import { allocateInvoiceNumber } from '@/lib/invoices/numbering'
+import { createOrRefreshStayInvoice } from '@/lib/billing/build-stay-invoice'
 import { createPostCheckoutCleanTask } from '@/lib/housekeeping/checkout-task'
 import { phoneSchema } from '@/lib/phone'
 import { generatePortalPin } from '@/lib/guest/portal-pin'
@@ -33,7 +34,6 @@ import {
 import { writeAuditLog, logRoomStatusChange } from '@/lib/audit/log'
 import { canCheckIn, canCheckOut } from '@/lib/reservations/lifecycle'
 import { runNotifyTask } from '@/lib/notifications/notify-task'
-import { buildCheckoutInvoicePreview } from '@/lib/billing/checkout-invoice-export'
 import {
   buildCheckoutInvoicePaymentState,
   finalizeReservationCheckoutPayment,
@@ -114,7 +114,7 @@ async function computeCheckoutTaxes(
   includeTax = true,
   weeklyRateInput?: number | null,
 ) {
-  const vatMode = await getHotelVatMode(hotelId)
+  const { vatMode, rates } = await getHotelTaxConfig(hotelId)
 
   let chargeAmount = 0
   if (
@@ -143,9 +143,9 @@ async function computeCheckoutTaxes(
   }
 
   const taxes = includeTax
-    ? computeInvoiceTaxes(chargeAmount, vatMode)
+    ? computeInvoiceTaxes(chargeAmount, vatMode, rates)
     : noTaxInvoice(chargeAmount)
-  return { chargeAmount, taxes, vatMode }
+  return { chargeAmount, taxes, vatMode, rates }
 }
 
 async function findInHouseGuestByPhone(
@@ -652,121 +652,29 @@ async function executeStayCheckout(
     return { success: false, error: 'Check-out must be after check-in.' }
   }
 
-  const { taxes: roomTaxes } = await computeCheckoutTaxes(
-    admin,
-    reservation.hotel_id,
-    reservation.check_in,
-    effectiveCheckOut,
-    reservation.room_id,
-    reservation.rate_type,
-    reservation.nightly_rate,
-    reservation.monthly_rate,
-    reservation.total_amount,
-    reservation.check_out,
-    input.includeTax,
-    reservation.weekly_rate,
-  )
-
-  const guestIdForFolio = reservation.guest_id
-  const { taxes, folioCharges, folioSubtotal } = guestIdForFolio
-    ? await prepareCheckoutTaxesWithFolio(
-        admin,
-        reservation.hotel_id,
-        guestIdForFolio,
-        reservation.id,
-        roomTaxes,
-        input.includeTax,
-      )
-    : { taxes: roomTaxes, folioCharges: [], folioSubtotal: 0 }
-
-  const priorDeposit = Number(reservation.amount_paid ?? 0)
-
-  const now = new Date().toISOString()
-  const dueAt = paidNow
-    ? now
-    : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
-  const checkoutPayment = buildCheckoutInvoicePaymentState({
-    invoiceTotal: taxes.total,
-    priorDeposit,
-    paidNow,
-  })
-
-  const { data: existingInvoice } = await admin
-    .from('invoices')
-    .select('id')
-    .eq('reservation_id', reservation.id)
-    .maybeSingle()
-
-  let invoiceId: string | null = existingInvoice?.id ?? null
+  let invoiceId: string | null = null
   let invoicePreview: InvoiceExportRow | undefined
+  let taxesTotal = 0
+  let folioSubtotal = 0
 
-  if (!existingInvoice) {
-    const invoiceNumber = await allocateInvoiceNumber(reservation.hotel_id)
-    const { data: invoiceRow } = await admin
-      .from('invoices')
-      .insert({
-        hotel_id: reservation.hotel_id,
-        reservation_id: reservation.id,
-        guest_id: reservation.guest_id,
-        guest_name: reservation.guest_name,
-        invoice_number: invoiceNumber,
-        subtotal: taxes.subtotal,
-        nhil_amount: taxes.nhil,
-        getfund_amount: taxes.getfund,
-        covid_levy_amount: taxes.covid,
-        vat_amount: taxes.vat,
-        elevy_amount: taxes.elevy,
-        total_amount: taxes.total,
-        payment_method: input.paymentMethod,
-        payment_status: checkoutPayment.paymentStatus,
-        amount_paid: checkoutPayment.amountPaid,
-        issued_at: now,
-        due_at: dueAt,
-        paid_at: checkoutPayment.paymentStatus === 'paid' ? now : null,
-      })
-      .select('id')
-      .single()
-
-    if (invoiceRow?.id && folioCharges.length) {
-      await linkFolioChargesToInvoice(
-        admin,
-        folioCharges.map((c) => c.id),
-        invoiceRow.id,
-      )
-    }
-
-    if (invoiceRow?.id) {
-      invoiceId = invoiceRow.id
-      invoicePreview = buildCheckoutInvoicePreview({
-        invoiceId: invoiceRow.id,
-        invoiceNumber,
-        guestName: reservation.guest_name,
-        guestPhone,
-        roomNumber,
-        checkIn: reservation.check_in,
-        checkOut: effectiveCheckOut,
-        issuedAt: now,
-        subtotal: taxes.subtotal,
-        nhil: taxes.nhil,
-        getfund: taxes.getfund,
-        covid: taxes.covid,
-        vat: taxes.vat,
-        elevy: taxes.elevy,
-        total: taxes.total,
-        paymentMethod: input.paymentMethod,
-        paymentStatus: checkoutPayment.paymentStatus,
-      })
-      await finalizeReservationCheckoutPayment(admin, {
-        reservationId: reservation.id,
-        invoiceId: invoiceRow.id,
-        hotelId: reservation.hotel_id,
-        guestId: reservation.guest_id,
-        invoiceTotal: taxes.total,
-        priorDeposit,
-        paidNow,
-        paymentMethod: input.paymentMethod,
-        now,
-      })
+  try {
+    const issued = await createOrRefreshStayInvoice(admin, {
+      reservation,
+      paymentMethod: input.paymentMethod,
+      markAsPaid: paidNow,
+      includeTax: input.includeTax,
+      effectiveCheckOut,
+      guestPhone,
+      roomNumber,
+    })
+    invoiceId = issued.invoiceId
+    invoicePreview = issued.invoicePreview
+    taxesTotal = issued.taxes.total
+    folioSubtotal = issued.folioSubtotal
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'Could not create or refresh invoice.',
     }
   }
 
@@ -774,14 +682,7 @@ async function executeStayCheckout(
     .from('reservations')
     .update({
       check_out: effectiveCheckOut,
-      total_amount: taxes.total,
-      ...(existingInvoice
-        ? {}
-        : {
-            amount_paid: checkoutPayment.amountPaid,
-            payment_status: checkoutPayment.paymentStatus,
-            payment_method: input.paymentMethod,
-          }),
+      total_amount: taxesTotal,
     })
     .eq('id', reservation.id)
 
@@ -866,7 +767,7 @@ async function executeStayCheckout(
         hotelId: reservation.hotel_id,
         phone: guestPhone,
         guestName: reservation.guest_name,
-        totalGhs: taxes.total,
+        totalGhs: taxesTotal,
         paid: paidNow,
       }),
         {
@@ -888,8 +789,8 @@ async function executeStayCheckout(
     entityId: reservation.id,
     action: isWalkout ? 'walkout' : 'checked_out',
     summary: isWalkout
-      ? `${reservation.guest_name} walkout — ₵${taxes.total.toLocaleString()} balance due`
-      : `${reservation.guest_name} checked out — ₵${taxes.total.toLocaleString()} (${input.paymentMethod.replace(/_/g, ' ')}, ${paidNow ? 'paid' : 'pending'})${folioSubtotal > 0 ? ` incl. ₵${folioSubtotal} folio` : ''}`,
+      ? `${reservation.guest_name} walkout — ₵${taxesTotal.toLocaleString()} balance due`
+      : `${reservation.guest_name} checked out — ₵${taxesTotal.toLocaleString()} (${input.paymentMethod.replace(/_/g, ' ')}, ${paidNow ? 'paid' : 'pending'})${folioSubtotal > 0 ? ` incl. ₵${folioSubtotal} folio` : ''}`,
   })
 
   return { success: true, data: { invoiceId, invoicePreview } }
@@ -1065,7 +966,7 @@ export async function checkOutStay(input: {
     }
 
     const nightlyRate = await getRoomNightlyRate(admin, guest.room_id)
-    const { taxes: roomTaxes } = await computeCheckoutTaxes(
+    const { taxes: roomTaxes, rates } = await computeCheckoutTaxes(
       admin,
       profile.hotel_id,
       guest.check_in,
@@ -1085,6 +986,7 @@ export async function checkOutStay(input: {
       null,
       roomTaxes,
       includeTax,
+      rates,
     )
     const now = new Date().toISOString()
     const paidNow = input.markAsPaid !== false
@@ -1133,6 +1035,8 @@ export async function checkOutStay(input: {
         covid_levy_amount: taxes.covid,
         vat_amount: taxes.vat,
         elevy_amount: taxes.elevy,
+        tourism_levy_amount: taxes.tourism,
+        tax_snapshot: taxSnapshotFromRates(rates),
         total_amount: taxes.total,
         payment_method: input.paymentMethod,
         payment_status: checkoutPayment.paymentStatus,

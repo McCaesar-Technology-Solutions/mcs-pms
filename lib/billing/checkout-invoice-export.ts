@@ -12,11 +12,15 @@ export function buildCheckoutInvoicePreview(input: {
   checkOut: string
   issuedAt: string
   subtotal: number
+  discountAmount?: number
+  discountReason?: string | null
   nhil: number
   getfund: number
   covid: number
   vat: number
   elevy: number
+  tourism?: number
+  taxSnapshot?: InvoiceExportRow['taxSnapshot']
   total: number
   paymentMethod: string
   paymentStatus: string
@@ -34,11 +38,15 @@ export function buildCheckoutInvoicePreview(input: {
     nights: stayNights(input.checkIn, input.checkOut),
     issuedAt: input.issuedAt,
     subtotal: input.subtotal,
+    discountAmount: input.discountAmount ?? 0,
+    discountReason: input.discountReason ?? null,
     nhil: input.nhil,
     getfund: input.getfund,
     covid: input.covid,
     vat: input.vat,
     elevy: input.elevy,
+    tourism: input.tourism ?? 0,
+    taxSnapshot: input.taxSnapshot ?? null,
     total: input.total,
     paymentMethod: input.paymentMethod,
     paymentStatus: input.paymentStatus,

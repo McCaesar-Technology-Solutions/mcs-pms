@@ -2,7 +2,12 @@ import { jsPDF } from 'jspdf'
 import { withInvoiceHotelContact } from '@/lib/export/invoice-hotel-contact'
 import type { ExportHotelInfo, InvoiceExportRow } from '@/lib/export/types'
 import { whatsAppHref } from '@/lib/phone'
-import { invoiceHasTaxBreakdown, PAYMENT_METHOD_LABELS } from '@/lib/tax'
+import {
+  defaultHotelTaxRates,
+  formatTaxPercent,
+  invoiceHasTaxBreakdown,
+  PAYMENT_METHOD_LABELS,
+} from '@/lib/tax'
 
 /** Brand tokens — match app/globals.css */
 const BRAND = {
@@ -274,9 +279,23 @@ async function buildInvoicePdf(hotelInput: ExportHotelInfo, invoice: InvoiceExpo
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(10)
   doc.setTextColor(...BRAND.purpleInk)
+  const discountAmount = Math.max(0, Number(invoice.discountAmount ?? 0))
+  const accommodation = discountAmount > 0 ? invoice.subtotal + discountAmount : invoice.subtotal
   doc.text('Room accommodation', colDesc + 3, y)
-  doc.text(money(invoice.subtotal), colAmt - 3, y, { align: 'right' })
+  doc.text(money(accommodation), colAmt - 3, y, { align: 'right' })
   y += 8
+
+  if (discountAmount > 0) {
+    const reason = invoice.discountReason?.trim()
+    doc.setTextColor(...BRAND.muted)
+    doc.text(reason ? `Discount — ${reason}` : 'Discount', colDesc + 3, y)
+    doc.text(`-${money(discountAmount)}`, colAmt - 3, y, { align: 'right' })
+    y += 6
+    doc.setTextColor(...BRAND.purpleInk)
+    doc.text('Taxable subtotal', colDesc + 3, y)
+    doc.text(money(invoice.subtotal), colAmt - 3, y, { align: 'right' })
+    y += 8
+  }
 
   if (showTax) {
     doc.setDrawColor(...BRAND.line)
@@ -289,17 +308,26 @@ async function buildInvoicePdf(hotelInput: ExportHotelInfo, invoice: InvoiceExpo
     doc.text('GRA TAX BREAKDOWN', colDesc + 3, y + 1)
     y += 7
 
+    const rates = invoice.taxSnapshot ?? defaultHotelTaxRates()
     const taxRows: [string, number][] = [
-      ['NHIL (2.5%)', invoice.nhil],
-      ['GETFund (2.5%)', invoice.getfund],
-      ['COVID-19 levy (1%)', invoice.covid],
-      ['VAT (15%)', invoice.vat],
+      [`NHIL (${formatTaxPercent(rates.nhil)})`, invoice.nhil],
+      [`GETFund (${formatTaxPercent(rates.getfund)})`, invoice.getfund],
     ]
-    if (invoice.elevy > 0) taxRows.push(['E-Levy', invoice.elevy])
+    if (invoice.covid > 0 || rates.covid > 0) {
+      taxRows.push([`COVID-19 levy (${formatTaxPercent(rates.covid)})`, invoice.covid])
+    }
+    taxRows.push([`VAT (${formatTaxPercent(rates.vat)})`, invoice.vat])
+    if ((invoice.elevy ?? 0) > 0 || rates.elevy > 0) {
+      taxRows.push([`E-Levy (${formatTaxPercent(rates.elevy)})`, invoice.elevy])
+    }
+    if ((invoice.tourism ?? 0) > 0 || rates.tourism > 0) {
+      taxRows.push([`Tourism levy (${formatTaxPercent(rates.tourism)})`, invoice.tourism ?? 0])
+    }
 
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(9)
     for (const [label, amount] of taxRows) {
+      if (amount <= 0 && !label.startsWith('VAT')) continue
       doc.setTextColor(...BRAND.muted)
       doc.text(label, colDesc + 3, y)
       doc.setTextColor(...BRAND.purpleInk)

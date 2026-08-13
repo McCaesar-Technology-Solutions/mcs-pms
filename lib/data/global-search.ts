@@ -48,7 +48,13 @@ export async function searchGlobal(
   const perKind = Math.max(2, Math.ceil(limit / 4))
   const results: GlobalSearchResult[] = []
 
-  const canBilling = role === 'owner'
+  const canBilling = role === 'owner' || role === 'manager' || role === 'receptionist'
+  const billingPath =
+    role === 'manager'
+      ? `${prefix}/invoices`
+      : role === 'receptionist'
+        ? `${prefix}/billing`
+        : `${prefix}/billing`
   const canHousekeeping = role === 'owner' || role === 'manager'
   const canComplaints = role !== 'technician'
 
@@ -180,7 +186,7 @@ export async function searchGlobal(
             kind: 'invoice',
             label: invNum,
             subtitle: `${row.guest_name} · GHS ${(row.total_amount ?? 0).toLocaleString()} · ${row.payment_status ?? 'pending'}`,
-            href: `${prefix}/billing?open=${row.id}`,
+            href: `${billingPath}?open=${row.id}`,
           })
         }
       })(),

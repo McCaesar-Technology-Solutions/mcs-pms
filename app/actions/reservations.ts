@@ -31,6 +31,7 @@ import {
   refreshPreCheckoutPaymentStatus,
   reservationBalanceDue,
 } from '@/lib/billing/reservation-payment'
+import { computeDiscountAmount, normalizeDiscountType } from '@/lib/billing/discount'
 import { todayISO } from '@/lib/stays/helpers'
 import { revalidateStayViews } from '@/lib/stays/revalidate'
 import type { InvoiceExportRow } from '@/lib/export/types'
@@ -164,6 +165,11 @@ export async function createReservation(
     monthlyRate,
     weeklyRate,
   )
+  const discountType = data.discountType ?? 'none'
+  const discountValue = data.discountValue ?? 0
+  const discountAmount = computeDiscountAmount(total, discountType, discountValue)
+  const discountReason =
+    discountAmount > 0 ? (data.discountReason?.trim() || null) : null
 
   const { data: row, error } = await supabase
     .from('reservations')
@@ -181,6 +187,10 @@ export async function createReservation(
       weekly_rate: weeklyRate,
       monthly_rate: monthlyRate,
       total_amount: total,
+      discount_type: discountType,
+      discount_value: discountValue,
+      discount_amount: discountAmount,
+      discount_reason: discountReason,
       payment_status: 'unpaid',
       amount_paid: 0,
       deposit_amount: 0,
@@ -397,6 +407,18 @@ export async function updateReservation(id: string, input: unknown): Promise<Cre
     monthlyRate,
     weeklyRate,
   )
+  const discountType = normalizeDiscountType(
+    parsed.data.discountType ?? existing.discount_type ?? 'none',
+  )
+  const discountValue =
+    parsed.data.discountValue ?? Number(existing.discount_value ?? 0)
+  const discountAmount = computeDiscountAmount(total, discountType, discountValue)
+  const discountReason =
+    discountAmount > 0
+      ? (parsed.data.discountReason !== undefined
+          ? parsed.data.discountReason.trim() || null
+          : existing.discount_reason)
+      : null
 
   const { error } = await supabase
     .from('reservations')
@@ -411,6 +433,10 @@ export async function updateReservation(id: string, input: unknown): Promise<Cre
       weekly_rate: weeklyRate,
       monthly_rate: monthlyRate,
       total_amount: total,
+      discount_type: discountType,
+      discount_value: discountValue,
+      discount_amount: discountAmount,
+      discount_reason: discountReason,
     })
     .eq('id', id)
   if (error) return { success: false, error: error.message }
@@ -435,6 +461,15 @@ export async function updateReservation(id: string, input: unknown): Promise<Cre
   }
   const totalDelta = moneyDelta('Total', existing.total_amount, total)
   if (totalDelta) changes.push(totalDelta)
+  if (
+    (existing.discount_type ?? 'none') !== discountType ||
+    Number(existing.discount_value ?? 0) !== discountValue ||
+    Number(existing.discount_amount ?? 0) !== discountAmount
+  ) {
+    changes.push(
+      `Discount: ${discountType === 'none' ? 'none' : `${discountType} ${discountValue} (₵${discountAmount})`}`,
+    )
+  }
 
   void writeAuditLog({
     hotelId: profile.hotel_id,

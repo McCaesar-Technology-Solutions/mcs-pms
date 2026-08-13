@@ -17,10 +17,16 @@ import {
   Ban,
   KeyRound,
   LogOut,
+  Trash2,
 } from 'lucide-react'
-import { CenteredModal, ModalBody, ModalHeader } from '@/components/ui/centered-modal'
+import { CenteredModal, ModalBody, ModalFooter, ModalHeader } from '@/components/ui/centered-modal'
 import { GuestDndBadge } from '@/components/ui/guest-dnd-badge'
 import { regenerateGuestAccess, revokeGuestAccess, checkOutGuest, updateGuest } from '@/app/actions/guest'
+import {
+  eraseGuestPersonalData,
+  getGuestDeleteEligibility,
+  hardDeleteGuest,
+} from '@/app/actions/guest-privacy'
 import { GuestFolioPanel } from '@/components/dashboard/guest-folio-panel'
 import { GuestsBulkBar } from '@/components/dashboard/guests-bulk-bar'
 import { TablePagination } from '@/components/dashboard/table-pagination'
@@ -575,6 +581,16 @@ export function GuestsTable({
                 />
               )}
 
+              {!readOnly && (
+                <GuestDeletePanel
+                  guest={selectedGuest}
+                  onDone={() => {
+                    setSelectedGuest(null)
+                    router.refresh()
+                  }}
+                />
+              )}
+
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <CalendarDays className="h-3.5 w-3.5" />
                 Status:{' '}
@@ -585,6 +601,187 @@ export function GuestsTable({
             </ModalBody>
           </>
         )}
+      </CenteredModal>
+    </>
+  )
+}
+
+function GuestDeletePanel({
+  guest,
+  onDone,
+}: {
+  guest: GuestRow
+  onDone: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [pending, startTransition] = useTransition()
+  const [loadingEligibility, setLoadingEligibility] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [eligibility, setEligibility] = useState<{
+    isInHouse: boolean
+    canSoftErase: boolean
+    canHardDelete: boolean
+    blockReason: string | null
+    historyCounts: { reservations: number; invoices: number; complaints: number }
+  } | null>(null)
+
+  function openDialog() {
+    setError(null)
+    setEligibility(null)
+    setOpen(true)
+    setLoadingEligibility(true)
+    void getGuestDeleteEligibility(guest.id).then((result) => {
+      setLoadingEligibility(false)
+      if (!result.success) {
+        setError(result.error)
+        return
+      }
+      setEligibility(result.data)
+    })
+  }
+
+  function runSoftErase() {
+    setError(null)
+    startTransition(async () => {
+      const result = await eraseGuestPersonalData(guest.id)
+      if (!result.success) {
+        setError(result.error)
+        return
+      }
+      toast.success('Guest personal data erased')
+      setOpen(false)
+      onDone()
+    })
+  }
+
+  function runHardDelete() {
+    setError(null)
+    startTransition(async () => {
+      const result = await hardDeleteGuest(guest.id)
+      if (!result.success) {
+        setError(result.error)
+        return
+      }
+      toast.success('Guest deleted')
+      setOpen(false)
+      onDone()
+    })
+  }
+
+  const alreadyRedacted = guest.name === 'Redacted guest' && !guest.phone && !guest.email
+
+  return (
+    <>
+      <button
+        type="button"
+        disabled={guest.isInHouse}
+        onClick={openDialog}
+        title={
+          guest.isInHouse
+            ? 'Check out this guest before erasing or deleting'
+            : 'Erase personal data or delete duplicate'
+        }
+        className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 py-3 text-sm font-semibold text-red-800 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        <Trash2 className="h-4 w-4" />
+        {alreadyRedacted ? 'Delete guest record' : 'Erase / delete guest'}
+      </button>
+      {guest.isInHouse && (
+        <p className="text-xs text-muted-foreground">
+          In-house guests cannot be erased. Complete checkout first.
+        </p>
+      )}
+
+      <CenteredModal
+        open={open}
+        onClose={() => !pending && setOpen(false)}
+        className="max-w-md"
+        aria-label="Erase or delete guest"
+      >
+        <ModalHeader onClose={() => !pending && setOpen(false)}>
+          <h3 className="text-lg font-semibold">Erase or delete guest</h3>
+          <p className="modal-panel-subtle text-sm">{guest.name}</p>
+        </ModalHeader>
+        <ModalBody className="space-y-3">
+          {loadingEligibility && (
+            <p className="text-sm text-muted-foreground">Checking stay and billing history…</p>
+          )}
+          {eligibility?.blockReason && (
+            <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+              {eligibility.blockReason}
+            </p>
+          )}
+          {eligibility && !eligibility.isInHouse && (
+            <>
+              {eligibility.canHardDelete ? (
+                <p className="text-sm text-muted-foreground">
+                  This guest has no reservations, invoices, or complaints. You can permanently
+                  delete the record (e.g. a duplicate entry).
+                </p>
+              ) : (
+                <div className="space-y-2 text-sm text-muted-foreground">
+                  <p>
+                    Soft erase clears name, phone, email, Ghana Card, and portal access. Stay and
+                    invoice history stay on file for compliance — invoices remain printable.
+                  </p>
+                  <p className="text-xs">
+                    Linked history: {eligibility.historyCounts.reservations} reservation
+                    {eligibility.historyCounts.reservations === 1 ? '' : 's'},{' '}
+                    {eligibility.historyCounts.invoices} invoice
+                    {eligibility.historyCounts.invoices === 1 ? '' : 's'},{' '}
+                    {eligibility.historyCounts.complaints} complaint
+                    {eligibility.historyCounts.complaints === 1 ? '' : 's'}.
+                  </p>
+                </div>
+              )}
+            </>
+          )}
+          {error && (
+            <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+              {error}
+            </p>
+          )}
+        </ModalBody>
+        <ModalFooter className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => setOpen(false)}
+            className="rounded-xl px-4 py-2.5 text-sm font-semibold text-muted-foreground hover:bg-secondary disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          {eligibility?.canSoftErase && !eligibility.canHardDelete && (
+            <button
+              type="button"
+              disabled={pending || loadingEligibility}
+              onClick={runSoftErase}
+              className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-800 disabled:opacity-50"
+            >
+              {pending ? 'Erasing…' : 'Erase personal data'}
+            </button>
+          )}
+          {eligibility?.canHardDelete && (
+            <button
+              type="button"
+              disabled={pending || loadingEligibility}
+              onClick={runHardDelete}
+              className="rounded-xl bg-red-700 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+            >
+              {pending ? 'Deleting…' : 'Permanently delete'}
+            </button>
+          )}
+          {eligibility?.canSoftErase && eligibility.canHardDelete && (
+            <button
+              type="button"
+              disabled={pending || loadingEligibility}
+              onClick={runSoftErase}
+              className="rounded-xl border border-border px-4 py-2.5 text-sm font-semibold text-foreground disabled:opacity-50"
+            >
+              Erase instead
+            </button>
+          )}
+        </ModalFooter>
       </CenteredModal>
     </>
   )

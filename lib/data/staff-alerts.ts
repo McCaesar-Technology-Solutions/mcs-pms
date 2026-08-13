@@ -100,7 +100,7 @@ export async function fetchStaffAlerts(limit = 30): Promise<StaffAlert[]> {
     const today = todayISO()
     const items: StaffAlert[] = []
 
-    const includeBilling = role === 'owner'
+    const includeBilling = role === 'owner' || role === 'manager' || role === 'receptionist'
     const includeGuestPortal = role === 'owner' || role === 'manager' || role === 'receptionist'
     const includeGuestMessages = includeGuestPortal
     const includeTeamMessages = STAFF_ALERT_ROLES.has(role)
@@ -169,6 +169,9 @@ export async function fetchStaffAlerts(limit = 30): Promise<StaffAlert[]> {
       : Promise.resolve([]),
   ])
 
+  const billingBase =
+    role === 'manager' ? `${prefix}/invoices` : `${prefix}/billing`
+
   for (const inv of invoicesRes.data ?? []) {
     const due = inv.due_at?.slice(0, 10) ?? today
     const overdue = due < today
@@ -177,8 +180,8 @@ export async function fetchStaffAlerts(limit = 30): Promise<StaffAlert[]> {
       kind: overdue ? 'overdue_invoice' : 'pending_invoice',
       title: overdue ? 'Overdue invoice' : 'Pending payment',
       subtitle: `${formatInvoiceNumber(inv)} · ${inv.guest_name} · GHS ${(inv.total_amount ?? 0).toLocaleString()}`,
-      href: `${prefix}/billing?q=${encodeURIComponent(formatInvoiceNumber(inv))}`,
-      badgeHref: `${prefix}/billing`,
+      href: `${billingBase}?q=${encodeURIComponent(formatInvoiceNumber(inv))}`,
+      badgeHref: billingBase,
       urgent: overdue,
       sort: overdue ? 0 : 4,
     })

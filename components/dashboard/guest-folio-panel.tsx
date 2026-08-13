@@ -29,6 +29,7 @@ const CHARGE_TYPES = [
   { value: 'room', label: 'Room charge' },
   { value: 'deposit', label: 'Deposit' },
   { value: 'adjustment', label: 'Adjustment' },
+  { value: 'discount', label: 'Discount (credit)' },
 ] as const
 
 function money(value: number) {

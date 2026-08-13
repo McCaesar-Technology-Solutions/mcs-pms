@@ -13,6 +13,7 @@ import { useProperty } from '@/lib/property-context'
 import { AddPropertyDialog } from '@/components/dashboard/add-property-dialog'
 import { PropertyImageCropField } from '@/components/dashboard/property-image-crop-field'
 import type { HotelSettings } from '@/lib/data/settings'
+import { defaultHotelTaxRates } from '@/lib/tax'
 import type { Profile, VatMode } from '@/types'
 import { ProfilePhoneEditor } from '@/components/dashboard/profile-phone-editor'
 import { ProfilePhotoUpload } from '@/components/profile/profile-photo-upload'
@@ -37,6 +38,12 @@ const GHANA_REGIONS = [
   'Oti',
   'Western North',
 ] as const
+
+function fractionToPercentInput(value: number | null | undefined, fallbackFraction: number): string {
+  const fraction = value != null ? value : fallbackFraction
+  const pct = Math.round(fraction * 1000000) / 10000
+  return String(pct)
+}
 
 interface SettingsPanelProps {
   hotelSettings?: HotelSettings | null
@@ -70,6 +77,12 @@ export function SettingsPanel({ hotelSettings, staffHref = '/owner/staff', profi
   const [vatNumber, setVatNumber] = useState('')
   const [vatMode, setVatMode] = useState<VatMode>('exclusive')
   const [invoicePrefix, setInvoicePrefix] = useState('MOJO')
+  const [taxNhil, setTaxNhil] = useState('2.5')
+  const [taxGetfund, setTaxGetfund] = useState('2.5')
+  const [taxVat, setTaxVat] = useState('15')
+  const [taxElevy, setTaxElevy] = useState('0')
+  const [taxCovid, setTaxCovid] = useState('1')
+  const [taxTourism, setTaxTourism] = useState('0')
 
   useEffect(() => {
     if (!hotelSettings) return
@@ -80,6 +93,14 @@ export function SettingsPanel({ hotelSettings, staffHref = '/owner/staff', profi
     setVatNumber(hotelSettings.vat_registration_number ?? '')
     setVatMode(hotelSettings.vat_mode ?? 'exclusive')
     setInvoicePrefix(hotelSettings.invoice_prefix ?? 'MOJO')
+    const defaults = defaultHotelTaxRates()
+    const o = hotelSettings.taxRateOverrides
+    setTaxNhil(fractionToPercentInput(o.nhil, defaults.nhil))
+    setTaxGetfund(fractionToPercentInput(o.getfund, defaults.getfund))
+    setTaxVat(fractionToPercentInput(o.vat, defaults.vat))
+    setTaxElevy(fractionToPercentInput(o.elevy, defaults.elevy))
+    setTaxCovid(fractionToPercentInput(o.covid, defaults.covid))
+    setTaxTourism(fractionToPercentInput(o.tourism, 0))
     setProfileImage(null)
     setRemoveExistingImage(false)
     setError(null)
@@ -102,6 +123,12 @@ export function SettingsPanel({ hotelSettings, staffHref = '/owner/staff', profi
         vat_registration_number: vatNumber,
         vat_mode: vatMode,
         invoice_prefix: invoicePrefix,
+        taxNhilPercent: taxNhil,
+        taxGetfundPercent: taxGetfund,
+        taxVatPercent: taxVat,
+        taxElevyPercent: taxElevy,
+        taxCovidPercent: taxCovid,
+        taxTourismPercent: taxTourism,
       })
 
       if (!result.success) {
@@ -416,6 +443,39 @@ export function SettingsPanel({ hotelSettings, staffHref = '/owner/staff', profi
                 <p className="mt-1 text-xs text-muted-foreground">
                   Used for sequential numbers like {invoicePrefix || 'MOJO'}-{new Date().getFullYear()}-00001 (resets each year)
                 </p>
+              </div>
+
+              <div>
+                <label className="text-sm font-semibold text-foreground">Tax rates (%)</label>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Applied to new invoices only. Existing invoices keep their frozen snapshot.
+                  Tourism levy is outside the NHIL / GETFund / VAT base. Set tourism to 0 to disable.
+                </p>
+                <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  {(
+                    [
+                      ['NHIL', taxNhil, setTaxNhil],
+                      ['GETFund', taxGetfund, setTaxGetfund],
+                      ['VAT', taxVat, setTaxVat],
+                      ['E-Levy', taxElevy, setTaxElevy],
+                      ['COVID levy', taxCovid, setTaxCovid],
+                      ['Tourism levy', taxTourism, setTaxTourism],
+                    ] as const
+                  ).map(([label, value, setValue]) => (
+                    <div key={label}>
+                      <label className="text-xs font-medium text-muted-foreground">{label}</label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        step="0.01"
+                        value={value}
+                        onChange={(e) => setValue(e.target.value)}
+                        className="input-soft mt-1"
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>

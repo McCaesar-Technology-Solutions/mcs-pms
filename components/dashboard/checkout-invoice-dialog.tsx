@@ -14,6 +14,8 @@ interface CheckoutInvoiceDialogProps {
   invoiceId: string
   guestName?: string
   initialInvoice?: InvoiceExportRow
+  /** Override the default “checked out” helper line. */
+  description?: string
   onClose: () => void
 }
 
@@ -30,6 +32,7 @@ export function CheckoutInvoiceDialog({
   invoiceId,
   guestName,
   initialInvoice,
+  description,
   onClose,
 }: CheckoutInvoiceDialogProps) {
   const [loadingExport, setLoadingExport] = useState(!initialInvoice)
@@ -85,8 +88,8 @@ export function CheckoutInvoiceDialog({
       <ModalHeader onClose={onClose}>
         <h3 className="text-lg font-semibold">Guest invoice</h3>
         <p className="modal-panel-subtle text-sm">
-          {guestName ?? invoice?.guestName ?? 'Guest'} checked out — print, download, or send via
-          WhatsApp.
+          {description ??
+            `${guestName ?? invoice?.guestName ?? 'Guest'} — print, download, or send via WhatsApp.`}
         </p>
       </ModalHeader>
 
@@ -140,8 +143,30 @@ export function CheckoutInvoiceDialog({
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Accommodation</span>
-                <span className="font-medium">{money(invoice.subtotal)}</span>
+                <span className="font-medium">
+                  {money(
+                    (invoice.discountAmount ?? 0) > 0
+                      ? invoice.subtotal + (invoice.discountAmount ?? 0)
+                      : invoice.subtotal,
+                  )}
+                </span>
               </div>
+              {(invoice.discountAmount ?? 0) > 0 && (
+                <>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">
+                      {invoice.discountReason
+                        ? `Discount — ${invoice.discountReason}`
+                        : 'Discount'}
+                    </span>
+                    <span className="font-medium">-{money(invoice.discountAmount)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Taxable subtotal</span>
+                    <span className="font-medium">{money(invoice.subtotal)}</span>
+                  </div>
+                </>
+              )}
               {showTax && (
                 <>
                   <div className="flex justify-between">
@@ -158,6 +183,12 @@ export function CheckoutInvoiceDialog({
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">E-Levy</span>
                       <span className="font-medium">{money(invoice.elevy)}</span>
+                    </div>
+                  )}
+                  {(invoice.tourism ?? 0) > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Tourism levy</span>
+                      <span className="font-medium">{money(invoice.tourism)}</span>
                     </div>
                   )}
                 </>

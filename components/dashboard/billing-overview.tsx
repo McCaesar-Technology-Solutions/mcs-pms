@@ -16,7 +16,15 @@ import { copyToClipboard } from '@/lib/export/entity-refs'
 import { usePagination } from '@/lib/hooks/use-pagination'
 import { formatGhs, formatGhsCompact, MONEY_CLASS } from '@/lib/format/money'
 import { useRowSelection } from '@/lib/hooks/use-row-selection'
-import { PAYMENT_METHOD_LABELS, computeInvoiceTaxesWithOption, invoiceHasTaxBreakdown, type VatMode } from '@/lib/tax'
+import {
+  PAYMENT_METHOD_LABELS,
+  computeInvoiceTaxesWithOption,
+  defaultHotelTaxRates,
+  formatTaxPercent,
+  invoiceHasTaxBreakdown,
+  parseTaxSnapshot,
+  type VatMode,
+} from '@/lib/tax'
 import { formatInvoiceNumber } from '@/lib/invoices/numbering'
 import { InvoiceWhatsAppDialog, InvoiceWhatsAppShare } from '@/components/dashboard/invoice-whatsapp-share'
 import { downloadInvoicePdf } from '@/lib/export/invoice-pdf'
@@ -93,11 +101,15 @@ function toExportRow(inv: InvoiceWithRoom): InvoiceExportRow {
     nights: inv.nights,
     issuedAt: inv.issued_at,
     subtotal: inv.subtotal ?? 0,
+    discountAmount: inv.discount_amount ?? 0,
+    discountReason: inv.discount_reason ?? null,
     nhil: inv.nhil_amount ?? 0,
     getfund: inv.getfund_amount ?? 0,
     covid: inv.covid_levy_amount ?? 0,
     vat: inv.vat_amount ?? 0,
     elevy: inv.elevy_amount ?? 0,
+    tourism: inv.tourism_levy_amount ?? 0,
+    taxSnapshot: parseTaxSnapshot(inv.tax_snapshot),
     total: inv.total_amount ?? 0,
     paymentMethod: inv.payment_method,
     paymentStatus: inv.payment_status,
@@ -110,7 +122,11 @@ interface BillingOverviewProps {
   initialQuery?: string
   openInvoiceId?: string
   vatMode?: VatMode
+  /** @deprecated Prefer canRecordPayment / canCreateInvoice / canRefund */
   readOnly?: boolean
+  canRecordPayment?: boolean
+  canCreateInvoice?: boolean
+  canRefund?: boolean
   /** When true, staff can open a Paystack checkout link for open balances. */
   onlinePaymentsEnabled?: boolean
 }
@@ -122,8 +138,14 @@ export function BillingOverview({
   openInvoiceId,
   vatMode = 'exclusive',
   readOnly = false,
+  canRecordPayment,
+  canCreateInvoice,
+  canRefund,
   onlinePaymentsEnabled = false,
 }: BillingOverviewProps) {
+  const allowRecordPayment = canRecordPayment ?? !readOnly
+  const allowCreateInvoice = canCreateInvoice ?? !readOnly
+  const allowRefund = canRefund ?? !readOnly
   const router = useRouter()
   const [statusFilter, setStatusFilter] = useState<string | null>(null)
   const [textFilter, setTextFilter] = useState(initialQuery)
@@ -385,7 +407,7 @@ export function BillingOverview({
             <h2 className="text-2xl font-semibold text-foreground">Invoices</h2>
             <p className="text-sm text-muted-foreground mt-1">{filteredInvoices.length} invoices</p>
           </div>
-          {!readOnly && (
+          {allowCreateInvoice && (
             <button
               type="button"
               onClick={() => setCreating(true)}
@@ -429,7 +451,7 @@ export function BillingOverview({
 
         {filteredInvoices.length === 0 && (
           <p className="px-6 py-12 text-center text-sm text-muted-foreground">
-            No invoices yet. They are generated automatically when a guest checks out.
+            No invoices yet. Issue one from an in-house reservation, or they are created at checkout.
           </p>
         )}
 
@@ -590,14 +612,68 @@ export function BillingOverview({
                       GRA tax breakdown
                     </p>
                     <div className="space-y-2 text-sm">
-                      <Row label="Subtotal (room charges)" value={money(detail.subtotal)} />
-                      <Row label="NHIL (2.5%)" value={money(detail.nhil_amount)} />
-                      <Row label="GETFund (2.5%)" value={money(detail.getfund_amount)} />
-                      <Row label="COVID-19 levy (1%)" value={money(detail.covid_levy_amount)} />
-                      <Row label="VAT (15%)" value={money(detail.vat_amount)} />
-                      {(detail.elevy_amount ?? 0) > 0 && (
-                        <Row label="E-Levy" value={money(detail.elevy_amount)} />
+                      {(detail.discount_amount ?? 0) > 0 && (
+                        <>
+                          <Row
+                            label="Room accommodation"
+                            value={money((detail.subtotal ?? 0) + (detail.discount_amount ?? 0))}
+                          />
+                          <Row
+                            label={
+                              detail.discount_reason
+                                ? `Discount — ${detail.discount_reason}`
+                                : 'Discount'
+                            }
+                            value={`-${money(detail.discount_amount)}`}
+                          />
+                        </>
                       )}
+                      <Row
+                        label={
+                          (detail.discount_amount ?? 0) > 0
+                            ? 'Taxable subtotal'
+                            : 'Subtotal (room charges)'
+                        }
+                        value={money(detail.subtotal)}
+                      />
+                      {(() => {
+                        const rates =
+                          parseTaxSnapshot(detail.tax_snapshot) ?? defaultHotelTaxRates()
+                        return (
+                          <>
+                            <Row
+                              label={`NHIL (${formatTaxPercent(rates.nhil)})`}
+                              value={money(detail.nhil_amount)}
+                            />
+                            <Row
+                              label={`GETFund (${formatTaxPercent(rates.getfund)})`}
+                              value={money(detail.getfund_amount)}
+                            />
+                            {(detail.covid_levy_amount ?? 0) > 0 && (
+                              <Row
+                                label={`COVID-19 levy (${formatTaxPercent(rates.covid)})`}
+                                value={money(detail.covid_levy_amount)}
+                              />
+                            )}
+                            <Row
+                              label={`VAT (${formatTaxPercent(rates.vat)})`}
+                              value={money(detail.vat_amount)}
+                            />
+                            {(detail.elevy_amount ?? 0) > 0 && (
+                              <Row
+                                label={`E-Levy (${formatTaxPercent(rates.elevy)})`}
+                                value={money(detail.elevy_amount)}
+                              />
+                            )}
+                            {(detail.tourism_levy_amount ?? 0) > 0 && (
+                              <Row
+                                label={`Tourism levy (${formatTaxPercent(rates.tourism)})`}
+                                value={money(detail.tourism_levy_amount)}
+                              />
+                            )}
+                          </>
+                        )
+                      })()}
                       <div className="flex justify-between border-t border-[#E9ECEF] pt-2">
                         <span className="font-semibold text-foreground">Total</span>
                         <span className="font-bold text-foreground">{money(detail.total_amount)}</span>
@@ -677,7 +753,7 @@ export function BillingOverview({
                   </button>
                 )}
 
-              {!readOnly &&
+              {allowRecordPayment &&
                 detail.payment_status !== 'paid' &&
                 detail.payment_status !== 'refunded' &&
                 invoiceOpenBalance(detail) > 0 && (
@@ -728,7 +804,7 @@ export function BillingOverview({
                 </>
               )}
 
-              {!readOnly && (detail.amount_paid ?? 0) > 0 && detail.payment_status !== 'refunded' && (
+              {allowRefund && (detail.amount_paid ?? 0) > 0 && detail.payment_status !== 'refunded' && (
                 <button
                   type="button"
                   disabled={pending}
@@ -743,7 +819,7 @@ export function BillingOverview({
         )}
       </CenteredModal>
 
-      {!readOnly && (
+      {allowCreateInvoice && (
       <CenteredModal open={creating} onClose={() => setCreating(false)} className="max-w-md" aria-label="New invoice">
         <ModalHeader onClose={() => setCreating(false)}>
           <h3 className="text-lg font-semibold">New invoice</h3>

@@ -141,18 +141,37 @@ export const staffComplaintSchema = z.object({
   guestId: z.string().uuid().optional(),
 })
 
-export const createReservationSchema = z.object({
-  guestName: z.string().min(2, 'Guest name is required'),
-  roomId: z.string().uuid('Select a room'),
-  checkIn: z.string().min(1),
-  checkOut: z.string().min(1),
-  channel: z.enum(['airbnb', 'booking_com', 'direct', 'walk_in', 'other']),
-  rateType: z.enum(['nightly', 'weekly', 'monthly']).default('nightly'),
-  nightlyRate: z.coerce.number().min(0, 'Rate cannot be negative'),
-  weeklyRate: z.coerce.number().min(0, 'Rate cannot be negative').optional(),
-  monthlyRate: z.coerce.number().min(0, 'Rate cannot be negative').optional(),
-  guestId: z.string().uuid().optional(),
-})
+const reservationDiscountSchema = z
+  .object({
+    // Optional so updateReservation without discount fields does not wipe existing discounts.
+    discountType: z.enum(['none', 'percent', 'fixed']).optional(),
+    discountValue: z.coerce.number().min(0, 'Discount cannot be negative').optional(),
+    discountReason: z.string().max(200).optional().or(z.literal('')),
+  })
+  .superRefine((data, ctx) => {
+    if (data.discountType === 'percent' && (data.discountValue ?? 0) > 100) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Percent discount cannot exceed 100%.',
+        path: ['discountValue'],
+      })
+    }
+  })
+
+export const createReservationSchema = z
+  .object({
+    guestName: z.string().min(2, 'Guest name is required'),
+    roomId: z.string().uuid('Select a room'),
+    checkIn: z.string().min(1),
+    checkOut: z.string().min(1),
+    channel: z.enum(['airbnb', 'booking_com', 'direct', 'walk_in', 'other']),
+    rateType: z.enum(['nightly', 'weekly', 'monthly']).default('nightly'),
+    nightlyRate: z.coerce.number().min(0, 'Rate cannot be negative'),
+    weeklyRate: z.coerce.number().min(0, 'Rate cannot be negative').optional(),
+    monthlyRate: z.coerce.number().min(0, 'Rate cannot be negative').optional(),
+    guestId: z.string().uuid().optional(),
+  })
+  .merge(reservationDiscountSchema)
 
 export const updateReservationSchema = createReservationSchema
   .partial()
@@ -182,6 +201,24 @@ export const acceptInviteSchema = z
   })
   .superRefine(passwordsMatchRefine)
 
+/** UI sends percent string (e.g. "2.5"). Empty clears override (use system default). */
+const taxPercentOverride = z
+  .union([z.string(), z.number(), z.null(), z.undefined()])
+  .transform((v, ctx) => {
+    if (v === null || v === undefined) return null
+    const raw = String(v).trim()
+    if (raw === '') return null
+    const n = Number(raw)
+    if (!Number.isFinite(n) || n < 0 || n > 100) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Tax rate must be between 0 and 100%.',
+      })
+      return z.NEVER
+    }
+    return Math.round(n * 10000) / 1_000_000
+  })
+
 export const updateHotelSettingsSchema = z.object({
   hotelId: z.string().uuid(),
   name: z.string().min(2, 'Property name is required'),
@@ -197,6 +234,12 @@ export const updateHotelSettingsSchema = z.object({
     .regex(/^[A-Za-z0-9-]+$/, 'Use letters, numbers, or hyphens only')
     .optional()
     .or(z.literal('')),
+  taxNhilPercent: taxPercentOverride.optional(),
+  taxGetfundPercent: taxPercentOverride.optional(),
+  taxVatPercent: taxPercentOverride.optional(),
+  taxElevyPercent: taxPercentOverride.optional(),
+  taxCovidPercent: taxPercentOverride.optional(),
+  taxTourismPercent: taxPercentOverride.optional(),
 })
 
 export const updateReservationLifecycleSettingsSchema = z.object({

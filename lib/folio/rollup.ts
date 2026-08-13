@@ -1,5 +1,10 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { computeInvoiceTaxes, type InvoiceTaxes, type VatMode } from '@/lib/tax'
+import {
+  computeInvoiceTaxes,
+  defaultHotelTaxRates,
+  type HotelTaxRates,
+  type InvoiceTaxes,
+} from '@/lib/tax'
 
 export interface UnbilledFolioCharge {
   id: string
@@ -17,8 +22,44 @@ export function mergeRoomTaxesWithFolio(
   roomTaxes: InvoiceTaxes,
   folioSubtotal: number,
   includeTax = true,
+  rates: HotelTaxRates = defaultHotelTaxRates(),
 ): InvoiceTaxes {
-  if (folioSubtotal <= 0) return roomTaxes
+  if (folioSubtotal === 0) return roomTaxes
+
+  // Credits (folio discount lines): scale room tax components down.
+  if (folioSubtotal < 0) {
+    const credit = Math.min(-folioSubtotal, roomTaxes.subtotal)
+    const newSubtotal = round2(Math.max(0, roomTaxes.subtotal - credit))
+    if (!includeTax) {
+      return {
+        subtotal: newSubtotal,
+        nhil: 0,
+        getfund: 0,
+        covid: 0,
+        vat: 0,
+        elevy: 0,
+        tourism: 0,
+        total: newSubtotal,
+      }
+    }
+    const scale = roomTaxes.subtotal > 0 ? newSubtotal / roomTaxes.subtotal : 0
+    const nhil = round2(roomTaxes.nhil * scale)
+    const getfund = round2(roomTaxes.getfund * scale)
+    const covid = round2(roomTaxes.covid * scale)
+    const vat = round2(roomTaxes.vat * scale)
+    const elevy = round2(roomTaxes.elevy * scale)
+    const tourism = round2((roomTaxes.tourism ?? 0) * scale)
+    return {
+      subtotal: newSubtotal,
+      nhil,
+      getfund,
+      covid,
+      vat,
+      elevy,
+      tourism,
+      total: round2(newSubtotal + nhil + getfund + covid + vat + elevy + tourism),
+    }
+  }
 
   if (!includeTax) {
     const subtotal = round2(roomTaxes.subtotal + folioSubtotal)
@@ -29,11 +70,12 @@ export function mergeRoomTaxesWithFolio(
       covid: 0,
       vat: 0,
       elevy: 0,
+      tourism: 0,
       total: subtotal,
     }
   }
 
-  const folioTaxes = computeInvoiceTaxes(folioSubtotal, 'exclusive')
+  const folioTaxes = computeInvoiceTaxes(folioSubtotal, 'exclusive', rates)
   return {
     subtotal: round2(roomTaxes.subtotal + folioTaxes.subtotal),
     nhil: round2(roomTaxes.nhil + folioTaxes.nhil),
@@ -41,6 +83,7 @@ export function mergeRoomTaxesWithFolio(
     covid: round2(roomTaxes.covid + folioTaxes.covid),
     vat: round2(roomTaxes.vat + folioTaxes.vat),
     elevy: round2(roomTaxes.elevy + folioTaxes.elevy),
+    tourism: round2((roomTaxes.tourism ?? 0) + (folioTaxes.tourism ?? 0)),
     total: round2(roomTaxes.total + folioTaxes.total),
   }
 }
@@ -92,6 +135,7 @@ export async function prepareCheckoutTaxesWithFolio(
   reservationId: string | null | undefined,
   roomTaxes: InvoiceTaxes,
   includeTax = true,
+  rates: HotelTaxRates = defaultHotelTaxRates(),
 ): Promise<{
   taxes: InvoiceTaxes
   folioCharges: UnbilledFolioCharge[]
@@ -99,6 +143,6 @@ export async function prepareCheckoutTaxesWithFolio(
 }> {
   const folioCharges = await loadUnbilledFolioCharges(admin, hotelId, guestId, reservationId)
   const folioSubtotal = sumFolioSubtotal(folioCharges)
-  const taxes = mergeRoomTaxesWithFolio(roomTaxes, folioSubtotal, includeTax)
+  const taxes = mergeRoomTaxesWithFolio(roomTaxes, folioSubtotal, includeTax, rates)
   return { taxes, folioCharges, folioSubtotal }
 }

@@ -50,6 +50,12 @@ export type Database = {
           use_lifecycle_v2: boolean
           access_control_enabled: boolean
           timezone: string
+          tax_nhil_rate: number | null
+          tax_getfund_rate: number | null
+          tax_vat_rate: number | null
+          tax_elevy_rate: number | null
+          tax_covid_rate: number | null
+          tax_tourism_levy_rate: number | null
           created_at: string | null
         }
         Insert: {
@@ -92,6 +98,12 @@ export type Database = {
           use_lifecycle_v2?: boolean
           access_control_enabled?: boolean
           timezone?: string
+          tax_nhil_rate?: number | null
+          tax_getfund_rate?: number | null
+          tax_vat_rate?: number | null
+          tax_elevy_rate?: number | null
+          tax_covid_rate?: number | null
+          tax_tourism_levy_rate?: number | null
           created_at?: string | null
         }
         Update: {
@@ -134,6 +146,12 @@ export type Database = {
           use_lifecycle_v2?: boolean
           access_control_enabled?: boolean
           timezone?: string
+          tax_nhil_rate?: number | null
+          tax_getfund_rate?: number | null
+          tax_vat_rate?: number | null
+          tax_elevy_rate?: number | null
+          tax_covid_rate?: number | null
+          tax_tourism_levy_rate?: number | null
           created_at?: string | null
         }
         Relationships: [
@@ -681,6 +699,10 @@ export type Database = {
           weekly_rate: number | null
           monthly_rate: number | null
           total_amount: number | null
+          discount_type: 'none' | 'percent' | 'fixed'
+          discount_value: number
+          discount_amount: number
+          discount_reason: string | null
           payment_status:
             | 'unpaid'
             | 'deposit_paid'
@@ -742,6 +764,10 @@ export type Database = {
           weekly_rate?: number | null
           monthly_rate?: number | null
           total_amount?: number | null
+          discount_type?: 'none' | 'percent' | 'fixed'
+          discount_value?: number
+          discount_amount?: number
+          discount_reason?: string | null
           payment_status?:
             | 'unpaid'
             | 'deposit_paid'
@@ -803,6 +829,10 @@ export type Database = {
           weekly_rate?: number | null
           monthly_rate?: number | null
           total_amount?: number | null
+          discount_type?: 'none' | 'percent' | 'fixed'
+          discount_value?: number
+          discount_amount?: number
+          discount_reason?: string | null
           payment_status?:
             | 'unpaid'
             | 'deposit_paid'
@@ -1154,11 +1184,15 @@ export type Database = {
           guest_name: string
           invoice_number: string | null
           subtotal: number
+          discount_amount: number
+          discount_reason: string | null
           vat_amount: number | null
           nhil_amount: number | null
           getfund_amount: number | null
           covid_levy_amount: number | null
           elevy_amount: number | null
+          tourism_levy_amount: number
+          tax_snapshot: Json | null
           total_amount: number
           payment_method:
             | 'mtn_momo'
@@ -1183,11 +1217,15 @@ export type Database = {
           guest_name: string
           invoice_number: string | null
           subtotal: number
+          discount_amount?: number
+          discount_reason?: string | null
           vat_amount?: number | null
           nhil_amount?: number | null
           getfund_amount?: number | null
           covid_levy_amount?: number | null
           elevy_amount?: number | null
+          tourism_levy_amount?: number
+          tax_snapshot?: Json | null
           total_amount: number
           payment_method?:
             | 'mtn_momo'
@@ -1211,11 +1249,15 @@ export type Database = {
           guest_id?: string | null
           guest_name?: string
           subtotal?: number
+          discount_amount?: number
+          discount_reason?: string | null
           vat_amount?: number | null
           nhil_amount?: number | null
           getfund_amount?: number | null
           covid_levy_amount?: number | null
           elevy_amount?: number | null
+          tourism_levy_amount?: number
+          tax_snapshot?: Json | null
           total_amount?: number
           payment_method?:
             | 'mtn_momo'
@@ -1704,7 +1746,7 @@ export type Database = {
           reservation_id: string | null
           description: string
           amount: number
-          charge_type: 'room' | 'incidental' | 'tax' | 'deposit' | 'adjustment'
+          charge_type: 'room' | 'incidental' | 'tax' | 'deposit' | 'adjustment' | 'discount'
           posted_by: string | null
           invoice_id: string | null
           created_at: string | null
@@ -1716,7 +1758,7 @@ export type Database = {
           reservation_id?: string | null
           description: string
           amount: number
-          charge_type?: 'room' | 'incidental' | 'tax' | 'deposit' | 'adjustment'
+          charge_type?: 'room' | 'incidental' | 'tax' | 'deposit' | 'adjustment' | 'discount'
           posted_by?: string | null
           invoice_id?: string | null
           created_at?: string | null
@@ -1728,7 +1770,7 @@ export type Database = {
           reservation_id?: string | null
           description?: string
           amount?: number
-          charge_type?: 'room' | 'incidental' | 'tax' | 'deposit' | 'adjustment'
+          charge_type?: 'room' | 'incidental' | 'tax' | 'deposit' | 'adjustment' | 'discount'
           posted_by?: string | null
           invoice_id?: string | null
           created_at?: string | null

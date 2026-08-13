@@ -10,13 +10,25 @@ import { writeAuditLog } from '@/lib/audit/log'
 import { clampLimit } from '@/lib/data/pagination'
 import { isFolioPostingBlocked } from '@/lib/folio/lock'
 
-const postChargeSchema = z.object({
-  guestId: z.string().uuid(),
-  description: z.string().min(2).max(200),
-  amount: z.coerce.number().positive(),
-  chargeType: z.enum(['room', 'incidental', 'tax', 'deposit', 'adjustment']).default('incidental'),
-  reservationId: z.string().uuid().optional(),
-})
+const postChargeSchema = z
+  .object({
+    guestId: z.string().uuid(),
+    description: z.string().min(2).max(200),
+    amount: z.coerce.number().positive(),
+    chargeType: z
+      .enum(['room', 'incidental', 'tax', 'deposit', 'adjustment', 'discount'])
+      .default('incidental'),
+    reservationId: z.string().uuid().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.chargeType === 'discount' && data.amount <= 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Discount amount must be greater than zero.',
+        path: ['amount'],
+      })
+    }
+  })
 
 export type FolioActionResult =
   | { success: true; data?: unknown }
@@ -58,6 +70,9 @@ export async function postGuestCharge(input: unknown): Promise<FolioActionResult
     }
   }
 
+  const signedAmount =
+    parsed.data.chargeType === 'discount' ? -Math.abs(parsed.data.amount) : parsed.data.amount
+
   const { data, error } = await supabase
     .from('guest_charges')
     .insert({
@@ -65,7 +80,7 @@ export async function postGuestCharge(input: unknown): Promise<FolioActionResult
       guest_id: parsed.data.guestId,
       reservation_id: parsed.data.reservationId ?? null,
       description: parsed.data.description.trim(),
-      amount: parsed.data.amount,
+      amount: signedAmount,
       charge_type: parsed.data.chargeType,
       posted_by: profile.id,
     })
@@ -81,11 +96,12 @@ export async function postGuestCharge(input: unknown): Promise<FolioActionResult
     entityType: 'guest',
     entityId: parsed.data.guestId,
     action: 'folio_post',
-    summary: `Posted ${parsed.data.description} (GHS ${parsed.data.amount}) to ${guest.name}`,
+    summary: `Posted ${parsed.data.description} (GHS ${signedAmount}) to ${guest.name}`,
   })
 
   revalidatePath('/owner/guests')
   revalidatePath('/manager/guests')
+  revalidatePath('/receptionist/guests')
   return { success: true, data: { id: data.id } }
 }
 

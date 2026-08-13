@@ -30,6 +30,22 @@ function invoicesForPeriod(invoices: DbInvoice[], yearMonth: string): DbInvoice[
   return invoices.filter((inv) => inv.issued_at?.startsWith(yearMonth))
 }
 
+const CSV_HEADER = [
+  'Invoice Number',
+  'Guest Name',
+  'Issued Date',
+  'Subtotal',
+  'NHIL',
+  'GETFund',
+  'COVID Levy',
+  'VAT',
+  'E-Levy',
+  'Tourism Levy',
+  'Total',
+  'Payment Status',
+  'Payment Method',
+].join(',')
+
 function invoiceToCsvRow(inv: DbInvoice): string {
   const num = formatInvoiceNumber(inv)
   const issued = inv.issued_at ? inv.issued_at.slice(0, 10) : ''
@@ -46,6 +62,7 @@ function invoiceToCsvRow(inv: DbInvoice): string {
     money(inv.covid_levy_amount ?? 0),
     money(inv.vat_amount ?? 0),
     money(inv.elevy_amount ?? 0),
+    money(inv.tourism_levy_amount ?? 0),
     money(inv.total_amount ?? 0),
     inv.payment_status ?? '',
     method,
@@ -54,80 +71,38 @@ function invoiceToCsvRow(inv: DbInvoice): string {
     .join(',')
 }
 
+function summaryCsvRow(report: GraReportRow): string {
+  return [
+    '',
+    'SUMMARY',
+    report.month,
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    money(report.totalRevenue),
+    '',
+    '',
+  ].join(',')
+}
+
 export function downloadGraCsv(
   report: GraReportRow,
   invoices: DbInvoice[],
 ): void {
   const periodInvoices = invoicesForPeriod(invoices, report.yearMonth)
-  const header = [
-    'Invoice Number',
-    'Guest Name',
-    'Issued Date',
-    'Subtotal',
-    'NHIL',
-    'GETFund',
-    'COVID Levy',
-    'VAT',
-    'E-Levy',
-    'Total',
-    'Payment Status',
-    'Payment Method',
-  ].join(',')
-
   const rows = periodInvoices.map(invoiceToCsvRow)
-  const summary = [
-    '',
-    'SUMMARY',
-    report.month,
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    money(report.totalRevenue),
-    '',
-    '',
-  ].join(',')
-
-  const content = [header, ...rows, '', summary].join('\n')
+  const content = [CSV_HEADER, ...rows, '', summaryCsvRow(report)].join('\n')
   downloadBlob(`GRA-${report.yearMonth}.csv`, content, 'text/csv;charset=utf-8')
 }
 
 function buildGraCsvContent(report: GraReportRow, invoices: DbInvoice[]): string {
   const periodInvoices = invoicesForPeriod(invoices, report.yearMonth)
-  const header = [
-    'Invoice Number',
-    'Guest Name',
-    'Issued Date',
-    'Subtotal',
-    'NHIL',
-    'GETFund',
-    'COVID Levy',
-    'VAT',
-    'E-Levy',
-    'Total',
-    'Payment Status',
-    'Payment Method',
-  ].join(',')
-
   const rows = periodInvoices.map(invoiceToCsvRow)
-  const summary = [
-    '',
-    'SUMMARY',
-    report.month,
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    money(report.totalRevenue),
-    '',
-    '',
-  ].join(',')
-
-  return [header, ...rows, '', summary].join('\n')
+  return [CSV_HEADER, ...rows, '', summaryCsvRow(report)].join('\n')
 }
 
 export async function downloadGraAllZip(
@@ -183,14 +158,28 @@ export function downloadGraPdf(
   doc.text(`Invoices: ${report.invoicesPaid}/${report.invoicesIssued} paid`, 14, y)
   y += 10
 
-  const cols = [14, 48, 78, 98, 112, 126, 142, 156, 170, 188, 210, 248]
-  const headers = ['Invoice', 'Guest', 'Date', 'Sub', 'NHIL', 'GETF', 'COV', 'VAT', 'E-L', 'Total', 'Status', 'Method']
+  const cols = [10, 40, 68, 86, 100, 114, 128, 142, 156, 172, 190, 212, 248]
+  const headers = [
+    'Invoice',
+    'Guest',
+    'Date',
+    'Sub',
+    'NHIL',
+    'GETF',
+    'COV',
+    'VAT',
+    'E-L',
+    'Tour',
+    'Total',
+    'Status',
+    'Method',
+  ]
 
-  doc.setFontSize(7)
+  doc.setFontSize(6.5)
   headers.forEach((h, i) => doc.text(h, cols[i], y))
   y += 2
   doc.setDrawColor(200)
-  doc.line(14, y, pageW - 14, y)
+  doc.line(10, y, pageW - 10, y)
   y += 4
 
   doc.setFont('helvetica', 'normal')
@@ -204,8 +193,8 @@ export function downloadGraPdf(
       ? (PAYMENT_METHOD_LABELS[inv.payment_method] ?? inv.payment_method).slice(0, 12)
       : '—'
     const cells = [
-      formatInvoiceNumber(inv).slice(0, 16),
-      inv.guest_name.slice(0, 18),
+      formatInvoiceNumber(inv).slice(0, 14),
+      inv.guest_name.slice(0, 16),
       issued,
       money(inv.subtotal ?? 0),
       money(inv.nhil_amount ?? 0),
@@ -213,6 +202,7 @@ export function downloadGraPdf(
       money(inv.covid_levy_amount ?? 0),
       money(inv.vat_amount ?? 0),
       money(inv.elevy_amount ?? 0),
+      money(inv.tourism_levy_amount ?? 0),
       money(inv.total_amount ?? 0),
       (inv.payment_status ?? '—').slice(0, 8),
       method,

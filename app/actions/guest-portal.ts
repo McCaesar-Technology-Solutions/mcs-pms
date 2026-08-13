@@ -21,6 +21,7 @@ import { formatInvoiceNumber } from '@/lib/invoices/numbering'
 import { runNotifyTask } from '@/lib/notifications/notify-task'
 import { withInvoiceHotelContact } from '@/lib/export/invoice-hotel-contact'
 import type { ExportHotelInfo, InvoiceExportRow } from '@/lib/export/types'
+import { parseTaxSnapshot } from '@/lib/tax'
 import { guestNeedsRulesAcceptance } from '@/lib/guest-rules/needs-acceptance'
 import { getGuestFromSession, submitGuestComplaint } from '@/app/actions/guest'
 import {
@@ -684,6 +685,8 @@ export async function getGuestInvoiceReceiptExport(
         covid: Number(row.covid_levy_amount ?? 0),
         vat: Number(row.vat_amount ?? 0),
         elevy: Number(row.elevy_amount ?? 0),
+        tourism: Number(row.tourism_levy_amount ?? 0),
+        taxSnapshot: parseTaxSnapshot(row.tax_snapshot),
         total: Number(row.total_amount),
         paymentMethod: row.payment_method,
         paymentStatus: row.payment_status,

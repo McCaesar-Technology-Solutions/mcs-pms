@@ -11,6 +11,7 @@ import { pageToOffset, totalPagesForCount } from '@/lib/data/pagination'
 import { calculateStayTotal } from '@/lib/pricing/stay-totals'
 import { folioSubtotalForStay, loadFolioSubtotalMap } from '@/lib/folio/batch-totals'
 import { reservationBalanceDue } from '@/lib/billing/reservation-payment'
+import { normalizeDiscountType } from '@/lib/billing/discount'
 import {
   bookingRefSearchPrefix,
   isSecuredPaymentStatus,
@@ -64,7 +65,11 @@ function nightsBetween(checkIn: string, checkOut: string): number {
   return Math.max(1, diff)
 }
 
-function mapReservation(row: ReservationRow, folioMap: Map<string, number>): Reservation {
+function mapReservation(
+  row: ReservationRow,
+  folioMap: Map<string, number>,
+  invoiceId: string | null = null,
+): Reservation {
   const nights = nightsBetween(row.check_in, row.check_out)
   const rateType = (row.rate_type ?? 'nightly') as Reservation['rateType']
   const nightlyRate = Number(row.nightly_rate ?? 0)
@@ -77,9 +82,12 @@ function mapReservation(row: ReservationRow, folioMap: Map<string, number>): Res
   const paidAmount = Number(row.amount_paid ?? 0)
   const paymentStatus = (row.payment_status ?? 'unpaid') as ReservationPaymentStatus
   const depositAmount = Number(row.deposit_amount ?? 0)
+  const discountType = normalizeDiscountType(row.discount_type)
+  const discountValue = Number(row.discount_value ?? 0)
+  const discountAmount = Number(row.discount_amount ?? 0)
   const folioSubtotal =
     status === 'checked_in' ? folioSubtotalForStay(folioMap, row.guest_id, row.id) : 0
-  const estimatedTotal = total + folioSubtotal
+  const estimatedTotal = Math.max(0, total - discountAmount) + folioSubtotal
   const balanceDue = reservationBalanceDue(estimatedTotal, paidAmount)
   const channel = (row.channel ?? 'direct') as Reservation['channel']
 
@@ -104,6 +112,11 @@ function mapReservation(row: ReservationRow, folioMap: Map<string, number>): Res
     balanceDue,
     paymentStatus,
     depositAmount,
+    invoiceId,
+    discountType,
+    discountValue,
+    discountAmount,
+    discountReason: row.discount_reason ?? null,
     paymentMethod: row.payment_method ?? null,
     currency: 'GHS',
     source: CHANNEL_SOURCE_MAP[channel] ?? 'other',
@@ -324,8 +337,25 @@ async function finalizePage(
     ? await loadFolioSubtotalMap(admin, hotelId, inHouseGuestIds)
     : new Map<string, number>()
 
+  const invoiceByReservation = new Map<string, string>()
+  if (admin && pageRows.length > 0) {
+    const { data: invoiceRows } = await admin
+      .from('invoices')
+      .select('id, reservation_id')
+      .eq('hotel_id', hotelId)
+      .in(
+        'reservation_id',
+        pageRows.map((r) => r.id),
+      )
+    for (const inv of invoiceRows ?? []) {
+      if (inv.reservation_id) invoiceByReservation.set(inv.reservation_id, inv.id)
+    }
+  }
+
   return {
-    reservations: pageRows.map((row) => mapReservation(row, folioMap)),
+    reservations: pageRows.map((row) =>
+      mapReservation(row, folioMap, invoiceByReservation.get(row.id) ?? null),
+    ),
     totalCount,
     page,
     pageSize,

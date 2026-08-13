@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import {
   canAccessBilling,
+  canApplyGuestDiscount,
+  canCreateManualInvoice,
+  canIssueStayInvoice,
+  canEraseGuestData,
   canOwnerEraseGuestData,
+  canRecordInvoicePayment,
+  canRefundInvoice,
   canStaffExportGuestData,
 } from '@/lib/auth/tenant-access'
 import { roleRequiredPath } from '@/lib/auth/roles'
@@ -19,22 +25,52 @@ describe('tenant access — guest PII', () => {
     expect(canStaffExportGuestData(null)).toBe(false)
   })
 
-  it('restricts erasure to owner only', () => {
-    expect(canOwnerEraseGuestData('owner')).toBe(true)
-    expect(canOwnerEraseGuestData('manager')).toBe(false)
-    expect(canOwnerEraseGuestData('receptionist')).toBe(false)
+  it('allows owner, manager, and receptionist to erase guest data', () => {
+    expect(canEraseGuestData('owner')).toBe(true)
+    expect(canEraseGuestData('manager')).toBe(true)
+    expect(canEraseGuestData('receptionist')).toBe(true)
+    expect(canEraseGuestData('technician')).toBe(false)
+    // Deprecated alias tracks the expanded policy
+    expect(canOwnerEraseGuestData('receptionist')).toBe(true)
   })
 })
 
-describe('tenant access — billing isolation', () => {
-  it('limits billing routes to owner at app layer', () => {
+describe('tenant access — billing', () => {
+  it('allows owner, manager, and receptionist to view billing', () => {
     expect(canAccessBilling('owner')).toBe(true)
-    expect(canAccessBilling('manager')).toBe(false)
-    expect(canAccessBilling('receptionist')).toBe(false)
+    expect(canAccessBilling('manager')).toBe(true)
+    expect(canAccessBilling('receptionist')).toBe(true)
+    expect(canAccessBilling('technician')).toBe(false)
   })
 
-  it('maps billing paths to owner role prefix', () => {
+  it('allows front desk to record payments and issue stay invoices', () => {
+    expect(canRecordInvoicePayment('owner')).toBe(true)
+    expect(canRecordInvoicePayment('manager')).toBe(true)
+    expect(canRecordInvoicePayment('receptionist')).toBe(true)
+    expect(canIssueStayInvoice('receptionist')).toBe(true)
+    expect(canIssueStayInvoice('technician')).toBe(false)
+  })
+
+  it('keeps refunds and manual invoices owner-only', () => {
+    expect(canRefundInvoice('owner')).toBe(true)
+    expect(canRefundInvoice('manager')).toBe(false)
+    expect(canRefundInvoice('receptionist')).toBe(false)
+    expect(canCreateManualInvoice('owner')).toBe(true)
+    expect(canCreateManualInvoice('manager')).toBe(false)
+    expect(canCreateManualInvoice('receptionist')).toBe(false)
+  })
+
+  it('allows front desk to apply guest discounts', () => {
+    expect(canApplyGuestDiscount('owner')).toBe(true)
+    expect(canApplyGuestDiscount('manager')).toBe(true)
+    expect(canApplyGuestDiscount('receptionist')).toBe(true)
+    expect(canApplyGuestDiscount('technician')).toBe(false)
+  })
+
+  it('maps billing paths to role prefixes', () => {
     expect(roleRequiredPath('/owner/billing')).toBe('owner')
+    expect(roleRequiredPath('/manager/invoices')).toBe('manager')
+    expect(roleRequiredPath('/receptionist/billing')).toBe('receptionist')
     expect(roleRequiredPath('/manager/dashboard')).toBe('manager')
   })
 })

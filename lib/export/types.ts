@@ -21,12 +21,26 @@ export interface InvoiceExportRow {
   checkOut: string | null
   nights: number | null
   issuedAt: string | null
+  /** Taxable accommodation / services after discount. */
   subtotal: number
+  /** Pre-tax discount snapshot (GHS). */
+  discountAmount?: number
+  discountReason?: string | null
   nhil: number
   getfund: number
   covid: number
   vat: number
   elevy: number
+  tourism?: number
+  /** Frozen rates at issue (fractions). Used for PDF labels. */
+  taxSnapshot?: {
+    nhil: number
+    getfund: number
+    covid: number
+    vat: number
+    elevy: number
+    tourism: number
+  } | null
   total: number
   paymentMethod: string | null
   paymentStatus: string | null

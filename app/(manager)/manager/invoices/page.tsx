@@ -25,7 +25,7 @@ export default async function ManagerInvoicesPage({
       <PageHeader
         badge="Finance"
         title="Billing"
-        description="View and print guest invoices from check-outs and other charges."
+        description="Issue stay invoices, record payments, and print guest bills."
       />
 
       <PageTabShell
@@ -42,7 +42,9 @@ export default async function ManagerInvoicesPage({
               initialQuery={q}
               openInvoiceId={open}
               vatMode={hotel?.vatMode ?? 'exclusive'}
-              readOnly
+              canRecordPayment
+              canCreateInvoice={false}
+              canRefund={false}
               onlinePaymentsEnabled={paymentsEnabled}
             />
           ),
