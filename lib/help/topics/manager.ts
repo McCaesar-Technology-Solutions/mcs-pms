@@ -114,6 +114,7 @@ export const managerHelpTopics: HelpTopic[] = [
     summary: 'Stay invoices are created at check-in (pay before enter); collect at the desk.',
     steps: [
       'Check-in (including walk-in / check-in now) creates the stay invoice automatically.',
+      'Already in house without an invoice? Guests → open guest → Generate stay invoice & collect (uses check-in dates).',
       'Collect payment from the check-in dialog, the reservation → Issue invoice & collect, or Billing.',
       'Managers (and owners) apply % or fixed guest discounts before tax when creating/editing a booking or refreshing the invoice. Reception cannot.',
       'Taxed invoices always show Tax ID GHA-728071939-8. Guest Ghana Card remains optional on the guest record.',

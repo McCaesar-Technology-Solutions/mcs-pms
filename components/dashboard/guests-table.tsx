@@ -19,6 +19,7 @@ import {
   LogOut,
   Trash2,
   FileText,
+  Receipt,
 } from 'lucide-react'
 import { CenteredModal, ModalBody, ModalFooter, ModalHeader } from '@/components/ui/centered-modal'
 import { GuestDndBadge } from '@/components/ui/guest-dnd-badge'
@@ -28,6 +29,8 @@ import {
   getGuestDeleteEligibility,
   hardDeleteGuest,
 } from '@/app/actions/guest-privacy'
+import { issueStayInvoice } from '@/app/actions/invoices'
+import { CheckoutInvoiceDialog } from '@/components/dashboard/checkout-invoice-dialog'
 import { GuestFolioPanel } from '@/components/dashboard/guest-folio-panel'
 import { GuestsBulkBar } from '@/components/dashboard/guests-bulk-bar'
 import { TablePagination } from '@/components/dashboard/table-pagination'
@@ -35,6 +38,7 @@ import { hasPhoneNumber } from '@/lib/phone'
 import { usePagination } from '@/lib/hooks/use-pagination'
 import { toast } from 'sonner'
 import { PAYMENT_METHOD_LABELS } from '@/lib/tax'
+import type { InvoiceExportRow } from '@/lib/export/types'
 import type { PaymentMethod } from '@/types'
 import { canEraseGuestData } from '@/lib/auth/tenant-access'
 import {
@@ -158,6 +162,12 @@ export function GuestsTable({
   const [searchQuery, setSearchQuery] = useState(initialSearch)
   const [selectedStatus, setSelectedStatus] = useState<GuestDirectoryFilter | null>(initialStatus)
   const [selectedGuest, setSelectedGuest] = useState<GuestRow | null>(null)
+  const [stayInvoice, setStayInvoice] = useState<{
+    id: string
+    guestName: string
+    reservationId: string
+    preview?: InvoiceExportRow
+  } | null>(null)
 
   useEffect(() => {
     setSearchQuery(initialSearch)
@@ -611,6 +621,27 @@ export function GuestsTable({
                 />
               )}
 
+              {!readOnly && selectedGuest.isInHouse && selectedGuest.reservationId && (
+                <GuestStayInvoicePanel
+                  guest={selectedGuest}
+                  onIssued={(invoiceId, preview) => {
+                    setStayInvoice({
+                      id: invoiceId,
+                      guestName: selectedGuest.name,
+                      reservationId: selectedGuest.reservationId!,
+                      preview,
+                    })
+                    router.refresh()
+                  }}
+                />
+              )}
+
+              {!readOnly && selectedGuest.isInHouse && !selectedGuest.reservationId && (
+                <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+                  No linked reservation — open Reservations to issue a stay invoice for this guest.
+                </p>
+              )}
+
               {!readOnly && <GuestAccessLink guest={selectedGuest} />}
 
               {!readOnly && selectedGuest.canCheckOut && (
@@ -647,7 +678,144 @@ export function GuestsTable({
           </>
         )}
       </CenteredModal>
+
+      {stayInvoice && (
+        <CheckoutInvoiceDialog
+          invoiceId={stayInvoice.id}
+          guestName={stayInvoice.guestName}
+          initialInvoice={stayInvoice.preview}
+          reservationId={stayInvoice.reservationId}
+          mode="collect"
+          description={`${stayInvoice.guestName} — stay invoice from check-in dates. Collect payment before enter.`}
+          onClose={() => {
+            setStayInvoice(null)
+            router.refresh()
+          }}
+          onSettled={() => router.refresh()}
+        />
+      )}
     </>
+  )
+}
+
+function GuestStayInvoicePanel({
+  guest,
+  onIssued,
+}: {
+  guest: GuestRow
+  onIssued: (invoiceId: string, preview?: InvoiceExportRow) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
+  const [markAsPaid, setMarkAsPaid] = useState(true)
+  const [includeTax, setIncludeTax] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [pending, startTransition] = useTransition()
+
+  const methods: PaymentMethod[] = [
+    'cash',
+    'mtn_momo',
+    'telecel_cash',
+    'airteltigo',
+    'visa',
+    'mastercard',
+    'bank_transfer',
+  ]
+
+  function submit() {
+    if (!guest.reservationId) return
+    setError(null)
+    startTransition(async () => {
+      const result = await issueStayInvoice({
+        reservationId: guest.reservationId,
+        paymentMethod,
+        markAsPaid,
+        includeTax,
+      })
+      if (!result.success) {
+        setError(result.error)
+        return
+      }
+      toast.success(
+        result.created
+          ? 'Stay invoice generated'
+          : markAsPaid
+            ? 'Payment recorded'
+            : 'Stay invoice refreshed',
+      )
+      setOpen(false)
+      onIssued(result.invoiceId, result.invoicePreview)
+    })
+  }
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#D4A62E] py-3 text-sm font-semibold text-gray-900 shadow-elevation-1"
+      >
+        <Receipt className="h-4 w-4" />
+        Generate stay invoice & collect
+      </button>
+    )
+  }
+
+  return (
+    <div className="space-y-3 rounded-xl surface-inset p-4">
+      <p className="text-sm font-semibold">Generate stay invoice</p>
+      <p className="text-xs text-muted-foreground">
+        Uses this guest&apos;s check-in ({formatDate(guest.checkIn)}) → check-out (
+        {formatDate(guest.checkOut)})
+        {guest.roomNumber ? ` · Room ${guest.roomNumber}` : ''}. Creates or refreshes the stay
+        invoice for pay-before-enter.
+      </p>
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={includeTax}
+          onChange={(e) => setIncludeTax(e.target.checked)}
+        />
+        Include VAT &amp; GRA levies
+      </label>
+      <select
+        value={paymentMethod}
+        onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
+        className="w-full rounded-lg border border-border px-3 py-2 text-sm"
+      >
+        {methods.map((m) => (
+          <option key={m} value={m}>
+            {PAYMENT_METHOD_LABELS[m]}
+          </option>
+        ))}
+      </select>
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={markAsPaid}
+          onChange={(e) => setMarkAsPaid(e.target.checked)}
+        />
+        Paid in full now
+      </label>
+      {error && <p className="text-sm text-destructive">{error}</p>}
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          className="flex-1 rounded-lg border border-border py-2 text-sm font-semibold"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          disabled={pending}
+          onClick={submit}
+          className="flex-[2] rounded-lg bg-[#D4A62E] py-2 text-sm font-semibold text-gray-900 disabled:opacity-50"
+        >
+          {pending ? 'Saving…' : markAsPaid ? 'Generate & mark paid' : 'Generate invoice'}
+        </button>
+      </div>
+    </div>
   )
 }
 
