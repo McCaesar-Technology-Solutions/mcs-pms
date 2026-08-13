@@ -1155,7 +1155,10 @@ function ReservationDrawer({
               )}
             </div>
 
-            {(reservation.status === 'checked_in' ||
+            {(reservation.status === 'confirmed' ||
+              reservation.status === 'pre_arrival' ||
+              reservation.status === 'provisional' ||
+              reservation.status === 'checked_in' ||
               reservation.status === 'overstay' ||
               reservation.status === 'checkout_in_progress') &&
               !issuingInvoice && (
@@ -1167,7 +1170,13 @@ function ReservationDrawer({
                   className="flex w-full items-center justify-center gap-2 rounded-xl bg-white py-2.5 text-sm font-semibold text-foreground shadow-elevation-1 transition-all hover:shadow-elevation-2 disabled:opacity-50"
                 >
                   <Receipt className="h-4 w-4" />
-                  {reservation.invoiceId ? 'Refresh invoice & collect' : 'Issue invoice & collect'}
+                  {reservation.invoiceId
+                    ? 'Refresh invoice & collect'
+                    : reservation.status === 'checked_in' ||
+                        reservation.status === 'overstay' ||
+                        reservation.status === 'checkout_in_progress'
+                      ? 'Issue invoice & collect'
+                      : 'Collect payment before check-in'}
                 </button>
                 {reservation.invoiceId && onCheckoutInvoice && (
                   <button
@@ -1190,9 +1199,15 @@ function ReservationDrawer({
             {issuingInvoice && (
               <div className="mt-4 space-y-3 rounded-xl border border-border bg-background p-3">
                 <p className="text-xs font-medium text-muted-foreground">
-                  {reservation.invoiceId
-                    ? 'Refresh stay invoice with current folio, then optionally record payment.'
-                    : 'Create a stay invoice now. Checkout will reuse this invoice (no duplicate).'}
+                  {reservation.status === 'confirmed' ||
+                  reservation.status === 'pre_arrival' ||
+                  reservation.status === 'provisional'
+                    ? reservation.invoiceId
+                      ? 'Refresh the stay invoice and collect payment before check-in (pay before enter).'
+                      : 'Create the stay invoice and collect payment before check-in. Check-in will reuse this invoice.'
+                    : reservation.invoiceId
+                      ? 'Refresh stay invoice with current folio, then optionally record payment.'
+                      : 'Create a stay invoice now. Checkout will reuse this invoice (no duplicate).'}
                 </p>
                 {canDiscount && (
                   <DiscountFields
@@ -1721,25 +1736,24 @@ function ReservationDrawer({
                             setPortalUrl(result.data.loginUrl)
                             setPortalPin(result.data.portalPin)
                             setCheckingIn(false)
-                            onMutated()
                             if (result.data.invoiceError) {
                               toast.error(
                                 `Checked in, but invoice failed: ${result.data.invoiceError}`,
                               )
-                            } else if (
-                              result.data.invoiceId &&
-                              result.data.invoicePreview &&
-                              onCheckoutInvoice
-                            ) {
+                              onMutated()
+                            } else if (result.data.invoiceId && onCheckoutInvoice) {
                               toast.success('Checked in — collect payment at the desk')
+                              // Open collect before closing the drawer so payment is not lost.
                               onCheckoutInvoice(
                                 result.data.invoiceId,
                                 guestName,
                                 result.data.invoicePreview,
                                 { reservationId: reservation.id, mode: 'collect' },
                               )
+                              onMutated()
                             } else {
                               toast.success('Checked in')
+                              onMutated()
                             }
                           } else if (!result.success) {
                             setError(result.error ?? 'Check-in failed.')

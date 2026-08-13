@@ -493,11 +493,19 @@ export async function issueStayInvoice(input: unknown): Promise<IssueStayInvoice
 
   if (!reservation) return { success: false, error: 'Reservation not found.' }
 
-  const issuable = ['checked_in', 'overstay', 'checkout_in_progress']
+  // Pay-before-enter: allow invoice + collect on confirmed bookings before check-in.
+  const issuable = [
+    'confirmed',
+    'pre_arrival',
+    'provisional',
+    'checked_in',
+    'overstay',
+    'checkout_in_progress',
+  ]
   if (!issuable.includes(reservation.status ?? '')) {
     return {
       success: false,
-      error: 'Issue invoices for in-house stays only (after check-in).',
+      error: 'Issue invoices for upcoming or in-house stays only.',
     }
   }
 
