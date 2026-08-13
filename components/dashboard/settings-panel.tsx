@@ -39,8 +39,14 @@ const GHANA_REGIONS = [
   'Western North',
 ] as const
 
-function fractionToPercentInput(value: number | null | undefined, fallbackFraction: number): string {
-  const fraction = value != null ? value : fallbackFraction
+/** Empty = system default (null in DB). Only show a value when the hotel has an override. */
+function overrideToPercentInput(value: number | null | undefined): string {
+  if (value == null) return ''
+  const pct = Math.round(value * 1000000) / 10000
+  return String(pct)
+}
+
+function defaultPercentLabel(fraction: number): string {
   const pct = Math.round(fraction * 1000000) / 10000
   return String(pct)
 }
@@ -77,12 +83,13 @@ export function SettingsPanel({ hotelSettings, staffHref = '/owner/staff', profi
   const [vatNumber, setVatNumber] = useState('')
   const [vatMode, setVatMode] = useState<VatMode>('exclusive')
   const [invoicePrefix, setInvoicePrefix] = useState('MOJO')
-  const [taxNhil, setTaxNhil] = useState('2.5')
-  const [taxGetfund, setTaxGetfund] = useState('2.5')
-  const [taxVat, setTaxVat] = useState('15')
-  const [taxElevy, setTaxElevy] = useState('0')
-  const [taxCovid, setTaxCovid] = useState('1')
-  const [taxTourism, setTaxTourism] = useState('0')
+  const [taxNhil, setTaxNhil] = useState('')
+  const [taxGetfund, setTaxGetfund] = useState('')
+  const [taxVat, setTaxVat] = useState('')
+  const [taxElevy, setTaxElevy] = useState('')
+  const [taxCovid, setTaxCovid] = useState('')
+  const [taxTourism, setTaxTourism] = useState('')
+  const taxDefaults = defaultHotelTaxRates()
 
   useEffect(() => {
     if (!hotelSettings) return
@@ -93,14 +100,13 @@ export function SettingsPanel({ hotelSettings, staffHref = '/owner/staff', profi
     setVatNumber(hotelSettings.vat_registration_number ?? '')
     setVatMode(hotelSettings.vat_mode ?? 'exclusive')
     setInvoicePrefix(hotelSettings.invoice_prefix ?? 'MOJO')
-    const defaults = defaultHotelTaxRates()
     const o = hotelSettings.taxRateOverrides
-    setTaxNhil(fractionToPercentInput(o.nhil, defaults.nhil))
-    setTaxGetfund(fractionToPercentInput(o.getfund, defaults.getfund))
-    setTaxVat(fractionToPercentInput(o.vat, defaults.vat))
-    setTaxElevy(fractionToPercentInput(o.elevy, defaults.elevy))
-    setTaxCovid(fractionToPercentInput(o.covid, defaults.covid))
-    setTaxTourism(fractionToPercentInput(o.tourism, 0))
+    setTaxNhil(overrideToPercentInput(o.nhil))
+    setTaxGetfund(overrideToPercentInput(o.getfund))
+    setTaxVat(overrideToPercentInput(o.vat))
+    setTaxElevy(overrideToPercentInput(o.elevy))
+    setTaxCovid(overrideToPercentInput(o.covid))
+    setTaxTourism(overrideToPercentInput(o.tourism))
     setProfileImage(null)
     setRemoveExistingImage(false)
     setError(null)
@@ -448,20 +454,21 @@ export function SettingsPanel({ hotelSettings, staffHref = '/owner/staff', profi
               <div>
                 <label className="text-sm font-semibold text-foreground">Tax rates (%)</label>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Applied to new invoices only. Existing invoices keep their frozen snapshot.
-                  Tourism levy is outside the NHIL / GETFund / VAT base. Set tourism to 0 to disable.
+                  Leave blank to use the system default (shown as placeholder). Applied to newly
+                  issued invoices; existing invoices keep their frozen snapshot. Tourism levy is
+                  outside the NHIL / GETFund / VAT base (blank or 0 = off).
                 </p>
                 <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
                   {(
                     [
-                      ['NHIL', taxNhil, setTaxNhil],
-                      ['GETFund', taxGetfund, setTaxGetfund],
-                      ['VAT', taxVat, setTaxVat],
-                      ['E-Levy', taxElevy, setTaxElevy],
-                      ['COVID levy', taxCovid, setTaxCovid],
-                      ['Tourism levy', taxTourism, setTaxTourism],
+                      ['NHIL', taxNhil, setTaxNhil, taxDefaults.nhil],
+                      ['GETFund', taxGetfund, setTaxGetfund, taxDefaults.getfund],
+                      ['VAT', taxVat, setTaxVat, taxDefaults.vat],
+                      ['E-Levy', taxElevy, setTaxElevy, taxDefaults.elevy],
+                      ['COVID levy', taxCovid, setTaxCovid, taxDefaults.covid],
+                      ['Tourism levy', taxTourism, setTaxTourism, 0],
                     ] as const
-                  ).map(([label, value, setValue]) => (
+                  ).map(([label, value, setValue, fallback]) => (
                     <div key={label}>
                       <label className="text-xs font-medium text-muted-foreground">{label}</label>
                       <input
@@ -470,6 +477,7 @@ export function SettingsPanel({ hotelSettings, staffHref = '/owner/staff', profi
                         max={100}
                         step="0.01"
                         value={value}
+                        placeholder={defaultPercentLabel(fallback)}
                         onChange={(e) => setValue(e.target.value)}
                         className="input-soft mt-1"
                       />

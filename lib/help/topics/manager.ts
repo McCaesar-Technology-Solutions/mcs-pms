@@ -112,12 +112,13 @@ export const managerHelpTopics: HelpTopic[] = [
     steps: [
       'Open an in-house reservation → Issue invoice & collect, or use Billing.',
       'Apply % or fixed guest discounts before tax when creating/editing a booking or issuing the invoice.',
+      'At check-in (or Guests → Edit), enter Ghana Card (GHA-#########-#) so invoices show Tax ID.',
       'Record full or partial payments at the desk; refunds stay owner-only.',
       'Checkout reuses an existing stay invoice — it will not create a duplicate.',
     ],
     href: '/manager/invoices',
     hrefLabel: 'Open billing',
-    keywords: ['invoice', 'billing', 'payment', 'collect', 'discount'],
+    keywords: ['invoice', 'billing', 'payment', 'collect', 'discount', 'ghana card', 'tax id'],
     pathPrefixes: ['/manager/invoices', '/manager/reservations'],
   },
   {

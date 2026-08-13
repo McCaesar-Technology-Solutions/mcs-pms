@@ -23,8 +23,10 @@ import {
   formatTaxPercent,
   invoiceHasTaxBreakdown,
   parseTaxSnapshot,
+  type HotelTaxRates,
   type VatMode,
 } from '@/lib/tax'
+import { GuestSearchField } from '@/components/dashboard/guest-search-field'
 import { formatInvoiceNumber } from '@/lib/invoices/numbering'
 import { InvoiceWhatsAppDialog, InvoiceWhatsAppShare } from '@/components/dashboard/invoice-whatsapp-share'
 import { downloadInvoicePdf } from '@/lib/export/invoice-pdf'
@@ -123,6 +125,8 @@ interface BillingOverviewProps {
   initialQuery?: string
   openInvoiceId?: string
   vatMode?: VatMode
+  /** Hotel tax rates for manual-invoice preview (must match server create). */
+  taxRates?: HotelTaxRates
   /** @deprecated Prefer canRecordPayment / canCreateInvoice / canRefund */
   readOnly?: boolean
   canRecordPayment?: boolean
@@ -138,6 +142,7 @@ export function BillingOverview({
   initialQuery = '',
   openInvoiceId,
   vatMode = 'exclusive',
+  taxRates,
   readOnly = false,
   canRecordPayment,
   canCreateInvoice,
@@ -147,12 +152,14 @@ export function BillingOverview({
   const allowRecordPayment = canRecordPayment ?? !readOnly
   const allowCreateInvoice = canCreateInvoice ?? !readOnly
   const allowRefund = canRefund ?? !readOnly
+  const previewRates = taxRates ?? defaultHotelTaxRates()
   const router = useRouter()
   const [statusFilter, setStatusFilter] = useState<string | null>(null)
   const [textFilter, setTextFilter] = useState(initialQuery)
   const [detail, setDetail] = useState<InvoiceWithRoom | null>(null)
   const [creating, setCreating] = useState(false)
   const [newGuestName, setNewGuestName] = useState('')
+  const [newGuestId, setNewGuestId] = useState<string | null>(null)
   const [newDescription, setNewDescription] = useState('')
   const [newSubtotal, setNewSubtotal] = useState('')
   const [newPaymentMethod, setNewPaymentMethod] = useState<PaymentMethod>('cash')
@@ -251,7 +258,7 @@ export function BillingOverview({
   const newSubtotalNum = parseFloat(newSubtotal) || 0
   const newTaxPreview =
     newSubtotalNum > 0
-      ? computeInvoiceTaxesWithOption(newSubtotalNum, vatMode, newIncludeTax)
+      ? computeInvoiceTaxesWithOption(newSubtotalNum, vatMode, newIncludeTax, previewRates)
       : null
   const amountFieldLabel =
     vatMode === 'inclusive' ? 'Gross amount (includes tax)' : 'Subtotal (before tax)'
@@ -260,6 +267,7 @@ export function BillingOverview({
     startTransition(async () => {
       const result = await createManualInvoice({
         guestName: newGuestName,
+        guestId: newGuestId ?? undefined,
         description: newDescription || undefined,
         subtotal: newSubtotalNum,
         paymentMethod: newPaymentMethod,
@@ -270,6 +278,7 @@ export function BillingOverview({
         toast.success('Invoice created')
         setCreating(false)
         setNewGuestName('')
+        setNewGuestId(null)
         setNewDescription('')
         setNewSubtotal('')
         router.refresh()
@@ -834,11 +843,26 @@ export function BillingOverview({
             <label className="text-sm font-semibold">Guest name</label>
             <input
               value={newGuestName}
-              onChange={(e) => setNewGuestName(e.target.value)}
+              onChange={(e) => {
+                setNewGuestName(e.target.value)
+                setNewGuestId(null)
+              }}
               className="mt-1 w-full rounded-lg border border-[#E9ECEF] px-3 py-2 text-sm"
               placeholder="Guest or company name"
             />
           </div>
+          <GuestSearchField
+            label="Link guest (optional — copies Ghana Card tax ID)"
+            selectedGuestId={newGuestId}
+            onSelectGuest={(g) => {
+              if (g) {
+                setNewGuestId(g.id)
+                setNewGuestName(g.name)
+              } else {
+                setNewGuestId(null)
+              }
+            }}
+          />
           <div>
             <label className="text-sm font-semibold">Description (optional)</label>
             <input

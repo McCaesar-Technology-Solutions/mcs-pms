@@ -218,6 +218,22 @@ export function parseTaxSnapshot(raw: unknown): HotelTaxRates | null {
   return { nhil, getfund, covid, vat, elevy, tourism }
 }
 
+/**
+ * Prefer a frozen invoice snapshot so rate edits mid-stay do not rewrite issued invoices.
+ * First issue uses current hotel rates.
+ */
+export function resolveInvoiceTaxRates(
+  existingSnapshot: unknown,
+  hotelRates: HotelTaxRates,
+): { rates: HotelTaxRates; snapshot: TaxSnapshot; frozen: boolean } {
+  const frozen = parseTaxSnapshot(existingSnapshot)
+  if (frozen) {
+    return { rates: frozen, snapshot: taxSnapshotFromRates(frozen), frozen: true }
+  }
+  const snapshot = taxSnapshotFromRates(hotelRates)
+  return { rates: hotelRates, snapshot, frozen: false }
+}
+
 export function formatTaxPercent(rate: number): string {
   const pct = round2(clampRate(rate) * 100)
   return Number.isInteger(pct) ? `${pct}%` : `${pct}%`

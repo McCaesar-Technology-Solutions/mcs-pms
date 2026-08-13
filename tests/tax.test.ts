@@ -5,6 +5,8 @@ import {
   GRA_GROSS_MULTIPLIER,
   graGrossMultiplier,
   resolveHotelTaxRates,
+  resolveInvoiceTaxRates,
+  taxSnapshotFromRates,
 } from '@/lib/tax'
 
 describe('computeInvoiceTaxes', () => {
@@ -92,5 +94,24 @@ describe('resolveHotelTaxRates', () => {
     expect(rates.nhil).toBe(0.03)
     expect(rates.tourism).toBe(0.01)
     expect(rates.vat).toBe(defaultHotelTaxRates().vat)
+  })
+})
+
+describe('resolveInvoiceTaxRates', () => {
+  it('freezes rates from an existing invoice snapshot', () => {
+    const hotel = { ...defaultHotelTaxRates(), tourism: 0.01, elevy: 0.01 }
+    const issued = taxSnapshotFromRates(defaultHotelTaxRates())
+    const resolved = resolveInvoiceTaxRates(issued, hotel)
+    expect(resolved.frozen).toBe(true)
+    expect(resolved.rates.tourism).toBe(0)
+    expect(resolved.rates.elevy).toBe(0)
+  })
+
+  it('uses hotel rates on first issue', () => {
+    const hotel = { ...defaultHotelTaxRates(), tourism: 0.01 }
+    const resolved = resolveInvoiceTaxRates(null, hotel)
+    expect(resolved.frozen).toBe(false)
+    expect(resolved.rates.tourism).toBe(0.01)
+    expect(resolved.snapshot.tourism).toBe(0.01)
   })
 })

@@ -3,7 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { computeInvoiceTaxes, noTaxInvoice, taxSnapshotFromRates } from '@/lib/tax'
-import { parseGhanaCard } from '@/lib/billing/ghana-card'
+import { ghanaCardInputSchema, parseGhanaCard } from '@/lib/billing/ghana-card'
 import { getHotelTaxConfig } from '@/lib/data/settings'
 import { allocateInvoiceNumber } from '@/lib/invoices/numbering'
 import { createOrRefreshStayInvoice } from '@/lib/billing/build-stay-invoice'
@@ -61,33 +61,19 @@ const VALID_PAYMENT_METHODS: PaymentMethod[] = [
   'bank_transfer',
 ]
 
-/** Undefined = leave existing guest card unchanged; empty string clears. */
-const ghanaCardField = z
-  .union([z.string(), z.null(), z.undefined()])
-  .optional()
-  .transform((v, ctx) => {
-    if (v === undefined) return undefined
-    const parsed = parseGhanaCard(v)
-    if (!parsed.ok) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: parsed.error })
-      return z.NEVER
-    }
-    return parsed.value
-  })
-
 const checkInStaySchema = z.object({
   phone: phoneSchema,
   email: z.string().email().optional().or(z.literal('')),
   guestId: z.string().uuid().optional(),
   guestName: z.string().min(2).optional(),
-  ghanaCardNumber: ghanaCardField,
+  ghanaCardNumber: ghanaCardInputSchema,
 })
 
 const walkInCheckInSchema = z.object({
   name: z.string().trim().min(2).max(120),
   phone: phoneSchema,
   email: z.string().email().optional().or(z.literal('')),
-  ghanaCardNumber: ghanaCardField,
+  ghanaCardNumber: ghanaCardInputSchema,
   roomId: z.string().uuid(),
   checkOut: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   rateType: z.enum(['nightly', 'weekly', 'monthly']).optional(),
@@ -216,7 +202,9 @@ export async function searchGuests(query: string): Promise<
     .from('guests')
     .select('id, name, phone, email, ghana_card_number')
     .eq('hotel_id', profile.hotel_id)
-    .or(`name.ilike.%${q}%,phone.ilike.%${q}%,email.ilike.%${q}%`)
+    .or(
+      `name.ilike.%${q}%,phone.ilike.%${q}%,email.ilike.%${q}%,ghana_card_number.ilike.%${q}%`,
+    )
     .order('name')
     .limit(8)
 

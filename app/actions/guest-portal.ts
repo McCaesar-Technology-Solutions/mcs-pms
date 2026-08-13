@@ -680,6 +680,8 @@ export async function getGuestInvoiceReceiptExport(
         nights: checkIn && checkOut ? stayNights(checkIn, checkOut) : null,
         issuedAt: row.issued_at,
         subtotal: Number(row.subtotal),
+        discountAmount: Number(row.discount_amount ?? 0),
+        discountReason: row.discount_reason ?? null,
         nhil: Number(row.nhil_amount ?? 0),
         getfund: Number(row.getfund_amount ?? 0),
         covid: Number(row.covid_levy_amount ?? 0),

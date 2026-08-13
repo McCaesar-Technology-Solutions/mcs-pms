@@ -1,5 +1,7 @@
 /** Ghana Card / NIA number used as guest tax ID on invoices. */
 
+import { z } from 'zod'
+
 const GHANA_CARD_RE = /^GHA-\d{9}-\d$/
 
 /**
@@ -35,3 +37,22 @@ export function parseGhanaCard(
   }
   return { ok: true, value: normalized }
 }
+
+/**
+ * Zod field for forms/actions.
+ * - `undefined` → leave existing guest card unchanged (omit from update)
+ * - `''` / null → clear (null)
+ * - invalid shape → validation error
+ */
+export const ghanaCardInputSchema = z
+  .union([z.string(), z.null(), z.undefined()])
+  .optional()
+  .transform((v, ctx) => {
+    if (v === undefined) return undefined
+    const parsed = parseGhanaCard(v)
+    if (!parsed.ok) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: parsed.error })
+      return z.NEVER
+    }
+    return parsed.value
+  })

@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { isValidGhanaCard, normalizeGhanaCard, parseGhanaCard } from '@/lib/billing/ghana-card'
+import {
+  ghanaCardInputSchema,
+  isValidGhanaCard,
+  normalizeGhanaCard,
+  parseGhanaCard,
+} from '@/lib/billing/ghana-card'
 
 describe('ghana card', () => {
   it('accepts canonical GHA-#########-#', () => {
@@ -26,5 +31,12 @@ describe('ghana card', () => {
     const bad = parseGhanaCard('GHA-123-4')
     expect(bad.ok).toBe(false)
     if (!bad.ok) expect(bad.error).toMatch(/GHA-728071939-8/)
+  })
+
+  it('zod schema rejects bad cards before create flows', () => {
+    expect(ghanaCardInputSchema.safeParse('GHA-123-4').success).toBe(false)
+    expect(ghanaCardInputSchema.safeParse('GHA-728071939-8').success).toBe(true)
+    expect(ghanaCardInputSchema.safeParse('').success).toBe(true)
+    expect(ghanaCardInputSchema.safeParse(undefined).success).toBe(true)
   })
 })

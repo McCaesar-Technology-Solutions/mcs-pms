@@ -41,12 +41,13 @@ export const receptionistHelpTopics: HelpTopic[] = [
     steps: [
       'Open Guests → Register in-house guest.',
       'Enter their real arrival date (can be in the past) and planned departure.',
+      'Optional: Ghana Card (GHA-#########-#) for invoice Tax ID.',
       'Assign their room and rate, then share the portal link or PIN on WhatsApp.',
       'Use Walk-in check-in only for guests who are arriving now.',
     ],
     href: '/receptionist/guests',
     hrefLabel: 'Open guests',
-    keywords: ['enroll', 'register', 'in house', 'go live', 'existing guest', 'migration'],
+    keywords: ['enroll', 'register', 'in house', 'go live', 'existing guest', 'migration', 'ghana card'],
     pathPrefixes: ['/receptionist/guests'],
   },
   {

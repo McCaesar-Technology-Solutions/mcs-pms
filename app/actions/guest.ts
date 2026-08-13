@@ -429,7 +429,10 @@ export async function enrollGuest(input: {
     guestName: parsed.data.name,
     phone: parsed.data.phone,
     email: parsed.data.email || undefined,
-    ghanaCardNumber: parsed.data.ghanaCardNumber || undefined,
+    ghanaCardNumber:
+      parsed.data.ghanaCardNumber === undefined
+        ? undefined
+        : (parsed.data.ghanaCardNumber ?? ''),
     roomId: parsed.data.roomId,
     checkIn,
     checkOut,

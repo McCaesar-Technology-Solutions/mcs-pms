@@ -6,7 +6,8 @@ import { PageTabShell } from '@/components/dashboard/page-tab-shell'
 import { getInvoicesData } from '@/lib/data/billing'
 import { getPaymentRecordsData, getPaymentReconciliationSummary } from '@/lib/data/payments'
 import { getOnlinePaymentsData } from '@/lib/data/online-payments'
-import { getHotelExportInfo } from '@/lib/data/settings'
+import { getHotelExportInfo, getHotelTaxRates } from '@/lib/data/settings'
+import { getProfile } from '@/lib/auth/get-profile'
 import { isPaymentsEnabled } from '@/lib/payments/enabled'
 
 export default async function BillingPage({
@@ -16,13 +17,16 @@ export default async function BillingPage({
 }) {
   const { q, open } = await searchParams
   const paymentsEnabled = isPaymentsEnabled()
-  const [invoices, hotel, paymentSummary, paymentRecords, onlinePayments] = await Promise.all([
-    getInvoicesData(),
-    getHotelExportInfo(),
-    getPaymentReconciliationSummary(),
-    getPaymentRecordsData(50),
-    getOnlinePaymentsData(100),
-  ])
+  const profile = await getProfile()
+  const [invoices, hotel, taxRates, paymentSummary, paymentRecords, onlinePayments] =
+    await Promise.all([
+      getInvoicesData(),
+      getHotelExportInfo(),
+      profile?.hotel_id ? getHotelTaxRates(profile.hotel_id) : Promise.resolve(undefined),
+      getPaymentReconciliationSummary(),
+      getPaymentRecordsData(50),
+      getOnlinePaymentsData(100),
+    ])
 
   return (
     <div className="page-shell page-content-stack">
@@ -47,6 +51,7 @@ export default async function BillingPage({
               initialQuery={q}
               openInvoiceId={open}
               vatMode={hotel?.vatMode ?? 'exclusive'}
+              taxRates={taxRates}
               onlinePaymentsEnabled={paymentsEnabled}
             />
           ),

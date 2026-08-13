@@ -32,6 +32,7 @@ import {
   reservationBalanceDue,
 } from '@/lib/billing/reservation-payment'
 import { computeDiscountAmount, normalizeDiscountType } from '@/lib/billing/discount'
+import { ghanaCardInputSchema } from '@/lib/billing/ghana-card'
 import { todayISO } from '@/lib/stays/helpers'
 import { revalidateStayViews } from '@/lib/stays/revalidate'
 import type { InvoiceExportRow } from '@/lib/export/types'
@@ -66,7 +67,7 @@ export type BookAndCheckInResult =
 const bookAndCheckInSchema = createReservationSchema.extend({
   phone: phoneSchema,
   email: z.string().email().optional().or(z.literal('')),
-  ghanaCardNumber: z.string().optional().or(z.literal('')),
+  ghanaCardNumber: ghanaCardInputSchema,
   /** Go-live / in-house enrollment — skip welcome + new-booking SMS noise. */
   quietEnrollment: z.boolean().optional(),
 })
@@ -308,7 +309,7 @@ export async function bookAndCheckIn(input: unknown): Promise<BookAndCheckInResu
       email: email || undefined,
       guestId: reservationFields.guestId ?? undefined,
       guestName: reservationFields.guestName,
-      ghanaCardNumber: ghanaCardNumber || undefined,
+      ghanaCardNumber: ghanaCardNumber === undefined ? undefined : ghanaCardNumber ?? '',
     },
     { quiet: quietEnrollment === true },
   )

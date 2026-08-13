@@ -4,9 +4,10 @@ import { getHotelTaxConfig } from '@/lib/data/settings'
 import {
   computeInvoiceTaxes,
   noTaxInvoice,
-  taxSnapshotFromRates,
+  resolveInvoiceTaxRates,
   type HotelTaxRates,
   type InvoiceTaxes,
+  type VatMode,
 } from '@/lib/tax'
 import { calculateStayTotal, type RateType } from '@/lib/pricing/stay-totals'
 import { getRoomRates } from '@/lib/pricing/room-rates'
@@ -87,13 +88,13 @@ async function computeRoomTaxesForStay(
   reservation: StayInvoiceReservation,
   effectiveCheckOut: string,
   includeTax: boolean,
+  vatMode: VatMode,
+  rates: HotelTaxRates,
 ): Promise<{
   taxes: InvoiceTaxes
   discountAmount: number
   roomListBase: number
-  rates: HotelTaxRates
 }> {
-  const { vatMode, rates } = await getHotelTaxConfig(reservation.hotel_id)
   const roomListBase = await computeRoomChargeAmount(admin, reservation, effectiveCheckOut)
   const discountType = normalizeDiscountType(reservation.discount_type) as DiscountType
   const { taxableBase, discountAmount } = applyDiscountToBase(
@@ -106,7 +107,7 @@ async function computeRoomTaxesForStay(
     ? noTaxInvoice(taxableBase)
     : computeInvoiceTaxes(taxableBase, vatMode, rates)
 
-  return { taxes, discountAmount, roomListBase, rates }
+  return { taxes, discountAmount, roomListBase }
 }
 
 function invoiceDiscountFields(
@@ -151,14 +152,30 @@ export async function createOrRefreshStayInvoice(
   const now = new Date().toISOString()
   const paidNow = input.markAsPaid
 
-  const {
-    taxes: roomTaxes,
-    discountAmount,
+  const { data: existing } = await admin
+    .from('invoices')
+    .select('id, invoice_number, amount_paid, payment_status, paid_at, guest_tax_id, tax_snapshot')
+    .eq('reservation_id', reservation.id)
+    .eq('hotel_id', reservation.hotel_id)
+    .maybeSingle()
+
+  const { vatMode, rates: hotelRates } = await getHotelTaxConfig(reservation.hotel_id)
+  // Freeze rates after first issue so owner rate edits do not rewrite in-flight invoices.
+  const { rates, snapshot: taxSnapshot } = resolveInvoiceTaxRates(
+    existing?.tax_snapshot,
+    hotelRates,
+  )
+
+  const { taxes: roomTaxes, discountAmount } = await computeRoomTaxesForStay(
+    admin,
+    reservation,
+    effectiveCheckOut,
+    includeTax,
+    vatMode,
     rates,
-  } = await computeRoomTaxesForStay(admin, reservation, effectiveCheckOut, includeTax)
+  )
 
   const discountFields = invoiceDiscountFields(discountAmount, reservation.discount_reason)
-  const taxSnapshot = taxSnapshotFromRates(rates)
 
   // Persist computed discount_amount on the reservation for UI consistency
   if (Math.abs(Number(reservation.discount_amount ?? 0) - discountAmount) > 0.009) {
@@ -202,13 +219,6 @@ export async function createOrRefreshStayInvoice(
     tourism_levy_amount: taxes.tourism,
     tax_snapshot: taxSnapshot,
   }
-
-  const { data: existing } = await admin
-    .from('invoices')
-    .select('id, invoice_number, amount_paid, payment_status, paid_at, guest_tax_id')
-    .eq('reservation_id', reservation.id)
-    .eq('hotel_id', reservation.hotel_id)
-    .maybeSingle()
 
   // Prefer live guest card; keep prior snapshot if guest card was cleared (e.g. privacy erase).
   const guestTaxId = guestCard ?? existing?.guest_tax_id ?? null

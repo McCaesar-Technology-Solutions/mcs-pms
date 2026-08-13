@@ -54,7 +54,7 @@ export const termsSections = [
   },
   {
     title: 'Payments',
-    body: `Payments are recorded manually by property staff (cash, mobile money, card, bank transfer). Invoice totals include applicable Ghana taxes (NHIL, GETFund, COVID levy, VAT) as configured for the property.`,
+    body: `Payments are recorded manually by property staff (cash, mobile money, card, bank transfer). Invoice totals include applicable Ghana taxes (NHIL, GETFund, COVID levy, VAT, e-levy, and tourism levy when enabled) as configured for the property.`,
   },
   {
     title: 'Availability',
