@@ -44,7 +44,7 @@ export async function findActiveGuestForRoom(
     .eq('hotel_id', hotelId)
     .eq('room_id', room.id)
     .lte('check_in', today)
-    .gt('check_out', today)
+    .gte('check_out', today)
     .order('created_at', { ascending: false })
 
   if (!guests?.length) return null

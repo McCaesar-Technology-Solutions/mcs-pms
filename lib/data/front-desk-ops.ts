@@ -3,10 +3,8 @@ import {
   type TodayOperations,
 } from '@/lib/data/overview'
 import { isOpsDateToday } from '@/lib/dates/ops-date'
-import { OPEN_BOOKING_STATUSES, ARRIVING_STATUSES, DEPARTING_STATUSES } from '@/lib/reservations/lifecycle'
+import { OPEN_BOOKING_STATUSES, ARRIVING_STATUSES, IN_HOUSE_STATUSES } from '@/lib/reservations/lifecycle'
 import type { DbRoom, DbRoomStatus, Reservation, ReservationPaymentStatus } from '@/types'
-
-const IN_HOUSE_NOW = ['checked_in', 'overstay', 'checkout_in_progress'] as const
 
 export interface ExtendedTodayOperations extends TodayOperations {
   dirtyRooms: number
@@ -58,7 +56,7 @@ function isSecuredPayment(status: ReservationPaymentStatus, depositAmount: numbe
 
 export function countGuestsInHouseNow(reservations: Reservation[]): number {
   return reservations.filter((r) =>
-    (IN_HOUSE_NOW as readonly string[]).includes(r.status),
+    (IN_HOUSE_STATUSES as readonly string[]).includes(r.status),
   ).length
 }
 

@@ -3,15 +3,8 @@ import { PageHeader } from '@/components/dashboard/page-header'
 import { WalkInCheckInCta } from '@/components/guest/walk-in-check-in-cta'
 import { RegisterInHouseGuestCta } from '@/components/guest/register-in-house-guest'
 import { PropertyPortalQrPanel } from '@/components/guest/property-portal-qr-panel'
-import { getGuestsPage, type GuestStatus } from '@/lib/data/guests'
+import { getGuestsPage, parseGuestDirectoryFilter } from '@/lib/data/guests'
 import { parsePageParam } from '@/lib/data/pagination'
-
-const GUEST_STATUSES: GuestStatus[] = ['active', 'returning', 'vip', 'new']
-
-function parseGuestStatus(value: string | undefined): GuestStatus | null {
-  if (!value) return null
-  return GUEST_STATUSES.includes(value as GuestStatus) ? (value as GuestStatus) : null
-}
 
 export default async function ManagerGuestsPage({
   searchParams,
@@ -20,7 +13,7 @@ export default async function ManagerGuestsPage({
 }) {
   const { q, open, page: pageParam, status: statusParam } = await searchParams
   const page = parsePageParam(pageParam)
-  const status = parseGuestStatus(statusParam)
+  const status = parseGuestDirectoryFilter(statusParam)
   const guestsPage = await getGuestsPage({ page, search: q, status })
 
   return (
@@ -28,7 +21,7 @@ export default async function ManagerGuestsPage({
       <PageHeader
         badge="CRM"
         title="Guests"
-        description="Register in-house guests, walk-ins, and manage active stays."
+        description="In-house stays first, then past guests. Loyalty (first stay, returning, VIP) is separate from occupancy."
       />
       <PropertyPortalQrPanel />
       <RegisterInHouseGuestCta />
@@ -37,6 +30,7 @@ export default async function ManagerGuestsPage({
         guests={guestsPage.guests}
         initialSearch={q}
         openGuestId={open}
+        staffRole="manager"
         serverPagination={{
           page: guestsPage.page,
           totalPages: guestsPage.totalPages,

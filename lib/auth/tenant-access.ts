@@ -6,14 +6,13 @@ export function canStaffExportGuestData(role: UserRole | string | null | undefin
 }
 
 /**
- * Soft-erase / orphan hard-delete of guest personal data.
- * Owner, manager, and receptionist (ops desk). In-house stays are blocked in the action.
+ * Soft-erase / orphan hard-delete of guest personal data — manager+ only.
  */
 export function canEraseGuestData(role: UserRole | string | null | undefined): boolean {
-  return role === 'owner' || role === 'manager' || role === 'receptionist'
+  return role === 'owner' || role === 'manager'
 }
 
-/** @deprecated Use canEraseGuestData — erasure is no longer owner-only. */
+/** @deprecated Use canEraseGuestData — same manager+ policy. */
 export function canOwnerEraseGuestData(role: UserRole | string | null | undefined): boolean {
   return canEraseGuestData(role)
 }
@@ -43,9 +42,9 @@ export function canRefundInvoice(role: UserRole | string | null | undefined): bo
   return role === 'owner'
 }
 
-/** Apply guest stay discounts (pre-tax) on reservations / invoices. */
+/** Apply guest stay discounts (pre-tax) on reservations / invoices — manager+ only. */
 export function canApplyGuestDiscount(role: UserRole | string | null | undefined): boolean {
-  return role === 'owner' || role === 'manager' || role === 'receptionist'
+  return role === 'owner' || role === 'manager'
 }
 
 /** Payroll overview: owners manage fully; managers may view and prepare drafts. */

@@ -15,7 +15,8 @@ export function WalkInCheckInCta({ reservationsHref }: WalkInCheckInCtaProps) {
         <div>
           <h3 className="text-lg font-semibold text-foreground">Walk-in check-in</h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            Book the stay, check the guest in, and share the portal link — all from Reservations.
+            Book, check in, collect payment (pay before enter), then share the portal link — from
+            Reservations.
           </p>
         </div>
         <Link

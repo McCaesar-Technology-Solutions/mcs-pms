@@ -21,7 +21,7 @@ import {
   normalizeDiscountType,
   type DiscountType,
 } from '@/lib/billing/discount'
-import { parseGhanaCard } from '@/lib/billing/ghana-card'
+import { resolveInvoiceTaxId } from '@/lib/billing/ghana-card'
 import {
   buildCheckoutInvoicePaymentState,
   finalizeReservationCheckoutPayment,
@@ -186,18 +186,6 @@ export async function createOrRefreshStayInvoice(
       .eq('hotel_id', reservation.hotel_id)
   }
 
-  let guestCard: string | null = null
-  if (reservation.guest_id) {
-    const { data: guestRow } = await admin
-      .from('guests')
-      .select('ghana_card_number')
-      .eq('id', reservation.guest_id)
-      .eq('hotel_id', reservation.hotel_id)
-      .maybeSingle()
-    const card = parseGhanaCard(guestRow?.ghana_card_number)
-    guestCard = card.ok ? card.value : null
-  }
-
   const { taxes, folioCharges, folioSubtotal } = reservation.guest_id
     ? await prepareCheckoutTaxesWithFolio(
         admin,
@@ -220,8 +208,8 @@ export async function createOrRefreshStayInvoice(
     tax_snapshot: taxSnapshot,
   }
 
-  // Prefer live guest card; keep prior snapshot if guest card was cleared (e.g. privacy erase).
-  const guestTaxId = guestCard ?? existing?.guest_tax_id ?? null
+  // Hotel policy: every taxed invoice uses the fixed Bill-to Tax ID.
+  const guestTaxId = resolveInvoiceTaxId(includeTax)
 
   const previewBase = {
     guestName: reservation.guest_name,

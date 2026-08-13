@@ -2,10 +2,13 @@
 
 import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { MessageCircle, UserPlus } from 'lucide-react'
+import { MessageCircle, Receipt, UserPlus } from 'lucide-react'
 import { enrollGuest, getEnrollmentRooms } from '@/app/actions/guest'
+import { CheckoutInvoiceDialog } from '@/components/dashboard/checkout-invoice-dialog'
 import { PortalLinkPanel } from '@/components/dashboard/portal-link-panel'
 import { FormField, APP_FIELD_CLASS } from '@/components/ui/form-field'
+import type { InvoiceExportRow } from '@/lib/export/types'
+import { toast } from 'sonner'
 import {
   CenteredModal,
   ModalBody,
@@ -91,6 +94,14 @@ function RegisterInHouseGuestModal({ onClose }: { onClose: () => void }) {
     loginUrl: string
     portalPin: string
     phone: string
+    reservationId: string
+    invoiceId: string | null
+    invoicePreview?: InvoiceExportRow
+  } | null>(null)
+  const [collectInvoice, setCollectInvoice] = useState<{
+    id: string
+    reservationId: string
+    preview?: InvoiceExportRow
   } | null>(null)
 
   function applyRoomRates(room: EnrollRoom | undefined) {
@@ -196,7 +207,15 @@ function RegisterInHouseGuestModal({ onClose }: { onClose: () => void }) {
         loginUrl: res.data.loginUrl,
         portalPin: res.data.portalPin,
         phone: phoneParsed.data,
+        reservationId: res.data.reservationId,
+        invoiceId: res.data.invoiceId,
+        invoicePreview: res.data.invoicePreview,
       })
+      if (res.data.invoiceError) {
+        toast.error(`Registered, but invoice failed: ${res.data.invoiceError}`)
+      } else if (res.data.invoiceId) {
+        toast.success('Registered — collect payment at the desk')
+      }
       router.refresh()
     })
   }
@@ -220,36 +239,65 @@ function RegisterInHouseGuestModal({ onClose }: { onClose: () => void }) {
       `https://wa.me/?text=${encodeURIComponent(waMessage)}`
 
     return (
-      <CenteredModal open onClose={onClose} aria-label="Guest registered">
-        <ModalHeader onClose={onClose}>
-          <h3 className="text-lg font-semibold text-foreground">Guest registered</h3>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            Share the portal link or PIN — they are already marked in house. No automatic SMS was
-            sent.
-          </p>
-        </ModalHeader>
-        <ModalBody className="space-y-4">
-          <PortalLinkPanel loginUrl={result.loginUrl} portalPin={result.portalPin} />
-          <a
-            href={waHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 py-2.5 text-sm font-semibold text-white"
-          >
-            <MessageCircle className="h-4 w-4" />
-            Send via WhatsApp
-          </a>
-        </ModalBody>
-        <ModalFooter>
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-full rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground"
-          >
-            Done
-          </button>
-        </ModalFooter>
-      </CenteredModal>
+      <>
+        <CenteredModal open onClose={onClose} aria-label="Guest registered">
+          <ModalHeader onClose={onClose}>
+            <h3 className="text-lg font-semibold text-foreground">Guest registered</h3>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              Payment is taken at check-in. Collect now, then share the portal link or PIN. No
+              automatic SMS was sent.
+            </p>
+          </ModalHeader>
+          <ModalBody className="space-y-4">
+            {result.invoiceId && (
+              <button
+                type="button"
+                onClick={() =>
+                  setCollectInvoice({
+                    id: result.invoiceId!,
+                    reservationId: result.reservationId,
+                    preview: result.invoicePreview,
+                  })
+                }
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#D4A62E] py-3 text-sm font-semibold text-gray-900 shadow-elevation-1"
+              >
+                <Receipt className="h-4 w-4" />
+                Collect payment
+              </button>
+            )}
+            <PortalLinkPanel loginUrl={result.loginUrl} portalPin={result.portalPin} />
+            <a
+              href={waHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 py-2.5 text-sm font-semibold text-white"
+            >
+              <MessageCircle className="h-4 w-4" />
+              Send via WhatsApp
+            </a>
+          </ModalBody>
+          <ModalFooter>
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-full rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground"
+            >
+              Done
+            </button>
+          </ModalFooter>
+        </CenteredModal>
+        {collectInvoice && (
+          <CheckoutInvoiceDialog
+            invoiceId={collectInvoice.id}
+            guestName={name.trim()}
+            initialInvoice={collectInvoice.preview}
+            reservationId={collectInvoice.reservationId}
+            mode="collect"
+            onClose={() => setCollectInvoice(null)}
+            onSettled={() => router.refresh()}
+          />
+        )}
+      </>
     )
   }
 

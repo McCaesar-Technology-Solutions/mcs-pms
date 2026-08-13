@@ -1,11 +1,13 @@
 import { getProfile } from '@/lib/auth/get-profile'
 import { createClient } from '@/lib/supabase/server'
 import { revealStoredPortalPin } from '@/lib/guest/portal-pin-crypto'
-import { isVoidedReservationStatus } from '@/lib/reservations/lifecycle'
+import { OCCUPYING_STATUSES } from '@/lib/reservations/lifecycle'
 import {
+  buildGuestDirectoryFields,
+  guestMatchesDirectoryFilter,
   sortGuestDirectory,
+  type GuestDirectoryFilter,
   type GuestRow,
-  type GuestStatus,
 } from '@/lib/guests/guest-directory'
 import {
   clampLimit,
@@ -16,8 +18,10 @@ import {
 } from '@/lib/data/pagination'
 import type { DbReservation } from '@/types'
 
-export type { GuestRow, GuestStatus } from '@/lib/guests/guest-directory'
-export { sortGuestDirectory } from '@/lib/guests/guest-directory'
+export type { GuestRow, GuestDirectoryFilter, GuestLoyalty, GuestOccupancy } from '@/lib/guests/guest-directory'
+export { sortGuestDirectory, parseGuestDirectoryFilter } from '@/lib/guests/guest-directory'
+/** @deprecated Use GuestDirectoryFilter */
+export type { GuestDirectoryFilter as GuestStatus } from '@/lib/guests/guest-directory'
 
 export interface GuestsPageResult {
   guests: GuestRow[]
@@ -44,23 +48,8 @@ interface GuestQueryRow {
   rooms?: { number: string } | null
 }
 
-const VIP_SPEND_THRESHOLD = 5000
-const VIP_STAYS_THRESHOLD = 4
-
-function todayStr(): string {
-  return new Date().toISOString().split('T')[0]
-}
-
-function deriveStatus(
-  stays: number,
-  spent: number,
-  isCurrentlyStaying: boolean,
-): GuestStatus {
-  if (isCurrentlyStaying) return 'active'
-  if (spent >= VIP_SPEND_THRESHOLD || stays >= VIP_STAYS_THRESHOLD) return 'vip'
-  if (stays >= 2) return 'returning'
-  return 'new'
-}
+const GUEST_LIST_COLUMNS =
+  'id, name, email, phone, ghana_card_number, room_id, check_in, check_out, created_at, token, token_expires_at, portal_pin, do_not_disturb, rooms(number)'
 
 async function mapGuestRows(
   guests: GuestQueryRow[],
@@ -74,37 +63,14 @@ async function mapGuestRows(
     byGuest.set(res.guest_id, list)
   }
 
-  const today = todayStr()
-
   const rows = await Promise.all(
     guests.map(async (guest) => {
-      const resList = (byGuest.get(guest.id) ?? []).filter(
-        (r) => !isVoidedReservationStatus(r.status),
-      )
-
-      const stays = resList.length > 0 ? resList.length : guest.check_in ? 1 : 0
-      const totalSpent = resList.reduce((sum, r) => sum + (r.total_amount ?? 0), 0)
-
-      const checkOuts = [...resList.map((r) => r.check_out), guest.check_out].filter(
-        (d): d is string => Boolean(d),
-      )
-      const lastStay = checkOuts.length > 0 ? (checkOuts.sort().at(-1) ?? null) : null
-
-      const isCurrentlyStaying =
-        resList.some((r) => r.status === 'checked_in') ||
-        Boolean(
-          guest.check_in &&
-            guest.check_out &&
-            guest.check_in <= today &&
-            guest.check_out >= today,
-        )
-
-      const activeReservation = resList.find((r) => r.status === 'checked_in') ?? null
-
-      const latestRes = resList
-        .slice()
-        .sort((a, b) => (a.created_at ?? '').localeCompare(b.created_at ?? ''))
-        .at(-1)
+      const derived = buildGuestDirectoryFields({
+        reservations: byGuest.get(guest.id) ?? [],
+        guestRoomId: guest.room_id,
+        guestCheckIn: guest.check_in,
+        guestCheckOut: guest.check_out,
+      })
 
       return {
         id: guest.id,
@@ -114,18 +80,20 @@ async function mapGuestRows(
         ghanaCardNumber: guest.ghana_card_number ?? null,
         roomNumber: guest.rooms?.number ?? null,
         roomId: guest.room_id,
-        checkIn: guest.check_in,
-        checkOut: guest.check_out,
-        totalStays: stays,
-        totalSpent,
-        lastStay,
-        status: deriveStatus(stays, totalSpent, isCurrentlyStaying),
-        source: activeReservation?.channel ?? latestRes?.channel ?? null,
+        checkIn: derived.checkIn,
+        checkOut: derived.checkOut,
+        totalStays: derived.totalStays,
+        totalSpent: derived.totalSpent,
+        lastStay: derived.lastStay,
+        occupancy: derived.occupancy,
+        loyalty: derived.loyalty,
+        source: derived.source,
         token: guest.token,
         tokenExpiresAt: guest.token_expires_at,
         portalPin: await revealStoredPortalPin(guest.portal_pin),
-        reservationId: activeReservation?.id ?? null,
-        isInHouse: isCurrentlyStaying,
+        reservationId: derived.reservationId,
+        isInHouse: derived.isInHouse,
+        canCheckOut: derived.canCheckOut,
         doNotDisturb: Boolean(guest.do_not_disturb),
       }
     }),
@@ -151,11 +119,59 @@ async function loadReservationsForGuests(
   return (data ?? []) as DbReservation[]
 }
 
+async function loadOccupyingGuestIds(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  hotelId: string,
+): Promise<string[]> {
+  const [{ data: stays }, { data: occupying }] = await Promise.all([
+    supabase
+      .from('reservations')
+      .select('guest_id')
+      .eq('hotel_id', hotelId)
+      .in('status', [...OCCUPYING_STATUSES])
+      .not('guest_id', 'is', null),
+    supabase.from('guests').select('id').eq('hotel_id', hotelId).not('room_id', 'is', null),
+  ])
+
+  const ids = new Set<string>()
+  for (const row of stays ?? []) {
+    if (row.guest_id) ids.add(row.guest_id)
+  }
+  for (const row of occupying ?? []) ids.add(row.id)
+  return [...ids]
+}
+
+function excludeGuestIdsFilter(ids: string[]): string | null {
+  if (!ids.length) return null
+  return `(${ids.join(',')})`
+}
+
+async function paginateMappedGuests(
+  rows: GuestRow[],
+  page: number,
+  pageSize: number,
+  filter: GuestDirectoryFilter | null,
+): Promise<GuestsPageResult> {
+  const filtered = filter
+    ? rows.filter((guest) => guestMatchesDirectoryFilter(guest, filter))
+    : rows
+  const sorted = sortGuestDirectory(filtered)
+  const totalCount = sorted.length
+  const offset = pageToOffset(page, pageSize)
+  return {
+    guests: sorted.slice(offset, offset + pageSize),
+    totalCount,
+    page,
+    pageSize,
+    totalPages: totalPagesForCount(totalCount, pageSize),
+  }
+}
+
 export async function getGuestsPage(options?: {
   page?: number
   pageSize?: number
   search?: string
-  status?: GuestStatus | null
+  status?: GuestDirectoryFilter | null
 }): Promise<GuestsPageResult> {
   const pageSize = Math.min(options?.pageSize ?? 10, DEFAULT_LIST_LIMIT)
   const page = options?.page ?? 1
@@ -176,38 +192,95 @@ export async function getGuestsPage(options?: {
   const supabase = await createClient()
   const hotelId = profile.hotel_id
 
-  if (status) {
-    const { data: allGuests } = await supabase
+  if (status || search) {
+    let guestQuery = supabase
       .from('guests')
-      .select(
-        'id, name, email, phone, ghana_card_number, room_id, check_in, check_out, created_at, token, token_expires_at, portal_pin, do_not_disturb, rooms(number)',
-      )
+      .select(GUEST_LIST_COLUMNS)
       .eq('hotel_id', hotelId)
       .order('created_at', { ascending: false })
       .limit(MAX_LIST_LIMIT)
 
-    const guestRows = (allGuests ?? []) as unknown as GuestQueryRow[]
-    const guestIds = guestRows.map((g) => g.id)
-    const reservations = await loadReservationsForGuests(supabase, hotelId, guestIds)
-    let rows = await mapGuestRows(guestRows, reservations)
-
     if (search) {
-      const q = search.toLowerCase()
-      rows = rows.filter(
-        (guest) =>
-          guest.name.toLowerCase().includes(q) ||
-          (guest.email ?? '').toLowerCase().includes(q) ||
-          (guest.phone ?? '').includes(search),
+      const pattern = `%${search.replace(/[%_,]/g, '')}%`
+      guestQuery = guestQuery.or(
+        `name.ilike.${pattern},email.ilike.${pattern},phone.ilike.${pattern}`,
       )
     }
 
-    rows = rows.filter((guest) => guest.status === status)
-    const totalCount = rows.length
-    const offset = pageToOffset(page, pageSize)
-    const guests = rows.slice(offset, offset + pageSize)
+    const { data: allGuests } = await guestQuery
+    const guestRows = (allGuests ?? []) as unknown as GuestQueryRow[]
+    const reservations = await loadReservationsForGuests(
+      supabase,
+      hotelId,
+      guestRows.map((g) => g.id),
+    )
+    const rows = await mapGuestRows(guestRows, reservations)
+    return paginateMappedGuests(rows, page, pageSize, status)
+  }
+
+  const occupyingIds = await loadOccupyingGuestIds(supabase, hotelId)
+  const occupyingFilter = excludeGuestIdsFilter(occupyingIds)
+
+  let otherCountQuery = supabase
+    .from('guests')
+    .select('id', { count: 'exact', head: true })
+    .eq('hotel_id', hotelId)
+  if (occupyingFilter) {
+    otherCountQuery = otherCountQuery.not('id', 'in', occupyingFilter)
+  }
+  const { count: otherCount } = await otherCountQuery
+
+  const occupyingCount = occupyingIds.length
+  const totalCount = occupyingCount + (otherCount ?? 0)
+  const offset = pageToOffset(page, pageSize)
+
+  let pageGuests: GuestQueryRow[] = []
+
+  if (occupyingCount > 0 && offset < occupyingCount) {
+    const { data: occupyingGuests } = await supabase
+      .from('guests')
+      .select(GUEST_LIST_COLUMNS)
+      .eq('hotel_id', hotelId)
+      .in('id', occupyingIds)
+
+    const occupyingMapped = await mapGuestRows(
+      (occupyingGuests ?? []) as unknown as GuestQueryRow[],
+      await loadReservationsForGuests(supabase, hotelId, occupyingIds),
+    )
+    const occupyingSlice = occupyingMapped.slice(offset, offset + pageSize)
+    const remaining = pageSize - occupyingSlice.length
+
+    if (remaining > 0) {
+      let othersQuery = supabase
+        .from('guests')
+        .select(GUEST_LIST_COLUMNS)
+        .eq('hotel_id', hotelId)
+        .order('check_out', { ascending: false, nullsFirst: false })
+        .range(0, remaining - 1)
+      if (occupyingFilter) {
+        othersQuery = othersQuery.not('id', 'in', occupyingFilter)
+      }
+      const { data: others } = await othersQuery
+      const otherRows = (others ?? []) as unknown as GuestQueryRow[]
+      const otherMapped = await mapGuestRows(
+        otherRows,
+        await loadReservationsForGuests(
+          supabase,
+          hotelId,
+          otherRows.map((g) => g.id),
+        ),
+      )
+      return {
+        guests: [...occupyingSlice, ...otherMapped],
+        totalCount,
+        page,
+        pageSize,
+        totalPages: totalPagesForCount(totalCount, pageSize),
+      }
+    }
 
     return {
-      guests,
+      guests: occupyingSlice,
       totalCount,
       page,
       pageSize,
@@ -215,33 +288,28 @@ export async function getGuestsPage(options?: {
     }
   }
 
-  let guestQuery = supabase
+  const otherOffset = Math.max(0, offset - occupyingCount)
+  let othersQuery = supabase
     .from('guests')
-    .select(
-      'id, name, email, phone, ghana_card_number, room_id, check_in, check_out, created_at, token, token_expires_at, portal_pin, do_not_disturb, rooms(number)',
-      { count: 'exact' },
-    )
+    .select(GUEST_LIST_COLUMNS)
     .eq('hotel_id', hotelId)
-
-  if (search) {
-    const pattern = `%${search.replace(/[%_,]/g, '')}%`
-    guestQuery = guestQuery.or(
-      `name.ilike.${pattern},email.ilike.${pattern},phone.ilike.${pattern}`,
-    )
+    .order('check_out', { ascending: false, nullsFirst: false })
+    .range(otherOffset, otherOffset + pageSize - 1)
+  if (occupyingFilter) {
+    othersQuery = othersQuery.not('id', 'in', occupyingFilter)
   }
-
-  const offset = pageToOffset(page, pageSize)
-  const { data: guestData, count } = await guestQuery
-    .order('created_at', { ascending: false })
-    .range(offset, offset + pageSize - 1)
-
-  const guestRows = (guestData ?? []) as unknown as GuestQueryRow[]
-  const guestIds = guestRows.map((g) => g.id)
-  const reservations = await loadReservationsForGuests(supabase, hotelId, guestIds)
-  const totalCount = count ?? guestRows.length
+  const { data: guestData } = await othersQuery
+  pageGuests = (guestData ?? []) as unknown as GuestQueryRow[]
 
   return {
-    guests: await mapGuestRows(guestRows, reservations),
+    guests: await mapGuestRows(
+      pageGuests,
+      await loadReservationsForGuests(
+        supabase,
+        hotelId,
+        pageGuests.map((g) => g.id),
+      ),
+    ),
     totalCount,
     page,
     pageSize,

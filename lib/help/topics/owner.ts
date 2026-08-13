@@ -25,7 +25,7 @@ export const ownerHelpTopics: HelpTopic[] = [
       'Check the Outstanding KPI on the dashboard each morning.',
       'Open Billing for unpaid invoices and partial payments.',
       'Filter Reservations by payment status (Unpaid, Deposit paid, etc.).',
-      'Walkouts and pay-later checkouts appear here until collected.',
+      'Walkouts and unpaid check-in exceptions appear here until collected — normal stays are paid at check-in.',
     ],
     href: '/owner/billing',
     hrefLabel: 'Open billing',
@@ -35,8 +35,9 @@ export const ownerHelpTopics: HelpTopic[] = [
   {
     id: 'billing',
     title: 'Record payments and refunds',
-    summary: 'Cash, MoMo, card — after front desk checkout.',
+    summary: 'Cash, MoMo, card — stay invoices are settled at check-in.',
     steps: [
+      'Front desk collects at check-in; Billing is for leftovers, walkouts, and refunds.',
       'Open Billing → find the invoice or reservation.',
       'Record partial or full payment, or issue a refund (owner only for refunds).',
       'Download PDF invoices for guests or GRA filing.',
@@ -49,9 +50,10 @@ export const ownerHelpTopics: HelpTopic[] = [
   {
     id: 'erase-guest',
     title: 'Erase or delete a guest',
-    summary: 'Privacy erase for past guests; hard-delete only orphans.',
+    summary: 'Owner/manager only — privacy erase; hard-delete only orphans.',
     steps: [
-      'Open Guests → Erase / delete guest (works for in-house guests too — that ends the stay).',
+      'Open Guests → Erase / delete guest (reception cannot do this).',
+      'Works for in-house guests too — that ends the stay and frees the room.',
       'Erase personal data when they have history — invoices and stays remain for compliance.',
       'Permanently delete only when there is no reservation/invoice/complaint history.',
     ],
@@ -128,9 +130,9 @@ export const ownerHelpTopics: HelpTopic[] = [
     steps: [
       'Set VAT TIN, invoice prefix, and tax rates in Settings first.',
       'GRA Reports — export period summaries and invoice lists.',
-      'Checkout invoices include NHIL, GETFund, VAT, and levies when enabled.',
+      'Stay invoices (created at check-in) include NHIL, GETFund, VAT, and levies when enabled.',
       'Tourism levy (if set) is added outside the NHIL/GETFund/VAT base and appears on GRA exports.',
-      'Guest Ghana Card (Tax ID) is snapshotted on the invoice Bill-to; hotel VAT Reg stays separate.',
+      'Taxed invoices stamp Bill-to Tax ID GHA-728071939-8; hotel VAT Reg stays separate.',
     ],
     href: '/owner/gra-reports',
     hrefLabel: 'Open GRA reports',
@@ -173,6 +175,7 @@ export const ownerHelpTopics: HelpTopic[] = [
     steps: [
       'Guests → Register in-house guest.',
       'Enter real arrival (can be past) and planned departure.',
+      'A stay invoice is created automatically — collect payment from Billing or the reservation.',
       'Share the portal link or PIN on WhatsApp — automatic welcome SMS is skipped.',
       'Use Walk-in check-in only for guests arriving now.',
     ],

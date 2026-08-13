@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { randomUUID } from 'node:crypto'
 import { requireVerifiedStaff, consumeStaffAuthError } from '@/lib/auth/staff-session'
 import {
+  canApplyGuestDiscount,
   canCreateManualInvoice,
   canIssueStayInvoice,
   canRecordInvoicePayment,
@@ -17,7 +18,7 @@ import {
   parseTaxSnapshot,
   taxSnapshotFromRates,
 } from '@/lib/tax'
-import { parseGhanaCard } from '@/lib/billing/ghana-card'
+import { resolveInvoiceTaxId } from '@/lib/billing/ghana-card'
 import { getHotelTaxConfig } from '@/lib/data/settings'
 import {
   invoiceBalanceDue,
@@ -501,6 +502,9 @@ export async function issueStayInvoice(input: unknown): Promise<IssueStayInvoice
 
   let stayReservation = reservation
   if (parsed.data.discountType !== undefined) {
+    if (!canApplyGuestDiscount(profile.role)) {
+      return { success: false, error: 'Only managers can apply guest discounts.' }
+    }
     const discountType = normalizeDiscountType(parsed.data.discountType)
     const discountValue = parsed.data.discountValue ?? 0
     let roomBase = Number(reservation.total_amount ?? 0)
@@ -632,17 +636,7 @@ export async function createManualInvoice(
   const paidNow = parsed.data.markAsPaid
   const invoiceNumber = await allocateInvoiceNumber(profile.hotel_id)
 
-  let guestTaxId: string | null = null
-  if (parsed.data.guestId) {
-    const { data: guestRow } = await admin
-      .from('guests')
-      .select('ghana_card_number')
-      .eq('id', parsed.data.guestId)
-      .eq('hotel_id', profile.hotel_id)
-      .maybeSingle()
-    const card = parseGhanaCard(guestRow?.ghana_card_number)
-    guestTaxId = card.ok ? card.value : null
-  }
+  const guestTaxId = resolveInvoiceTaxId(parsed.data.includeTax)
 
   const { error } = await admin.from('invoices').insert({
     hotel_id: profile.hotel_id,

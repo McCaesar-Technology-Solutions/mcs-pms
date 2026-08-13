@@ -44,6 +44,22 @@ export const ARRIVING_STATUSES = ['confirmed', 'pre_arrival'] as const
 /** Today's departures. */
 export const DEPARTING_STATUSES = ['checked_in', 'overstay', 'checkout_in_progress'] as const
 
+/**
+ * Guest is physically in-house (front desk, directory checkout, privacy).
+ * Dispute hold occupies the room but is not a desk checkout path.
+ */
+export const IN_HOUSE_STATUSES = [
+  'checked_in',
+  'checkout_in_progress',
+  'overstay',
+] as const satisfies readonly ReservationStatus[]
+
+/** In-house plus dispute hold — still occupying a room. */
+export const OCCUPYING_STATUSES = [
+  ...IN_HOUSE_STATUSES,
+  'dispute_hold',
+] as const satisfies readonly ReservationStatus[]
+
 /** Read-only / historical. */
 export const HISTORICAL_STATUSES = ['checked_out', 'post_stay', 'archived'] as const
 
@@ -101,6 +117,14 @@ export function isMetricsEligibleStatus(
 
 export function isVoidedReservationStatus(status: string | null | undefined): boolean {
   return (VOIDED_RESERVATION_STATUSES as readonly string[]).includes(status ?? '')
+}
+
+export function isInHouseReservationStatus(status: string | null | undefined): boolean {
+  return (IN_HOUSE_STATUSES as readonly string[]).includes(status ?? '')
+}
+
+export function isOccupyingReservationStatus(status: string | null | undefined): boolean {
+  return (OCCUPYING_STATUSES as readonly string[]).includes(status ?? '')
 }
 
 export function isHistorical(status: string | null | undefined): boolean {

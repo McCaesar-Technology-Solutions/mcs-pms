@@ -51,9 +51,10 @@ export const managerHelpTopics: HelpTopic[] = [
   {
     id: 'checkout',
     title: 'Help staff with checkout',
-    summary: 'Same two-step flow as reception.',
+    summary: 'Departure after pay-at-check-in — collect only unpaid extras.',
     steps: [
-      'Begin checkout locks the folio; complete checkout settles payment.',
+      'Stay payment is taken at check-in. Begin checkout locks the folio; complete releases the room.',
+      'Collect remaining balance only if folio extras left Outstanding.',
       'Watch for Overstay badges — guest past departure time.',
       'Approve late checkout on overstay if the guest needs more time.',
       'Record walkout only if they left without paying.',
@@ -83,7 +84,8 @@ export const managerHelpTopics: HelpTopic[] = [
     summary: 'Share access with checked-in guests.',
     steps: [
       'Open Guests in the sidebar.',
-      'Generate or copy a personal link, or share the property QR + PIN.',
+      'Generate or copy a personal link, or share the property QR + PIN — only while they are in-house.',
+      'Portal access ends at check-out; do not issue a new link to a past guest.',
       'Use WhatsApp or email share buttons from the guest detail panel.',
     ],
     href: '/manager/guests',
@@ -98,7 +100,8 @@ export const managerHelpTopics: HelpTopic[] = [
     steps: [
       'Guests → Register in-house guest.',
       'Enter real arrival (can be past) and planned departure.',
-      'Share the portal link or PIN — do not use Check in now for people already staying.',
+      'Collect payment on the stay invoice, then share the portal link or PIN.',
+      'Do not use Check in now for people already staying.',
     ],
     href: '/manager/guests',
     hrefLabel: 'Open guests',
@@ -108,13 +111,14 @@ export const managerHelpTopics: HelpTopic[] = [
   {
     id: 'billing',
     title: 'Stay invoices and payments',
-    summary: 'Issue invoices for in-house guests and record desk collections.',
+    summary: 'Stay invoices are created at check-in (pay before enter); collect at the desk.',
     steps: [
-      'Open an in-house reservation → Issue invoice & collect, or use Billing.',
-      'Apply % or fixed guest discounts before tax when creating/editing a booking or issuing the invoice.',
-      'At check-in (or Guests → Edit), enter Ghana Card (GHA-#########-#) so invoices show Tax ID.',
+      'Check-in (including walk-in / check-in now) creates the stay invoice automatically.',
+      'Collect payment from the check-in dialog, the reservation → Issue invoice & collect, or Billing.',
+      'Managers (and owners) apply % or fixed guest discounts before tax when creating/editing a booking or refreshing the invoice. Reception cannot.',
+      'Taxed invoices always show Tax ID GHA-728071939-8. Guest Ghana Card remains optional on the guest record.',
       'Record full or partial payments at the desk; refunds stay owner-only.',
-      'Checkout reuses an existing stay invoice — it will not create a duplicate.',
+      'Checkout reuses that same stay invoice — it will not create a duplicate.',
     ],
     href: '/manager/invoices',
     hrefLabel: 'Open billing',
@@ -124,9 +128,10 @@ export const managerHelpTopics: HelpTopic[] = [
   {
     id: 'erase-guest',
     title: 'Erase or delete a guest',
-    summary: 'Remove duplicates or clear personal data after a stay.',
+    summary: 'Manager/owner only — remove duplicates or clear personal data.',
     steps: [
-      'Open Guests → Erase / delete guest (in-house guests included — stay ends and room frees).',
+      'Open Guests → Erase / delete guest (reception cannot do this).',
+      'In-house guests included — erasing ends the stay and frees the room.',
       'With history: erase personal data (invoices stay printable).',
       'With no history: permanently delete the orphan row.',
     ],

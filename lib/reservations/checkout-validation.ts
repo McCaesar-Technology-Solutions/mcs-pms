@@ -5,11 +5,24 @@ export interface CheckoutBalanceInput {
 }
 
 /**
- * Checkout may proceed when staff mark payment as received — the checkout action
- * records the remainder and settles the invoice. Pay-later is allowed when unchecked.
+ * Normal checkout must settle any remaining balance (pay-at-check-in model).
+ * Unpaid departure is walkout only — not a pay-later checkout.
  */
 export function validateCheckoutBalance(
-  _input: CheckoutBalanceInput,
+  input: CheckoutBalanceInput,
 ): { ok: true } | { ok: false; error: string; code: string } {
+  const total = Math.max(0, Number(input.invoiceTotal) || 0)
+  const paid = Math.max(0, Number(input.priorDeposit) || 0)
+  const balanceDue = Math.round((total - paid) * 100) / 100
+
+  if (balanceDue > 0.009 && !input.markAsPaid) {
+    return {
+      ok: false,
+      error:
+        'Outstanding balance must be collected at checkout, or record a walkout if the guest left without paying.',
+      code: 'BALANCE_DUE',
+    }
+  }
+
   return { ok: true }
 }

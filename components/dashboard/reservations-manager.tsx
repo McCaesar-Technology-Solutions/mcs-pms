@@ -44,6 +44,7 @@ import type { InvoiceExportRow } from '@/lib/export/types'
 import type { PaymentMethod, Reservation, ReservationChannel, ReservationPaymentStatus, RateType, UserRole } from '@/types'
 import type { DepositDisposition } from '@/lib/billing/deposit-disposition'
 import { computeDiscountAmount, type DiscountType } from '@/lib/billing/discount'
+import { canApplyGuestDiscount } from '@/lib/auth/tenant-access'
 import {
   canCheckIn,
   canCancelReservationStatus,
@@ -224,7 +225,25 @@ export function ReservationsManager({
     id: string
     guestName: string
     preview?: InvoiceExportRow
+    reservationId?: string
+    mode?: 'view' | 'collect'
   } | null>(null)
+
+  function openStayInvoice(
+    invoiceId: string,
+    guestName: string,
+    preview?: InvoiceExportRow,
+    options?: { reservationId?: string; mode?: 'view' | 'collect' },
+  ) {
+    setCheckoutInvoice({
+      id: invoiceId,
+      guestName,
+      preview,
+      reservationId: options?.reservationId,
+      mode: options?.mode ?? 'view',
+    })
+    router.refresh()
+  }
   const [activeGuestRequestId, setActiveGuestRequestId] = useState<string | null>(
     initialGuestRequestId ?? null,
   )
@@ -703,10 +722,7 @@ export function ReservationsManager({
             setActiveGuestRequestId(null)
             clearReservationDeepLink(true)
           }}
-          onCheckoutInvoice={(invoiceId, guestName, preview) => {
-            setCheckoutInvoice({ id: invoiceId, guestName, preview })
-            router.refresh()
-          }}
+          onCheckoutInvoice={openStayInvoice}
         />
       )}
 
@@ -715,9 +731,14 @@ export function ReservationsManager({
           invoiceId={checkoutInvoice.id}
           guestName={checkoutInvoice.guestName}
           initialInvoice={checkoutInvoice.preview}
+          reservationId={checkoutInvoice.reservationId}
+          mode={checkoutInvoice.mode}
           onClose={() => {
             setCheckoutInvoice(null)
             setSelectedId(null)
+            router.refresh()
+          }}
+          onSettled={() => {
             router.refresh()
           }}
         />
@@ -727,12 +748,14 @@ export function ReservationsManager({
         <ReservationFormModal
           roomOptions={roomOptions}
           occupancySpans={occupancySpans}
+          staffRole={staffRole}
           initialFlowMode={initialNewFlow === 'check_in' ? 'check_in_now' : 'book_later'}
           onClose={() => setCreating(false)}
           onDone={() => {
             setCreating(false)
             router.refresh()
           }}
+          onCheckoutInvoice={openStayInvoice}
         />
       )}
     </>
@@ -819,7 +842,12 @@ interface ReservationDrawerProps {
   guestRequestId?: string | null
   onClose: () => void
   onMutated: () => void
-  onCheckoutInvoice?: (invoiceId: string, guestName: string, preview?: InvoiceExportRow) => void
+  onCheckoutInvoice?: (
+    invoiceId: string,
+    guestName: string,
+    preview?: InvoiceExportRow,
+    options?: { reservationId?: string; mode?: 'view' | 'collect' },
+  ) => void
   onGuestRequestHandled?: () => void
 }
 
@@ -923,9 +951,12 @@ function ReservationDrawer({
       const result = await action()
       if (result.success) {
         if (result.invoiceId && onCheckoutInvoice) {
-          toast.success('Checked out — invoice ready')
+          toast.success('Checked out')
           setCheckingOut(false)
-          onCheckoutInvoice(result.invoiceId, reservation.guestName, result.invoicePreview)
+          onCheckoutInvoice(result.invoiceId, reservation.guestName, result.invoicePreview, {
+            reservationId: reservation.id,
+            mode: 'view',
+          })
         } else {
           toast.success('Saved')
           if (onSuccess) onSuccess()
@@ -962,6 +993,7 @@ function ReservationDrawer({
   const balance = reservation.balanceDue
   const hasCollectedDeposit = reservation.paidAmount > 0.009
   const canRefundDeposit = staffRole === 'owner'
+  const canDiscount = canApplyGuestDiscount(staffRole)
   const canRecordDeposit =
     (reservation.status === 'confirmed' ||
       reservation.status === 'checked_in' ||
@@ -1141,10 +1173,15 @@ function ReservationDrawer({
                   <button
                     type="button"
                     disabled={pending}
-                    onClick={() => onCheckoutInvoice(reservation.invoiceId!, reservation.guestName)}
+                    onClick={() =>
+                      onCheckoutInvoice(reservation.invoiceId!, reservation.guestName, undefined, {
+                        reservationId: reservation.id,
+                        mode: balance > 0 ? 'collect' : 'view',
+                      })
+                    }
                     className="flex w-full items-center justify-center gap-2 rounded-xl bg-white py-2.5 text-sm font-semibold text-muted-foreground shadow-elevation-1 disabled:opacity-50"
                   >
-                    View invoice
+                    {balance > 0 ? 'Collect / view invoice' : 'View invoice'}
                   </button>
                 )}
               </div>
@@ -1157,15 +1194,17 @@ function ReservationDrawer({
                     ? 'Refresh stay invoice with current folio, then optionally record payment.'
                     : 'Create a stay invoice now. Checkout will reuse this invoice (no duplicate).'}
                 </p>
-                <DiscountFields
-                  type={issueDiscountType}
-                  value={issueDiscountValue}
-                  reason={issueDiscountReason}
-                  stayTotal={reservation.totalPrice}
-                  onTypeChange={setIssueDiscountType}
-                  onValueChange={setIssueDiscountValue}
-                  onReasonChange={setIssueDiscountReason}
-                />
+                {canDiscount && (
+                  <DiscountFields
+                    type={issueDiscountType}
+                    value={issueDiscountValue}
+                    reason={issueDiscountReason}
+                    stayTotal={reservation.totalPrice}
+                    onTypeChange={setIssueDiscountType}
+                    onValueChange={setIssueDiscountValue}
+                    onReasonChange={setIssueDiscountReason}
+                  />
+                )}
                 <label className="block text-xs font-medium text-muted-foreground">
                   Payment method
                   <select
@@ -1216,16 +1255,24 @@ function ReservationDrawer({
                           paymentMethod,
                           markAsPaid,
                           includeTax,
-                          discountType: issueDiscountType,
-                          discountValue: Number(issueDiscountValue || 0),
-                          discountReason: issueDiscountReason,
+                          ...(canDiscount
+                            ? {
+                                discountType: issueDiscountType,
+                                discountValue: Number(issueDiscountValue || 0),
+                                discountReason: issueDiscountReason,
+                              }
+                            : {}),
                         })
                         if (!result.success) {
                           setError(result.error)
                           return
                         }
                         toast.success(
-                          result.created ? 'Invoice issued' : 'Invoice refreshed',
+                          result.created
+                            ? 'Invoice issued'
+                            : markAsPaid
+                              ? 'Payment recorded'
+                              : 'Invoice refreshed',
                         )
                         setIssuingInvoice(false)
                         onMutated()
@@ -1234,6 +1281,10 @@ function ReservationDrawer({
                             result.invoiceId,
                             reservation.guestName,
                             result.invoicePreview,
+                            {
+                              reservationId: reservation.id,
+                              mode: markAsPaid ? 'view' : 'collect',
+                            },
                           )
                         }
                       })
@@ -1502,15 +1553,17 @@ function ReservationDrawer({
                       />
                     </FormField>
                   )}
-                  <DiscountFields
-                    type={editDiscountType}
-                    value={editDiscountValue}
-                    reason={editDiscountReason}
-                    stayTotal={editTotal}
-                    onTypeChange={setEditDiscountType}
-                    onValueChange={setEditDiscountValue}
-                    onReasonChange={setEditDiscountReason}
-                  />
+                  {canDiscount && (
+                    <DiscountFields
+                      type={editDiscountType}
+                      value={editDiscountValue}
+                      reason={editDiscountReason}
+                      stayTotal={editTotal}
+                      onTypeChange={setEditDiscountType}
+                      onValueChange={setEditDiscountValue}
+                      onReasonChange={setEditDiscountReason}
+                    />
+                  )}
                   <div className="flex items-center justify-between rounded-xl bg-white px-3 py-2 text-sm shadow-elevation-1">
                     <span className="text-muted-foreground">{editNights} nights</span>
                     <span className="font-bold">
@@ -1518,11 +1571,13 @@ function ReservationDrawer({
                       {Math.max(
                         0,
                         editTotal -
-                          computeDiscountAmount(
-                            editTotal,
-                            editDiscountType,
-                            Number(editDiscountValue || 0),
-                          ),
+                          (canDiscount
+                            ? computeDiscountAmount(
+                                editTotal,
+                                editDiscountType,
+                                Number(editDiscountValue || 0),
+                              )
+                            : Number(reservation.discountAmount ?? 0)),
                       ).toLocaleString()}
                     </span>
                   </div>
@@ -1557,9 +1612,13 @@ function ReservationDrawer({
                               nightlyRate: Number(editNightlyRate || 0),
                               weeklyRate: Number(editWeeklyRate || 0),
                               monthlyRate: Number(editMonthlyRate || 0),
-                              discountType: editDiscountType,
-                              discountValue: Number(editDiscountValue || 0),
-                              discountReason: editDiscountReason,
+                              ...(canDiscount
+                                ? {
+                                    discountType: editDiscountType,
+                                    discountValue: Number(editDiscountValue || 0),
+                                    discountReason: editDiscountReason,
+                                  }
+                                : {}),
                             }),
                           () => {
                             setEditing(false)
@@ -1662,6 +1721,26 @@ function ReservationDrawer({
                             setPortalUrl(result.data.loginUrl)
                             setPortalPin(result.data.portalPin)
                             setCheckingIn(false)
+                            onMutated()
+                            if (result.data.invoiceError) {
+                              toast.error(
+                                `Checked in, but invoice failed: ${result.data.invoiceError}`,
+                              )
+                            } else if (
+                              result.data.invoiceId &&
+                              result.data.invoicePreview &&
+                              onCheckoutInvoice
+                            ) {
+                              toast.success('Checked in — collect payment at the desk')
+                              onCheckoutInvoice(
+                                result.data.invoiceId,
+                                guestName,
+                                result.data.invoicePreview,
+                                { reservationId: reservation.id, mode: 'collect' },
+                              )
+                            } else {
+                              toast.success('Checked in')
+                            }
                           } else if (!result.success) {
                             setError(result.error ?? 'Check-in failed.')
                           }
@@ -1912,11 +1991,13 @@ function ReservationDrawer({
               {reservation.status === 'checkout_in_progress' && checkingOut && (
                 <div className="space-y-3 rounded-xl surface-inset p-4">
                   <div>
-                    <p className="text-sm font-semibold text-foreground">Collect payment</p>
+                    <p className="text-sm font-semibold text-foreground">
+                      {balance > 0 ? 'Collect remaining & check out' : 'Complete checkout'}
+                    </p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
-                      {includeTax
-                        ? 'A GRA tax invoice will be generated on check-out.'
-                        : 'Invoice will use the room total without GRA taxes.'}
+                      {balance > 0
+                        ? 'Stay was billed at check-in. Collect any unpaid folio balance, then release the room. Use Walkout if the guest left without paying.'
+                        : 'Stay invoice already settled at check-in. Refresh folio if needed, then release the room.'}
                     </p>
                   </div>
                   <label className="flex items-center gap-2 text-sm">
@@ -1925,7 +2006,7 @@ function ReservationDrawer({
                       checked={includeTax}
                       onChange={(e) => setIncludeTax(e.target.checked)}
                     />
-                    Include VAT &amp; GRA levies on invoice
+                    Include VAT &amp; GRA levies on invoice refresh
                   </label>
                   <label className="flex items-center gap-2 text-sm">
                     <input
@@ -1935,25 +2016,29 @@ function ReservationDrawer({
                     />
                     Early checkout (bill through today)
                   </label>
-                  <select
-                    value={paymentMethod}
-                    onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
-                    className={APP_FIELD_CLASS}
-                  >
-                    {PAYMENT_METHODS.map((m) => (
-                      <option key={m} value={m}>
-                        {PAYMENT_METHOD_LABELS[m]}
-                      </option>
-                    ))}
-                  </select>
-                  <label className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={markAsPaid}
-                      onChange={(e) => setMarkAsPaid(e.target.checked)}
-                    />
-                    Payment received now
-                  </label>
+                  {balance > 0 && (
+                    <>
+                      <select
+                        value={paymentMethod}
+                        onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
+                        className={APP_FIELD_CLASS}
+                      >
+                        {PAYMENT_METHODS.map((m) => (
+                          <option key={m} value={m}>
+                            {PAYMENT_METHOD_LABELS[m]}
+                          </option>
+                        ))}
+                      </select>
+                      <label className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={markAsPaid}
+                          onChange={(e) => setMarkAsPaid(e.target.checked)}
+                        />
+                        Remaining balance received now (required unless walkout)
+                      </label>
+                    </>
+                  )}
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
@@ -1965,14 +2050,14 @@ function ReservationDrawer({
                     </button>
                     <button
                       type="button"
-                      disabled={pending}
+                      disabled={pending || (balance > 0 && !markAsPaid)}
                       onClick={() =>
                         run(() =>
                           completeCheckoutReservation(
                             reservation.id,
                             paymentMethod,
                             earlyCheckout,
-                            markAsPaid,
+                            balance > 0 ? markAsPaid : true,
                             includeTax,
                           ),
                         )
@@ -2134,18 +2219,28 @@ function ReservationDrawer({
 interface ReservationFormModalProps {
   roomOptions: RoomOption[]
   occupancySpans: OccupancySpan[]
+  staffRole: UserRole
   initialFlowMode?: 'book_later' | 'check_in_now'
   onClose: () => void
   onDone: () => void
+  onCheckoutInvoice?: (
+    invoiceId: string,
+    guestName: string,
+    preview?: InvoiceExportRow,
+    options?: { reservationId?: string; mode?: 'view' | 'collect' },
+  ) => void
 }
 
 function ReservationFormModal({
   roomOptions,
   occupancySpans,
+  staffRole,
   initialFlowMode = 'book_later',
   onClose,
   onDone,
+  onCheckoutInvoice,
 }: ReservationFormModalProps) {
+  const canDiscount = canApplyGuestDiscount(staffRole)
   const today = new Date().toISOString().slice(0, 10)
   const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
 
@@ -2170,6 +2265,11 @@ function ReservationFormModal({
   const [selectedGuestId, setSelectedGuestId] = useState<string | null>(null)
   const [portalUrl, setPortalUrl] = useState<string | null>(null)
   const [portalPin, setPortalPin] = useState<string | null>(null)
+  const [checkInInvoice, setCheckInInvoice] = useState<{
+    id: string
+    reservationId: string
+    preview?: InvoiceExportRow
+  } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
@@ -2240,9 +2340,13 @@ function ReservationFormModal({
         weeklyRate: Number(weeklyRate || 0),
         monthlyRate: Number(monthlyRate || 0),
         guestId: selectedGuestId ?? undefined,
-        discountType,
-        discountValue: Number(discountValue || 0),
-        discountReason,
+        ...(canDiscount
+          ? {
+              discountType,
+              discountValue: Number(discountValue || 0),
+              discountReason,
+            }
+          : {}),
       }
 
       if (flowMode === 'check_in_now') {
@@ -2255,6 +2359,18 @@ function ReservationFormModal({
         if (result.success) {
           setPortalUrl(result.data.loginUrl)
           setPortalPin(result.data.portalPin)
+          if (result.data.invoiceError) {
+            toast.error(`Checked in, but invoice failed: ${result.data.invoiceError}`)
+          } else if (result.data.invoiceId) {
+            setCheckInInvoice({
+              id: result.data.invoiceId,
+              reservationId: result.data.reservationId,
+              preview: result.data.invoicePreview,
+            })
+            toast.success('Checked in — collect payment before the guest enters')
+          } else {
+            toast.success('Checked in')
+          }
         } else {
           setError(result.error)
           if (result.suggestions && result.suggestions.length > 0) {
@@ -2291,10 +2407,26 @@ function ReservationFormModal({
         <ModalHeader onClose={onDone}>
           <h3 className="text-lg font-semibold text-foreground">Guest checked in</h3>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            Share the portal link with the guest.
+            Payment is taken at check-in. Collect now, then share the portal link.
           </p>
         </ModalHeader>
-        <ModalBody>
+        <ModalBody className="space-y-4">
+          {checkInInvoice && onCheckoutInvoice && (
+            <button
+              type="button"
+              onClick={() => {
+                onCheckoutInvoice(checkInInvoice.id, guestName.trim(), checkInInvoice.preview, {
+                  reservationId: checkInInvoice.reservationId,
+                  mode: 'collect',
+                })
+                onDone()
+              }}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#D4A62E] py-3 text-sm font-semibold text-gray-900 shadow-elevation-1"
+            >
+              <Receipt className="h-4 w-4" />
+              Collect payment
+            </button>
+          )}
           <PortalLinkPanel loginUrl={portalUrl} portalPin={portalPin} />
         </ModalBody>
         <ModalFooter>
@@ -2535,15 +2667,17 @@ function ReservationFormModal({
           </FormField>
         )}
 
-        <DiscountFields
-          type={discountType}
-          value={discountValue}
-          reason={discountReason}
-          stayTotal={total}
-          onTypeChange={setDiscountType}
-          onValueChange={setDiscountValue}
-          onReasonChange={setDiscountReason}
-        />
+        {canDiscount && (
+          <DiscountFields
+            type={discountType}
+            value={discountValue}
+            reason={discountReason}
+            stayTotal={total}
+            onTypeChange={setDiscountType}
+            onValueChange={setDiscountValue}
+            onReasonChange={setDiscountReason}
+          />
+        )}
 
         <div className="flex items-center justify-between rounded-xl surface-inset px-4 py-3 text-sm">
           <span className="text-muted-foreground">
@@ -2553,7 +2687,10 @@ function ReservationFormModal({
             ₵
             {Math.max(
               0,
-              total - computeDiscountAmount(total, discountType, Number(discountValue || 0)),
+              total -
+                (canDiscount
+                  ? computeDiscountAmount(total, discountType, Number(discountValue || 0))
+                  : 0),
             ).toLocaleString()}
           </span>
         </div>

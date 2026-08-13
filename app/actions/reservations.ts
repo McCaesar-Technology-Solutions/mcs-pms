@@ -33,6 +33,7 @@ import {
 } from '@/lib/billing/reservation-payment'
 import { computeDiscountAmount, normalizeDiscountType } from '@/lib/billing/discount'
 import { ghanaCardInputSchema } from '@/lib/billing/ghana-card'
+import { canApplyGuestDiscount } from '@/lib/auth/tenant-access'
 import { todayISO } from '@/lib/stays/helpers'
 import { revalidateStayViews } from '@/lib/stays/revalidate'
 import type { InvoiceExportRow } from '@/lib/export/types'
@@ -60,6 +61,9 @@ export type BookAndCheckInResult =
         guestId: string
         reservationId: string
         portalPin: string
+        invoiceId: string | null
+        invoicePreview?: InvoiceExportRow
+        invoiceError?: string
       }
     }
   | { success: false; error: string; suggestions?: RoomSuggestion[] }
@@ -167,8 +171,17 @@ export async function createReservation(
     monthlyRate,
     weeklyRate,
   )
-  const discountType = data.discountType ?? 'none'
-  const discountValue = data.discountValue ?? 0
+  const requestedDiscount =
+    (data.discountType != null && data.discountType !== 'none') ||
+    (data.discountValue ?? 0) > 0 ||
+    Boolean(data.discountReason?.trim())
+  if (requestedDiscount && !canApplyGuestDiscount(profile.role)) {
+    return { success: false, error: 'Only managers can apply guest discounts.' }
+  }
+  const discountType = canApplyGuestDiscount(profile.role)
+    ? (data.discountType ?? 'none')
+    : 'none'
+  const discountValue = canApplyGuestDiscount(profile.role) ? (data.discountValue ?? 0) : 0
   const discountAmount = computeDiscountAmount(total, discountType, discountValue)
   const discountReason =
     discountAmount > 0 ? (data.discountReason?.trim() || null) : null
@@ -410,17 +423,26 @@ export async function updateReservation(id: string, input: unknown): Promise<Cre
     monthlyRate,
     weeklyRate,
   )
-  const discountType = normalizeDiscountType(
-    parsed.data.discountType ?? existing.discount_type ?? 'none',
-  )
-  const discountValue =
-    parsed.data.discountValue ?? Number(existing.discount_value ?? 0)
+  const discountFieldsProvided =
+    parsed.data.discountType !== undefined ||
+    parsed.data.discountValue !== undefined ||
+    parsed.data.discountReason !== undefined
+  if (discountFieldsProvided && !canApplyGuestDiscount(profile.role)) {
+    return { success: false, error: 'Only managers can apply guest discounts.' }
+  }
+
+  const discountType = canApplyGuestDiscount(profile.role)
+    ? normalizeDiscountType(parsed.data.discountType ?? existing.discount_type ?? 'none')
+    : normalizeDiscountType(existing.discount_type ?? 'none')
+  const discountValue = canApplyGuestDiscount(profile.role)
+    ? (parsed.data.discountValue ?? Number(existing.discount_value ?? 0))
+    : Number(existing.discount_value ?? 0)
   const discountAmount = computeDiscountAmount(total, discountType, discountValue)
   const discountReason =
     discountAmount > 0
-      ? (parsed.data.discountReason !== undefined
-          ? parsed.data.discountReason.trim() || null
-          : existing.discount_reason)
+      ? canApplyGuestDiscount(profile.role) && parsed.data.discountReason !== undefined
+        ? parsed.data.discountReason.trim() || null
+        : existing.discount_reason
       : null
 
   const { error } = await supabase
@@ -906,6 +928,31 @@ export async function recordReservationDeposit(input: unknown): Promise<Reservat
     action: 'deposit',
     summary: `Deposit ₵${parsed.data.amount} on ${reservation.guest_name} booking`,
   })
+
+  // Keep open stay invoice in sync when guest is already in house (pay-at-check-in).
+  if (reservation.status === 'checked_in') {
+    const { data: stayRow } = await admin
+      .from('reservations')
+      .select(
+        'id, hotel_id, guest_id, guest_name, room_id, check_in, check_out, rate_type, nightly_rate, weekly_rate, monthly_rate, total_amount, amount_paid, payment_method, discount_type, discount_value, discount_amount, discount_reason',
+      )
+      .eq('id', reservation.id)
+      .maybeSingle()
+
+    if (stayRow) {
+      try {
+        const { createOrRefreshStayInvoice } = await import('@/lib/billing/build-stay-invoice')
+        await createOrRefreshStayInvoice(admin, {
+          reservation: stayRow,
+          paymentMethod: parsed.data.paymentMethod,
+          markAsPaid: false,
+          includeTax: true,
+        })
+      } catch {
+        // Deposit already recorded; invoice refresh can retry via Issue invoice.
+      }
+    }
+  }
 
   revalidateReservationViews()
   return { success: true }

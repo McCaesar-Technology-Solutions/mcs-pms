@@ -97,9 +97,10 @@ Use Unpaid / Deposit paid / Paid / etc. to find balances before departure.
 
 1. Open Confirmed / Pre-arrival → **Check in guest**.
 2. Phone **required**.
-3. Give **portal link** or **QR**.
-4. Room should show **Occupied**.
-5. Door access queues automatically if Hikvision is on.
+3. Stay invoice is created — **collect payment** (pay before enter).
+4. Give **portal link** or **QR**.
+5. Room should show **Occupied**.
+6. Door access queues automatically if Hikvision is on.
 
 ### While in house
 
@@ -109,23 +110,25 @@ Use Unpaid / Deposit paid / Paid / etc. to find balances before departure.
 
 ### Check out
 
+Payment for the stay is taken **at check-in**. Checkout is departure + any unpaid extras on the same invoice.
+
 1. Read the Payment box:
 
    | Line | Meaning |
    |------|---------|
    | Room total | Nights × rate |
    | Folio (unbilled) | Extras not yet on invoice |
-   | Estimated total | Checkout invoice base |
-   | Paid | Deposits already collected |
-   | **Outstanding** | What guest still owes today |
+   | Estimated total | Stay invoice base (refreshed at checkout) |
+   | Paid | Check-in payment / deposits already collected |
+   | **Outstanding** | What guest still owes today (usually folio extras) |
 
 2. **Begin checkout** — folio locks.
-3. Final folio if needed → **Complete checkout**.
-4. Payment method + **Payment received now** on/off.
+3. If Outstanding is ₵0 → **Complete checkout**.
+4. If balance remains → collect remaining (required). Unpaid complete-checkout is blocked.
 5. **Early checkout** if leaving early.
-6. Confirm → room **Cleaning**; invoice to owner.
+6. Confirm → room **Cleaning**; same stay invoice refreshed (no duplicate).
 
-**Walkout** — guest already left without paying. Do not use during normal desk checkout.
+**Walkout** — only if the guest already left without paying. Not a “pay later” path.
 
 ### Cancel / no-show
 
@@ -140,7 +143,7 @@ Use Unpaid / Deposit paid / Paid / etc. to find balances before departure.
 |-------|--------|
 | Cancel a checked-in guest | **Check out** |
 | Skip deposit question | Forfeit or ask owner for refund |
-| Ignore Outstanding | Collect or confirm “pay later” |
+| Ignore Outstanding | Collect remaining or record **Walkout** |
 
 ---
 

@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
+  DEFAULT_INVOICE_TAX_ID,
   ghanaCardInputSchema,
   isValidGhanaCard,
   normalizeGhanaCard,
   parseGhanaCard,
+  resolveInvoiceTaxId,
 } from '@/lib/billing/ghana-card'
 
 describe('ghana card', () => {
@@ -38,5 +40,11 @@ describe('ghana card', () => {
     expect(ghanaCardInputSchema.safeParse('GHA-728071939-8').success).toBe(true)
     expect(ghanaCardInputSchema.safeParse('').success).toBe(true)
     expect(ghanaCardInputSchema.safeParse(undefined).success).toBe(true)
+  })
+
+  it('stamps the hotel default Tax ID on every taxed invoice', () => {
+    expect(DEFAULT_INVOICE_TAX_ID).toBe('GHA-728071939-8')
+    expect(resolveInvoiceTaxId(true)).toBe('GHA-728071939-8')
+    expect(resolveInvoiceTaxId(false)).toBeNull()
   })
 })

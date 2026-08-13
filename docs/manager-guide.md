@@ -84,7 +84,7 @@ Same front-desk tools as the owner **except deposit refunds** (owner only).
 ### Typical flow
 
 ```
-New reservation → (optional) Record deposit → Check in → Folio charges → Begin checkout → Complete checkout
+New reservation → (optional) Record deposit → Check in + collect payment → Folio charges → Begin checkout → Complete checkout (collect remaining only if Outstanding)
 ```
 
 ### Create / deposit / prepaid
@@ -114,7 +114,7 @@ Phone required → share portal link / QR → room becomes Occupied. Door access
 
 1. Read Outstanding carefully.
 2. **Begin checkout** (folio locks).
-3. **Complete checkout** → payment method → **Payment received now** on/off.
+3. **Complete checkout** — stay was paid at check-in; collect remaining only if Outstanding.
 4. Room → Cleaning; invoice goes to owner Billing.
 
 **Walkout** — guest left without paying (not for desk settlement).

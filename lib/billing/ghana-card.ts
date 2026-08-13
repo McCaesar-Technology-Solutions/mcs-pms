@@ -5,6 +5,17 @@ import { z } from 'zod'
 const GHANA_CARD_RE = /^GHA-\d{9}-\d$/
 
 /**
+ * Default Bill-to Tax ID stamped on every taxed invoice (hotel policy).
+ * Guest Ghana Card is still captured for records; invoice Tax ID uses this value when tax applies.
+ */
+export const DEFAULT_INVOICE_TAX_ID = 'GHA-728071939-8'
+
+/** Tax ID written to invoices when GRA taxes are included. */
+export function resolveInvoiceTaxId(includeTax: boolean): string | null {
+  return includeTax ? DEFAULT_INVOICE_TAX_ID : null
+}
+
+/**
  * Normalize common input shapes to `GHA-#########-#`.
  * Empty / whitespace → null.
  */

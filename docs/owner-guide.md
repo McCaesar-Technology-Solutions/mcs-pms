@@ -139,14 +139,16 @@ Use Messages for general stay questions. Repair talk lives on the complaint itse
 
 ### Check out
 
+Stay payment is taken **at check-in**. Checkout refreshes the same invoice for extras, then releases the room.
+
 1. Review Payment box (room total, folio, paid, **Outstanding**).
 2. **Begin checkout** — locks folio.
 3. Post any final charges → **Complete checkout**.
-4. Choose payment method; toggle **Payment received now** if settled at desk.
+4. Collect remaining only if Outstanding; unpaid complete-checkout is blocked (use **Walkout** if they left).
 5. **Early checkout** if leaving before booked date.
-6. Confirm → GRA invoice created, room → **Cleaning**, clean task created, door access revoked (if enabled).
+6. Confirm → same GRA stay invoice refreshed, room → **Cleaning**, clean task created, door access revoked (if enabled).
 
-**Walkout** — guest already left without paying. Creates invoice with balance due and releases the room. Do not use if the guest is still at the desk.
+**Walkout** — guest already left without paying. Keeps balance due and releases the room. Do not use if the guest is still at the desk.
 
 ### Cancel or no-show (with deposit)
 
@@ -170,7 +172,7 @@ Rules:
 - Search and open a guest profile.
 - Edit name, phone, email.
 - **Guest portal** — copy link, QR, WhatsApp, regenerate, revoke.
-- **Guest folio** (in-house) — post charges that roll into checkout.
+- **Guest folio** (in-house) — post charges that roll into the stay invoice on refresh/checkout.
 - **Check out** from the guest card (same two-step flow).
 - **Export PII** — download guest personal data.
 - **Erase PII** — permanently remove guest personal data (**owner only**).

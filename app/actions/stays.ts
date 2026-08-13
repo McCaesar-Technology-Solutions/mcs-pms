@@ -3,7 +3,11 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { computeInvoiceTaxes, noTaxInvoice, taxSnapshotFromRates } from '@/lib/tax'
-import { ghanaCardInputSchema, parseGhanaCard } from '@/lib/billing/ghana-card'
+import {
+  ghanaCardInputSchema,
+  parseGhanaCard,
+  resolveInvoiceTaxId,
+} from '@/lib/billing/ghana-card'
 import { getHotelTaxConfig } from '@/lib/data/settings'
 import { allocateInvoiceNumber } from '@/lib/invoices/numbering'
 import { createOrRefreshStayInvoice } from '@/lib/billing/build-stay-invoice'
@@ -33,7 +37,8 @@ import {
   prepareCheckoutTaxesWithFolio,
 } from '@/lib/folio/rollup'
 import { writeAuditLog, logRoomStatusChange } from '@/lib/audit/log'
-import { canCheckIn, canCheckOut } from '@/lib/reservations/lifecycle'
+import { canCheckIn, canCheckOut, IN_HOUSE_STATUSES } from '@/lib/reservations/lifecycle'
+import { validateCheckoutBalance } from '@/lib/reservations/checkout-validation'
 import { runNotifyTask } from '@/lib/notifications/notify-task'
 import {
   buildCheckoutInvoicePaymentState,
@@ -232,7 +237,15 @@ export async function checkInStay(
   },
   opts?: { quiet?: boolean },
 ): Promise<
-  StayActionResult<{ loginUrl: string; token: string; guestId: string; portalPin: string }>
+  StayActionResult<{
+    loginUrl: string
+    token: string
+    guestId: string
+    portalPin: string
+    invoiceId: string | null
+    invoicePreview?: InvoiceExportRow
+    invoiceError?: string
+  }>
 > {
   const parsed = checkInStaySchema.safeParse(input)
   if (!parsed.success) {
@@ -474,7 +487,42 @@ export async function checkInStay(
     doorPin: portalPin,
   })
 
-  return { success: true, data: { loginUrl, token, guestId, portalPin } }
+  // Pay-before-enter: create the stay invoice at check-in (pending). Checkout reuses it.
+  let invoiceId: string | null = null
+  let invoicePreview: InvoiceExportRow | undefined
+  let invoiceError: string | undefined
+  const paymentMethod = (
+    reservation.payment_method &&
+    ['mtn_momo', 'telecel_cash', 'airteltigo', 'visa', 'mastercard', 'cash', 'bank_transfer'].includes(
+      reservation.payment_method,
+    )
+      ? reservation.payment_method
+      : 'cash'
+  ) as PaymentMethod
+
+  try {
+    const issued = await createOrRefreshStayInvoice(admin, {
+      reservation: {
+        ...reservation,
+        guest_id: guestId,
+        guest_name: guestName,
+      },
+      paymentMethod,
+      markAsPaid: false,
+      includeTax: true,
+      guestPhone: parsed.data.phone.trim(),
+      roomNumber: roomRow?.number ?? null,
+    })
+    invoiceId = issued.invoiceId
+    invoicePreview = issued.invoicePreview
+  } catch (err) {
+    invoiceError = err instanceof Error ? err.message : 'Could not create stay invoice.'
+  }
+
+  return {
+    success: true,
+    data: { loginUrl, token, guestId, portalPin, invoiceId, invoicePreview, invoiceError },
+  }
 }
 
 export async function walkInCheckIn(input: unknown): Promise<
@@ -702,6 +750,18 @@ async function executeStayCheckout(
     invoicePreview = issued.invoicePreview
     taxesTotal = issued.taxes.total
     folioSubtotal = issued.folioSubtotal
+
+    // Walkout may leave balance due; normal checkout must settle remaining.
+    if (!isWalkout) {
+      const balanceCheck = validateCheckoutBalance({
+        invoiceTotal: taxesTotal,
+        priorDeposit: paidNow ? taxesTotal : issued.amountPaid,
+        markAsPaid: paidNow,
+      })
+      if (!balanceCheck.ok) {
+        return { success: false, error: balanceCheck.error }
+      }
+    }
   } catch (err) {
     return {
       success: false,
@@ -968,7 +1028,9 @@ export async function checkOutStay(input: {
       .select('*')
       .eq('guest_id', input.guestId)
       .eq('hotel_id', profile.hotel_id)
-      .eq('status', 'checked_in')
+      .in('status', [...IN_HOUSE_STATUSES])
+      .order('created_at', { ascending: false })
+      .limit(1)
       .maybeSingle()
     reservation = data
   }
@@ -977,6 +1039,21 @@ export async function checkOutStay(input: {
 
   // Legacy guest without reservation — create checkout record on the fly
   if (!reservation && input.guestId) {
+    const { data: disputeHold } = await admin
+      .from('reservations')
+      .select('id')
+      .eq('guest_id', input.guestId)
+      .eq('hotel_id', profile.hotel_id)
+      .eq('status', 'dispute_hold')
+      .limit(1)
+      .maybeSingle()
+    if (disputeHold) {
+      return {
+        success: false,
+        error: 'This stay is on dispute hold. Complete checkout from Reservations.',
+      }
+    }
+
     const { data: guest } = await admin
       .from('guests')
       .select('*')
@@ -1068,10 +1145,7 @@ export async function checkOutStay(input: {
         elevy_amount: taxes.elevy,
         tourism_levy_amount: taxes.tourism,
         tax_snapshot: taxSnapshotFromRates(rates),
-        guest_tax_id: (() => {
-          const card = parseGhanaCard(guest.ghana_card_number)
-          return card.ok ? card.value : null
-        })(),
+        guest_tax_id: resolveInvoiceTaxId(input.includeTax !== false),
         total_amount: taxes.total,
         payment_method: input.paymentMethod,
         payment_status: checkoutPayment.paymentStatus,

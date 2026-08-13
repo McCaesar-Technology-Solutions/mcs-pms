@@ -12,6 +12,7 @@ import { canGuestApproveCompletion } from '@/lib/complaints/workflow'
 import { checkOutStay } from '@/app/actions/stays'
 import { getOccupancySpans } from '@/lib/data/occupancy'
 import { validateInHouseEnrollmentDates } from '@/lib/guests/enroll-in-house'
+import { OCCUPYING_STATUSES } from '@/lib/reservations/lifecycle'
 import { todayISO } from '@/lib/stays/helpers'
 import type { Complaint, Guest } from '@/types'
 import { runNotifyTask } from '@/lib/notifications/notify-task'
@@ -315,7 +316,18 @@ export interface EnrollRoomOption {
 }
 
 export type EnrollGuestResult =
-  | { success: true; data: { token: string; loginUrl: string; portalPin: string } }
+  | {
+      success: true
+      data: {
+        token: string
+        loginUrl: string
+        portalPin: string
+        reservationId: string
+        invoiceId: string | null
+        invoicePreview?: import('@/lib/export/types').InvoiceExportRow
+        invoiceError?: string
+      }
+    }
   | { success: false; error: string; suggestions?: EnrollRoomOption[] }
 
 export async function getEnrollmentRooms(): Promise<
@@ -464,6 +476,10 @@ export async function enrollGuest(input: {
       token: result.data.token,
       loginUrl: result.data.loginUrl,
       portalPin: result.data.portalPin,
+      reservationId: result.data.reservationId,
+      invoiceId: result.data.invoiceId,
+      invoicePreview: result.data.invoicePreview,
+      invoiceError: result.data.invoiceError,
     },
   }
 }
@@ -608,16 +624,32 @@ export async function regenerateGuestAccess(
   const admin = createAdminClient()
   const { data: guest } = await admin
     .from('guests')
-    .select('check_out')
+    .select('check_out, room_id')
     .eq('id', guestId)
     .eq('hotel_id', profile.hotel_id)
     .maybeSingle()
 
   if (!guest) return { success: false, error: 'Guest not found.' }
 
-  const expires = guest.check_out
-    ? new Date(guest.check_out)
-    : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+  const { data: occupying } = await admin
+    .from('reservations')
+    .select('id, check_out')
+    .eq('guest_id', guestId)
+    .eq('hotel_id', profile.hotel_id)
+    .in('status', [...OCCUPYING_STATUSES])
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (!occupying && !guest.room_id) {
+    return { success: false, error: 'Portal access can only be issued for in-house guests.' }
+  }
+
+  const expires = occupying?.check_out
+    ? new Date(occupying.check_out)
+    : guest.check_out
+      ? new Date(guest.check_out)
+      : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
   expires.setHours(23, 59, 59, 999)
 
   const token = crypto.randomUUID()

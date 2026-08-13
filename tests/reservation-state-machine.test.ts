@@ -7,6 +7,7 @@ import {
   isOccupancyBlockingStatus,
   isOpenBookingStatus,
   isVoidedReservationStatus,
+  isInHouseReservationStatus,
 } from '@/lib/reservations/lifecycle'
 import {
   actorMeetsRequiredRole,
@@ -26,6 +27,15 @@ describe('reservation lifecycle groupings', () => {
     expect(isOccupancyBlockingStatus('cancelled')).toBe(false)
     expect(isOccupancyBlockingStatus('no_show')).toBe(false)
     expect(isOccupancyBlockingStatus('released')).toBe(false)
+  })
+
+  it('treats checked_in, checkout_in_progress, and overstay as in-house', () => {
+    expect(isInHouseReservationStatus('checked_in')).toBe(true)
+    expect(isInHouseReservationStatus('checkout_in_progress')).toBe(true)
+    expect(isInHouseReservationStatus('overstay')).toBe(true)
+    expect(isInHouseReservationStatus('dispute_hold')).toBe(false)
+    expect(isInHouseReservationStatus('checked_out')).toBe(false)
+    expect(isInHouseReservationStatus('post_stay')).toBe(false)
   })
 
   it('treats cancelled, no_show, and released as void', () => {

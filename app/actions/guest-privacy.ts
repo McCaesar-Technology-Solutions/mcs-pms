@@ -10,10 +10,9 @@ import { writeAuditLog } from '@/lib/audit/log'
 import { revokeGuestAccess } from '@/lib/access/lifecycle'
 import { transitionReservation } from '@/lib/reservations/state-machine'
 import { normalizeActorRole } from '@/lib/reservations/transitions'
+import { IN_HOUSE_STATUSES } from '@/lib/reservations/lifecycle'
 
 const GUEST_ID_DOCUMENT_BUCKET = 'guest-id-documents'
-
-const IN_HOUSE_STATUSES = ['checked_in', 'checkout_in_progress', 'overstay'] as const
 
 export type GuestPrivacyResult =
   | { success: true; data?: unknown }

@@ -25,13 +25,13 @@ describe('tenant access — guest PII', () => {
     expect(canStaffExportGuestData(null)).toBe(false)
   })
 
-  it('allows owner, manager, and receptionist to erase guest data', () => {
+  it('limits erase guest data to manager and owner', () => {
     expect(canEraseGuestData('owner')).toBe(true)
     expect(canEraseGuestData('manager')).toBe(true)
-    expect(canEraseGuestData('receptionist')).toBe(true)
+    expect(canEraseGuestData('receptionist')).toBe(false)
     expect(canEraseGuestData('technician')).toBe(false)
-    // Deprecated alias tracks the expanded policy
-    expect(canOwnerEraseGuestData('receptionist')).toBe(true)
+    expect(canOwnerEraseGuestData('receptionist')).toBe(false)
+    expect(canOwnerEraseGuestData('manager')).toBe(true)
   })
 })
 
@@ -60,10 +60,10 @@ describe('tenant access — billing', () => {
     expect(canCreateManualInvoice('receptionist')).toBe(false)
   })
 
-  it('allows front desk to apply guest discounts', () => {
+  it('limits guest discounts to manager and owner', () => {
     expect(canApplyGuestDiscount('owner')).toBe(true)
     expect(canApplyGuestDiscount('manager')).toBe(true)
-    expect(canApplyGuestDiscount('receptionist')).toBe(true)
+    expect(canApplyGuestDiscount('receptionist')).toBe(false)
     expect(canApplyGuestDiscount('technician')).toBe(false)
   })
 

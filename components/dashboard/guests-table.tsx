@@ -36,8 +36,21 @@ import { usePagination } from '@/lib/hooks/use-pagination'
 import { toast } from 'sonner'
 import { PAYMENT_METHOD_LABELS } from '@/lib/tax'
 import type { PaymentMethod } from '@/types'
-import { sortGuestDirectory, type GuestRow, type GuestStatus } from '@/lib/guests/guest-directory'
-import type { ReservationChannel } from '@/types'
+import { canEraseGuestData } from '@/lib/auth/tenant-access'
+import {
+  DIRECTORY_FILTERS,
+  DIRECTORY_FILTER_LABEL,
+  guestMatchesDirectoryFilter,
+  guestRoomLabel,
+  LOYALTY_LABEL,
+  OCCUPANCY_LABEL,
+  sortGuestDirectory,
+  type GuestDirectoryFilter,
+  type GuestLoyalty,
+  type GuestOccupancy,
+  type GuestRow,
+} from '@/lib/guests/guest-directory'
+import type { ReservationChannel, UserRole } from '@/types'
 
 interface GuestsServerPagination {
   page: number
@@ -51,15 +64,52 @@ interface GuestsTableProps {
   initialSearch?: string
   openGuestId?: string
   readOnly?: boolean
+  /** When set, erase/delete is shown only for manager+ roles. */
+  staffRole?: UserRole
   serverPagination?: GuestsServerPagination
-  initialStatus?: GuestStatus | null
+  initialStatus?: GuestDirectoryFilter | null
 }
 
-const STATUS_LABEL: Record<GuestStatus, string> = {
-  active: 'Active',
-  returning: 'Returning',
-  vip: 'VIP',
-  new: 'New',
+function occupancyClass(occupancy: GuestOccupancy) {
+  switch (occupancy) {
+    case 'overstay':
+      return 'bg-red-700 text-white'
+    case 'checking_out':
+      return 'bg-orange-600 text-white'
+    case 'in_house':
+      return 'bg-amber-600 text-amber-50'
+    case 'upcoming':
+      return 'bg-sky-700 text-white'
+    case 'departed':
+      return 'bg-gray-500 text-gray-50'
+    default:
+      return 'bg-gray-200 text-gray-700'
+  }
+}
+
+function loyaltyClass(loyalty: GuestLoyalty) {
+  switch (loyalty) {
+    case 'vip':
+      return 'bg-[#3C216C] text-white'
+    case 'returning':
+      return 'bg-blue-600 text-blue-50'
+    default:
+      return 'bg-gray-500 text-gray-50'
+  }
+}
+
+function GuestDirectoryBadges({ guest, compact = false }: { guest: GuestRow; compact?: boolean }) {
+  const pill = compact ? 'text-xs px-2.5 py-1 rounded-full font-semibold' : 'text-xs px-3 py-1.5 rounded-full font-semibold shadow-elevation-1'
+  return (
+    <span className="inline-flex flex-wrap items-center justify-end gap-1">
+      {guest.occupancy !== 'none' && (
+        <span className={`${pill} ${occupancyClass(guest.occupancy)}`}>
+          {OCCUPANCY_LABEL[guest.occupancy]}
+        </span>
+      )}
+      <span className={`${pill} ${loyaltyClass(guest.loyalty)}`}>{LOYALTY_LABEL[guest.loyalty]}</span>
+    </span>
+  )
 }
 
 const SOURCE_LABEL: Record<ReservationChannel, string> = {
@@ -77,19 +127,6 @@ function formatDate(value: string | null) {
     day: 'numeric',
     year: '2-digit',
   })
-}
-
-function getStatusColor(status: GuestStatus) {
-  switch (status) {
-    case 'vip':
-      return 'bg-[#3C216C] text-white'
-    case 'returning':
-      return 'bg-blue-600 text-blue-50'
-    case 'active':
-      return 'bg-amber-600 text-amber-50'
-    default:
-      return 'bg-gray-500 text-gray-50'
-  }
 }
 
 function getSourceColor(source: ReservationChannel) {
@@ -112,12 +149,14 @@ export function GuestsTable({
   initialSearch = '',
   openGuestId,
   readOnly = false,
+  staffRole,
   serverPagination,
   initialStatus = null,
 }: GuestsTableProps) {
+  const canErase = canEraseGuestData(staffRole)
   const router = useRouter()
   const [searchQuery, setSearchQuery] = useState(initialSearch)
-  const [selectedStatus, setSelectedStatus] = useState<GuestStatus | null>(initialStatus)
+  const [selectedStatus, setSelectedStatus] = useState<GuestDirectoryFilter | null>(initialStatus)
   const [selectedGuest, setSelectedGuest] = useState<GuestRow | null>(null)
 
   useEffect(() => {
@@ -174,7 +213,7 @@ export function GuestsTable({
   const filteredGuests = useMemo(() => {
     if (serverPagination) {
       if (!selectedStatus) return guests
-      return guests.filter((guest) => guest.status === selectedStatus)
+      return guests.filter((guest) => guestMatchesDirectoryFilter(guest, selectedStatus))
     }
 
     const filtered = guests.filter((guest) => {
@@ -182,7 +221,7 @@ export function GuestsTable({
         guest.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (guest.email ?? '').toLowerCase().includes(searchQuery.toLowerCase()) ||
         (guest.phone ?? '').includes(searchQuery)
-      const matchesStatus = !selectedStatus || guest.status === selectedStatus
+      const matchesStatus = guestMatchesDirectoryFilter(guest, selectedStatus)
       return matchesSearch && matchesStatus
     })
     return sortGuestDirectory(filtered)
@@ -281,7 +320,7 @@ export function GuestsTable({
             >
               All Guests
             </button>
-            {(['active', 'returning', 'vip', 'new'] as GuestStatus[]).map((status) => (
+            {DIRECTORY_FILTERS.map((status) => (
               <button
                 key={status}
                 type="button"
@@ -289,7 +328,7 @@ export function GuestsTable({
                 onClick={() => setSelectedStatus(status)}
                 className={`filter-pill ${selectedStatus === status ? 'filter-pill--active' : ''}`}
               >
-                {STATUS_LABEL[status]}
+                {DIRECTORY_FILTER_LABEL[status]}
               </button>
             ))}
           </div>
@@ -328,12 +367,10 @@ export function GuestsTable({
                     {guest.doNotDisturb && <GuestDndBadge compact />}
                   </p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    {guest.roomNumber ? `Room ${guest.roomNumber}` : 'No room assigned'}
+                    {guestRoomLabel(guest)}
                   </p>
                 </div>
-                <span className={`shrink-0 text-xs px-2.5 py-1 rounded-full font-semibold ${getStatusColor(guest.status)}`}>
-                  {STATUS_LABEL[guest.status]}
-                </span>
+                <GuestDirectoryBadges guest={guest} compact />
               </div>
               <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
                 <Mail className="h-3.5 w-3.5 shrink-0" />
@@ -402,7 +439,7 @@ export function GuestsTable({
                     {guest.doNotDisturb && <GuestDndBadge compact />}
                   </p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      {guest.roomNumber ? `Room ${guest.roomNumber}` : 'No room assigned'}
+                      {guestRoomLabel(guest)}
                     </p>
                   </td>
                   <td className="py-4 px-6">
@@ -433,9 +470,7 @@ export function GuestsTable({
                     <p className="font-bold text-foreground">₵{guest.totalSpent.toLocaleString()}</p>
                   </td>
                   <td className="py-4 px-6 text-center">
-                    <span className={`text-xs px-3 py-1.5 rounded-full font-semibold ${getStatusColor(guest.status)} shadow-elevation-1`}>
-                      {STATUS_LABEL[guest.status]}
-                    </span>
+                    <GuestDirectoryBadges guest={guest} />
                   </td>
                 </tr>
               ))}
@@ -537,9 +572,7 @@ export function GuestsTable({
                     </div>
                     <div className="flex items-center gap-3 surface-inset p-3 rounded-xl">
                       <BedDouble className="h-5 w-5 text-primary" />
-                      <span className="text-sm">
-                        {selectedGuest.roomNumber ? `Room ${selectedGuest.roomNumber}` : 'No room assigned'}
-                      </span>
+                      <span className="text-sm">{guestRoomLabel(selectedGuest)}</span>
                     </div>
                   </div>
                 )}
@@ -580,7 +613,7 @@ export function GuestsTable({
 
               {!readOnly && <GuestAccessLink guest={selectedGuest} />}
 
-              {!readOnly && selectedGuest.isInHouse && (
+              {!readOnly && selectedGuest.canCheckOut && (
                 <GuestCheckoutPanel
                   guest={selectedGuest}
                   onDone={() => {
@@ -590,7 +623,13 @@ export function GuestsTable({
                 />
               )}
 
-              {!readOnly && (
+              {!readOnly && selectedGuest.isInHouse && !selectedGuest.canCheckOut && (
+                <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+                  This stay is on dispute hold. Complete checkout from Reservations.
+                </p>
+              )}
+
+              {!readOnly && canErase && (
                 <GuestDeletePanel
                   guest={selectedGuest}
                   onDone={() => {
@@ -602,10 +641,7 @@ export function GuestsTable({
 
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <CalendarDays className="h-3.5 w-3.5" />
-                Status:{' '}
-                <span className={`px-2 py-0.5 rounded-full font-semibold ${getStatusColor(selectedGuest.status)}`}>
-                  {STATUS_LABEL[selectedGuest.status]}
-                </span>
+                Status: <GuestDirectoryBadges guest={selectedGuest} compact />
               </div>
             </ModalBody>
           </>
@@ -843,11 +879,11 @@ function GuestCheckoutPanel({
 
   return (
     <div className="space-y-3 rounded-xl surface-inset p-4">
-      <p className="text-sm font-semibold">Check out & collect payment</p>
+      <p className="text-sm font-semibold">Complete checkout</p>
       <p className="text-xs text-muted-foreground">
-        {includeTax
-          ? 'A GRA tax invoice will be generated on check-out.'
-          : 'Invoice will use the stay total without GRA taxes.'}
+        Stay payment is taken at check-in. Checkout refreshes the same invoice for any extras, then
+        releases the room. Collect remaining balance if outstanding — use Walkout on Reservations if
+        they left unpaid.
       </p>
       <label className="flex items-center gap-2 text-sm">
         <input
@@ -855,7 +891,7 @@ function GuestCheckoutPanel({
           checked={includeTax}
           onChange={(e) => setIncludeTax(e.target.checked)}
         />
-        Include VAT &amp; GRA levies on invoice
+        Include VAT &amp; GRA levies on invoice refresh
       </label>
       <label className="flex items-center gap-2 text-sm">
         <input
@@ -864,14 +900,6 @@ function GuestCheckoutPanel({
           onChange={(e) => setEarlyCheckout(e.target.checked)}
         />
         Early checkout (bill through today)
-      </label>
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          checked={markAsPaid}
-          onChange={(e) => setMarkAsPaid(e.target.checked)}
-        />
-        Payment received now
       </label>
       <select
         value={paymentMethod}
@@ -884,6 +912,14 @@ function GuestCheckoutPanel({
           </option>
         ))}
       </select>
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={markAsPaid}
+          onChange={(e) => setMarkAsPaid(e.target.checked)}
+        />
+        Any remaining balance received now (required if outstanding)
+      </label>
       {error && <p className="text-sm text-destructive">{error}</p>}
       <div className="flex gap-2">
         <button
@@ -895,7 +931,7 @@ function GuestCheckoutPanel({
         </button>
         <button
           type="button"
-          disabled={pending}
+          disabled={pending || !markAsPaid}
           onClick={submit}
           className="flex-[2] rounded-lg bg-[#3C216C] py-2 text-sm font-semibold text-white disabled:opacity-50"
         >
@@ -996,19 +1032,23 @@ function GuestAccessLink({ guest }: { guest: GuestRow }) {
       {!linkActive ? (
         <div className="space-y-3">
           <p className="surface-inset rounded-xl p-3 text-sm text-muted-foreground">
-            {token === null
-              ? 'No active access link. Generate one to give this guest portal access.'
-              : 'This access link has expired (stay ended).'}
+            {guest.isInHouse
+              ? token === null
+                ? 'No active access link. Generate one to give this guest portal access.'
+                : 'This access link has expired (stay ended).'
+              : 'Portal access ended at check-out. Issue a new link only after they are in-house again.'}
           </p>
-          <button
-            type="button"
-            onClick={handleRegenerate}
-            disabled={pending}
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground shadow-elevation-1 transition-all hover:shadow-elevation-2 disabled:opacity-50"
-          >
-            <KeyRound className="h-4 w-4" />
-            {pending ? 'Generating…' : 'Generate new link'}
-          </button>
+          {guest.isInHouse && (
+            <button
+              type="button"
+              onClick={handleRegenerate}
+              disabled={pending}
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground shadow-elevation-1 transition-all hover:shadow-elevation-2 disabled:opacity-50"
+            >
+              <KeyRound className="h-4 w-4" />
+              {pending ? 'Generating…' : 'Generate new link'}
+            </button>
+          )}
         </div>
       ) : (
         <div className="space-y-3">
@@ -1035,7 +1075,7 @@ function GuestAccessLink({ guest }: { guest: GuestRow }) {
               <span className="shrink-0 rounded-lg bg-primary/10 px-3 py-1.5 font-mono text-lg font-bold tracking-[0.3em] text-primary">
                 {pin}
               </span>
-            ) : (
+            ) : guest.isInHouse ? (
               <button
                 type="button"
                 onClick={handleRegenerate}
@@ -1044,6 +1084,8 @@ function GuestAccessLink({ guest }: { guest: GuestRow }) {
               >
                 {pending ? 'Creating…' : 'Create code'}
               </button>
+            ) : (
+              <span className="text-xs text-muted-foreground">Ended</span>
             )}
           </div>
 
@@ -1079,15 +1121,17 @@ function GuestAccessLink({ guest }: { guest: GuestRow }) {
           </div>
 
           <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
-            <button
-              type="button"
-              onClick={handleRegenerate}
-              disabled={pending}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-secondary px-3 py-1.5 text-xs font-semibold text-foreground shadow-elevation-1 transition-all hover:shadow-elevation-2 disabled:opacity-50"
-            >
-              <RefreshCw className="h-3.5 w-3.5" />
-              Regenerate
-            </button>
+            {guest.isInHouse && (
+              <button
+                type="button"
+                onClick={handleRegenerate}
+                disabled={pending}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-secondary px-3 py-1.5 text-xs font-semibold text-foreground shadow-elevation-1 transition-all hover:shadow-elevation-2 disabled:opacity-50"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                Regenerate
+              </button>
+            )}
             <button
               type="button"
               onClick={handleRevoke}

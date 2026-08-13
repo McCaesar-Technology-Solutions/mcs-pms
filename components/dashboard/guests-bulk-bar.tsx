@@ -6,14 +6,12 @@ import { BulkActionBar } from '@/components/dashboard/bulk-action-bar'
 import { downloadCsv } from '@/lib/export/download-csv'
 import { copyToClipboard } from '@/lib/export/entity-refs'
 import { guestRef } from '@/lib/guests/guest-ref'
-import type { GuestRow } from '@/lib/guests/guest-directory'
-
-const STATUS_LABEL: Record<GuestRow['status'], string> = {
-  active: 'Active',
-  returning: 'Returning',
-  vip: 'VIP',
-  new: 'New',
-}
+import {
+  guestRoomLabel,
+  LOYALTY_LABEL,
+  OCCUPANCY_LABEL,
+  type GuestRow,
+} from '@/lib/guests/guest-directory'
 
 interface GuestsBulkBarProps {
   selected: GuestRow[]
@@ -51,7 +49,8 @@ export function GuestsBulkBar({ selected, onClear }: GuestsBulkBarProps) {
       'Email',
       'Phone',
       'Room',
-      'Status',
+      'Occupancy',
+      'Loyalty',
       'Ghana Card',
       'Stays',
       'Total spent',
@@ -64,8 +63,9 @@ export function GuestsBulkBar({ selected, onClear }: GuestsBulkBarProps) {
       g.name,
       g.email ?? '',
       g.phone ?? '',
-      g.roomNumber ?? '',
-      STATUS_LABEL[g.status],
+      guestRoomLabel(g),
+      OCCUPANCY_LABEL[g.occupancy],
+      LOYALTY_LABEL[g.loyalty],
       g.ghanaCardNumber ?? '',
       String(g.totalStays),
       String(g.totalSpent),
