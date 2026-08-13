@@ -81,6 +81,7 @@ function RegisterInHouseGuestModal({ onClose }: { onClose: () => void }) {
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
   const [ghanaCardNumber, setGhanaCardNumber] = useState('')
+  const [includeTax, setIncludeTax] = useState(false)
   const [roomId, setRoomId] = useState('')
   const [checkIn, setCheckIn] = useState(today)
   const [checkOut, setCheckOut] = useState(addDaysISO(today, 1))
@@ -195,6 +196,7 @@ function RegisterInHouseGuestModal({ onClose }: { onClose: () => void }) {
         nightlyRate: Number(nightlyRate || 0),
         weeklyRate: Number(weeklyRate || 0),
         monthlyRate: Number(monthlyRate || 0),
+        includeTax,
       })
       if (!res.success) {
         setError(res.error)
@@ -342,7 +344,7 @@ function RegisterInHouseGuestModal({ onClose }: { onClose: () => void }) {
           />
         </FormField>
 
-        <FormField label="Ghana Card (tax ID, optional)" hint="Shown on invoices as Tax ID">
+        <FormField label="Ghana Card (optional)" hint="Stored on the guest record">
           <input
             value={ghanaCardNumber}
             onChange={(e) => setGhanaCardNumber(e.target.value.toUpperCase())}
@@ -350,6 +352,21 @@ function RegisterInHouseGuestModal({ onClose }: { onClose: () => void }) {
             className={`${APP_FIELD_CLASS} uppercase`}
           />
         </FormField>
+
+        <label className="flex items-start gap-2 text-sm text-foreground">
+          <input
+            type="checkbox"
+            checked={includeTax}
+            onChange={(e) => setIncludeTax(e.target.checked)}
+            className="mt-0.5"
+          />
+          <span>
+            Include Ghana tax on stay invoice
+            <span className="mt-0.5 block text-xs text-muted-foreground">
+              Optional — VAT &amp; GRA levies. Leave unchecked for an untaxed invoice.
+            </span>
+          </span>
+        </label>
 
         <div className="grid grid-cols-2 gap-3">
           <FormField label="Arrived" required hint="Can be in the past">

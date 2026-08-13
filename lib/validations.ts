@@ -85,6 +85,7 @@ export const enrollGuestSchema = z.object({
   nightlyRate: z.coerce.number().min(0).optional(),
   weeklyRate: z.coerce.number().min(0).optional(),
   monthlyRate: z.coerce.number().min(0).optional(),
+  includeTax: z.boolean().optional(),
 })
 
 export const submitComplaintSchema = z.object({

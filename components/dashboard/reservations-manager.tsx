@@ -996,9 +996,11 @@ function ReservationDrawer({
   const canDiscount = canApplyGuestDiscount(staffRole)
   const canRecordDeposit =
     (reservation.status === 'confirmed' ||
+      reservation.status === 'pre_arrival' ||
       reservation.status === 'checked_in' ||
       reservation.status === 'provisional') &&
-    balance > 0
+    balance > 0 &&
+    !reservation.invoiceId
   const canMarkChannelPrepaid =
     canRecordDeposit &&
     (reservation.channel === 'airbnb' || reservation.channel === 'booking_com')
@@ -1203,10 +1205,10 @@ function ReservationDrawer({
                   reservation.status === 'pre_arrival' ||
                   reservation.status === 'provisional'
                     ? reservation.invoiceId
-                      ? 'Refresh the stay invoice and collect payment before check-in (pay before enter).'
-                      : 'Create the stay invoice and collect payment before check-in. Check-in will reuse this invoice.'
+                      ? 'Refresh the stay invoice and collect payment before check-in (pay before enter). Prior GRA tax stays on if already applied.'
+                      : 'Create the full stay invoice and collect payment before check-in. Check-in reuses this invoice. Use Record deposit only for a partial hold.'
                     : reservation.invoiceId
-                      ? 'Refresh stay invoice with current folio, then optionally record payment.'
+                      ? 'Refresh stay invoice with current folio, then optionally record payment. Prior GRA tax stays on if already applied.'
                       : 'Create a stay invoice now. Checkout will reuse this invoice (no duplicate).'}
                 </p>
                 {canDiscount && (
@@ -1320,7 +1322,7 @@ function ReservationDrawer({
                   onClick={() => setRecordingDeposit(true)}
                   className="flex-1 rounded-xl bg-white py-2.5 text-sm font-semibold text-foreground shadow-elevation-1 transition-all hover:shadow-elevation-2 disabled:opacity-50"
                 >
-                  Record deposit
+                  Record deposit (partial)
                 </button>
                 {canMarkChannelPrepaid && (
                   <button
@@ -1710,6 +1712,20 @@ function ReservationDrawer({
                       }
                     }}
                   />
+                  <label className="flex items-start gap-2 text-sm text-foreground">
+                    <input
+                      type="checkbox"
+                      checked={includeTax}
+                      onChange={(e) => setIncludeTax(e.target.checked)}
+                      className="mt-0.5"
+                    />
+                    <span>
+                      Include Ghana tax on stay invoice
+                      <span className="mt-0.5 block text-xs text-muted-foreground">
+                        Optional — VAT &amp; GRA levies. Leave unchecked for an untaxed invoice.
+                      </span>
+                    </span>
+                  </label>
                   <div className="flex gap-2">
                     <button
                       type="button"
@@ -1731,6 +1747,7 @@ function ReservationDrawer({
                             guestId: selectedGuestId ?? undefined,
                             guestName,
                             ghanaCardNumber,
+                            includeTax,
                           })
                           if (result.success && result.data) {
                             setPortalUrl(result.data.loginUrl)
@@ -2276,6 +2293,7 @@ function ReservationFormModal({
   const [discountType, setDiscountType] = useState<DiscountType>('none')
   const [discountValue, setDiscountValue] = useState('0')
   const [discountReason, setDiscountReason] = useState('')
+  const [includeTax, setIncludeTax] = useState(false)
   const [selectedGuestId, setSelectedGuestId] = useState<string | null>(null)
   const [portalUrl, setPortalUrl] = useState<string | null>(null)
   const [portalPin, setPortalPin] = useState<string | null>(null)
@@ -2369,6 +2387,7 @@ function ReservationFormModal({
           phone: phone.trim(),
           email: email.trim() || undefined,
           ghanaCardNumber: ghanaCardNumber.trim() || undefined,
+          includeTax,
         })
         if (result.success) {
           setPortalUrl(result.data.loginUrl)
@@ -2629,6 +2648,20 @@ function ReservationFormModal({
                 className={`${APP_FIELD_CLASS} uppercase`}
               />
             </FormField>
+            <label className="flex items-start gap-2 text-sm text-foreground">
+              <input
+                type="checkbox"
+                checked={includeTax}
+                onChange={(e) => setIncludeTax(e.target.checked)}
+                className="mt-0.5"
+              />
+              <span>
+                Include Ghana tax on stay invoice
+                <span className="mt-0.5 block text-xs text-muted-foreground">
+                  Optional — VAT &amp; GRA levies. Leave unchecked for an untaxed invoice.
+                </span>
+              </span>
+            </label>
           </>
         )}
 

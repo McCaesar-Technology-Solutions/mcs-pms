@@ -114,7 +114,7 @@ export const managerHelpTopics: HelpTopic[] = [
     summary: 'Stay invoices at check-in or before; collect at the desk (pay before enter).',
     steps: [
       'Open a confirmed booking → Collect payment before check-in (creates/refreshes the stay invoice).',
-      'Or check in first — walk-in / check-in now also creates the stay invoice and opens collect.',
+      'Or check in first — walk-in / check-in now also creates the stay invoice (optional Include Ghana tax on the form) and opens collect.',
       'Already in house without an invoice? Guests → open guest → Generate stay invoice & collect (uses check-in dates).',
       'Managers (and owners) apply % or fixed guest discounts before tax when creating/editing a booking or refreshing the invoice, and may post folio discount credits. Reception cannot.',
       'Tax is optional on issue/refresh — check Include Ghana tax when you need VAT & GRA levies (Tax ID GHA-728071939-8).',

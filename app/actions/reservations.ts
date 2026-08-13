@@ -72,6 +72,8 @@ const bookAndCheckInSchema = createReservationSchema.extend({
   phone: phoneSchema,
   email: z.string().email().optional().or(z.literal('')),
   ghanaCardNumber: ghanaCardInputSchema,
+  /** Optional GRA tax on the stay invoice created at check-in (default off). */
+  includeTax: z.boolean().optional(),
   /** Go-live / in-house enrollment — skip welcome + new-booking SMS noise. */
   quietEnrollment: z.boolean().optional(),
 })
@@ -306,7 +308,8 @@ export async function bookAndCheckIn(input: unknown): Promise<BookAndCheckInResu
     return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid input.' }
   }
 
-  const { quietEnrollment, phone, email, ghanaCardNumber, ...reservationFields } = parsed.data
+  const { quietEnrollment, phone, email, ghanaCardNumber, includeTax, ...reservationFields } =
+    parsed.data
 
   const createResult = await createReservation(reservationFields, {
     quiet: quietEnrollment === true,
@@ -323,6 +326,7 @@ export async function bookAndCheckIn(input: unknown): Promise<BookAndCheckInResu
       guestId: reservationFields.guestId ?? undefined,
       guestName: reservationFields.guestName,
       ghanaCardNumber: ghanaCardNumber === undefined ? undefined : ghanaCardNumber ?? '',
+      includeTax: includeTax === true,
     },
     { quiet: quietEnrollment === true },
   )
@@ -946,7 +950,7 @@ export async function recordReservationDeposit(input: unknown): Promise<Reservat
           reservation: stayRow,
           paymentMethod: parsed.data.paymentMethod,
           markAsPaid: false,
-          includeTax: false,
+          // omit includeTax — preserve tax if the stay invoice already has GRA lines
         })
       } catch {
         // Deposit already recorded; invoice refresh can retry via Issue invoice.

@@ -72,6 +72,8 @@ const checkInStaySchema = z.object({
   guestId: z.string().uuid().optional(),
   guestName: z.string().min(2).optional(),
   ghanaCardNumber: ghanaCardInputSchema,
+  /** Optional GRA tax on the stay invoice created at check-in (default off). */
+  includeTax: z.boolean().optional(),
 })
 
 const walkInCheckInSchema = z.object({
@@ -85,6 +87,7 @@ const walkInCheckInSchema = z.object({
   nightlyRate: z.coerce.number().min(0).optional(),
   weeklyRate: z.coerce.number().min(0).optional(),
   monthlyRate: z.coerce.number().min(0).optional(),
+  includeTax: z.boolean().optional(),
 })
 
 async function requireManager() {
@@ -234,6 +237,7 @@ export async function checkInStay(
     guestId?: string
     guestName?: string
     ghanaCardNumber?: string
+    includeTax?: boolean
   },
   opts?: { quiet?: boolean },
 ): Promise<
@@ -509,7 +513,7 @@ export async function checkInStay(
       },
       paymentMethod,
       markAsPaid: false,
-      includeTax: false,
+      includeTax: parsed.data.includeTax === true,
       guestPhone: parsed.data.phone.trim(),
       roomNumber: roomRow?.number ?? null,
     })
@@ -663,6 +667,7 @@ export async function walkInCheckIn(input: unknown): Promise<
     email: parsed.data.email,
     guestName: parsed.data.name.trim(),
     ghanaCardNumber: parsed.data.ghanaCardNumber ?? undefined,
+    includeTax: parsed.data.includeTax === true,
   })
 
   if (!checkInResult.success || !checkInResult.data) {

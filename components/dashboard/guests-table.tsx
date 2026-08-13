@@ -687,7 +687,7 @@ export function GuestsTable({
           initialInvoice={stayInvoice.preview}
           reservationId={stayInvoice.reservationId}
           mode="collect"
-          description={`${stayInvoice.guestName} — stay invoice from check-in dates. Collect payment before enter.`}
+          description={`${stayInvoice.guestName} — collect outstanding stay balance.`}
           onClose={() => {
             setStayInvoice(null)
             router.refresh()
@@ -769,7 +769,7 @@ function GuestStayInvoicePanel({
         Uses this guest&apos;s check-in ({formatDate(guest.checkIn)}) → check-out (
         {formatDate(guest.checkOut)})
         {guest.roomNumber ? ` · Room ${guest.roomNumber}` : ''}. Creates or refreshes the stay
-        invoice for pay-before-enter.
+        invoice for this stay.
       </p>
       <label className="flex items-center gap-2 text-sm">
         <input

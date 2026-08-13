@@ -74,11 +74,14 @@ export function CheckoutInvoiceDialog({
     return method && PAYMENT_METHODS.includes(method) ? method : 'cash'
   })
   const [markAsPaid, setMarkAsPaid] = useState(true)
-  const [includeTax, setIncludeTax] = useState(false)
+  const [includeTax, setIncludeTax] = useState(() =>
+    initialInvoice ? invoiceHasTaxBreakdown(initialInvoice) : false,
+  )
   const [pending, startTransition] = useTransition()
 
   const alreadyPaid = isPaidStatus(invoice?.paymentStatus)
   const showCollect = mode === 'collect' && !alreadyPaid
+  const taxLockedOn = invoice ? invoiceHasTaxBreakdown(invoice) : false
 
   useEffect(() => {
     let cancelled = false
@@ -97,6 +100,10 @@ export function CheckoutInvoiceDialog({
       const method = result.data.invoice.paymentMethod as PaymentMethod | null
       if (method && PAYMENT_METHODS.includes(method)) {
         setPaymentMethod(method)
+      }
+      // Preserve tax-on for already-taxed invoices when collecting payment.
+      if (invoiceHasTaxBreakdown(result.data.invoice)) {
+        setIncludeTax(true)
       }
       setLoadingExport(false)
     })
@@ -138,7 +145,7 @@ export function CheckoutInvoiceDialog({
           reservationId,
           paymentMethod,
           markAsPaid: true,
-          includeTax,
+          includeTax: includeTax || taxLockedOn,
         })
         if (!result.success) {
           setError(result.error)
@@ -182,7 +189,7 @@ export function CheckoutInvoiceDialog({
         <p className="modal-panel-subtle text-sm">
           {description ??
             (showCollect
-              ? `${guestName ?? invoice?.guestName ?? 'Guest'} — payment is taken at check-in.`
+              ? `${guestName ?? invoice?.guestName ?? 'Guest'} — collect stay payment (pay before enter).`
               : `${guestName ?? invoice?.guestName ?? 'Guest'} — print, download, or send via WhatsApp.`)}
         </p>
       </ModalHeader>
@@ -330,15 +337,17 @@ export function CheckoutInvoiceDialog({
                 <label className="flex items-start gap-2 text-sm text-amber-950">
                   <input
                     type="checkbox"
-                    checked={includeTax}
+                    checked={includeTax || taxLockedOn}
                     onChange={(e) => setIncludeTax(e.target.checked)}
-                    disabled={pending}
+                    disabled={pending || taxLockedOn}
                     className="mt-0.5"
                   />
                   <span>
                     Include Ghana tax
                     <span className="mt-0.5 block text-xs text-amber-900/80">
-                      Optional — VAT &amp; GRA levies for a tax invoice.
+                      {taxLockedOn
+                        ? 'This invoice already includes GRA tax — it will stay on.'
+                        : 'Optional — VAT & GRA levies for a tax invoice.'}
                     </span>
                   </span>
                 </label>

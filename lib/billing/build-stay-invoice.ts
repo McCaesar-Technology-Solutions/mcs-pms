@@ -3,6 +3,7 @@ import { allocateInvoiceNumber } from '@/lib/invoices/numbering'
 import { getHotelTaxConfig } from '@/lib/data/settings'
 import {
   computeInvoiceTaxes,
+  invoiceHasTaxBreakdown,
   noTaxInvoice,
   resolveInvoiceTaxRates,
   type HotelTaxRates,
@@ -33,6 +34,34 @@ import type { InvoiceExportRow } from '@/lib/export/types'
 import type { PaymentMethod, PaymentStatus } from '@/types'
 
 type AdminClient = ReturnType<typeof createAdminClient>
+
+/** Keep GRA tax on when refreshing an invoice that already has tax lines / Tax ID. */
+export function resolveStayInvoiceIncludeTax(
+  requestedIncludeTax: boolean | undefined,
+  existing: {
+    guest_tax_id?: string | null
+    nhil_amount?: number | null
+    getfund_amount?: number | null
+    covid_levy_amount?: number | null
+    vat_amount?: number | null
+    elevy_amount?: number | null
+    tourism_levy_amount?: number | null
+  } | null | undefined,
+): boolean {
+  const existingTaxed = Boolean(
+    existing &&
+      (existing.guest_tax_id ||
+        invoiceHasTaxBreakdown({
+          nhil_amount: existing.nhil_amount,
+          getfund_amount: existing.getfund_amount,
+          covid_levy_amount: existing.covid_levy_amount,
+          vat_amount: existing.vat_amount,
+          elevy_amount: existing.elevy_amount,
+          tourism_levy_amount: existing.tourism_levy_amount,
+        })),
+  )
+  return existingTaxed || requestedIncludeTax === true
+}
 
 export interface StayInvoiceReservation {
   id: string
@@ -146,7 +175,6 @@ export async function createOrRefreshStayInvoice(
   paymentStatus: PaymentStatus
   amountPaid: number
 }> {
-  const includeTax = input.includeTax === true
   const effectiveCheckOut = input.effectiveCheckOut ?? input.reservation.check_out
   const reservation = input.reservation
   const now = new Date().toISOString()
@@ -154,10 +182,16 @@ export async function createOrRefreshStayInvoice(
 
   const { data: existing } = await admin
     .from('invoices')
-    .select('id, invoice_number, amount_paid, payment_status, paid_at, guest_tax_id, tax_snapshot')
+    .select(
+      'id, invoice_number, amount_paid, payment_status, paid_at, guest_tax_id, tax_snapshot, nhil_amount, getfund_amount, covid_levy_amount, vat_amount, elevy_amount, tourism_levy_amount',
+    )
     .eq('reservation_id', reservation.id)
     .eq('hotel_id', reservation.hotel_id)
     .maybeSingle()
+
+  // New invoices: tax only when requested. Existing taxed invoices keep tax on refresh
+  // so check-in/collect/deposit sync cannot wipe GRA lines after money was taken.
+  const includeTax = resolveStayInvoiceIncludeTax(input.includeTax, existing)
 
   const { vatMode, rates: hotelRates } = await getHotelTaxConfig(reservation.hotel_id)
   // Freeze rates after first issue so owner rate edits do not rewrite in-flight invoices.

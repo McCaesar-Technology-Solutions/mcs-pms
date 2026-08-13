@@ -394,6 +394,7 @@ export async function enrollGuest(input: {
   nightlyRate?: number
   weeklyRate?: number
   monthlyRate?: number
+  includeTax?: boolean
 }): Promise<EnrollGuestResult> {
   const parsed = enrollGuestSchema.safeParse(input)
   if (!parsed.success) {
@@ -453,6 +454,7 @@ export async function enrollGuest(input: {
     nightlyRate,
     weeklyRate,
     monthlyRate,
+    includeTax: parsed.data.includeTax === true,
     quietEnrollment: true,
   })
 

@@ -74,7 +74,7 @@ export const receptionistHelpTopics: HelpTopic[] = [
     title: 'Issue invoices and record payments',
     summary: 'Stay invoices are created at check-in; collect payment before the guest enters.',
     steps: [
-      'Check-in creates the stay invoice automatically — record payment in the collect dialog.',
+      'Check-in creates the stay invoice automatically — choose Include Ghana tax on the check-in form if needed, then record payment in the collect dialog.',
       'Or collect before check-in: open a confirmed booking → Collect payment before check-in.',
       'For guests already in house without an invoice: Guests → open guest → Generate stay invoice & collect (uses their check-in dates).',
       'Use Issue invoice & collect on the reservation or Billing if anything remains unpaid mid-stay.',

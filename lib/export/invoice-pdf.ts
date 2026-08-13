@@ -592,25 +592,31 @@ async function buildInvoicePdf(hotelInput: ExportHotelInfo, invoice: InvoiceExpo
     y = drawPaymentDetailsFallback(doc, margin, y, contentW) + 4
   }
 
-  // ── Footer ───────────────────────────────────────────────────
-  const footerY = Math.max(y + 2, pageH - 18)
-  doc.setDrawColor(...BRAND.line)
-  doc.setLineWidth(0.4)
-  doc.line(margin, footerY, pageW - margin, footerY)
-
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(7)
-  doc.setTextColor(...BRAND.muted)
+  // ── Footer on every page ─────────────────────────────────────
+  const pageCount = doc.getNumberOfPages()
   const footerContact = [hotel.phone ? `Tel ${hotel.phone}` : null, hotel.email || null]
     .filter(Boolean)
     .join('  ·  ')
-  if (footerContact) {
-    doc.text(footerContact, margin, footerY + 5)
+  for (let page = 1; page <= pageCount; page++) {
+    doc.setPage(page)
+    const footerY = pageH - 18
+    doc.setDrawColor(...BRAND.line)
+    doc.setLineWidth(0.4)
+    doc.line(margin, footerY, pageW - margin, footerY)
+
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(7)
+    doc.setTextColor(...BRAND.muted)
+    if (footerContact) {
+      doc.text(footerContact, margin, footerY + 5)
+    }
+    doc.text(`Page ${page} of ${pageCount} · ${formatDateTime(generatedAt)}`, pageW - margin, footerY + 5, {
+      align: 'right',
+    })
+    if (page === pageCount) {
+      doc.text('Thank you for staying with us.', margin, footerY + 10)
+    }
   }
-  doc.text(`Page ${doc.getNumberOfPages()} · ${formatDateTime(generatedAt)}`, pageW - margin, footerY + 5, {
-    align: 'right',
-  })
-  doc.text('Thank you for staying with us.', margin, footerY + 10)
 
   return doc
 }
