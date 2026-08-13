@@ -6,6 +6,8 @@ import { Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { postGuestCharge, getGuestFolioCharges } from '@/app/actions/folio'
 import { CenteredModal, ModalBody, ModalFooter, ModalHeader } from '@/components/ui/centered-modal'
+import { canApplyGuestDiscount } from '@/lib/auth/tenant-access'
+import type { UserRole } from '@/types'
 
 interface FolioCharge {
   id: string
@@ -21,6 +23,7 @@ interface GuestFolioPanelProps {
   guestName: string
   reservationId?: string | null
   readOnly?: boolean
+  staffRole?: UserRole
   initialCharges?: FolioCharge[]
 }
 
@@ -41,8 +44,13 @@ export function GuestFolioPanel({
   guestName,
   reservationId,
   readOnly = false,
+  staffRole,
   initialCharges = [],
 }: GuestFolioPanelProps) {
+  const canDiscount = canApplyGuestDiscount(staffRole)
+  const chargeTypes = canDiscount
+    ? CHARGE_TYPES
+    : CHARGE_TYPES.filter((t) => t.value !== 'discount')
   const router = useRouter()
   const [charges, setCharges] = useState(initialCharges)
   const [adding, setAdding] = useState(false)
@@ -178,7 +186,7 @@ export function GuestFolioPanel({
               onChange={(e) => setChargeType(e.target.value as typeof chargeType)}
               className="mt-1 w-full rounded-lg border border-[#E9ECEF] px-3 py-2 text-sm"
             >
-              {CHARGE_TYPES.map((t) => (
+              {chargeTypes.map((t) => (
                 <option key={t.value} value={t.value}>
                   {t.label}
                 </option>

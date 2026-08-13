@@ -77,7 +77,7 @@ export const receptionistHelpTopics: HelpTopic[] = [
       'Check-in creates the stay invoice automatically — record payment in the collect dialog.',
       'For guests already in house without an invoice: Guests → open guest → Generate stay invoice & collect (uses their check-in dates).',
       'Use Issue invoice & collect on the reservation or Billing if anything remains unpaid mid-stay.',
-      'Ask a manager if the guest needs a discount — reception cannot set discounts.',
+      'Ask a manager or owner if the guest needs a discount — reception cannot set stay or folio discounts.',
       'Choose payment method; check “paid full balance” when the guest settles.',
       'Refunds and ad-hoc (non-stay) invoices are owner-only.',
     ],

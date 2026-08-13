@@ -176,7 +176,7 @@ export async function createReservation(
     (data.discountValue ?? 0) > 0 ||
     Boolean(data.discountReason?.trim())
   if (requestedDiscount && !canApplyGuestDiscount(profile.role)) {
-    return { success: false, error: 'Only managers can apply guest discounts.' }
+    return { success: false, error: 'Only managers and owners can apply guest discounts.' }
   }
   const discountType = canApplyGuestDiscount(profile.role)
     ? (data.discountType ?? 'none')
@@ -428,7 +428,7 @@ export async function updateReservation(id: string, input: unknown): Promise<Cre
     parsed.data.discountValue !== undefined ||
     parsed.data.discountReason !== undefined
   if (discountFieldsProvided && !canApplyGuestDiscount(profile.role)) {
-    return { success: false, error: 'Only managers can apply guest discounts.' }
+    return { success: false, error: 'Only managers and owners can apply guest discounts.' }
   }
 
   const discountType = canApplyGuestDiscount(profile.role)

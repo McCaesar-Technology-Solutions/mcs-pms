@@ -9,6 +9,7 @@ import { consumeStaffAuthError } from '@/lib/auth/staff-session'
 import { writeAuditLog } from '@/lib/audit/log'
 import { clampLimit } from '@/lib/data/pagination'
 import { isFolioPostingBlocked } from '@/lib/folio/lock'
+import { canApplyGuestDiscount } from '@/lib/auth/tenant-access'
 
 const postChargeSchema = z
   .object({
@@ -43,6 +44,13 @@ export async function postGuestCharge(input: unknown): Promise<FolioActionResult
   const profile = await getVerifiedProfile()
   if (!profile?.hotel_id || !['owner', 'manager', 'receptionist'].includes(profile.role)) {
     return { success: false, error: consumeStaffAuthError() }
+  }
+
+  if (parsed.data.chargeType === 'discount' && !canApplyGuestDiscount(profile.role)) {
+    return {
+      success: false,
+      error: 'Only managers and owners can post folio discounts. Ask a manager.',
+    }
   }
 
   const supabase = await createClient()

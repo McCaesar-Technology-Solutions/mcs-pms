@@ -504,7 +504,7 @@ export async function issueStayInvoice(input: unknown): Promise<IssueStayInvoice
   let stayReservation = reservation
   if (parsed.data.discountType !== undefined) {
     if (!canApplyGuestDiscount(profile.role)) {
-      return { success: false, error: 'Only managers can apply guest discounts.' }
+      return { success: false, error: 'Only managers and owners can apply guest discounts.' }
     }
     const discountType = normalizeDiscountType(parsed.data.discountType)
     const discountValue = parsed.data.discountValue ?? 0

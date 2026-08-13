@@ -618,6 +618,7 @@ export function GuestsTable({
                   guestName={selectedGuest.name}
                   reservationId={selectedGuest.reservationId}
                   readOnly={readOnly}
+                  staffRole={staffRole}
                 />
               )}
 
