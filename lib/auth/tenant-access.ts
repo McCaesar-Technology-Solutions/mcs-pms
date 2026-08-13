@@ -27,14 +27,25 @@ export function canRecordInvoicePayment(role: UserRole | string | null | undefin
   return role === 'owner' || role === 'manager' || role === 'receptionist'
 }
 
-/** Manual ad-hoc invoices (not stay-linked) remain owner-only. */
+/**
+ * Manual / ad-hoc invoices (not stay-linked), including unpaid ones.
+ * Manager + owner only — reception issues stay invoices via check-in / collect.
+ */
 export function canCreateManualInvoice(role: UserRole | string | null | undefined): boolean {
-  return role === 'owner'
+  return role === 'owner' || role === 'manager'
 }
 
 /** Issue or refresh a stay-linked invoice (check-in / in-house). */
 export function canIssueStayInvoice(role: UserRole | string | null | undefined): boolean {
   return role === 'owner' || role === 'manager' || role === 'receptionist'
+}
+
+/**
+ * Leave a stay invoice unpaid when issuing/refreshing (document balance due).
+ * Reception must collect at the desk (mark paid); manager/owner may issue unpaid.
+ */
+export function canIssueUnpaidStayInvoice(role: UserRole | string | null | undefined): boolean {
+  return role === 'owner' || role === 'manager'
 }
 
 /** Refunds remain owner-only. */

@@ -25,7 +25,7 @@ export default async function ManagerInvoicesPage({
       <PageHeader
         badge="Finance"
         title="Billing"
-        description="Issue stay invoices, record payments, and print guest bills."
+        description="Issue stay invoices, create unpaid or paid bills, record payments, and print guest bills. Refunds stay with the owner."
       />
 
       <PageTabShell
@@ -43,7 +43,7 @@ export default async function ManagerInvoicesPage({
               openInvoiceId={open}
               vatMode={hotel?.vatMode ?? 'exclusive'}
               canRecordPayment
-              canCreateInvoice={false}
+              canCreateInvoice
               canRefund={false}
               onlinePaymentsEnabled={paymentsEnabled}
             />

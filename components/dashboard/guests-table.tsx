@@ -40,7 +40,7 @@ import { toast } from 'sonner'
 import { PAYMENT_METHOD_LABELS } from '@/lib/tax'
 import type { InvoiceExportRow } from '@/lib/export/types'
 import type { PaymentMethod } from '@/types'
-import { canEraseGuestData } from '@/lib/auth/tenant-access'
+import { canEraseGuestData, canIssueUnpaidStayInvoice } from '@/lib/auth/tenant-access'
 import {
   DIRECTORY_FILTERS,
   DIRECTORY_FILTER_LABEL,
@@ -625,6 +625,7 @@ export function GuestsTable({
               {!readOnly && selectedGuest.isInHouse && selectedGuest.reservationId && (
                 <GuestStayInvoicePanel
                   guest={selectedGuest}
+                  staffRole={staffRole}
                   onIssued={(invoiceId, preview) => {
                     setStayInvoice({
                       id: invoiceId,
@@ -701,14 +702,17 @@ export function GuestsTable({
 
 function GuestStayInvoicePanel({
   guest,
+  staffRole,
   onIssued,
 }: {
   guest: GuestRow
+  staffRole?: UserRole
   onIssued: (invoiceId: string, preview?: InvoiceExportRow) => void
 }) {
+  const canLeaveUnpaid = canIssueUnpaidStayInvoice(staffRole)
   const [open, setOpen] = useState(false)
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
-  const [markAsPaid, setMarkAsPaid] = useState(true)
+  const [markAsPaid, setMarkAsPaid] = useState(!canLeaveUnpaid)
   const [includeTax, setIncludeTax] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
@@ -727,10 +731,11 @@ function GuestStayInvoicePanel({
     if (!guest.reservationId) return
     setError(null)
     startTransition(async () => {
+      const paidNow = canLeaveUnpaid ? markAsPaid : true
       const result = await issueStayInvoice({
         reservationId: guest.reservationId,
         paymentMethod,
-        markAsPaid,
+        markAsPaid: paidNow,
         includeTax,
       })
       if (!result.success) {
@@ -740,7 +745,7 @@ function GuestStayInvoicePanel({
       toast.success(
         result.created
           ? 'Stay invoice generated'
-          : markAsPaid
+          : paidNow
             ? 'Payment recorded'
             : 'Stay invoice refreshed',
       )
@@ -757,7 +762,7 @@ function GuestStayInvoicePanel({
         className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#D4A62E] py-3 text-sm font-semibold text-gray-900 shadow-elevation-1"
       >
         <Receipt className="h-4 w-4" />
-        Generate stay invoice & collect
+        {canLeaveUnpaid ? 'Generate stay invoice' : 'Generate stay invoice & collect'}
       </button>
     )
   }
@@ -769,7 +774,8 @@ function GuestStayInvoicePanel({
         Uses this guest&apos;s check-in ({formatDate(guest.checkIn)}) → check-out (
         {formatDate(guest.checkOut)})
         {guest.roomNumber ? ` · Room ${guest.roomNumber}` : ''}. Creates or refreshes the stay
-        invoice for this stay.
+        invoice for this stay
+        {canLeaveUnpaid ? ' — payment optional.' : '.'}
       </p>
       <label className="flex items-center gap-2 text-sm">
         <input
@@ -790,14 +796,20 @@ function GuestStayInvoicePanel({
           </option>
         ))}
       </select>
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          checked={markAsPaid}
-          onChange={(e) => setMarkAsPaid(e.target.checked)}
-        />
-        Paid in full now
-      </label>
+      {canLeaveUnpaid ? (
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={markAsPaid}
+            onChange={(e) => setMarkAsPaid(e.target.checked)}
+          />
+          Paid in full now
+        </label>
+      ) : (
+        <p className="text-xs text-muted-foreground">
+          Reception records payment when generating — balance is marked paid.
+        </p>
+      )}
       {error && <p className="text-sm text-destructive">{error}</p>}
       <div className="flex gap-2">
         <button
@@ -813,7 +825,11 @@ function GuestStayInvoicePanel({
           onClick={submit}
           className="flex-[2] rounded-lg bg-[#D4A62E] py-2 text-sm font-semibold text-gray-900 disabled:opacity-50"
         >
-          {pending ? 'Saving…' : markAsPaid ? 'Generate & mark paid' : 'Generate invoice'}
+          {pending
+            ? 'Saving…'
+            : canLeaveUnpaid && !markAsPaid
+              ? 'Generate invoice (unpaid)'
+              : 'Generate & mark paid'}
         </button>
       </div>
     </div>

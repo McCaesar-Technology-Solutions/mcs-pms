@@ -117,6 +117,7 @@ export const managerHelpTopics: HelpTopic[] = [
       'Or check in first — walk-in / check-in now also creates the stay invoice (optional Include Ghana tax on the form) and opens collect.',
       'Already in house without an invoice? Guests → open guest → Generate stay invoice & collect (uses check-in dates).',
       'Managers (and owners) apply % or fixed guest discounts before tax when creating/editing a booking or refreshing the invoice, and may post folio discount credits. Reception cannot.',
+      'Managers and owners can issue stay invoices unpaid (balance due) or create ad-hoc bills from Billing. Reception records payment when issuing.',
       'Tax is optional on issue/refresh — check Include Ghana tax when you need VAT & GRA levies (Tax ID GHA-728071939-8).',
       'Guest Ghana Card remains optional on the guest record.',
       'Record full or partial payments at the desk; refunds stay owner-only.',

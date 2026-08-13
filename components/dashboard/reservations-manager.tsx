@@ -44,7 +44,7 @@ import type { InvoiceExportRow } from '@/lib/export/types'
 import type { PaymentMethod, Reservation, ReservationChannel, ReservationPaymentStatus, RateType, UserRole } from '@/types'
 import type { DepositDisposition } from '@/lib/billing/deposit-disposition'
 import { computeDiscountAmount, type DiscountType } from '@/lib/billing/discount'
-import { canApplyGuestDiscount } from '@/lib/auth/tenant-access'
+import { canApplyGuestDiscount, canIssueUnpaidStayInvoice } from '@/lib/auth/tenant-access'
 import {
   canCheckIn,
   canCancelReservationStatus,
@@ -887,7 +887,7 @@ function ReservationDrawer({
   const [recordingDeposit, setRecordingDeposit] = useState(false)
   const [issuingInvoice, setIssuingInvoice] = useState(false)
   const [earlyCheckout, setEarlyCheckout] = useState(false)
-  const [markAsPaid, setMarkAsPaid] = useState(true)
+  const [markAsPaid, setMarkAsPaid] = useState(() => !canIssueUnpaidStayInvoice(staffRole))
   const [includeTax, setIncludeTax] = useState(false)
   const [phone, setPhone] = useState(reservation.guestPhone)
   const [email, setEmail] = useState(reservation.guestEmail)
@@ -994,6 +994,7 @@ function ReservationDrawer({
   const hasCollectedDeposit = reservation.paidAmount > 0.009
   const canRefundDeposit = staffRole === 'owner'
   const canDiscount = canApplyGuestDiscount(staffRole)
+  const canLeaveUnpaid = canIssueUnpaidStayInvoice(staffRole)
   const canRecordDeposit =
     (reservation.status === 'confirmed' ||
       reservation.status === 'pre_arrival' ||
@@ -1236,14 +1237,20 @@ function ReservationDrawer({
                     ))}
                   </select>
                 </label>
-                <label className="flex items-center gap-2 text-sm text-foreground">
-                  <input
-                    type="checkbox"
-                    checked={markAsPaid}
-                    onChange={(e) => setMarkAsPaid(e.target.checked)}
-                  />
-                  Guest paid full balance now
-                </label>
+                {canLeaveUnpaid ? (
+                  <label className="flex items-center gap-2 text-sm text-foreground">
+                    <input
+                      type="checkbox"
+                      checked={markAsPaid}
+                      onChange={(e) => setMarkAsPaid(e.target.checked)}
+                    />
+                    Guest paid full balance now
+                  </label>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Reception records payment when issuing — balance is marked paid.
+                  </p>
+                )}
                 <label className="flex items-center gap-2 text-sm text-foreground">
                   <input
                     type="checkbox"
@@ -1267,10 +1274,11 @@ function ReservationDrawer({
                     onClick={() => {
                       setError(null)
                       startTransition(async () => {
+                        const paidNow = canLeaveUnpaid ? markAsPaid : true
                         const result = await issueStayInvoice({
                           reservationId: reservation.id,
                           paymentMethod,
-                          markAsPaid,
+                          markAsPaid: paidNow,
                           includeTax,
                           ...(canDiscount
                             ? {
@@ -1287,7 +1295,7 @@ function ReservationDrawer({
                         toast.success(
                           result.created
                             ? 'Invoice issued'
-                            : markAsPaid
+                            : paidNow
                               ? 'Payment recorded'
                               : 'Invoice refreshed',
                         )
@@ -1300,7 +1308,7 @@ function ReservationDrawer({
                             result.invoicePreview,
                             {
                               reservationId: reservation.id,
-                              mode: markAsPaid ? 'view' : 'collect',
+                              mode: paidNow ? 'view' : 'collect',
                             },
                           )
                         }
@@ -1308,7 +1316,11 @@ function ReservationDrawer({
                     }}
                     className="flex-[2] rounded-xl bg-[#D4A62E] py-2.5 text-sm font-semibold text-gray-900 disabled:opacity-50"
                   >
-                    {pending ? 'Saving…' : markAsPaid ? 'Issue & mark paid' : 'Issue invoice'}
+                    {pending
+                      ? 'Saving…'
+                      : canLeaveUnpaid && !markAsPaid
+                        ? 'Issue invoice (unpaid)'
+                        : 'Issue & mark paid'}
                   </button>
                 </div>
               </div>

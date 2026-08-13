@@ -8,6 +8,7 @@ import {
   canApplyGuestDiscount,
   canCreateManualInvoice,
   canIssueStayInvoice,
+  canIssueUnpaidStayInvoice,
   canRecordInvoicePayment,
   canRefundInvoice,
 } from '@/lib/auth/tenant-access'
@@ -77,7 +78,7 @@ const createManualInvoiceSchema = z.object({
     'cash',
     'bank_transfer',
   ]),
-  markAsPaid: z.boolean().default(true),
+  markAsPaid: z.boolean().default(false),
   includeTax: z.boolean().default(false),
 })
 
@@ -134,6 +135,14 @@ async function requireOwnerBilling() {
   const result = await requireVerifiedStaff({ roles: ['owner'] })
   if (!result.ok) return null
   if (!result.profile.hotel_id) return null
+  return result.profile
+}
+
+async function requireManualInvoiceStaff() {
+  const result = await requireVerifiedStaff({ roles: ['owner', 'manager'] })
+  if (!result.ok) return null
+  if (!result.profile.hotel_id) return null
+  if (!canCreateManualInvoice(result.profile.role)) return null
   return result.profile
 }
 
@@ -493,6 +502,9 @@ export async function issueStayInvoice(input: unknown): Promise<IssueStayInvoice
 
   if (!reservation) return { success: false, error: 'Reservation not found.' }
 
+  const markAsPaid =
+    canIssueUnpaidStayInvoice(profile.role) ? parsed.data.markAsPaid : true
+
   // Pay-before-enter: allow invoice + collect on confirmed bookings before check-in.
   const issuable = [
     'confirmed',
@@ -586,7 +598,7 @@ export async function issueStayInvoice(input: unknown): Promise<IssueStayInvoice
     const issued = await createOrRefreshStayInvoice(admin, {
       reservation: stayReservation,
       paymentMethod: parsed.data.paymentMethod,
-      markAsPaid: parsed.data.markAsPaid,
+      markAsPaid,
       includeTax: parsed.data.includeTax,
       guestPhone,
       roomNumber,
@@ -628,7 +640,7 @@ export async function createManualInvoice(
     return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid input.' }
   }
 
-  const profile = await requireOwnerBilling()
+  const profile = await requireManualInvoiceStaff()
   if (!profile?.hotel_id || !canCreateManualInvoice(profile.role)) {
     return { success: false, error: 'Not authorized.' }
   }

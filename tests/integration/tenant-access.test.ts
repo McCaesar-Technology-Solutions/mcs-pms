@@ -4,6 +4,7 @@ import {
   canApplyGuestDiscount,
   canCreateManualInvoice,
   canIssueStayInvoice,
+  canIssueUnpaidStayInvoice,
   canEraseGuestData,
   canOwnerEraseGuestData,
   canRecordInvoicePayment,
@@ -51,13 +52,19 @@ describe('tenant access — billing', () => {
     expect(canIssueStayInvoice('technician')).toBe(false)
   })
 
-  it('keeps refunds and manual invoices owner-only', () => {
+  it('keeps refunds owner-only; manual invoices for owner and manager', () => {
     expect(canRefundInvoice('owner')).toBe(true)
     expect(canRefundInvoice('manager')).toBe(false)
     expect(canRefundInvoice('receptionist')).toBe(false)
     expect(canCreateManualInvoice('owner')).toBe(true)
-    expect(canCreateManualInvoice('manager')).toBe(false)
+    expect(canCreateManualInvoice('manager')).toBe(true)
     expect(canCreateManualInvoice('receptionist')).toBe(false)
+  })
+
+  it('limits unpaid stay-invoice issue to manager and owner', () => {
+    expect(canIssueUnpaidStayInvoice('owner')).toBe(true)
+    expect(canIssueUnpaidStayInvoice('manager')).toBe(true)
+    expect(canIssueUnpaidStayInvoice('receptionist')).toBe(false)
   })
 
   it('limits guest discounts to manager and owner', () => {

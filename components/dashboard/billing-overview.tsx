@@ -164,7 +164,7 @@ export function BillingOverview({
   const [newDescription, setNewDescription] = useState('')
   const [newSubtotal, setNewSubtotal] = useState('')
   const [newPaymentMethod, setNewPaymentMethod] = useState<PaymentMethod>('cash')
-  const [newMarkPaid, setNewMarkPaid] = useState(true)
+  const [newMarkPaid, setNewMarkPaid] = useState(false)
   const [newIncludeTax, setNewIncludeTax] = useState(false)
   const [partialAmount, setPartialAmount] = useState('')
   const [partialMethod, setPartialMethod] = useState<PaymentMethod>('cash')

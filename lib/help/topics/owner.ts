@@ -38,6 +38,7 @@ export const ownerHelpTopics: HelpTopic[] = [
     summary: 'Cash, MoMo, card — stay invoices before or at check-in (pay before enter).',
     steps: [
       'Confirmed booking → Collect payment before check-in, or collect in the check-in dialog after arrival.',
+      'Managers and owners can issue unpaid stay invoices or create ad-hoc bills from Billing without full payment.',
       'Open Billing → find leftovers, walkouts, partials, and refunds (refunds owner-only).',
       'Tax is optional on issue — check Include Ghana tax for GRA tax invoices.',
       'Download PDF invoices for guests or GRA filing.',
