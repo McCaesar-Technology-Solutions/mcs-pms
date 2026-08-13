@@ -23,6 +23,7 @@ export function buildCheckoutInvoicePreview(input: {
   tourism?: number
   taxSnapshot?: InvoiceExportRow['taxSnapshot']
   total: number
+  amountPaid?: number
   paymentMethod: string
   paymentStatus: string
 }): InvoiceExportRow {
@@ -50,6 +51,7 @@ export function buildCheckoutInvoicePreview(input: {
     tourism: input.tourism ?? 0,
     taxSnapshot: input.taxSnapshot ?? null,
     total: input.total,
+    amountPaid: input.amountPaid ?? 0,
     paymentMethod: input.paymentMethod,
     paymentStatus: input.paymentStatus,
   }

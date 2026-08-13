@@ -691,6 +691,7 @@ export async function getGuestInvoiceReceiptExport(
         taxSnapshot: parseTaxSnapshot(row.tax_snapshot),
         guestTaxId: row.guest_tax_id ?? null,
         total: Number(row.total_amount),
+        amountPaid: Number(row.amount_paid ?? 0),
         paymentMethod: row.payment_method,
         paymentStatus: row.payment_status,
       },

@@ -1,4 +1,5 @@
 import { jsPDF } from 'jspdf'
+import { amountInWordsCedis } from '@/lib/export/amount-in-words'
 import { withInvoiceHotelContact } from '@/lib/export/invoice-hotel-contact'
 import type { ExportHotelInfo, InvoiceExportRow } from '@/lib/export/types'
 import { whatsAppHref } from '@/lib/phone'
@@ -26,7 +27,22 @@ const LOGO_PATH = '/icons/icon-192.png'
 let logoDataUrlCache: string | null = null
 
 function money(value: number): string {
-  return `GHS ${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  return `GHC ${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+}
+
+function moneyPlain(value: number): string {
+  return value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+function productLabel(invoice: InvoiceExportRow): string {
+  const nights = invoice.nights ?? 1
+  const room = invoice.roomNumber ? `Room ${invoice.roomNumber}` : 'Accommodation'
+  if (nights >= 28) {
+    const months = Math.max(1, Math.round(nights / 30))
+    return `${room} (${months === 1 ? 'One month' : `${months} months`})`
+  }
+  if (nights === 7) return `${room} (One week)`
+  return `${room} (${nights} night${nights === 1 ? '' : 's'})`
 }
 
 function drawLabeledLine(
@@ -267,51 +283,141 @@ async function buildInvoicePdf(hotelInput: ExportHotelInfo, invoice: InvoiceExpo
 
   y += 8
 
-  // ── Line items table ─────────────────────────────────────────
-  const colDesc = margin
-  const colAmt = pageW - margin
+  // ── Product table (Sr no. | Product | Qty | Rate | Amount) ───
+  const discountAmount = Math.max(0, Number(invoice.discountAmount ?? 0))
+  const accommodation = discountAmount > 0 ? invoice.subtotal + discountAmount : invoice.subtotal
+  const lineItems: Array<{ product: string; qty: number; rate: number; amount: number }> = [
+    {
+      product: productLabel(invoice),
+      qty: 1,
+      rate: accommodation,
+      amount: accommodation,
+    },
+  ]
+  if (discountAmount > 0) {
+    const reason = invoice.discountReason?.trim()
+    lineItems.push({
+      product: reason ? `Discount — ${reason}` : 'Discount',
+      qty: 1,
+      rate: -discountAmount,
+      amount: -discountAmount,
+    })
+  }
 
+  const col = {
+    sr: margin,
+    product: margin + 14,
+    qty: margin + contentW * 0.62,
+    rate: margin + contentW * 0.78,
+    amount: pageW - margin,
+  }
+  const tableRight = pageW - margin
+  const rowH = 8
+  const headerH = 8
+
+  // Header
   doc.setFillColor(...BRAND.purple)
-  doc.roundedRect(margin, y, contentW, 8, 1.5, 1.5, 'F')
+  doc.rect(margin, y, contentW, headerH, 'F')
+  doc.setDrawColor(60, 40, 100)
+  doc.setLineWidth(0.25)
+  doc.rect(margin, y, contentW, headerH, 'S')
+
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(8)
   doc.setTextColor(...BRAND.white)
-  doc.text('DESCRIPTION', colDesc + 3, y + 5.3)
-  doc.text('AMOUNT', colAmt - 3, y + 5.3, { align: 'right' })
-  y += 12
+  doc.text('Sr no.', col.sr + 2, y + 5.3)
+  doc.text('Product', col.product + 2, y + 5.3)
+  doc.text('Qty', col.qty - 2, y + 5.3, { align: 'right' })
+  doc.text('Rate', col.rate - 2, y + 5.3, { align: 'right' })
+  doc.text('Amount', col.amount - 2, y + 5.3, { align: 'right' })
+  y += headerH
 
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(10)
-  doc.setTextColor(...BRAND.purpleInk)
-  const discountAmount = Math.max(0, Number(invoice.discountAmount ?? 0))
-  const accommodation = discountAmount > 0 ? invoice.subtotal + discountAmount : invoice.subtotal
-  doc.text('Room accommodation', colDesc + 3, y)
-  doc.text(money(accommodation), colAmt - 3, y, { align: 'right' })
-  y += 8
-
-  if (discountAmount > 0) {
-    const reason = invoice.discountReason?.trim()
-    doc.setTextColor(...BRAND.muted)
-    doc.text(reason ? `Discount — ${reason}` : 'Discount', colDesc + 3, y)
-    doc.text(`-${money(discountAmount)}`, colAmt - 3, y, { align: 'right' })
-    y += 6
-    doc.setTextColor(...BRAND.purpleInk)
-    doc.text('Taxable subtotal', colDesc + 3, y)
-    doc.text(money(invoice.subtotal), colAmt - 3, y, { align: 'right' })
-    y += 8
+  const drawVLines = (top: number, bottom: number) => {
+    doc.setDrawColor(160, 160, 170)
+    doc.setLineWidth(0.2)
+    for (const x of [col.product, col.qty - 10, col.rate - 10]) {
+      doc.line(x, top, x, bottom)
+    }
   }
 
+  let qtySum = 0
+  let lineTotal = 0
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(9)
+  lineItems.forEach((item, index) => {
+    const top = y
+    doc.setFillColor(...BRAND.white)
+    doc.rect(margin, top, contentW, rowH, 'F')
+    doc.setDrawColor(160, 160, 170)
+    doc.rect(margin, top, contentW, rowH, 'S')
+    drawVLines(top, top + rowH)
+
+    doc.setTextColor(...BRAND.purpleInk)
+    doc.text(String(index + 1), col.sr + 2, top + 5.3)
+    const productLines = doc.splitTextToSize(item.product, col.qty - col.product - 14) as string[]
+    doc.text(productLines[0] ?? item.product, col.product + 2, top + 5.3)
+    doc.text(moneyPlain(item.qty), col.qty - 2, top + 5.3, { align: 'right' })
+    doc.text(moneyPlain(item.rate), col.rate - 2, top + 5.3, { align: 'right' })
+    doc.text(moneyPlain(item.amount), col.amount - 2, top + 5.3, { align: 'right' })
+    qtySum += item.qty
+    lineTotal += item.amount
+    y += rowH
+  })
+
+  // Table footer Total row
+  doc.setFillColor(235, 235, 238)
+  doc.rect(margin, y, contentW, rowH, 'F')
+  doc.setDrawColor(160, 160, 170)
+  doc.rect(margin, y, contentW, rowH, 'S')
+  drawVLines(y, y + rowH)
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(9)
+  doc.setTextColor(...BRAND.purpleInk)
+  doc.text('Total', col.product + 2, y + 5.3)
+  doc.text(moneyPlain(qtySum), col.qty - 2, y + 5.3, { align: 'right' })
+  doc.text('-', col.rate - 2, y + 5.3, { align: 'right' })
+  doc.text(moneyPlain(lineTotal), col.amount - 2, y + 5.3, { align: 'right' })
+  y += rowH + 8
+
+  // ── Please Note (left) + Totals (right) ──────────────────────
+  const noteLeft = margin
+  const noteW = contentW * 0.52
+  const totalsW = contentW * 0.42
+  const totalsLeft = pageW - margin - totalsW
+  const blockTop = y
+
+  // Please Note
+  doc.setDrawColor(...BRAND.purple)
+  doc.setLineWidth(0.5)
+  doc.line(noteLeft, blockTop, noteLeft + noteW, blockTop)
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(9)
+  doc.setTextColor(...BRAND.purpleInk)
+  doc.text('Please Note', noteLeft, blockTop + 5)
+  doc.line(noteLeft, blockTop + 7, noteLeft + noteW, blockTop + 7)
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(8)
+  doc.setTextColor(...BRAND.muted)
+  const noteLines = doc.splitTextToSize(
+    '1. Full payment is required before guests are allowed to check in.',
+    noteW,
+  ) as string[]
+  doc.text(noteLines, noteLeft, blockTop + 12)
+
+  // Totals column
+  let ty = blockTop
+  doc.setDrawColor(...BRAND.purple)
+  doc.setLineWidth(0.5)
+  doc.line(totalsLeft, ty, tableRight, ty)
+  ty += 6
+
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(9)
+  doc.setTextColor(...BRAND.purpleInk)
+  doc.text(money(invoice.subtotal), tableRight, ty, { align: 'right' })
+  ty += 5
+
   if (showTax) {
-    doc.setDrawColor(...BRAND.line)
-    doc.setLineWidth(0.3)
-    doc.line(margin, y - 3, pageW - margin, y - 3)
-
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(8)
-    doc.setTextColor(...BRAND.muted)
-    doc.text('GRA TAX BREAKDOWN', colDesc + 3, y + 1)
-    y += 7
-
     const rates = invoice.taxSnapshot ?? defaultHotelTaxRates()
     const taxRows: [string, number][] = [
       [`NHIL (${formatTaxPercent(rates.nhil)})`, invoice.nhil],
@@ -328,48 +434,42 @@ async function buildInvoicePdf(hotelInput: ExportHotelInfo, invoice: InvoiceExpo
       taxRows.push([`Tourism levy (${formatTaxPercent(rates.tourism)})`, invoice.tourism ?? 0])
     }
 
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(9)
+    doc.setFontSize(7.5)
     for (const [label, amount] of taxRows) {
       if (amount <= 0 && !label.startsWith('VAT')) continue
       doc.setTextColor(...BRAND.muted)
-      doc.text(label, colDesc + 3, y)
+      doc.text(label, totalsLeft, ty)
       doc.setTextColor(...BRAND.purpleInk)
-      doc.text(money(amount), colAmt - 3, y, { align: 'right' })
-      y += 5
+      doc.text(money(amount), tableRight, ty, { align: 'right' })
+      ty += 4
     }
-    y += 3
+    ty += 2
   }
 
-  // ── Total bar ────────────────────────────────────────────────
-  doc.setFillColor(...BRAND.purpleInk)
-  doc.roundedRect(margin, y, contentW, 12, 2, 2, 'F')
-  doc.setFillColor(...BRAND.gold)
-  doc.rect(margin, y, 1.8, 12, 'F')
-
+  // Grand Total bar
+  const grandH = 8
+  doc.setFillColor(...BRAND.purple)
+  doc.rect(totalsLeft, ty, totalsW, grandH, 'F')
   doc.setFont('helvetica', 'bold')
-  doc.setFontSize(11)
+  doc.setFontSize(9)
   doc.setTextColor(...BRAND.white)
-  doc.text('TOTAL', colDesc + 6, y + 7.8)
-  doc.setTextColor(...BRAND.gold)
-  doc.text(money(invoice.total), colAmt - 3, y + 7.8, { align: 'right' })
-  y += 18
+  doc.text('Grand Total', totalsLeft + 3, ty + 5.5)
+  doc.text(money(invoice.total), tableRight - 2, ty + 5.5, { align: 'right' })
+  ty += grandH + 5
 
-  // ── Payment details ──────────────────────────────────────────
-  doc.setFillColor(...BRAND.soft)
-  doc.roundedRect(margin, y, contentW, 18, 2, 2, 'F')
-
+  const amountPaid = Math.max(0, Number(invoice.amountPaid ?? 0))
+  const balance = Math.max(0, Math.round((invoice.total - amountPaid) * 100) / 100)
   doc.setFont('helvetica', 'bold')
-  doc.setFontSize(7)
-  doc.setTextColor(...BRAND.muted)
-  doc.text('PAYMENT METHOD', margin + 4, y + 5.5)
-  doc.text('STATUS', margin + contentW / 2, y + 5.5)
+  doc.setFontSize(9)
+  doc.setTextColor(...BRAND.purpleInk)
+  doc.text('Balance', totalsLeft, ty)
+  doc.text(money(balance), tableRight, ty, { align: 'right' })
+  ty += 5
 
   doc.setFont('helvetica', 'normal')
-  doc.setFontSize(10)
-  doc.setTextColor(...BRAND.purpleInk)
-  doc.text(paymentLabel(invoice.paymentMethod), margin + 4, y + 12)
-
+  doc.setFontSize(7.5)
+  doc.setTextColor(...BRAND.muted)
+  doc.text(`Method: ${paymentLabel(invoice.paymentMethod)}`, totalsLeft, ty)
   const status = (invoice.paymentStatus ?? 'pending').toUpperCase()
   if (invoice.paymentStatus === 'paid') {
     doc.setTextColor(...BRAND.success)
@@ -377,10 +477,21 @@ async function buildInvoicePdf(hotelInput: ExportHotelInfo, invoice: InvoiceExpo
     doc.setTextColor(...BRAND.purple)
   }
   doc.setFont('helvetica', 'bold')
-  doc.text(status, margin + contentW / 2, y + 12)
+  doc.text(status, tableRight, ty, { align: 'right' })
+
+  y = Math.max(blockTop + 12 + noteLines.length * 4, ty) + 10
+
+  // ── Amount in words ──────────────────────────────────────────
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(9)
+  doc.setTextColor(...BRAND.purpleInk)
+  const words = amountInWordsCedis(invoice.total)
+  const wordsLine = doc.splitTextToSize(`Amount In Words : ${words}`, contentW) as string[]
+  doc.text(wordsLine, margin, y)
+  y += wordsLine.length * 4.5 + 4
 
   // ── Footer ───────────────────────────────────────────────────
-  const footerY = pageH - 22
+  const footerY = Math.max(y + 4, pageH - 22)
   doc.setDrawColor(...BRAND.line)
   doc.setLineWidth(0.4)
   doc.line(margin, footerY, pageW - margin, footerY)

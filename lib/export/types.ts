@@ -44,6 +44,8 @@ export interface InvoiceExportRow {
     tourism: number
   } | null
   total: number
+  /** Amount already paid toward this invoice (for Balance on PDF). */
+  amountPaid?: number
   paymentMethod: string | null
   paymentStatus: string | null
 }

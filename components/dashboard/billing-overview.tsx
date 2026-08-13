@@ -114,6 +114,7 @@ function toExportRow(inv: InvoiceWithRoom): InvoiceExportRow {
     tourism: inv.tourism_levy_amount ?? 0,
     taxSnapshot: parseTaxSnapshot(inv.tax_snapshot),
     total: inv.total_amount ?? 0,
+    amountPaid: inv.amount_paid ?? 0,
     paymentMethod: inv.payment_method,
     paymentStatus: inv.payment_status,
   }
