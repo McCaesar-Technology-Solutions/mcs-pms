@@ -40,7 +40,7 @@ import { toast } from 'sonner'
 import { PAYMENT_METHOD_LABELS } from '@/lib/tax'
 import type { InvoiceExportRow } from '@/lib/export/types'
 import type { PaymentMethod } from '@/types'
-import { canEraseGuestData } from '@/lib/auth/tenant-access'
+import { canEraseGuestData, canOmitInvoiceTax } from '@/lib/auth/tenant-access'
 import {
   DIRECTORY_FILTERS,
   DIRECTORY_FILTER_LABEL,
@@ -625,6 +625,7 @@ export function GuestsTable({
               {!readOnly && selectedGuest.isInHouse && selectedGuest.reservationId && (
                 <GuestStayInvoicePanel
                   guest={selectedGuest}
+                  staffRole={staffRole}
                   onIssued={(invoiceId, preview) => {
                     setStayInvoice({
                       id: invoiceId,
@@ -648,6 +649,7 @@ export function GuestsTable({
               {!readOnly && selectedGuest.canCheckOut && (
                 <GuestCheckoutPanel
                   guest={selectedGuest}
+                  staffRole={staffRole}
                   onDone={() => {
                     setSelectedGuest(null)
                     router.refresh()
@@ -701,9 +703,11 @@ export function GuestsTable({
 
 function GuestStayInvoicePanel({
   guest,
+  staffRole,
   onIssued,
 }: {
   guest: GuestRow
+  staffRole?: UserRole
   onIssued: (invoiceId: string, preview?: InvoiceExportRow) => void
 }) {
   const [open, setOpen] = useState(false)
@@ -712,6 +716,7 @@ function GuestStayInvoicePanel({
   const [includeTax, setIncludeTax] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
+  const canOmitTax = canOmitInvoiceTax(staffRole)
 
   const methods: PaymentMethod[] = [
     'cash',
@@ -731,7 +736,7 @@ function GuestStayInvoicePanel({
         reservationId: guest.reservationId,
         paymentMethod,
         markAsPaid,
-        includeTax,
+        includeTax: canOmitTax ? includeTax : true,
       })
       if (!result.success) {
         setError(result.error)
@@ -771,14 +776,20 @@ function GuestStayInvoicePanel({
         {guest.roomNumber ? ` · Room ${guest.roomNumber}` : ''}. Creates or refreshes the stay
         invoice for pay-before-enter.
       </p>
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          checked={includeTax}
-          onChange={(e) => setIncludeTax(e.target.checked)}
-        />
-        Include VAT &amp; GRA levies
-      </label>
+      {canOmitTax ? (
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={includeTax}
+            onChange={(e) => setIncludeTax(e.target.checked)}
+          />
+          Include VAT &amp; GRA levies
+        </label>
+      ) : (
+        <p className="text-xs text-muted-foreground">
+          GRA tax (VAT &amp; levies) is included on every receptionist invoice.
+        </p>
+      )}
       <select
         value={paymentMethod}
         onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
@@ -993,9 +1004,11 @@ function GuestDeletePanel({
 
 function GuestCheckoutPanel({
   guest,
+  staffRole,
   onDone,
 }: {
   guest: GuestRow
+  staffRole?: UserRole
   onDone: () => void
 }) {
   const [open, setOpen] = useState(false)
@@ -1005,6 +1018,7 @@ function GuestCheckoutPanel({
   const [includeTax, setIncludeTax] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
+  const canOmitTax = canOmitInvoiceTax(staffRole)
 
   const methods: PaymentMethod[] = [
     'cash',
@@ -1024,7 +1038,7 @@ function GuestCheckoutPanel({
         paymentMethod,
         earlyCheckout,
         markAsPaid,
-        includeTax,
+        includeTax: canOmitTax ? includeTax : true,
       })
       if (result.success) {
         toast.success('Guest checked out')
@@ -1054,14 +1068,20 @@ function GuestCheckoutPanel({
         releases the room. Collect remaining balance if outstanding — use Walkout on Reservations if
         they left unpaid.
       </p>
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          checked={includeTax}
-          onChange={(e) => setIncludeTax(e.target.checked)}
-        />
-        Include VAT &amp; GRA levies on invoice refresh
-      </label>
+      {canOmitTax ? (
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={includeTax}
+            onChange={(e) => setIncludeTax(e.target.checked)}
+          />
+          Include VAT &amp; GRA levies on invoice refresh
+        </label>
+      ) : (
+        <p className="text-xs text-muted-foreground">
+          Invoice refresh includes GRA tax (VAT &amp; levies).
+        </p>
+      )}
       <label className="flex items-center gap-2 text-sm">
         <input
           type="checkbox"

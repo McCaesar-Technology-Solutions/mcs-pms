@@ -44,7 +44,7 @@ import type { InvoiceExportRow } from '@/lib/export/types'
 import type { PaymentMethod, Reservation, ReservationChannel, ReservationPaymentStatus, RateType, UserRole } from '@/types'
 import type { DepositDisposition } from '@/lib/billing/deposit-disposition'
 import { computeDiscountAmount, type DiscountType } from '@/lib/billing/discount'
-import { canApplyGuestDiscount } from '@/lib/auth/tenant-access'
+import { canApplyGuestDiscount, canOmitInvoiceTax } from '@/lib/auth/tenant-access'
 import {
   canCheckIn,
   canCancelReservationStatus,
@@ -994,6 +994,7 @@ function ReservationDrawer({
   const hasCollectedDeposit = reservation.paidAmount > 0.009
   const canRefundDeposit = staffRole === 'owner'
   const canDiscount = canApplyGuestDiscount(staffRole)
+  const canOmitTax = canOmitInvoiceTax(staffRole)
   const canRecordDeposit =
     (reservation.status === 'confirmed' ||
       reservation.status === 'checked_in' ||
@@ -1227,14 +1228,20 @@ function ReservationDrawer({
                   />
                   Guest paid full balance now
                 </label>
-                <label className="flex items-center gap-2 text-sm text-foreground">
-                  <input
-                    type="checkbox"
-                    checked={includeTax}
-                    onChange={(e) => setIncludeTax(e.target.checked)}
-                  />
-                  Include Ghana tax
-                </label>
+                {canOmitTax ? (
+                  <label className="flex items-center gap-2 text-sm text-foreground">
+                    <input
+                      type="checkbox"
+                      checked={includeTax}
+                      onChange={(e) => setIncludeTax(e.target.checked)}
+                    />
+                    Include Ghana tax
+                  </label>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    GRA tax (VAT &amp; levies) is included on every receptionist invoice.
+                  </p>
+                )}
                 <div className="flex gap-2">
                   <button
                     type="button"
@@ -1254,7 +1261,7 @@ function ReservationDrawer({
                           reservationId: reservation.id,
                           paymentMethod,
                           markAsPaid,
-                          includeTax,
+                          includeTax: canOmitTax ? includeTax : true,
                           ...(canDiscount
                             ? {
                                 discountType: issueDiscountType,
@@ -1817,7 +1824,7 @@ function ReservationDrawer({
                       ) {
                         return
                       }
-                      run(() => recordWalkoutReservation(reservation.id, paymentMethod, earlyCheckout, includeTax))
+                      run(() => recordWalkoutReservation(reservation.id, paymentMethod, earlyCheckout, canOmitTax ? includeTax : true))
                     }}
                     className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 py-3 text-sm font-semibold text-red-800"
                   >
@@ -1882,7 +1889,7 @@ function ReservationDrawer({
                       ) {
                         return
                       }
-                      run(() => recordWalkoutReservation(reservation.id, paymentMethod, earlyCheckout, includeTax))
+                      run(() => recordWalkoutReservation(reservation.id, paymentMethod, earlyCheckout, canOmitTax ? includeTax : true))
                     }}
                     className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 py-3 text-sm font-semibold text-red-800"
                   >
@@ -1917,7 +1924,7 @@ function ReservationDrawer({
                       ) {
                         return
                       }
-                      run(() => recordWalkoutReservation(reservation.id, paymentMethod, earlyCheckout, includeTax))
+                      run(() => recordWalkoutReservation(reservation.id, paymentMethod, earlyCheckout, canOmitTax ? includeTax : true))
                     }}
                     className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 py-3 text-sm font-semibold text-red-800"
                   >
@@ -2000,14 +2007,20 @@ function ReservationDrawer({
                         : 'Stay invoice already settled at check-in. Refresh folio if needed, then release the room.'}
                     </p>
                   </div>
-                  <label className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={includeTax}
-                      onChange={(e) => setIncludeTax(e.target.checked)}
-                    />
-                    Include VAT &amp; GRA levies on invoice refresh
-                  </label>
+                  {canOmitTax ? (
+                    <label className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={includeTax}
+                        onChange={(e) => setIncludeTax(e.target.checked)}
+                      />
+                      Include VAT &amp; GRA levies on invoice refresh
+                    </label>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      Invoice refresh includes GRA tax (VAT &amp; levies).
+                    </p>
+                  )}
                   <label className="flex items-center gap-2 text-sm">
                     <input
                       type="checkbox"
@@ -2058,7 +2071,7 @@ function ReservationDrawer({
                             paymentMethod,
                             earlyCheckout,
                             balance > 0 ? markAsPaid : true,
-                            includeTax,
+                            canOmitTax ? includeTax : true,
                           ),
                         )
                       }

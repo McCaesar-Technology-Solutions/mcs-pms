@@ -117,6 +117,7 @@ export const managerHelpTopics: HelpTopic[] = [
       'Already in house without an invoice? Guests → open guest → Generate stay invoice & collect (uses check-in dates).',
       'Collect payment from the check-in dialog, the reservation → Issue invoice & collect, or Billing.',
       'Managers (and owners) apply % or fixed guest discounts before tax when creating/editing a booking or refreshing the invoice, and may post folio discount credits. Reception cannot.',
+      'Reception always issues taxed stay invoices; managers/owners may deliberately omit tax when needed.',
       'Taxed invoices always show Tax ID GHA-728071939-8. Guest Ghana Card remains optional on the guest record.',
       'Record full or partial payments at the desk; refunds stay owner-only.',
       'Checkout reuses that same stay invoice — it will not create a duplicate.',

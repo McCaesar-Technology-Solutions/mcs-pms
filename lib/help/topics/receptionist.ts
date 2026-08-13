@@ -78,6 +78,7 @@ export const receptionistHelpTopics: HelpTopic[] = [
       'For guests already in house without an invoice: Guests → open guest → Generate stay invoice & collect (uses their check-in dates).',
       'Use Issue invoice & collect on the reservation or Billing if anything remains unpaid mid-stay.',
       'Ask a manager or owner if the guest needs a discount — reception cannot set stay or folio discounts.',
+      'Reception always issues GRA tax invoices (VAT & levies). Only managers/owners may omit tax.',
       'Choose payment method; check “paid full balance” when the guest settles.',
       'Refunds and ad-hoc (non-stay) invoices are owner-only.',
     ],

@@ -38,6 +38,7 @@ import {
 } from '@/lib/folio/rollup'
 import { writeAuditLog, logRoomStatusChange } from '@/lib/audit/log'
 import { canCheckIn, canCheckOut, IN_HOUSE_STATUSES } from '@/lib/reservations/lifecycle'
+import { canOmitInvoiceTax } from '@/lib/auth/tenant-access'
 import { validateCheckoutBalance } from '@/lib/reservations/checkout-validation'
 import { runNotifyTask } from '@/lib/notifications/notify-task'
 import {
@@ -959,7 +960,7 @@ export async function completeCheckoutStay(input: {
   }
 
   const admin = createAdminClient()
-  const includeTax = input.includeTax !== false
+  const includeTax = canOmitInvoiceTax(profile.role) ? input.includeTax !== false : true
   const { data: reservation } = await admin
     .from('reservations')
     .select('*')
@@ -1007,7 +1008,7 @@ export async function checkOutStay(input: {
   }
 
   const admin = createAdminClient()
-  const includeTax = input.includeTax !== false
+  const includeTax = canOmitInvoiceTax(profile.role) ? input.includeTax !== false : true
   let reservation: {
     id: string
     hotel_id: string
@@ -1301,7 +1302,7 @@ export async function recordWalkoutStay(
     paymentMethod,
     earlyCheckout: input?.earlyCheckout,
     markAsPaid: false,
-    includeTax: input?.includeTax !== false,
+    includeTax: canOmitInvoiceTax(profile.role) ? input?.includeTax !== false : true,
     departureStatus: 'walkout',
   })
 }
