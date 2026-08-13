@@ -432,7 +432,7 @@ async function buildInvoicePdf(hotelInput: ExportHotelInfo, invoice: InvoiceExpo
       [`NHIL (${formatTaxPercent(rates.nhil)})`, invoice.nhil],
       [`GETFund (${formatTaxPercent(rates.getfund)})`, invoice.getfund],
     ]
-    if (invoice.covid > 0 || rates.covid > 0) {
+    if (invoice.covid > 0) {
       taxRows.push([`COVID-19 levy (${formatTaxPercent(rates.covid)})`, invoice.covid])
     }
     taxRows.push([`VAT (${formatTaxPercent(rates.vat)})`, invoice.vat])

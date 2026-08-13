@@ -267,11 +267,17 @@ export function CheckoutInvoiceDialog({
               {showTax && (
                 <>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">NHIL + GETFund + COVID levy</span>
+                    <span className="text-muted-foreground">NHIL + GETFund</span>
                     <span className="font-medium">
-                      {money(invoice.nhil + invoice.getfund + invoice.covid)}
+                      {money(invoice.nhil + invoice.getfund)}
                     </span>
                   </div>
+                  {(invoice.covid > 0) && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">COVID-19 levy (historical)</span>
+                      <span className="font-medium">{money(invoice.covid)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">VAT</span>
                     <span className="font-medium">{money(invoice.vat)}</span>

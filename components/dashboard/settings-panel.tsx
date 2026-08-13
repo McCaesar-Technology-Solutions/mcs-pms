@@ -87,7 +87,6 @@ export function SettingsPanel({ hotelSettings, staffHref = '/owner/staff', profi
   const [taxGetfund, setTaxGetfund] = useState('')
   const [taxVat, setTaxVat] = useState('')
   const [taxElevy, setTaxElevy] = useState('')
-  const [taxCovid, setTaxCovid] = useState('')
   const [taxTourism, setTaxTourism] = useState('')
   const taxDefaults = defaultHotelTaxRates()
 
@@ -105,7 +104,6 @@ export function SettingsPanel({ hotelSettings, staffHref = '/owner/staff', profi
     setTaxGetfund(overrideToPercentInput(o.getfund))
     setTaxVat(overrideToPercentInput(o.vat))
     setTaxElevy(overrideToPercentInput(o.elevy))
-    setTaxCovid(overrideToPercentInput(o.covid))
     setTaxTourism(overrideToPercentInput(o.tourism))
     setProfileImage(null)
     setRemoveExistingImage(false)
@@ -133,7 +131,7 @@ export function SettingsPanel({ hotelSettings, staffHref = '/owner/staff', profi
         taxGetfundPercent: taxGetfund,
         taxVatPercent: taxVat,
         taxElevyPercent: taxElevy,
-        taxCovidPercent: taxCovid,
+        taxCovidPercent: '0',
         taxTourismPercent: taxTourism,
       })
 
@@ -455,8 +453,9 @@ export function SettingsPanel({ hotelSettings, staffHref = '/owner/staff', profi
                 <label className="text-sm font-semibold text-foreground">Tax rates (%)</label>
                 <p className="mt-1 text-xs text-muted-foreground">
                   Leave blank to use the system default (shown as placeholder). Applied to newly
-                  issued invoices; existing invoices keep their frozen snapshot. Tourism levy is
-                  outside the NHIL / GETFund / VAT base (blank or 0 = off).
+                  issued invoices; existing invoices keep their frozen snapshot. Tourism levy
+                  (default 1%) is outside the NHIL / GETFund / VAT base. COVID levy is no longer
+                  charged.
                 </p>
                 <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
                   {(
@@ -465,8 +464,7 @@ export function SettingsPanel({ hotelSettings, staffHref = '/owner/staff', profi
                       ['GETFund', taxGetfund, setTaxGetfund, taxDefaults.getfund],
                       ['VAT', taxVat, setTaxVat, taxDefaults.vat],
                       ['E-Levy', taxElevy, setTaxElevy, taxDefaults.elevy],
-                      ['COVID levy', taxCovid, setTaxCovid, taxDefaults.covid],
-                      ['Tourism levy', taxTourism, setTaxTourism, 0],
+                      ['Tourism levy', taxTourism, setTaxTourism, taxDefaults.tourism],
                     ] as const
                   ).map(([label, value, setValue, fallback]) => (
                     <div key={label}>

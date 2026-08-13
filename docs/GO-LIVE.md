@@ -113,7 +113,7 @@ Set in **Project → Settings → Environment Variables** (Production):
 | `NOTIFICATION_CHANNELS` | Recommended | `sms,whatsapp` |
 | `RESEND_API_KEY` + `RESEND_FROM` | Yes (with Arkesel) | Staff email invites, email MFA — **verified domain only** |
 | `SENTRY_DSN` | Recommended | Error monitoring |
-| `GRA_COVID_LEVY_RATE` | Optional | Set `0` if your tax advisor confirms COVID levy no longer applies (default `0.01`) |
+| `GRA_COVID_LEVY_RATE` | Optional | Unused — COVID levy is off; tourism levy (default 1%) is used instead |
 
 **Redeploy** after changing env vars.
 

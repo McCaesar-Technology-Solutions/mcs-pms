@@ -1,26 +1,17 @@
 // Ghana Revenue Authority (GRA) indirect tax rates for hospitality.
-// Confirm COVID Health Recovery Levy applicability with your tax advisor — set
-// GRA_COVID_LEVY_RATE=0 on Vercel if your property class no longer applies it.
+// COVID Health Recovery Levy is no longer applied (kept only on historical invoice snapshots).
+// Tourism levy defaults to 1% on taxable base, outside the NHIL/GETFund/VAT stack.
 // Per-hotel overrides live on hotels.tax_*_rate (null = these defaults).
-
-function covidLevyRate(): number {
-  const raw = process.env.GRA_COVID_LEVY_RATE?.trim()
-  if (raw === '0' || raw === 'false') return 0
-  if (raw) {
-    const n = Number(raw)
-    if (!Number.isNaN(n) && n >= 0) return n
-  }
-  return 0.01
-}
 
 export const GRA_RATES = {
   nhil: 0.025,
   getfund: 0.025,
-  get covid() {
-    return covidLevyRate()
-  },
+  /** @deprecated Always 0 for new invoices. */
+  covid: 0,
   vat: 0.15,
   elevy: 0,
+  /** Default tourism levy (replaces former COVID levy on hospitality invoices). */
+  tourism: 0.01,
 } as const
 
 export type VatMode = 'exclusive' | 'inclusive'
@@ -38,15 +29,15 @@ export interface HotelTaxRates {
 
 export type TaxSnapshot = HotelTaxRates & { [key: string]: number }
 
-/** System defaults. Tourism is 0 until a hotel explicitly enables it. */
+/** System defaults. COVID off; tourism on at 1%. */
 export function defaultHotelTaxRates(): HotelTaxRates {
   return {
     nhil: GRA_RATES.nhil,
     getfund: GRA_RATES.getfund,
-    covid: GRA_RATES.covid,
+    covid: 0,
     vat: GRA_RATES.vat,
     elevy: GRA_RATES.elevy,
-    tourism: 0,
+    tourism: GRA_RATES.tourism,
   }
 }
 
@@ -63,7 +54,8 @@ export function resolveHotelTaxRates(input: {
   return {
     nhil: input.tax_nhil_rate != null ? Number(input.tax_nhil_rate) : defaults.nhil,
     getfund: input.tax_getfund_rate != null ? Number(input.tax_getfund_rate) : defaults.getfund,
-    covid: input.tax_covid_rate != null ? Number(input.tax_covid_rate) : defaults.covid,
+    // COVID levy removed from new invoices (ignore hotel override).
+    covid: 0,
     vat: input.tax_vat_rate != null ? Number(input.tax_vat_rate) : defaults.vat,
     elevy: input.tax_elevy_rate != null ? Number(input.tax_elevy_rate) : defaults.elevy,
     tourism:
@@ -113,11 +105,12 @@ function taxesFromBase(base: number, rates: HotelTaxRates): InvoiceTaxes {
   const subtotal = Math.max(0, round2(base))
   const nhil = round2(subtotal * clampRate(rates.nhil))
   const getfund = round2(subtotal * clampRate(rates.getfund))
+  // COVID only appears when replaying a frozen historical snapshot that still had it.
   const covid = round2(subtotal * clampRate(rates.covid))
   const vatable = subtotal + nhil + getfund + covid
   const vat = round2(vatable * clampRate(rates.vat))
   const elevy = round2(subtotal * clampRate(rates.elevy))
-  // Tourism levy sits outside the VAT/NHIL/GETFund base (2026 practice).
+  // Tourism levy sits outside the VAT/NHIL/GETFund base.
   const tourism = round2(subtotal * clampRate(rates.tourism))
   const total = round2(subtotal + nhil + getfund + covid + vat + elevy + tourism)
 

@@ -13,9 +13,10 @@ describe('computeInvoiceTaxes', () => {
   it('adds taxes on exclusive subtotal', () => {
     const taxes = computeInvoiceTaxes(1000, 'exclusive')
     expect(taxes.subtotal).toBe(1000)
+    expect(taxes.covid).toBe(0)
+    expect(taxes.tourism).toBe(10)
     expect(taxes.total).toBe(Math.round(1000 * GRA_GROSS_MULTIPLIER * 100) / 100)
     expect(taxes.total).toBeGreaterThan(taxes.subtotal)
-    expect(taxes.tourism).toBe(0)
   })
 
   it('extracts taxes from inclusive gross total', () => {
@@ -51,14 +52,15 @@ describe('computeInvoiceTaxes', () => {
     }
     const taxes = computeInvoiceTaxes(1000, 'exclusive', rates)
     expect(taxes.elevy).toBe(10)
+    expect(taxes.covid).toBe(0)
     expect(taxes.vat).toBe(
-      Math.round((1000 + taxes.nhil + taxes.getfund + taxes.covid) * 0.125 * 100) / 100,
+      Math.round((1000 + taxes.nhil + taxes.getfund) * 0.125 * 100) / 100,
     )
     expect(taxes.total).toBe(Math.round(1000 * graGrossMultiplier(rates) * 100) / 100)
   })
 
   it('adds tourism levy outside the NHIL/GETFund/VAT base', () => {
-    const base = defaultHotelTaxRates()
+    const base = { ...defaultHotelTaxRates(), tourism: 0 }
     const withTourism = { ...base, tourism: 0.01 }
     const plain = computeInvoiceTaxes(1000, 'exclusive', base)
     const taxed = computeInvoiceTaxes(1000, 'exclusive', withTourism)
@@ -66,9 +68,15 @@ describe('computeInvoiceTaxes', () => {
     expect(taxed.tourism).toBe(10)
     expect(taxed.nhil).toBe(plain.nhil)
     expect(taxed.getfund).toBe(plain.getfund)
-    expect(taxed.covid).toBe(plain.covid)
+    expect(taxed.covid).toBe(0)
     expect(taxed.vat).toBe(plain.vat)
     expect(taxed.total).toBe(Math.round((plain.total + 10) * 100) / 100)
+  })
+
+  it('ignores hotel COVID overrides on new invoices', () => {
+    const rates = resolveHotelTaxRates({ tax_covid_rate: 0.01, tax_tourism_levy_rate: null })
+    expect(rates.covid).toBe(0)
+    expect(rates.tourism).toBe(0.01)
   })
 })
 
@@ -83,24 +91,25 @@ describe('resolveHotelTaxRates', () => {
       tax_tourism_levy_rate: null,
     })
     expect(rates).toEqual(defaultHotelTaxRates())
-    expect(rates.tourism).toBe(0)
+    expect(rates.covid).toBe(0)
+    expect(rates.tourism).toBe(0.01)
   })
 
   it('applies overrides when set', () => {
     const rates = resolveHotelTaxRates({
       tax_nhil_rate: 0.03,
-      tax_tourism_levy_rate: 0.01,
+      tax_tourism_levy_rate: 0.02,
     })
     expect(rates.nhil).toBe(0.03)
-    expect(rates.tourism).toBe(0.01)
+    expect(rates.tourism).toBe(0.02)
     expect(rates.vat).toBe(defaultHotelTaxRates().vat)
   })
 })
 
 describe('resolveInvoiceTaxRates', () => {
   it('freezes rates from an existing invoice snapshot', () => {
-    const hotel = { ...defaultHotelTaxRates(), tourism: 0.01, elevy: 0.01 }
-    const issued = taxSnapshotFromRates(defaultHotelTaxRates())
+    const hotel = { ...defaultHotelTaxRates(), tourism: 0.02, elevy: 0.01 }
+    const issued = taxSnapshotFromRates({ ...defaultHotelTaxRates(), tourism: 0 })
     const resolved = resolveInvoiceTaxRates(issued, hotel)
     expect(resolved.frozen).toBe(true)
     expect(resolved.rates.tourism).toBe(0)
@@ -108,10 +117,10 @@ describe('resolveInvoiceTaxRates', () => {
   })
 
   it('uses hotel rates on first issue', () => {
-    const hotel = { ...defaultHotelTaxRates(), tourism: 0.01 }
+    const hotel = { ...defaultHotelTaxRates(), tourism: 0.02 }
     const resolved = resolveInvoiceTaxRates(null, hotel)
     expect(resolved.frozen).toBe(false)
-    expect(resolved.rates.tourism).toBe(0.01)
-    expect(resolved.snapshot.tourism).toBe(0.01)
+    expect(resolved.rates.tourism).toBe(0.02)
+    expect(resolved.snapshot.tourism).toBe(0.02)
   })
 })

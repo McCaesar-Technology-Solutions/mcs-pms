@@ -293,7 +293,7 @@ Record property expenses (category, amount, date, notes). Delete when entered in
 
 **Path:** `/owner/gra-reports`
 
-- Period revenue and tax breakdown (NHIL, GETFund, COVID levy, VAT).
+- Period revenue and tax breakdown (NHIL, GETFund, VAT, tourism levy).
 - Export **CSV**, **PDF**, or **ZIP**.
 - Month shows **Approved** when all issued invoices that month are paid.
 
