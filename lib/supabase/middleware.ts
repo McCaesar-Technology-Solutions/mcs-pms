@@ -131,7 +131,12 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(new URL(ROLE_HOME[profile.role], request.url))
     }
 
-    const target = mfaRedirectPath(profile.role, status, ROLE_HOME[profile.role])
+    const target = mfaRedirectPath(
+      profile.role,
+      status,
+      ROLE_HOME[profile.role],
+      request.nextUrl.searchParams.get('next') ?? undefined,
+    )
     return NextResponse.redirect(new URL(target, request.url))
   }
 

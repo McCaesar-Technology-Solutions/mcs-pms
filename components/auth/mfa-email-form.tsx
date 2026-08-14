@@ -58,8 +58,10 @@ export function MfaEmailForm({ nextPath, mode }: MfaEmailFormProps) {
           return
         }
 
-        const { hasEmail, maskedEmail: masked, method, sessionVerified, canSwitchMethod } =
+        const { hasEmail, maskedEmail: masked, method, sessionVerified, canSwitchMethod: allowSwitch } =
           status.data!
+
+        setCanSwitchMethod(Boolean(allowSwitch))
 
         if (mode === 'verify' && sessionVerified) {
           router.replace(destination)
@@ -67,13 +69,16 @@ export function MfaEmailForm({ nextPath, mode }: MfaEmailFormProps) {
         }
 
         if (mode === 'setup' && (!hasEmail || method !== 'email')) {
-          setError('Your account has no email on file. Update your profile and try again.')
+          setError(
+            method !== 'email'
+              ? 'Email verification is not selected. Choose a different method to continue.'
+              : 'Your account has no email on file. Update your profile and try again.',
+          )
           setBootstrapping(false)
           return
         }
 
         setMaskedEmail(masked)
-        setCanSwitchMethod(Boolean(canSwitchMethod))
 
         if (mode === 'verify' || hasEmail) {
           if (!sessionVerified) {

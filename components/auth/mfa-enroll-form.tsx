@@ -7,6 +7,7 @@ import { enableEmailMfa, enableSmsMfa, getMfaStatus } from '@/app/actions/mfa'
 import { MFA_METHOD_LABELS, type MfaMethod } from '@/lib/auth/mfa'
 import { MfaEmailForm } from '@/components/auth/mfa-email-form'
 import { MfaSmsForm } from '@/components/auth/mfa-sms-form'
+import { MfaChooseDifferentMethodButton } from '@/components/auth/mfa-switch-method-button'
 
 interface MfaEnrollFormProps {
   nextPath: string
@@ -20,6 +21,7 @@ export function MfaEnrollForm({ nextPath }: MfaEnrollFormProps) {
   const [phase, setPhase] = useState<EnrollPhase>('loading')
   const [method, setMethod] = useState<MfaMethod | null>(null)
   const [hasEmail, setHasEmail] = useState(false)
+  const [canSwitchMethod, setCanSwitchMethod] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
 
@@ -39,6 +41,7 @@ export function MfaEnrollForm({ nextPath }: MfaEnrollFormProps) {
 
       const data = result.data
       setHasEmail(data.hasEmail)
+      setCanSwitchMethod(Boolean(data.canSwitchMethod))
 
       if (data.sessionVerified && data.enabled && data.method) {
         router.replace(nextPath)
@@ -72,6 +75,7 @@ export function MfaEnrollForm({ nextPath }: MfaEnrollFormProps) {
       return
     }
     setMethod(next)
+    setCanSwitchMethod(true)
     setPhase('setup')
   }
 
@@ -122,11 +126,41 @@ export function MfaEnrollForm({ nextPath }: MfaEnrollFormProps) {
   }
 
   if (method === 'email') {
-    return <MfaEmailForm nextPath={nextPath} mode="setup" />
+    return (
+      <div className="space-y-4">
+        <MfaEmailForm nextPath={nextPath} mode="setup" />
+        {canSwitchMethod && (
+          <MfaChooseDifferentMethodButton
+            nextPath={nextPath}
+            disabled={pending}
+          />
+        )}
+        {error && (
+          <p className="text-sm text-red-200" role="alert">
+            {error}
+          </p>
+        )}
+      </div>
+    )
   }
 
   if (method === 'sms') {
-    return <MfaSmsForm nextPath={nextPath} mode="setup" />
+    return (
+      <div className="space-y-4">
+        <MfaSmsForm nextPath={nextPath} mode="setup" />
+        {canSwitchMethod && (
+          <MfaChooseDifferentMethodButton
+            nextPath={nextPath}
+            disabled={pending}
+          />
+        )}
+        {error && (
+          <p className="text-sm text-red-200" role="alert">
+            {error}
+          </p>
+        )}
+      </div>
+    )
   }
 
   return (

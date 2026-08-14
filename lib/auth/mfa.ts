@@ -3,6 +3,10 @@ import { isProd } from '@/lib/env'
 
 export type MfaMethod = 'sms' | 'email'
 
+export function isMfaMethod(value: unknown): value is MfaMethod {
+  return value === 'sms' || value === 'email'
+}
+
 export const MFA_METHOD_LABELS: Record<MfaMethod, string> = {
   sms: 'Phone (SMS)',
   email: 'Email',

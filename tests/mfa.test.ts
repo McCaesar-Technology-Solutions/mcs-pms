@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
   canSwitchMfaMethodDuringChallenge,
+  isMfaMethod,
   MFA_METHOD_LABELS,
   canEnrollMfa,
   mfaGateForRole,
@@ -163,6 +164,18 @@ describe('canSwitchMfaMethodDuringChallenge', () => {
     expect(
       canSwitchMfaMethodDuringChallenge({ sessionVerified: true, hasCompletedSetup: false }),
     ).toBe(false)
+    expect(
+      canSwitchMfaMethodDuringChallenge({ sessionVerified: true, hasCompletedSetup: true }),
+    ).toBe(false)
+  })
+})
+
+describe('isMfaMethod', () => {
+  it('accepts sms and email only', () => {
+    expect(isMfaMethod('sms')).toBe(true)
+    expect(isMfaMethod('email')).toBe(true)
+    expect(isMfaMethod('totp')).toBe(false)
+    expect(isMfaMethod(null)).toBe(false)
   })
 })
 

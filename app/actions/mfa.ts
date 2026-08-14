@@ -17,6 +17,7 @@ import { buildMfaStatus } from '@/lib/auth/mfa-status'
 import { migrateLegacyTotpMfa } from '@/lib/auth/migrate-legacy-totp'
 import {
   canSwitchMfaMethodDuringChallenge,
+  isMfaMethod,
   mfaRedirectPath,
   roleRequiresMfa,
   safeMfaNext,
@@ -663,15 +664,13 @@ export async function enableEmailMfa(): Promise<MfaActionResult> {
   return { success: true }
 }
 
-export async function switchMfaMethod(
-  next: MfaMethod,
-  intendedPath?: string,
-): Promise<MfaActionResult<{ redirectTo: string }>> {
-  const { supabase, user, profile } = await requireStaffContext()
-  if (!user || !profile) return { success: false, error: 'Not signed in.' }
-
-  const status = await buildMfaStatus(supabase, user.id, profileForStatus(profile))
-  const completedSetup = await hasCompletedMfaSetup(user.id)
+async function assertCanChangeMfaChoice(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  profile: StaffProfile,
+) {
+  const status = await buildMfaStatus(supabase, userId, profileForStatus(profile))
+  const completedSetup = await hasCompletedMfaSetup(userId)
   if (
     !canSwitchMfaMethodDuringChallenge({
       sessionVerified: status.sessionVerified,
@@ -679,10 +678,29 @@ export async function switchMfaMethod(
     })
   ) {
     return {
-      success: false,
+      ok: false as const,
       error: 'Finish this sign-in, then change your verification method in settings.',
+      status,
     }
   }
+  return { ok: true as const, status }
+}
+
+export async function switchMfaMethod(
+  next: MfaMethod,
+  intendedPath?: string,
+): Promise<MfaActionResult<{ redirectTo: string }>> {
+  const { supabase, user, profile } = await requireStaffContext()
+  if (!user || !profile) return { success: false, error: 'Not signed in.' }
+  if (!isMfaMethod(next)) {
+    return { success: false, error: 'Choose phone (SMS) or email.' }
+  }
+
+  const allowed = await assertCanChangeMfaChoice(supabase, user.id, profile)
+  if (!allowed.ok) {
+    return { success: false, error: allowed.error }
+  }
+  const status = allowed.status
 
   if (next === profile.mfa_method) {
     const redirectTo = mfaRedirectPath(profile.role, status, ROLE_HOME[profile.role], intendedPath)
@@ -697,6 +715,40 @@ export async function switchMfaMethod(
   if (!switched.success) return switched as MfaActionResult<{ redirectTo: string }>
 
   const updated = (await loadStaffProfile(user.id)) ?? profile
+  const nextStatus = await buildMfaStatus(supabase, user.id, profileForStatus(updated))
+  const redirectTo = mfaRedirectPath(
+    updated.role,
+    nextStatus,
+    ROLE_HOME[updated.role],
+    intendedPath,
+  )
+  return { success: true, data: { redirectTo } }
+}
+
+/** First-time setup only — clear SMS/email so the user can pick again. */
+export async function resetMfaEnrollmentChoice(
+  intendedPath?: string,
+): Promise<MfaActionResult<{ redirectTo: string }>> {
+  const { supabase, user, profile } = await requireStaffContext()
+  if (!user || !profile) return { success: false, error: 'Not signed in.' }
+
+  const allowed = await assertCanChangeMfaChoice(supabase, user.id, profile)
+  if (!allowed.ok) {
+    return { success: false, error: allowed.error }
+  }
+
+  const admin = createAdminClient()
+  const { error } = await admin
+    .from('profiles')
+    .update({
+      mfa_method: null,
+      mfa_sms_enabled: false,
+    })
+    .eq('id', user.id)
+
+  if (error) return { success: false, error: 'Could not change verification method. Try again.' }
+
+  const updated = (await loadStaffProfile(user.id)) ?? { ...profile, mfa_method: null }
   const nextStatus = await buildMfaStatus(supabase, user.id, profileForStatus(updated))
   const redirectTo = mfaRedirectPath(
     updated.role,

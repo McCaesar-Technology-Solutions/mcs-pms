@@ -4,10 +4,11 @@ import { useCallback, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Mail, Shield, ShieldCheck, Smartphone } from 'lucide-react'
 import { disableMfa, enableEmailMfa, enableSmsMfa, getMfaStatus } from '@/app/actions/mfa'
-import { MFA_METHOD_LABELS, safeMfaNext, type MfaMethod } from '@/lib/auth/mfa'
+import { MFA_METHOD_LABELS, roleRequiresMfa, safeMfaNext, type MfaMethod } from '@/lib/auth/mfa'
 import { MfaEmailForm } from '@/components/auth/mfa-email-form'
 import { MfaSmsForm } from '@/components/auth/mfa-sms-form'
 import { MfaVerifyForm } from '@/components/auth/mfa-verify-form'
+import { MfaChooseDifferentMethodButton } from '@/components/auth/mfa-switch-method-button'
 import type { UserRole } from '@/types'
 
 interface MfaSettingsCardProps {
@@ -27,6 +28,8 @@ export function MfaSettingsCard({ role, returnPath }: MfaSettingsCardProps) {
   const [maskedEmail, setMaskedEmail] = useState<string | null>(null)
   const [sessionVerified, setSessionVerified] = useState(true)
   const [setupMethod, setSetupMethod] = useState<MfaMethod | null>(null)
+  const [methodBeforeSetup, setMethodBeforeSetup] = useState<MfaMethod | null>(null)
+  const [canSwitchMethod, setCanSwitchMethod] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -46,6 +49,7 @@ export function MfaSettingsCard({ role, returnPath }: MfaSettingsCardProps) {
     setMaskedPhone(result.data.maskedPhone)
     setMaskedEmail(result.data.maskedEmail)
     setSessionVerified(result.data.sessionVerified)
+    setCanSwitchMethod(Boolean(result.data.canSwitchMethod))
   }, [])
 
   useEffect(() => {
@@ -68,6 +72,7 @@ export function MfaSettingsCard({ role, returnPath }: MfaSettingsCardProps) {
 
   async function startSetup(next: MfaMethod) {
     setError(null)
+    setMethodBeforeSetup(method)
     if (next === 'sms' && !hasPhone) {
       const result = await enableSmsMfa()
       if (!result.success) {
@@ -118,13 +123,26 @@ export function MfaSettingsCard({ role, returnPath }: MfaSettingsCardProps) {
           ) : (
             <MfaEmailForm nextPath={nextPath} mode="setup" />
           )}
+          {canSwitchMethod && (
+            <div className="mt-4">
+              <MfaChooseDifferentMethodButton nextPath={nextPath} />
+            </div>
+          )}
         </div>
         <button
           type="button"
           onClick={() => {
-            void disableMfa()
-            setSetupMethod(null)
-            void refresh()
+            void (async () => {
+              setSetupMethod(null)
+              if (methodBeforeSetup === 'sms') {
+                await enableSmsMfa()
+              } else if (methodBeforeSetup === 'email') {
+                await enableEmailMfa()
+              } else if (!roleRequiresMfa(role)) {
+                await disableMfa()
+              }
+              await refresh()
+            })()
           }}
           className="mt-4 text-sm font-semibold text-muted-foreground hover:text-foreground"
         >
@@ -202,6 +220,28 @@ export function MfaSettingsCard({ role, returnPath }: MfaSettingsCardProps) {
               >
                 Add phone number
               </button>
+            )}
+            {sessionVerified && (
+              <div className="flex flex-wrap gap-3 pt-1">
+                {method === 'sms' && hasEmail && (
+                  <button
+                    type="button"
+                    onClick={() => void startSetup('email')}
+                    className="text-sm font-semibold text-[#3C216C] hover:underline"
+                  >
+                    Switch to email
+                  </button>
+                )}
+                {method === 'email' && (
+                  <button
+                    type="button"
+                    onClick={() => void startSetup('sms')}
+                    className="text-sm font-semibold text-[#3C216C] hover:underline"
+                  >
+                    Switch to phone (SMS)
+                  </button>
+                )}
+              </div>
             )}
           </div>
         ) : (
