@@ -31,7 +31,7 @@ export function AccessAgentInstallCard({ links, compact = false }: Props) {
   const hasAny = Boolean(macDmg || macZip || winSetup || winPortable)
 
   return (
-    <div className="surface-card overflow-hidden">
+    <div className="surface-card">
       {!compact && <div className="surface-card-accent" />}
       <div className="surface-card-header">
         <div className="flex flex-wrap items-start justify-between gap-3">

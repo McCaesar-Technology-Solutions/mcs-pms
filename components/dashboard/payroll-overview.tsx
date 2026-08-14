@@ -293,7 +293,7 @@ export function PayrollOverview({ data, role, staffInviteHref }: PayrollOverview
               id="payroll-period"
               value={periodSelectValue}
               onChange={(e) => selectPeriod(e.target.value)}
-              className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-sm text-foreground"
+              className={`${APP_FIELD_CLASS} w-auto min-w-[12rem] py-1.5`}
             >
               <option value="current">Current ({data.settings.defaultCycle})</option>
               {data.periods.map((p) => (
@@ -410,7 +410,7 @@ export function PayrollOverview({ data, role, staffInviteHref }: PayrollOverview
 
       {/* Run workflow */}
       {run && (
-        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card px-4 py-3">
+        <div className="soft-panel flex flex-wrap items-center gap-2 px-4 py-3">
           <span className="text-sm text-muted-foreground">Actions:</span>
           {(run.status === 'draft' || run.status === 'pending_approval') && (
             <button
@@ -459,8 +459,8 @@ export function PayrollOverview({ data, role, staffInviteHref }: PayrollOverview
 
       {/* Commission rules (owner) */}
       {canManageRates && (
-        <div className="surface-card overflow-hidden">
-          <div className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="surface-card">
+          <div className="surface-card-header flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h3 className="text-sm font-semibold text-foreground">Commission rules</h3>
               <p className="text-xs text-muted-foreground">
@@ -484,11 +484,11 @@ export function PayrollOverview({ data, role, staffInviteHref }: PayrollOverview
               No rules yet. Add a flat fee per clean to start accruing commission.
             </p>
           ) : (
-            <ul className="divide-y divide-border">
+            <ul className="soft-list px-4 pb-4">
               {data.commissionRules.map((rule) => (
                 <li
                   key={rule.id}
-                  className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                  className="soft-list-item flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <div>
                     <p className="text-sm font-medium text-foreground">{rule.name}</p>
@@ -530,8 +530,8 @@ export function PayrollOverview({ data, role, staffInviteHref }: PayrollOverview
       )}
 
       {/* Employee table */}
-      <div className="surface-card overflow-hidden">
-        <div className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="surface-card">
+        <div className="surface-card-header flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="app-search-field max-w-sm flex-1">
             <Search className="h-4 w-4 text-muted-foreground" />
             <input
@@ -544,7 +544,7 @@ export function PayrollOverview({ data, role, staffInviteHref }: PayrollOverview
             />
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <div className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs">
+            <div className="surface-inset inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs">
               <Filter className="h-3.5 w-3.5 text-muted-foreground" />
               <select
                 value={statusFilter}
@@ -592,20 +592,20 @@ export function PayrollOverview({ data, role, staffInviteHref }: PayrollOverview
           />
         ) : (
           <>
-            <div className="hidden overflow-x-auto md:block">
-              <table className="w-full min-w-[720px] text-left text-sm">
-                <thead className="border-b border-border bg-secondary/40 text-xs text-muted-foreground">
+            <div className="hidden data-table-wrap overflow-x-auto px-4 md:block">
+              <table className="data-table w-full min-w-[720px] text-left text-sm">
+                <thead>
                   <tr>
-                    <th className="px-4 py-3 font-medium">
+                    <th>
                       <span className="sr-only">Select</span>
                     </th>
-                    <th className="px-4 py-3 font-medium">Staff member</th>
-                    <th className="px-4 py-3 font-medium">Role</th>
-                    <th className="px-4 py-3 font-medium">Base pay</th>
-                    <th className="px-4 py-3 font-medium">Commission</th>
-                    <th className="px-4 py-3 font-medium">Total payout</th>
-                    <th className="px-4 py-3 font-medium">Status</th>
-                    <th className="px-4 py-3 font-medium">Action</th>
+                    <th>Staff member</th>
+                    <th>Role</th>
+                    <th>Base pay</th>
+                    <th>Commission</th>
+                    <th>Total payout</th>
+                    <th>Status</th>
+                    <th>Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -615,9 +615,7 @@ export function PayrollOverview({ data, role, staffInviteHref }: PayrollOverview
                     return (
                       <tr
                         key={line.id}
-                        className={`border-b border-border last:border-0 ${
-                          selectedRow ? 'bg-primary/5' : ''
-                        }`}
+                        className={selectedRow ? 'is-selected' : undefined}
                       >
                         <td className="px-4 py-3">
                           <BulkSelectCheckbox

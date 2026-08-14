@@ -236,7 +236,7 @@ export function StaffAccessPanel({
   return (
     <div className="space-y-6">
       {/* 1) Policy door rights first */}
-      <div className="surface-card overflow-hidden">
+      <div className="surface-card">
         <div className="surface-card-accent" />
         <div className="surface-card-header">
           <div className="flex items-start gap-3">
@@ -333,7 +333,7 @@ export function StaffAccessPanel({
       </div>
 
       {/* 2) Staff people */}
-      <div className="surface-card overflow-hidden">
+      <div className="surface-card">
         <div className="surface-card-header">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="flex items-start gap-3">

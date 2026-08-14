@@ -235,7 +235,7 @@ export function AccessOpsPanel({
   return (
     <div className="space-y-6">
       {showToday ? (
-        <div className="surface-card overflow-hidden">
+        <div className="surface-card">
           <div className="surface-card-accent" />
           <div className="surface-card-header">
             <div className="flex items-center gap-3">
@@ -327,7 +327,7 @@ export function AccessOpsPanel({
       ) : null}
 
       {showGuests ? (
-        <div className="surface-card overflow-hidden">
+        <div className="surface-card">
           <div className="surface-card-header space-y-3">
             <div className="flex items-start gap-3">
               <CreditCard className="mt-0.5 h-6 w-6 shrink-0 text-primary" aria-hidden />
@@ -450,7 +450,7 @@ export function AccessOpsPanel({
       ) : null}
 
       {showToday ? (
-        <div className="surface-card overflow-hidden">
+        <div className="surface-card">
           <div className="surface-card-header space-y-3">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="flex items-start gap-3">

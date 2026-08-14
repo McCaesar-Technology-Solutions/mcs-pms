@@ -12,30 +12,21 @@ export interface OutstandingBalanceSummary {
 }
 
 /**
- * Hotel-wide collectible balance: open reservation balances plus manual invoices
- * not already represented on a checked-out reservation row.
+ * Hotel-wide collectible balance.
+ *
+ * Unpaid invoices are the source of truth (matches Billing remaining due).
+ * Reservation estimated balances are included only when no open invoice exists
+ * for that stay, so in-house folio extras on top of an issued invoice are not
+ * double-counted.
  */
 export function computeHotelOutstandingBalance(
   reservations: Reservation[],
   invoices: DbInvoice[],
 ): OutstandingBalanceSummary {
-  const checkedOutWithBalance = new Set<string>()
   let total = 0
   let reservationCount = 0
-
-  for (const r of reservations) {
-    if (r.status === 'cancelled' || r.status === 'no_show') continue
-    if (r.balanceDue <= 0.009) continue
-
-    total += r.balanceDue
-    reservationCount++
-
-    if (r.status === 'checked_out') {
-      checkedOutWithBalance.add(r.id)
-    }
-  }
-
   let invoiceOnlyCount = 0
+  const invoicedReservationIds = new Set<string>()
 
   for (const inv of invoices) {
     if (inv.payment_status === 'paid' || inv.payment_status === 'refunded') continue
@@ -43,15 +34,23 @@ export function computeHotelOutstandingBalance(
     const due = invoiceBalanceDue(Number(inv.total_amount ?? 0), Number(inv.amount_paid ?? 0))
     if (due <= 0.009) continue
 
-    if (inv.reservation_id && checkedOutWithBalance.has(inv.reservation_id)) {
-      continue
-    }
+    total += due
 
-    if (!inv.reservation_id) {
+    if (inv.reservation_id) {
+      invoicedReservationIds.add(inv.reservation_id)
+      reservationCount++
+    } else {
       invoiceOnlyCount++
     }
+  }
 
-    total += due
+  for (const r of reservations) {
+    if (r.status === 'cancelled' || r.status === 'no_show') continue
+    if (invoicedReservationIds.has(r.id)) continue
+    if (r.balanceDue <= 0.009) continue
+
+    total += r.balanceDue
+    reservationCount++
   }
 
   return {

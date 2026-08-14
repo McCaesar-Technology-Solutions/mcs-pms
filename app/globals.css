@@ -560,16 +560,15 @@
 
   .surface-card {
     position: relative;
-    overflow: hidden;
+    overflow: visible;
     border-radius: var(--radius);
     background: linear-gradient(168deg, #fdfcff 0%, #ffffff 100%);
-    border: 1px solid rgba(var(--glow-purple), 0.05);
+    border: none;
     box-shadow:
       0 1px 0 rgba(255, 255, 255, 0.92) inset,
       0 1px 2px rgba(var(--shadow-tint), 0.03),
       0 10px 28px -14px rgba(var(--shadow-tint), 0.1);
     transition:
-      border-color 0.2s ease,
       box-shadow 0.2s ease,
       transform 0.2s ease;
   }
@@ -578,6 +577,7 @@
     content: '';
     position: absolute;
     inset: 0;
+    border-radius: inherit;
     background: linear-gradient(
       135deg,
       rgba(var(--glow-purple), 0.045) 0%,
@@ -589,7 +589,6 @@
 
   .surface-card--interactive:hover {
     transform: translateY(-1px);
-    border-color: rgba(var(--shadow-tint), 0.08);
     box-shadow:
       0 1px 0 rgba(255, 255, 255, 0.95) inset,
       0 4px 12px rgba(var(--shadow-tint), 0.05),
@@ -713,13 +712,12 @@
     position: relative;
     border-radius: var(--radius);
     background: var(--card);
-    border: 1px solid rgba(var(--shadow-tint), 0.05);
+    border: none;
     box-shadow:
       0 1px 0 rgba(255, 255, 255, 0.92) inset,
       0 1px 2px rgba(var(--shadow-tint), 0.03),
       0 10px 28px -14px rgba(var(--shadow-tint), 0.1);
     transition:
-      border-color 0.2s ease,
       box-shadow 0.2s ease,
       transform 0.2s ease;
   }
@@ -2602,17 +2600,16 @@
   .app-field {
     width: 100%;
     border-radius: 0.75rem;
-    border: 1px solid rgba(var(--glow-purple), 0.08);
+    border: none;
     background: var(--input);
     padding: 0.625rem 0.875rem;
     font-size: 0.875rem;
     color: var(--foreground);
     outline: none;
     box-shadow:
-      0 1px 2px rgba(var(--shadow-tint), 0.04),
-      inset 0 1px 0 rgba(255, 255, 255, 0.6);
+      inset 0 1px 2px rgba(var(--shadow-tint), 0.05),
+      0 1px 2px rgba(var(--shadow-tint), 0.03);
     transition:
-      border-color 0.2s ease,
       box-shadow 0.2s ease,
       background 0.2s ease;
   }
@@ -2622,14 +2619,12 @@
   }
 
   .app-field:hover:not(:disabled):not(:focus) {
-    border-color: rgba(var(--glow-purple), 0.14);
     box-shadow:
-      0 2px 6px rgba(var(--shadow-tint), 0.06),
-      inset 0 1px 0 rgba(255, 255, 255, 0.6);
+      inset 0 1px 2px rgba(var(--shadow-tint), 0.05),
+      0 2px 6px rgba(var(--shadow-tint), 0.06);
   }
 
   .app-field:focus {
-    border-color: rgba(var(--glow-purple), 0.24);
     background: var(--input);
     box-shadow:
       0 0 0 3px rgba(var(--glow-purple), 0.1),
@@ -2700,7 +2695,7 @@
   }
 
   .app-btn-primary {
-    border: 1px solid rgba(var(--glow-purple), 0.18);
+    border: none;
     background: var(--primary);
     color: var(--primary-foreground);
     box-shadow:
@@ -2716,7 +2711,7 @@
   }
 
   .app-btn-secondary {
-    border: 1px solid rgba(var(--glow-purple), 0.12);
+    border: none;
     background: var(--input);
     color: var(--foreground);
     box-shadow:
@@ -2726,12 +2721,11 @@
 
   .app-btn-secondary:hover:not(:disabled) {
     background: rgba(var(--glow-purple), 0.04);
-    border-color: rgba(var(--glow-purple), 0.18);
     box-shadow: 0 2px 8px rgba(var(--shadow-tint), 0.1);
   }
 
   .app-btn-ghost {
-    border: 1px solid rgba(var(--glow-purple), 0.12);
+    border: none;
     background: rgba(var(--glow-purple), 0.05);
     color: var(--foreground);
     box-shadow: 0 1px 2px rgba(var(--shadow-tint), 0.05);
@@ -2739,7 +2733,6 @@
 
   .app-btn-ghost:hover:not(:disabled) {
     background: rgba(var(--glow-purple), 0.09);
-    border-color: rgba(var(--glow-purple), 0.18);
     box-shadow: 0 2px 6px rgba(var(--shadow-tint), 0.08);
   }
 
@@ -2913,7 +2906,7 @@
     padding: 0.375rem;
     border-radius: calc(var(--radius) + 2px);
     background: rgba(var(--glow-purple), 0.04);
-    border: 1px solid rgba(var(--glow-purple), 0.08);
+    border: none;
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.7),
       0 1px 3px rgba(var(--shadow-tint), 0.04);
@@ -2984,7 +2977,7 @@
   .page-tab-nav__item--active {
     color: var(--brand-purple-ink);
     background: linear-gradient(180deg, var(--brand-gold-light) 0%, var(--brand-gold) 100%);
-    border: 1px solid rgba(var(--glow-gold), 0.35);
+    border-color: transparent;
     box-shadow:
       0 0 18px rgba(var(--glow-gold), 0.22),
       inset 0 1px 0 rgba(255, 255, 255, 0.35);
@@ -4366,8 +4359,8 @@
     border: none;
     background: rgba(255, 255, 255, 0.92);
     box-shadow:
-      0 0 0 1px rgba(var(--glow-purple), 0.05),
-      0 1px 2px rgba(var(--shadow-tint), 0.04);
+      0 1px 2px rgba(var(--shadow-tint), 0.04),
+      0 6px 16px -8px rgba(var(--shadow-tint), 0.12);
     transition:
       background-color 0.15s ease,
       box-shadow 0.15s ease,
@@ -4395,13 +4388,13 @@
   .data-table tbody tr:hover {
     background: rgba(var(--glow-purple), 0.05);
     box-shadow:
-      0 0 0 1px rgba(var(--glow-purple), 0.1),
-      0 4px 12px rgba(var(--glow-purple), 0.08);
+      0 4px 12px rgba(var(--glow-purple), 0.08),
+      0 8px 20px -10px rgba(var(--shadow-tint), 0.12);
   }
 
   .data-table tbody tr.is-selected {
     background: rgba(var(--glow-purple), 0.06);
-    box-shadow: 0 0 0 1px rgba(var(--glow-purple), 0.14);
+    box-shadow: 0 0 0 2px rgba(var(--glow-purple), 0.18);
   }
 
   .table-pagination__btn {

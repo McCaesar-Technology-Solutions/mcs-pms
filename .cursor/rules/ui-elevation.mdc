@@ -1,0 +1,20 @@
+---
+description: No solid black/hard outlines on cards or separators; use elevation
+alwaysApply: true
+---
+
+# Elevation, not outlines
+
+Do not put solid black, near-black, or high-contrast 1px strokes on cards, list rows, panels, dropdowns, tab strips, or section separators. Hard outlines make the product look boxed-in and complicated.
+
+Use instead:
+- White / tinted fill on the page wash
+- Purple-tinted `shadow-elevation-*` (or matching CSS shadows)
+- Soft inset wells (`surface-inset`, `soft-panel`) for nested regions
+- Spacing and background shift for list grouping (`soft-list`), not `divide-y` / `border-b`
+
+Cards (`surface-card` and Access panels): `border: none`, `overflow: visible` so menus can escape. Do not add `overflow-hidden` on a card that hosts a dropdown.
+
+Inputs and ghost/secondary buttons: filled surface + focus/hover glow. Not an outlined box.
+
+Exception: a faint tinted ring is OK for selected/focus state (e.g. `ring-primary/25`), not as the default card chrome.

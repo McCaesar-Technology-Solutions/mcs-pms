@@ -204,7 +204,7 @@ export function AccessControlSettingsPanel({
   }
 
   return (
-    <div className="surface-card overflow-hidden">
+    <div className="surface-card">
       <div className="surface-card-accent" />
       <div className="surface-card-header">
         <div className="flex flex-wrap items-start justify-between gap-3">

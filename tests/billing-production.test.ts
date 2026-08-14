@@ -111,6 +111,31 @@ describe('outstanding balance', () => {
     expect(summary.invoiceOnlyCount).toBe(1)
   })
 
+  it('uses invoice remaining due for in-house stays instead of stacking folio estimates', () => {
+    const reservations = [
+      baseReservation({
+        id: 'r1',
+        status: 'checked_in',
+        // Stay invoice 1210 plus unbilled folio 50 — must not be added on top.
+        balanceDue: 1260,
+      }),
+    ]
+    const invoices: DbInvoice[] = [
+      {
+        id: 'i1',
+        reservation_id: 'r1',
+        total_amount: 1210,
+        amount_paid: 200,
+        payment_status: 'partial',
+      } as DbInvoice,
+    ]
+
+    const summary = computeHotelOutstandingBalance(reservations, invoices)
+    expect(summary.total).toBe(1010)
+    expect(summary.reservationCount).toBe(1)
+    expect(summary.invoiceOnlyCount).toBe(0)
+  })
+
   it('ignores voided reservations', () => {
     const summary = computeHotelOutstandingBalance(
       [baseReservation({ status: 'cancelled', balanceDue: 100 })],

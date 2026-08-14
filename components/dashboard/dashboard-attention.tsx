@@ -9,6 +9,7 @@ import {
   Package,
 } from 'lucide-react'
 import type { TodayOperations } from '@/lib/data/overview'
+import { formatGhs } from '@/lib/format/money'
 import type { KPIMetrics } from '@/types'
 
 interface DashboardAttentionProps {
@@ -45,7 +46,7 @@ export function DashboardAttention({
       key: 'balances',
       icon: AlertCircle,
       tone: 'urgent',
-      message: `₵${metrics.outstandingBalance.toLocaleString()} unpaid · ${metrics.outstandingCount} invoice${metrics.outstandingCount === 1 ? '' : 's'}`,
+      message: `${formatGhs(metrics.outstandingBalance)} unpaid · ${metrics.outstandingCount} invoice${metrics.outstandingCount === 1 ? '' : 's'}`,
       href: billingHref,
     })
   }
