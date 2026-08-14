@@ -37,7 +37,7 @@ Tap **Help** (bottom-right in the app) for the same topics on the screen you are
 | | Owner | Manager | Receptionist |
 |--|:-----:|:-------:|:------------:|
 | Revenue on dashboard | ✓ | ✗ | ✗ |
-| Outstanding balance | ✓ | ✓ | ✓ |
+| Outstanding balance (dashboard) | ✓ | ✓ | ✗ |
 | Record deposit | ✓ | ✓ | ✓ |
 | Refund deposit | ✓ | ✗ | ✗ |
 | Guest stay discount | ✓ | ✓ | ✗ |

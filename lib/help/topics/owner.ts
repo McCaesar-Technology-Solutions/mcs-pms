@@ -23,7 +23,8 @@ export const ownerHelpTopics: HelpTopic[] = [
     title: 'Outstanding balances',
     summary: 'Find who still owes money.',
     steps: [
-      'Check the Outstanding KPI on the dashboard each morning.',
+      'Check the Outstanding KPI on the dashboard each morning — it is remaining due on open invoices, same as Billing.',
+      'Needs attention lists those unpaid invoices plus today’s arrivals and departures (reception does not see invoice totals).',
       'Open Billing for unpaid invoices and partial payments.',
       'Filter Reservations by payment status (Unpaid, Deposit paid, etc.).',
       'Front desk can collect the full stay invoice before check-in, or at check-in. Walkouts and unpaid exceptions stay visible until collected.',

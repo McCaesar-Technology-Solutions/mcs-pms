@@ -58,7 +58,8 @@ You are locked to **one property** (no property switcher).
 | Section | Notes |
 |---------|--------|
 | Occupancy, avg rate, bookings | **Revenue hidden** (owner only) |
-| **Outstanding** | Who still owes money |
+| **Outstanding** | Remaining due on open invoices (same as Billing) |
+| **Needs attention** | Unpaid invoices, today’s arrivals and departures |
 | Complaints snapshot | Link to full page |
 | Housekeeping summary | Link to kanban |
 | **Ops calendar** | Add training / meetings / events |
@@ -248,6 +249,7 @@ You **can** issue stay invoices, create unpaid or paid ad-hoc bills, record full
 You **cannot** refund invoice payments — send those to the owner.
 
 - Check-in / collect-before-check-in creates the stay invoice. Tick **Include Ghana tax** when you need VAT & levies (Bill-to Tax ID `GHA-728071939-8`).
+- **Bill to** can differ from the guest name when issuing.
 - Apply % or fixed guest discounts when creating/editing a booking or refreshing the invoice.
 - Checkout reuses the same stay invoice — it will not create a duplicate.
 - **Online payments** tab shows guest Pay-now attempts when that feature is enabled.

@@ -81,7 +81,9 @@ Grouped in the sidebar as **Operations** and **Finance & admin**.
 | **Total bookings** | Active reservations |
 | **Outstanding** | Money still collectible |
 
-Check **Outstanding** every morning. Follow up in **Billing** and **Reservations** (payment filters).
+Check **Outstanding** every morning. The amount is **remaining due** on open invoices (same as Billing). Follow up in **Billing** and **Reservations** (payment filters).
+
+**Needs attention** also lists unpaid invoices (remaining due), plus today’s arrivals and departures.
 
 ### Other sections
 
@@ -296,7 +298,9 @@ Tabs: **Invoices** · **Payment ledger** · **Online payments**.
 
 Invoice numbers use your Settings prefix (e.g. `MOJO-2026-00001`).
 
-Discounts appear as a line before tax. Tourism levy (default 1%) sits **outside** the NHIL / GETFund / VAT base. COVID levy is not charged on new invoices.
+**Bill to** can be a different name from the guest (checkbox when issuing). The PDF shows BILL TO; the guest name stays as a Guest line when they differ.
+
+Discounts appear as a line before tax. On **new** invoices, VAT (default 15%) is charged on the stay amount, same base as NHIL / GETFund — not stacked on those levies. Tourism levy (default 1%) sits **outside** that base. COVID levy is not charged on new invoices. Older invoices keep their frozen snapshot.
 
 ---
 
@@ -395,7 +399,7 @@ Defaults if you leave a field blank:
 | E-levy | 0% |
 | Tourism levy | 1% |
 
-Tourism levy is **not** part of the VAT base. Set tourism to **0** to turn it off. COVID levy is removed. New invoices use the rates you save; older invoices keep their frozen snapshot.
+On new invoices, NHIL, GETFund, and VAT use the **stay amount** as the base. Tourism levy is **not** part of that base. Set tourism to **0** to turn it off. COVID levy is removed. New invoices use the rates you save; older invoices keep their frozen snapshot.
 
 ### Airbnb sync
 

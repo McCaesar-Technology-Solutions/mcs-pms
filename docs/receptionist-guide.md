@@ -39,19 +39,19 @@ One property only. In production you may need **SMS two-factor authentication**.
 - **Notifications** — check-outs, open complaints, guest requests, messages.
 - **Profile** — phone, photo, sign out (no Settings page).
 
-**Revenue is hidden.** You still see **Outstanding** so you know who owes money before they leave.
+**Revenue and unpaid-invoice totals are hidden** on the dashboard and Billing. Check who owes on the **reservation** (Outstanding) or in **Billing**.
 
 ---
 
 ## 3. Dashboard
 
+**Needs attention** (top of the page) lists **today’s arrivals and departures** only. Unpaid invoice totals are **not** shown here — those stay on owner and manager dashboards.
+
 Tabs / sections typically include:
 
-- **Today** — arrivals, departures, occupancy snapshot.
+- **Today** — arrivals, departures, occupancy snapshot, ops calendar.
 - **Requests** — guest portal requests (housekeeping, late checkout, extension). Approve, deny, or schedule as trained.
 - **Issues** — recent complaints to track.
-- **Ops calendar** — property events this week.
-- 14-day availability strip.
 - Notification bell for urgent items.
 
 ---
@@ -106,10 +106,11 @@ Use Unpaid / Deposit paid / Paid / etc. to find balances before departure.
 1. Open Confirmed / Pre-arrival → **Check in guest**.
 2. Phone **required**. Ghana Card optional (guest records).
 3. Tick **Include Ghana tax** if the guest needs a GRA tax invoice.
-4. Stay invoice is created — **collect payment** in the dialog (pay before enter). You must record payment; you cannot issue an unpaid stay invoice.
-5. Give **portal link** or **QR**.
-6. Room should show **Occupied**.
-7. Door access queues automatically if Hikvision is on.
+4. If the bill is not in the guest’s name, untick **Bill to person same as guest?** and enter the bill-to name.
+5. Stay invoice is created — **collect payment** in the dialog (pay before enter). You must record payment; you cannot issue an unpaid stay invoice.
+6. Give **portal link** or **QR**.
+7. Room should show **Occupied**.
+8. Door access queues automatically if Hikvision is on.
 
 You can also **Collect payment before check-in** on a confirmed booking.
 
@@ -233,8 +234,9 @@ You cannot see staff badges or attendance.
 
 **Path:** `/receptionist/billing`
 
-- View stay invoices, record **full or partial payments**, print PDF, send via **WhatsApp**.
+- View stay invoices, record **full or partial payments**, print PDF, send via **WhatsApp**. Billing has **no revenue / collection KPI tiles** — use the invoice list.
 - Issue / refresh a stay invoice from the reservation or Billing — you **must mark it paid** when issuing.
+- **Bill to** can differ from the guest name (set at check-in or when issuing).
 - Ask a manager or owner if the guest needs a **discount**, an **unpaid** invoice document, or an **ad-hoc** (non-stay) bill.
 - Tax is optional — check **Include Ghana tax** when you need a GRA tax invoice.
 - **Refunds stay owner-only.**
@@ -276,9 +278,9 @@ You can track status and message on the issue. You **cannot** assign technicians
 
 ### Start of shift
 
-- [ ] Dashboard → notifications.
+- [ ] Dashboard → notifications, today’s arrivals and departures.
 - [ ] Reservations → today’s arrivals and checked-in guests.
-- [ ] Note **Outstanding** on today’s departures.
+- [ ] Note **Outstanding** on today’s departures (on the reservation, not the dashboard).
 
 ### During shift
 

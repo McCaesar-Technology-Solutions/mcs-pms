@@ -6,7 +6,7 @@ export const managerHelpTopics: HelpTopic[] = [
     title: 'Manager navigation',
     summary: 'Daily ops for one property — no GRA or owner refunds.',
     steps: [
-      'Dashboard — occupancy, outstanding (not revenue), complaints, housekeeping, ops calendar.',
+      'Dashboard — occupancy, outstanding remaining due (not revenue), complaints, housekeeping, ops calendar.',
       'Reservations & Guests — full front-desk workflow plus stay discounts.',
       'Billing — issue invoices, record payments, print or WhatsApp bills (refunds stay with the owner).',
       'Housekeeping — kanban board for room cleaning.',

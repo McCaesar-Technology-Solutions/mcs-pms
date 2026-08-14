@@ -29,8 +29,8 @@ Index and money-permissions summary: [docs/README.md](docs/README.md)
 
 | Feature | Owner | Manager | Receptionist | Technician | Guest |
 |---------|:-----:|:-------:|:------------:|:----------:|:-----:|
-| Dashboard KPIs | ✓ (+ revenue) | ✓ (no revenue) | ✓ (no revenue) | — | — |
-| Outstanding balance KPI | ✓ | ✓ | ✓ | — | — |
+| Dashboard KPIs | ✓ (+ revenue) | ✓ (no revenue) | Occupancy in toolbar | — | — |
+| Outstanding balance KPI | ✓ | ✓ | — | — | — |
 | Reservations + deposits | ✓ | ✓ | ✓ | — | — |
 | Guest stay discount (% / ₵) | ✓ | ✓ | — | — | — |
 | Refund deposit | ✓ | — | — | — | — |
@@ -69,4 +69,4 @@ Staff and guest views refresh when data changes (Supabase Realtime). Keep the br
 
 ## Technical setup
 
-Hubtel / Arkesel SMS, online payments flag, Supabase migrations through **075**, `.env.local` — see [DEPLOYMENT.md](DEPLOYMENT.md).
+Hubtel / Arkesel SMS, online payments flag, Supabase migrations through **076**, `.env.local` — see [DEPLOYMENT.md](DEPLOYMENT.md).

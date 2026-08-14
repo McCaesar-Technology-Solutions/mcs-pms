@@ -6,7 +6,7 @@ export const receptionistHelpTopics: HelpTopic[] = [
     title: 'Find your way around',
     summary: 'Main screens and what each one is for.',
     steps: [
-      'Dashboard — today’s arrivals, requests, and alerts.',
+      'Dashboard — today’s arrivals, departures, and requests. Unpaid invoices are not listed here.',
       'Reservations — bookings, check-in, checkout, deposits, stay invoices.',
       'Billing — view invoices, record payments, print or WhatsApp bills.',
       'Guests — register in-house guests, walk-ins, portal links (in-house only), folio.',
@@ -21,6 +21,20 @@ export const receptionistHelpTopics: HelpTopic[] = [
     keywords: ['navigation', 'menu', 'search', 'keyboard', 'inventory', 'stock'],
   },
   {
+    id: 'dashboard',
+    title: 'Needs attention',
+    summary: 'Today’s arrivals and departures — not unpaid invoice totals.',
+    steps: [
+      'Needs attention at the top of the dashboard lists today’s arrivals and departures.',
+      'Unpaid invoice totals stay on owner and manager dashboards.',
+      'To collect, open the reservation (Outstanding) or Billing.',
+    ],
+    href: '/receptionist/dashboard',
+    hrefLabel: 'Open dashboard',
+    keywords: ['needs attention', 'dashboard', 'arrivals', 'departures', 'invoice', 'outstanding'],
+    pathPrefixes: ['/receptionist/dashboard'],
+  },
+  {
     id: 'check-in',
     title: 'Check in a guest',
     summary: 'Turn a confirmed booking into an in-house stay and generate the stay invoice.',
@@ -29,6 +43,7 @@ export const receptionistHelpTopics: HelpTopic[] = [
       'Tap Check in guest — phone number is required.',
       'Optional: enter Ghana Card for guest records (invoice Tax ID is always GHA-728071939-8 when taxed).',
       'A stay invoice is created automatically (pay before enter) — collect payment in the dialog. You cannot leave it unpaid.',
+      'If the bill is not in the guest’s name, untick Bill to person same as guest and enter the bill-to name.',
       'Share the portal link or QR so the guest can message you or log complaints.',
       'Confirm the room shows Occupied on the Rooms page.',
     ],
@@ -77,6 +92,8 @@ export const receptionistHelpTopics: HelpTopic[] = [
     summary: 'Stay invoices are created at check-in; collect payment before the guest enters.',
     steps: [
       'Check-in creates the stay invoice automatically — choose Include Ghana tax on the check-in form if needed, then record payment in the collect dialog.',
+      'Bill to can differ from the guest name when you issue or check in.',
+      'Billing has no revenue tiles — open the invoice and record payment, print, or WhatsApp.',
       'Or collect before check-in: open a confirmed booking → Collect payment before check-in.',
       'For guests already in house without an invoice: Guests → open guest → Generate stay invoice & collect (uses their check-in dates).',
       'Use Issue invoice & collect on the reservation or Billing if anything remains unpaid mid-stay — reception marks the stay paid when issuing.',
@@ -87,7 +104,7 @@ export const receptionistHelpTopics: HelpTopic[] = [
     ],
     href: '/receptionist/billing',
     hrefLabel: 'Open billing',
-    keywords: ['invoice', 'billing', 'payment', 'collect', 'receipt', 'discount', 'whatsapp'],
+    keywords: ['invoice', 'billing', 'payment', 'collect', 'receipt', 'discount', 'whatsapp', 'bill to'],
     pathPrefixes: ['/receptionist/billing', '/receptionist/reservations'],
   },
   {
