@@ -36,7 +36,7 @@ export default async function ReceptionistDashboardPage({
   const frontDesk = await loadFrontDeskOpsContext(opsDateParam)
   const opsDate = frontDesk?.opsDate ?? parseOpsDate(opsDateParam)
 
-  const [complaints, { metrics, reservations, hotelId }] = await Promise.all([
+  const [complaints, { reservations, hotelId }] = await Promise.all([
     fetchHotelComplaints(),
     getDashboardData(),
   ])
@@ -76,9 +76,7 @@ export default async function ReceptionistDashboardPage({
         />
         <DashboardAttention
           today={todayOps}
-          metrics={metrics}
           reservationsHref="/receptionist/reservations"
-          billingHref="/receptionist/billing"
         />
       </DashboardHero>
 
