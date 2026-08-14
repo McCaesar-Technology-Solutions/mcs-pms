@@ -32,9 +32,10 @@ export const guestHelpTopics: HelpTopic[] = [
     steps: [
       'Go to My stay → submit a request (housekeeping, late checkout, extension).',
       'Staff see requests on their dashboard and will confirm.',
+      'View invoices on My stay — Pay now if offered, or pay at the desk. You can WhatsApp a receipt.',
       'Self check-out requests still require settling any balance at the desk.',
     ],
-    keywords: ['housekeeping', 'late checkout', 'extension', 'request'],
+    keywords: ['housekeeping', 'late checkout', 'extension', 'request', 'invoice', 'pay now'],
   },
   {
     id: 'issues',
@@ -44,6 +45,7 @@ export const guestHelpTopics: HelpTopic[] = [
       'Open Issues → pick a category and describe the problem (10+ characters).',
       'Track status on the same tab.',
       'Use Message staff inside an issue for updates about that repair.',
+      'When work is finished you may be asked to approve completion so staff can close it.',
       'For general questions (towels, checkout time), use Messages instead.',
     ],
     keywords: ['issue', 'complaint', 'maintenance', 'repair', 'broken'],

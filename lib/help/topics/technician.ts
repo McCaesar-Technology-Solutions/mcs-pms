@@ -18,16 +18,17 @@ export const technicianHelpTopics: HelpTopic[] = [
   {
     id: 'complaints',
     title: 'Maintenance complaint flow',
-    summary: 'Fix guest-reported issues.',
+    summary: 'Start as soon as you are assigned — invoices are optional.',
     steps: [
       'Open the job → review category and guest notes.',
-      'Message the guest from the job if you need access or details.',
-      'Submit your invoice when work is done — manager approves payment.',
-      'Mark complete when finished; manager gives final approval.',
+      'Tap Start job — you do not wait for invoice approval.',
+      'Message the guest from the job if you need access or details. Honour Do Not Disturb.',
+      'Optional: submit a materials/labour invoice anytime as a cost record.',
+      'Mark complete when finished. The guest signs off in the portal; then the manager closes the job.',
     ],
     href: '/technician/tasks',
     hrefLabel: 'Open tasks',
-    keywords: ['complaint', 'repair', 'maintenance', 'invoice'],
+    keywords: ['complaint', 'repair', 'maintenance', 'invoice', 'start'],
     pathPrefixes: ['/technician/tasks'],
   },
   {
@@ -37,11 +38,12 @@ export const technicianHelpTopics: HelpTopic[] = [
     steps: [
       'Claim or accept housekeeping tasks from the pool.',
       'Update status as you clean — managers see progress on the board.',
+      'Finishing Clean creates an Inspect task — the room is not Available until Inspect is done.',
       'Checkout automatically creates clean tasks for departed rooms.',
     ],
     href: '/technician/tasks',
     hrefLabel: 'Open tasks',
-    keywords: ['housekeeping', 'cleaning', 'room'],
+    keywords: ['housekeeping', 'cleaning', 'room', 'inspect'],
     pathPrefixes: ['/technician/tasks'],
   },
   {
@@ -64,7 +66,7 @@ export const technicianHelpTopics: HelpTopic[] = [
     summary: 'Stay reachable for new assignments.',
     steps: [
       'Tap Phone or the banner to add or verify your number.',
-      'You receive SMS when managers assign jobs or approve invoices.',
+      'You receive SMS when managers assign jobs.',
       'Call manager button reaches property managers directly.',
     ],
     href: '/technician/tasks',

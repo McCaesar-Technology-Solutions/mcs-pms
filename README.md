@@ -6,20 +6,21 @@ Property management for Ghana hospitality — hotels, guest houses, and short-st
 
 ## Current state
 
-The app is a **working PMS** with real persistence, role-based access, and live UI updates. It is not yet a full production SaaS — see **[FEATURES.md — What is incomplete](FEATURES.md#what-is-incomplete)** for the full gap list.
+The app is a **working PMS** with real persistence, role-based access, and live UI updates. It is not yet a full production SaaS — see **[FEATURES.md — What is incomplete](FEATURES.md#what-is-incomplete)** for remaining optional work (online payments flag, other OTAs).
 
 | Area | Status |
 |------|--------|
-| Supabase schema + RLS (migrations `001`–`051`) | Done |
+| Supabase schema + RLS (migrations `001`–`074`) | Done |
 | Auth: owner signup, staff invites, password reset, MFA | Done |
 | Roles: owner, manager, receptionist, technician, guest | Done |
-| Reservations, lifecycle v2, check-in/out, walk-ins, guest portal | Done |
-| Rooms, categories, housekeeping kanban | Done |
-| Complaints + two-step approval | Done |
-| Billing, folio, night audit, GRA exports, analytics (owner) | Done |
+| Reservations, lifecycle v2, check-in/out, walk-ins, discounts, guest portal | Done |
+| Rooms, nightly/weekly/monthly rates, housekeeping kanban | Done |
+| Complaints: assign → start → guest sign-off → close | Done |
+| Billing (owner/manager/reception), folio, night audit, GRA, tax rates | Done |
+| Payroll (owner full / manager drafts) | Done |
 | SMS/email notifications + outbox retry | Done |
 | Live updates via Supabase Realtime | Done |
-| Online payments (Paystack / Hubtel) | Not in this version — manual front-desk recording |
+| Online payments (Paystack) | Optional — `PAYMENTS_ENABLED` (off by default) |
 | OTA / channel manager | Airbnb iCal import/export (Settings → Channels); other OTAs manual tag only |
 
 ---
@@ -40,7 +41,7 @@ Open [http://localhost:3000/login](http://localhost:3000/login).
 
 ### Database
 
-Apply migrations `001`–`051` in `supabase/migrations/`. See [DEPLOYMENT.md](DEPLOYMENT.md) and [docs/GO-LIVE.md](docs/GO-LIVE.md).
+Apply migrations `001`–`074` in `supabase/migrations/`. See [DEPLOYMENT.md](DEPLOYMENT.md) and [docs/GO-LIVE.md](docs/GO-LIVE.md).
 
 Optional seed:
 
@@ -54,10 +55,11 @@ npm run seed
 
 | Role | Home | Key paths |
 |------|------|-----------|
-| **Owner** | `/owner/dashboard` | billing, GRA, analytics, settings, multi-property |
-| **Manager** | `/manager/dashboard` | guests, reservations, complaints, housekeeping |
-| **Technician** | `/technician/tasks` | assigned jobs, invoices |
-| **Guest** | `/guest` (token) | submit & track complaints |
+| **Owner** | `/owner/dashboard` | billing, payroll, GRA, analytics, settings, multi-property |
+| **Manager** | `/manager/dashboard` | guests, reservations, invoices, complaints, housekeeping, payroll drafts |
+| **Receptionist** | `/receptionist/dashboard` | reservations, guests, billing, access |
+| **Technician** | `/technician/tasks` | assigned jobs, housekeeping claim |
+| **Guest** | `/guest` (token) | stay, messages, invoices, issues |
 
 Mobile housekeeping: `/mobile/housekeeping` (owner/manager).
 
@@ -85,6 +87,7 @@ app/
   (auth)/           login, signup, accept-invite
   (owner)/owner/    owner dashboard routes
   (manager)/manager/ manager operations
+  (receptionist)/  receptionist front desk
   (technician)/     technician tasks
   (guest)/          guest complaint portal
   mobile/           mobile housekeeping
@@ -97,7 +100,7 @@ lib/
   data/             server-side data loaders
   supabase/         client, server, middleware, admin
   notifications/    SMS/WhatsApp (Arkesel, Twilio, Hubtel)
-supabase/migrations/  SQL schema (001–051)
+supabase/migrations/  SQL schema (001–074)
 docs/               role guides + GO-LIVE checklist
 ```
 
@@ -110,6 +113,7 @@ docs/               role guides + GO-LIVE checklist
 | [USER_GUIDE.md](USER_GUIDE.md) | Index to role guides |
 | [docs/owner-guide.md](docs/owner-guide.md) | Owner workflows |
 | [docs/manager-guide.md](docs/manager-guide.md) | Manager workflows |
+| [docs/receptionist-guide.md](docs/receptionist-guide.md) | Front desk |
 | [docs/guest-guide.md](docs/guest-guide.md) | Guest portal |
 | [docs/technician-guide.md](docs/technician-guide.md) | Technician jobs |
 | [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md) | Code patterns for contributors |
@@ -126,7 +130,7 @@ docs/               role guides + GO-LIVE checklist
 
 ## What's next (roadmap)
 
-Priority optional: Hubtel Pay, Booking.com iCal. Airbnb calendar sync and core ops (reservations, billing, compliance) are shipped. Details in [FEATURES.md](FEATURES.md#what-is-incomplete).
+Priority optional: enable Paystack Pay now in production, Booking.com iCal. Airbnb calendar sync, payroll, tax rates, and core ops are shipped. Details in [FEATURES.md](FEATURES.md#what-is-incomplete).
 
 ---
 

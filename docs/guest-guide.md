@@ -2,6 +2,8 @@
 
 Welcome. You use a **simple mobile portal** — no password. Front desk gives you a **link or QR code** when you check in.
 
+Tap **Help** (bottom-right) if you get stuck.
+
 ---
 
 ## 1. Getting into the portal
@@ -100,10 +102,12 @@ Staff see requests on their dashboard and will confirm. Settling any balance sti
 
 ### Billing
 
-- View invoices for your stay.
+- View invoices for your stay (room, discounts, extras, Ghana tax when included).
 - **Pay now** — if online payments are enabled and your invoice supports it (email may be required on your profile).
-- Download or email a receipt when offered.
+- Download PDF or **WhatsApp** a receipt when offered.
 - Otherwise pay at front desk (cash, MoMo, card).
+
+If the invoice includes Ghana tax, the Bill-to Tax ID shown is the hotel’s GRA tax ID.
 
 ---
 

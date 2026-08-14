@@ -1,38 +1,42 @@
 # Feature Guide — MOJO APARTMENTS
 
-## Current application (2026)
+Staff how-to: [USER_GUIDE.md](USER_GUIDE.md) and the role guides in `docs/`. The **Help** bubble in the app shows the same topics.
 
-Production features shipped beyond the original UI prototype.
+## Current application (August 2026)
+
+Production features shipped beyond the original UI prototype. The screen-by-screen notes further down this file are **illustrative**; if they disagree with a role guide, trust the role guide.
 
 ### Roles and access
 
 | Role | Sign-in | Scope |
 |------|---------|-------|
-| **Owner** | `/signup` or login | Guided first-run setup; all properties in portfolio; billing, GRA, analytics, settings |
-| **Manager** | Staff invite | One property; daily ops, complaints, housekeeping |
-| **Receptionist** | Staff invite (email) | One property; front desk — bookings, check-in/out, room status, log complaints. No revenue/billing/prices/approvals |
-| **Technician** | Staff invite | Assigned maintenance jobs only |
-| **Guest** | Portal token (no password) | Submit/track complaints for current stay |
+| **Owner** | `/signup` or login | Guided first-run setup; all properties; billing, refunds, GRA, analytics, payroll, settings |
+| **Manager** | Staff invite | One property; daily ops, discounts, stay/ad-hoc billing (no refunds), complaints close, payroll drafts |
+| **Receptionist** | Staff invite (email) | One property; front desk, stay payments (must collect when issuing), guest access. No discounts, unpaid invoices, refunds, or complaint close |
+| **Technician** | Staff invite (phone) | Assigned maintenance jobs + housekeeping claim pool |
+| **Guest** | Portal token (no password) | Stay chat, requests, invoices, issues + completion sign-off |
 
 ### Operations
 
-- **Reservations** — create, check-in, check-out, extend, move room, cancel, no-show; **pay-at-check-in** stay invoice (GRA taxes) created and collected at check-in; checkout reuses that invoice for extras/departure. **Lifecycle v2** (migration `051`): event-sourced status machine (`inquiry` → `provisional` → `confirmed` → `pre_arrival` → `checked_in` → `checkout_in_progress` → `checked_out` → `post_stay` → `archived`), append-only `reservation_events`, provisional holds, cancellation rules engine, and scheduled jobs (hold expiry, pre-arrival, no-show, overstay, auto-checkout prompt, archive). Enable crons per property via **Settings → Reservation lifecycle → Enable lifecycle v2**.
-- **Guests** — directory, walk-in check-in (manager), portal link + QR, phone editing.
-- **Rooms** — inventory, categories/rates, status grid; owner can delete rooms.
-- **Access control (Hikvision)** — optional on-site agent + ISAPI; check-in provisions guest door access, checkout revokes; remote unlock and card assign from `/owner/access` (also manager/receptionist). See [docs/access-control.md](docs/access-control.md).
-- **Housekeeping** — kanban (desktop + `/mobile/housekeeping`); auto clean task on checkout.
-- **Complaints** — guest submit (or staff log on a guest's behalf) → manager assign → technician invoice → manager approve → work → completion approval → resolved. Owners get a **read-only** lifecycle view at `/owner/complaints`; assigned technicians can call/WhatsApp the guest.
-- **Staff** — invite managers and receptionists by **email**, technicians by **phone**; phone numbers editable on profiles.
-- **Billing / GRA / Analytics** — owner Billing, GRA reports, analytics, refunds, payment ledger, night audit. Managers share invoices/billing (including unpaid ad-hoc bills and unpaid stay invoices); receptionists record stay payments. Guest folio posting with checkout rollup. Managers' dashboard hides revenue metrics.
-- **Payroll** — owner (full) / manager (draft prepare): staff pay profiles, monthly pay runs (draft → approve → paid), housekeeping commission accrual, payslip PDF + MoMo/bank CSV, optional expense posting. See Phase 2 backlog below (PAYE/SSNIT engine, timesheets, booking commissions, self-service slips).
-- **Guest privacy** — owner export/erase PII from the staff dashboard.
-- **Production ops** — health/ready endpoints; daily Vercel crons + GitHub Actions for sub-daily jobs (notifications, lifecycle, access-job reclaim); notification outbox with retries.
+- **Reservations** — create, check-in, check-out, extend, move room, cancel, no-show; **pay-at-check-in** stay invoice created and collected at check-in; checkout reuses that invoice for extras. **Rate types:** nightly, weekly (÷7), monthly (÷30). **Guest discounts** (percent or fixed, pre-tax) — owner/manager only. **Lifecycle v2** (migration `051`): event-sourced status machine, holds, cancellation rules, scheduled jobs. Enable crons per property via **Settings → Reservation lifecycle**.
+- **Guests** — directory, walk-in, **register in-house** (go-live with past arrival), portal link + QR + PIN, Ghana Card (optional records), folio (discount credits owner/manager), PII export; erase is manager+.
+- **Rooms** — inventory, categories, nightly/weekly/monthly rates, status grid; owner can delete rooms.
+- **Access control (Hikvision)** — optional on-site agent + ISAPI; check-in provisions unit + shared + gym; checkout revokes; Today / Guests / Staff / Attendance / Setup. See [docs/access-control.md](docs/access-control.md).
+- **Housekeeping** — kanban (desktop + `/mobile/housekeeping`); auto Clean then Inspect after checkout. Technicians claim from `/technician/tasks`.
+- **Complaints** — log → manager assign → technician **starts immediately** → mark complete → **guest sign-off** (if linked) → manager closes. Technician invoices are optional cost records. Owners log + read-only lifecycle at `/owner/complaints`.
+- **Staff** — invite managers and receptionists by **email**, technicians by **phone**; WhatsApp invite share; pay profiles for payroll.
+- **Billing / GRA / Analytics** — owner Billing (refunds, payment ledger), GRA reports, analytics, night/period audit. Managers issue unpaid/ad-hoc invoices and record payments. Receptionists record stay payments and WhatsApp bills. Optional **Include Ghana tax**; tourism levy default 1%; per-hotel tax rate overrides; taxed invoices stamp Bill-to Tax ID `GHA-728071939-8`. Managers' dashboard hides revenue.
+- **Payroll** — owner (full) / manager (draft): pay profiles, pay runs (draft → approve → paid), housekeeping commission, payslip PDF + MoMo/bank CSV.
+- **Inventory / expenses** — stock movements; owner expenses.
+- **Guest privacy** — export/erase PII from the staff dashboard.
+- **Production ops** — health/ready endpoints; daily Vercel crons + GitHub Actions; notification outbox with retries.
 
 ### Notifications and live updates
 
-- **SMS / WhatsApp / Email** — Arkesel or Hubtel SMS; Resend email; fails closed in production when unset.
-- **In-app bell** — check-outs, complaints; refreshes on realtime events.
-- **Realtime** — Supabase Realtime (migration `015`); pages update without manual refresh; toast alerts for new complaints, pending approvals, assignments.
+- **SMS / WhatsApp / Email** — Arkesel or Hubtel SMS; Twilio WhatsApp; Resend email; fails closed in production when unset.
+- **In-app bell** — check-outs, complaints, messages; refreshes on realtime events.
+- **Realtime** — Supabase Realtime; pages update without manual refresh.
+- **In-app Help** — role-specific assistant (`lib/help/topics/`).
 
 ### What is incomplete
 
@@ -40,9 +44,9 @@ The app is **production-ready as a custom PMS** for a hotel or portfolio operato
 
 #### 1. Payments
 
-- **Manual payments** — staff record cash, MoMo, card, partial pay, and refunds from billing (done).
-- **Partial payments & refunds** — staff record partial cash/card payments, full pay, and refunds from billing overview (done).
-- **Not in this version:** Paystack, Hubtel Pay, or other online checkout.
+- **Manual payments** — staff record cash, MoMo, card, partial pay; owner refunds (done).
+- **Online Pay now** — Paystack path exists behind `PAYMENTS_ENABLED` (off unless enabled per deployment).
+- **Not a live door-gate:** payment-gated Hikvision provision is deferred.
 
 #### 2. Distribution
 
@@ -53,39 +57,37 @@ The app is **production-ready as a custom PMS** for a hotel or portfolio operato
 #### 3. Optional / future
 
 - **Other OTA calendars** — Booking.com / VRBO iCal (schema supports providers; UI is Airbnb-first).
-- **Online payments** — Paystack or Hubtel Pay (partial / optional).
 - **Payroll Phase 2** — Ghana PAYE brackets + SSNIT on basic vs allowances; timesheets/OT; booking & maintenance commissions; employee self-service payslips; dual-approval policy packs.
 
-#### 4. Production hardening (June 2026)
+#### 4. Production hardening (August 2026)
 
 | Area | State |
 |------|--------|
-| Automated tests | Vitest (280+ tests) + Playwright E2E (`npm test`, `npm run test:e2e`) |
+| Automated tests | Vitest + Playwright E2E (`npm test`, `npm run test:e2e`) |
 | Error monitoring | Sentry via `SENTRY_DSN` (optional envelope reporter) |
 | Rate limiting | Auth, guest portal, MFA verify — DB-backed, fail-closed in prod |
 | Pagination | Default limit 100 on guests, complaints, billing lists |
-| Password reset | Done |
-| 2FA | SMS OTP — **mandatory** owner + manager in production |
+| Password reset | Done (not for technicians — re-invite) |
+| 2FA | SMS OTP — **mandatory** owner, manager, and receptionist in production |
 | Guest sessions | HMAC-signed tokens; `SameSite=Strict`; room + surname entry |
 | Privacy / Terms | `/privacy`, `/terms` published |
-| Migrations | Through `051` — apply all migrations; see `docs/GO-LIVE.md` |
+| Migrations | Through `074` — apply all migrations; see `docs/GO-LIVE.md` |
 
 Realtime updates require an **open browser tab** — not push when the app is closed.
 
 #### 5. Partial features
 
-- **Technician housekeeping** — toast alerts only; no HK screen on `/technician/tasks`.
 - **Technician password reset** — technicians sign in with phone + synthetic email; self-serve forgot-password does not apply — re-invite via owner/manager.
 
 #### Recommended build order
 
-Operational pilot is feature-complete for a dedicated deployment. Optional next: OTA calendar sync, online payments (Paystack/Hubtel).
+Operational pilot is feature-complete for a dedicated deployment. Optional next: Booking.com iCal, online payments enabled in production.
 
 ---
 
-## Screen reference
+## Screen reference (illustrative)
 
-The sections below describe dashboard screens and UI patterns. Data is loaded from **Supabase**, not mock files.
+The sections below describe dashboard screens and UI patterns from an earlier prototype. **Live behaviour is in the role guides** ([USER_GUIDE.md](USER_GUIDE.md)). Data is loaded from **Supabase**, not mock files.
 
 ## Dashboard
 
@@ -699,5 +701,5 @@ Update task progression:
 
 ---
 
-**Feature Guide Version**: 1.0.0
-**Last Updated**: June 2026
+**Feature Guide Version**: 1.1.0
+**Last Updated**: August 2026

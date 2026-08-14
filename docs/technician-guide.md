@@ -5,6 +5,8 @@ You work from your **phone**. Everything lives on two screens:
 1. **Tasks** — maintenance complaints + housekeeping.
 2. **Messages** — team chat with managers.
 
+Tap **Help** (bottom-right) for the same topics on the screen you are on.
+
 ---
 
 ## 1. Getting started
@@ -38,7 +40,7 @@ Add or verify **phone** (header or amber banner). SMS alerts for new jobs need i
 ### Live updates
 
 - List refreshes when managers change status.
-- Toasts: new assignment, invoice approved, job sent back, job closed, new housekeeping task.
+- Toasts: new assignment, job sent back, job closed, new housekeeping task.
 
 ---
 
@@ -66,46 +68,40 @@ Sorted urgent → high → medium → low.
 
 | Label | What you do |
 |-------|-------------|
-| Submit invoice | Send cost estimate |
-| Invoice pending approval | Wait |
-| Invoice sent back | Fix and resubmit |
 | Ready to start | Tap **Start job** |
 | In progress | Working on site |
-| Completion pending approval | Wait for manager |
+| Awaiting guest sign-off | Guest must confirm in the portal |
+| Completion pending approval | Wait for manager to close |
+| Invoice pending (legacy) | Old jobs only — manager must **Release** |
+| Sent back for rework | Finish work and mark complete again |
 | Resolved | Done |
+
+You can **start as soon as you are assigned**. You do **not** wait for an invoice to be approved.
 
 ### Step-by-step
 
 1. **Assigned** — manager picks you; SMS if phone on file.
-2. **Submit invoice** (before physical work):
-   - Materials: name, qty, unit cost (₵) — optional rows.
-   - Labour cost (₵).
-   - Note to manager.
-   - **Submit invoice to manager**.
-3. You **cannot start** until manager approves.
-4. If **rejected** — read manager note, update, resubmit.
-5. **Approved** → **Ready to start** → **Start job**.
-6. On site — call manager or **guest** (call / WhatsApp on the card) for access.
-7. **Message guest** on the job for repair-specific chat.
-8. **Mark job complete** → manager approves → **Resolved**.
+2. **Start job** when you are on the way or on site.
+3. Call manager or **guest** (call / WhatsApp on the card) for access. Honour **Do Not Disturb** if shown.
+4. **Message guest** on the job for repair-specific chat.
+5. Optional: **schedule a visit** after you agree a time with the guest.
+6. Optional: **Submit invoice** (materials + labour) anytime during the job or while waiting for sign-off. This is a cost record — it does not unlock work.
+7. **Mark job complete**.
+8. If the issue is linked to a guest, they **approve completion** in the portal. Then the manager closes the job → **Resolved**.
 9. If completion is sent back — finish work and mark complete again.
 
 ### Invoice tips
 
 - Be specific (“½ inch PVC elbow”, not “pipes”).
 - Labour-only invoices are OK.
-- Submit before large purchases when possible.
+- Submit before large purchases when possible so the manager can see the cost.
 
 ### Flow
 
 ```
-Assigned → Submit invoice → Pending
-                ↓ approved          ↓ rejected
-         Ready to start ←—— revise & resubmit
-                ↓ Start job
-           In progress
-                ↓ Mark complete
-      Completion pending → Resolved
+Assigned → Start job → In progress
+              ↓ Mark complete
+     Guest sign-off (if linked) → Manager closes → Resolved
                          → sent back → In progress
 ```
 
@@ -147,8 +143,7 @@ Only you can update tasks assigned to you (or that you claimed). Managers can ov
 
 | Cannot | Notes |
 |--------|--------|
-| Start without invoice approval | System blocks |
-| Approve own invoice | Manager only |
+| Approve own completion | Guest (portal) then manager |
 | See owner phone | Managers only |
 | Reservations / billing / rooms admin | Not your role |
 | Assign complaints | Manager only |
@@ -162,7 +157,6 @@ Only you can update tasks assigned to you (or that you claimed). Managers can ov
 | Event | Typical message |
 |-------|-----------------|
 | New complaint assigned | Job summary + link |
-| Invoice approved | You may start work |
 | New housekeeping task | Room and type |
 
 Keep your phone number current in the app.
@@ -173,9 +167,9 @@ Keep your phone number current in the app.
 
 - Open **My tasks** at shift start.
 - Claim unassigned **Clean** tasks after checkouts.
-- Read the full description before quoting.
+- Read the full description before quoting or starting.
 - Read manager notes immediately when status is “sent back.”
-- Do not leave site on **Completion pending** until manager confirms or messages you.
+- Do not leave site on **Completion pending** until the guest or manager confirms, or messages you.
 
 ---
 
@@ -183,8 +177,9 @@ Keep your phone number current in the app.
 
 | Problem | Action |
 |---------|--------|
-| Cannot start job | Invoice not approved — wait or call manager |
+| Cannot start job | Should be ready once assigned — refresh or call manager |
 | Wrong room status | Tell manager — they override on HK board |
 | Guest not in room | Use guest call / WhatsApp on card |
+| Waiting on guest sign-off | Ask front desk to remind the guest in the portal |
 | No tasks showing | Refresh; check claim pool; ask manager |
 | Locked out of login | Ask manager to re-invite you |

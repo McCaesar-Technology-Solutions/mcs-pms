@@ -2,11 +2,13 @@
 
 Simple guides for everyone who uses the property management system.
 
+Tap **Help** (bottom-right in the app) for the same topics on the screen you are using.
+
 | Role | Guide | Who it’s for |
 |------|--------|----------------|
-| **Owner** | [owner-guide.md](owner-guide.md) | Portfolio owner — money, tax, settings, oversight |
-| **Manager** | [manager-guide.md](manager-guide.md) | Daily ops — guests, complaints, housekeeping |
-| **Receptionist** | [receptionist-guide.md](receptionist-guide.md) | Front desk — bookings, check-in/out, room status |
+| **Owner** | [owner-guide.md](owner-guide.md) | Portfolio owner — money, tax, payroll, settings, oversight |
+| **Manager** | [manager-guide.md](manager-guide.md) | Daily ops — guests, complaints, housekeeping, payroll drafts |
+| **Receptionist** | [receptionist-guide.md](receptionist-guide.md) | Front desk — bookings, check-in/out, stay payments, room status |
 | **Technician** | [technician-guide.md](technician-guide.md) | Maintenance + housekeeping on phone |
 | **Guest** | [guest-guide.md](guest-guide.md) | In-house guests using the portal (link/QR) |
 
@@ -18,6 +20,7 @@ Simple guides for everyone who uses the property management system.
 | Owner sign-up | `/signup` |
 | Accept staff invite | `/accept-invite?token=...` |
 | Guest portal | `/guest/enter?token=...` |
+| Lobby QR join | `/guest/join/{property}` |
 | Mobile housekeeping | `/mobile/housekeeping` |
 | Access control (Hikvision) | `/owner/access` — [setup guide](access-control.md) |
 | Airbnb calendar sync | `/owner/settings#channels` — [setup guide](airbnb-sync.md) |
@@ -37,9 +40,15 @@ Simple guides for everyone who uses the property management system.
 | Outstanding balance | ✓ | ✓ | ✓ |
 | Record deposit | ✓ | ✓ | ✓ |
 | Refund deposit | ✓ | ✗ | ✗ |
-| Billing write (pay / refund) | ✓ | ✗ | ✗ |
-| Billing view / print | ✓ | ✓ (read-only) | ✗ |
-| GRA exports | ✓ | ✗ | ✗ |
+| Guest stay discount | ✓ | ✓ | ✗ |
+| Record stay payments | ✓ | ✓ | ✓ |
+| Issue unpaid stay invoice / ad-hoc bill | ✓ | ✓ | ✗ |
+| Invoice refund | ✓ | ✗ | ✗ |
+| Billing view / print / WhatsApp | ✓ | ✓ | ✓ |
+| Payroll (approve / mark paid) | ✓ | Draft only | ✗ |
+| GRA exports / analytics / expenses | ✓ | ✗ | ✗ |
+
+Stay payment is collected **at check-in**. Reception must record payment when issuing a stay invoice. Managers and owners may leave a stay invoice unpaid (balance due).
 
 ## Need technical help?
 

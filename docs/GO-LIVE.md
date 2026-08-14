@@ -17,7 +17,7 @@ Launch with **front-desk / cash payments only**. Online Paystack checkout stays 
 | `DISABLE_PUBLIC_SIGNUP` | `true` | After first owner account exists |
 | Lifecycle v2 | **on** per property | Required for automated no-show, pre-arrival, overstay (Owner → Settings → Lifecycle) |
 
-With payments disabled, staff record payments manually on the **Owner → Billing** page (cash, mobile money, card at desk). Receptionists can record partial payments on invoices; refunds are owner-only.
+With payments disabled, staff record payments at the desk (cash, mobile money, card). Receptionists and managers record stay payments; refunds are owner-only.
 
 ### Pilot smoke test (manual billing path)
 
@@ -28,7 +28,7 @@ Run in order with a test owner account:
 3. Create reservation → check-in → post folio charge → **begin checkout**
 4. On the invoice, **record a manual payment** (cash / MoMo / card) — do **not** use “Pay online”
 5. Complete checkout
-6. Log complaint (manager) → assign technician → verify SMS/email if configured
+6. Log complaint (manager) → assign technician → technician starts (invoice optional) → guest sign-off if linked
 7. Guest portal link → submit request → staff acknowledges
 8. Night audit (owner/manager) if using billing close
 

@@ -1,6 +1,8 @@
 # Manager guide — MOJO Apartments
 
-You run **daily operations** for one property: guests, rooms, reservations, complaints, housekeeping, and inventory. You do **not** change owner billing, GRA exports, analytics, expenses, or property portfolio settings.
+You run **daily operations** for one property: guests, rooms, reservations, complaints, housekeeping, inventory, stay billing, and payroll drafts. You do **not** change GRA exports, analytics, expenses, invoice refunds, or property portfolio / tax-rate settings.
+
+Tap **Help** (bottom-right) for the same topics on the page you are on.
 
 ---
 
@@ -17,9 +19,11 @@ In production you may need **SMS two-factor authentication**.
 ### First day
 
 1. Add **phone** (top bar) — needed for SMS alerts.
-2. Walk through: Dashboard → Reservations → Guests → Complaints → Housekeeping → Staff.
+2. Walk through: Dashboard → Reservations → Guests → Billing → Complaints → Housekeeping → Staff.
 
 You are locked to **one property** (no property switcher).
+
+**Already have guests in rooms at go-live?** Use **Guests → Register in-house guest** with real arrival dates.
 
 ---
 
@@ -29,13 +33,14 @@ You are locked to **one property** (no property switcher).
 |------|------|-------------|
 | Dashboard | `/manager/dashboard` | Ops overview, portal settings, audits |
 | Messages | `/manager/messages` | Guest chat + team chat |
-| Reservations | `/manager/reservations` | Bookings, check-in/out, deposits |
-| Guests | `/manager/guests` | Walk-ins, portal links, folio |
+| Reservations | `/manager/reservations` | Bookings, check-in/out, deposits, discounts |
+| Guests | `/manager/guests` | Walk-ins, register in-house, portal, folio |
 | Rooms | `/manager/rooms` | Add/edit rooms & rates (no delete) |
-| Access | `/manager/access` | Unlock, cards, retry sync |
+| Access | `/manager/access` | Unlock, cards, staff access, attendance |
 | Housekeeping | `/manager/housekeeping` | Full cleaning board |
-| Complaints | `/manager/complaints` | Assign and approve work |
-| Billing | `/manager/invoices` | **View / print only** |
+| Complaints | `/manager/complaints` | Assign technicians and close work |
+| Billing | `/manager/invoices` | Issue invoices, record payments, print / WhatsApp |
+| Payroll | `/manager/payroll` | Prepare **draft** pay runs |
 | Guest portal | `/manager/dashboard#guest-portal` | Portal copy, rules, requests |
 | Inventory | `/manager/inventory` | Stock receive / issue / adjust |
 | Staff | `/manager/staff` | Invite technicians + receptionists |
@@ -56,6 +61,7 @@ You are locked to **one property** (no property switcher).
 | **Outstanding** | Who still owes money |
 | Complaints snapshot | Link to full page |
 | Housekeeping summary | Link to kanban |
+| **Ops calendar** | Add training / meetings / events |
 | **Guest portal** tab | Wi‑Fi, rules, request toggles, local guide |
 | **Guest reviews** | Portal feedback |
 | **Audits** | Night + monthly + yearly |
@@ -79,7 +85,7 @@ Also review **guest requests** (housekeeping, late checkout, extension) and appr
 
 **Path:** `/manager/reservations`
 
-Same front-desk tools as the owner **except deposit refunds** (owner only).
+Same front-desk tools as the owner **except deposit refunds and invoice refunds** (owner only).
 
 ### Typical flow
 
@@ -89,9 +95,10 @@ New reservation → (optional) Record deposit → Check in + collect payment →
 
 ### Create / deposit / prepaid
 
-1. **New reservation** — guest, room, dates, channel, rate.
-2. **Record deposit** — amount + method.
-3. **Channel prepaid** — when Airbnb/Booking.com already paid you.
+1. **New reservation** — guest, room, dates, channel, **rate type** (nightly / weekly / monthly).
+2. **Guest discount** — percent or fixed ₵ **before tax**, with a reason. Reception cannot do this.
+3. **Record deposit** — amount + method.
+4. **Channel prepaid** — when Airbnb/Booking.com already paid you.
 
 ### Stay statuses you will see
 
@@ -101,12 +108,12 @@ Owners configure hold timers and automated jobs under **Settings → Reservation
 
 ### Check in
 
-Phone required → share portal link / QR → room becomes Occupied. Door access queues if Hikvision is enabled.
+Phone required → optional Ghana Card → optional **Include Ghana tax** → stay invoice created → collect payment (you may leave unpaid) → share portal link / QR → room **Occupied**. Door access queues if Hikvision is enabled.
 
 ### While in-house
 
 - **Extend stay**, **Move room**, **Edit** (confirmed only).
-- Post **folio** from Guests.
+- Post **folio** from Guests (including **Discount (credit)**).
 - **Approve late checkout** on overstay.
 - **Dispute hold** when a lifecycle hold needs review.
 
@@ -115,7 +122,7 @@ Phone required → share portal link / QR → room becomes Occupied. Door access
 1. Read Outstanding carefully.
 2. **Begin checkout** (folio locks).
 3. **Complete checkout** — stay was paid at check-in; collect remaining only if Outstanding.
-4. Room → Cleaning; invoice goes to owner Billing.
+4. Room → Cleaning; same stay invoice refreshed (no duplicate). Share PDF / WhatsApp.
 
 **Walkout** — guest left without paying (not for desk settlement).
 
@@ -136,15 +143,20 @@ Phone required → share portal link / QR → room becomes Occupied. Door access
 ### Walk-in check-in
 
 1. **Walk-in check-in**.
-2. Name, **phone** (required), email, room, checkout date.
+2. Name, **phone** (required), email, optional Ghana Card, room, checkout date, rate type.
 3. Portal link + QR immediately.
+
+### Register in-house guest (go-live)
+
+For people already staying: real arrival (can be past) + planned departure. A stay invoice is created. Share portal link / PIN on WhatsApp. Do not use **Walk-in** for guests who arrived days ago.
 
 ### Guest detail
 
-- Edit contact.
+- Edit contact and Ghana Card.
 - Manage portal link / QR / WhatsApp / regenerate / revoke.
-- **Guest folio** — post incidentals (₵).
-- **Export PII** if needed (erase is owner only).
+- **Guest folio** — post incidentals; you can post a **Discount (credit)**.
+- **Generate stay invoice & collect** if they have no invoice yet.
+- **Export PII** or **Erase / delete** (reception cannot erase). Erasing an in-house guest ends the stay and frees the room.
 - **Check out** from guest card when useful.
 
 ---
@@ -153,21 +165,26 @@ Phone required → share portal link / QR → room becomes Occupied. Door access
 
 **Path:** `/manager/rooms`
 
-- Add / edit rooms, categories, rates, photos.
+- Add / edit rooms, categories, photos.
+- Set nightly, weekly, and monthly rates.
 - Update status: Available, Occupied, Cleaning, Needs inspection, Maintenance.
 - **Cannot delete rooms** (owner only).
 
 ---
 
-## 8. Access (ops only)
+## 8. Access (ops)
 
 **Path:** `/manager/access`
+
+Tabs: **Today · Guests · Staff · Attendance** (no Setup).
 
 When Hikvision is enabled by the owner:
 
 - Check-in / checkout sync runs automatically.
 - **Unlock** doors remotely (agent online).
-- **Assign card** numbers.
+- **Assign card** numbers / enroll guests.
+- **Staff** — approved physical access (reception cannot see this).
+- **Attendance** — pull clock events.
 - **Retry** failed credential jobs.
 
 You cannot enable the integration, rotate the agent token, or map doors — ask the owner.
@@ -184,23 +201,19 @@ You cannot enable the integration, rotate the agent token, or map doors — ask 
 2. Guest (fills room) or room only.
 3. Category, priority, description.
 
-### Two-step approval
+### Current workflow
 
-**Stage A — before work**
-
-```
-Open → Assign technician → Technician submits invoice → You approve or reject
-```
-
-Technician cannot start until you **Approve invoice & authorize work**.
-
-**Stage B — after work**
+Technicians **start as soon as you assign them**. Invoices are optional cost records — they do **not** block work.
 
 ```
-In progress → Technician marks complete → You approve & resolve (pick room status)
+Open → Assign technician → Technician starts → Marks complete
+  → Guest signs off (portal, if the issue is linked to a guest)
+  → You approve & resolve (pick room status)
 ```
 
-Watch the orange **pending approvals** banner and sidebar badge. Message the guest on the issue thread when needed.
+If a **legacy** job is stuck on “invoice pending approval”, use **Release to technician**.
+
+Watch the orange **pending approvals** banner and sidebar badge. Message the guest on the issue thread when needed. Guest must confirm completion before you can close a guest-linked job.
 
 ---
 
@@ -226,17 +239,32 @@ Add tasks manually: room, type, priority, due date, assignee, notes. Room grid s
 
 ---
 
-## 11. Billing (read-only)
+## 11. Billing
 
 **Path:** `/manager/invoices`
 
-- View and print invoices from check-outs.
-- See online payment attempts when enabled.
-- You **cannot** record payments, partials, or refunds — send those to the owner.
+You **can** issue stay invoices, create unpaid or paid ad-hoc bills, record full/partial payments, print PDFs, and **WhatsApp** bills.
+
+You **cannot** refund invoice payments — send those to the owner.
+
+- Check-in / collect-before-check-in creates the stay invoice. Tick **Include Ghana tax** when you need VAT & levies (Bill-to Tax ID `GHA-728071939-8`).
+- Apply % or fixed guest discounts when creating/editing a booking or refreshing the invoice.
+- Checkout reuses the same stay invoice — it will not create a duplicate.
+- **Online payments** tab shows guest Pay-now attempts when that feature is enabled.
 
 ---
 
-## 12. Inventory
+## 12. Payroll (drafts)
+
+**Path:** `/manager/payroll`
+
+Prepare a **draft** pay run for the period. The owner sets pay rates, approves, marks paid, and exports MoMo/bank files.
+
+You cannot change compensation or commission rules.
+
+---
+
+## 13. Inventory
 
 **Path:** `/manager/inventory`
 
@@ -247,17 +275,18 @@ Add tasks manually: room, type, priority, due date, assignee, notes. Room grid s
 
 ---
 
-## 13. Staff
+## 14. Staff
 
 **Path:** `/manager/staff`
 
-- Invite **technicians** (phone) and **receptionists** (email).
+- Invite **technicians** (phone) and **receptionists** (email). Send the link on WhatsApp.
 - Cannot invite managers or owners.
 - Edit phones, disable / reactivate, revoke invites.
+- Pay profiles are owner-only.
 
 ---
 
-## 14. Guest portal settings
+## 15. Guest portal settings
 
 **Path:** Dashboard → **Guest portal** tab (also sidebar **Guest portal**)
 
@@ -272,7 +301,7 @@ Share personal links and property QR from **Guests**.
 
 ---
 
-## 15. Audits
+## 16. Audits
 
 On Dashboard:
 
@@ -282,35 +311,36 @@ On Dashboard:
 
 ---
 
-## 16. What managers cannot do
+## 17. What managers cannot do
 
 | No access | Who has it |
 |-----------|------------|
-| Record invoice payments / refunds | Owner |
+| Invoice refunds / deposit refunds | Owner |
 | GRA reports, Analytics, Expenses | Owner |
-| Property portfolio / lifecycle settings | Owner |
+| Property portfolio / tax rates / lifecycle settings | Owner |
 | Delete rooms / inventory items | Owner |
-| Refund deposits | Owner |
+| Approve payroll / mark paid / set pay rates | Owner |
 | Invite managers | Owner |
 | Access setup (token / door maps) | Owner |
 
 ---
 
-## 17. Daily routine
+## 18. Daily routine
 
 | Time | Tasks |
 |------|--------|
 | **Morning** | Dashboard → notifications → arrivals/departures → Outstanding |
-| **Day** | Walk-ins, check-ins, folio, complaints, guest requests |
+| **Day** | Walk-ins, check-ins, folio, discounts, complaints, guest requests |
 | **After checkouts** | Housekeeping — ensure Clean tasks claimed |
-| **Evening** | Final check-outs, clear complaint approvals, **night audit** |
+| **Evening** | Final check-outs, guest sign-offs on complaints, **night audit** |
 
 ---
 
-## 18. Common mistakes
+## 19. Common mistakes
 
 - Cancelling a **checked-in** guest instead of checking out.
 - Forgetting **folio charges** before Begin checkout.
+- Promising a **discount** that reception cannot apply — you or the owner must enter it.
 - Marking Clean done and forgetting Inspect (room stays “needs inspection”).
-- Approving a technician invoice without reading materials/labour totals.
-- Promising a deposit refund — only the owner can refund in the system.
+- Closing a guest-linked complaint before the guest signs off in the portal.
+- Promising a deposit or invoice refund — only the owner can refund in the system.
