@@ -25,6 +25,17 @@ export function userNeedsMfa(role: UserRole, mfaEnabled: boolean): boolean {
   return mfaEnabled
 }
 
+/**
+ * Allow changing SMS ↔ email only during first-time setup, before any successful 2FA.
+ * After that, change the method from settings once signed in.
+ */
+export function canSwitchMfaMethodDuringChallenge(opts: {
+  sessionVerified: boolean
+  hasCompletedSetup: boolean
+}): boolean {
+  return !opts.sessionVerified && !opts.hasCompletedSetup
+}
+
 export const MFA_PATHS = ['/enroll-mfa', '/verify-mfa'] as const
 
 export function mfaSettingsPathForRole(role: UserRole): string {

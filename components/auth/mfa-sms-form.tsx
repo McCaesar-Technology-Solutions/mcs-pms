@@ -7,12 +7,13 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
-  getMfaSmsStatus,
+  getMfaStatus,
   saveMfaPhoneAndSend,
   sendMfaSmsCode,
   verifyMfaSmsCode,
 } from '@/app/actions/mfa'
 import { safeMfaNext } from '@/lib/auth/mfa'
+import { MfaSwitchMethodButton } from '@/components/auth/mfa-switch-method-button'
 import type { MfaPhoneChannel } from '@/lib/notifications/mfa-phone-channels'
 
 interface MfaSmsFormProps {
@@ -37,6 +38,7 @@ export function MfaSmsForm({ nextPath, mode }: MfaSmsFormProps) {
   const [loading, setLoading] = useState(false)
   const [sending, setSending] = useState(false)
   const [bootstrapping, setBootstrapping] = useState(true)
+  const [canSwitchMethod, setCanSwitchMethod] = useState(false)
   const verifyInFlight = useRef(false)
   const codeInputRef = useRef<HTMLInputElement>(null)
 
@@ -74,7 +76,7 @@ export function MfaSmsForm({ nextPath, mode }: MfaSmsFormProps) {
 
     async function init() {
       try {
-        const status = await getMfaSmsStatus()
+        const status = await getMfaStatus()
         if (cancelled) return
 
         if (!status.success) {
@@ -83,10 +85,17 @@ export function MfaSmsForm({ nextPath, mode }: MfaSmsFormProps) {
           return
         }
 
-        const { hasPhone, maskedPhone: masked, sessionVerified, phoneChannels: channels } =
-          status.data!
+        const {
+          hasPhone,
+          hasEmail: emailOnFile,
+          maskedPhone: masked,
+          sessionVerified,
+          phoneChannels: channels,
+          canSwitchMethod: allowSwitch,
+        } = status.data!
 
         setPhoneChannels(channels.length > 0 ? channels : ['sms'])
+        setCanSwitchMethod(Boolean(allowSwitch) && Boolean(emailOnFile))
 
         if (mode === 'verify' && sessionVerified) {
           router.replace(destination)
@@ -238,6 +247,9 @@ export function MfaSmsForm({ nextPath, mode }: MfaSmsFormProps) {
         >
           {loading || sending ? 'Saving…' : 'Continue'}
         </Button>
+        {canSwitchMethod && (
+          <MfaSwitchMethodButton current="sms" nextPath={destination} disabled={loading || sending} />
+        )}
       </form>
     )
   }
@@ -285,6 +297,9 @@ export function MfaSmsForm({ nextPath, mode }: MfaSmsFormProps) {
         )}
 
         {sending && <p className="text-sm text-white/70">Sending code…</p>}
+        {canSwitchMethod && (
+          <MfaSwitchMethodButton current="sms" nextPath={destination} disabled={sending} />
+        )}
       </div>
     )
   }
@@ -364,6 +379,9 @@ export function MfaSmsForm({ nextPath, mode }: MfaSmsFormProps) {
               ? 'Sending…'
               : `Send via ${alternateChannel === 'whatsapp' ? 'WhatsApp' : 'SMS'} instead`}
           </button>
+        )}
+        {canSwitchMethod && (
+          <MfaSwitchMethodButton current="sms" nextPath={destination} disabled={sending || loading} />
         )}
       </div>
     </form>

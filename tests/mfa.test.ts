@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
+  canSwitchMfaMethodDuringChallenge,
   MFA_METHOD_LABELS,
   canEnrollMfa,
   mfaGateForRole,
@@ -145,6 +146,23 @@ describe('MFA method labels', () => {
   it('includes SMS and email options', () => {
     expect(MFA_METHOD_LABELS.sms).toMatch(/SMS/i)
     expect(MFA_METHOD_LABELS.email).toMatch(/email/i)
+  })
+})
+
+describe('canSwitchMfaMethodDuringChallenge', () => {
+  it('allows a first-time setup to change SMS or email before any successful 2FA', () => {
+    expect(
+      canSwitchMfaMethodDuringChallenge({ sessionVerified: false, hasCompletedSetup: false }),
+    ).toBe(true)
+  })
+
+  it('blocks switching after setup is complete or this session is already verified', () => {
+    expect(
+      canSwitchMfaMethodDuringChallenge({ sessionVerified: false, hasCompletedSetup: true }),
+    ).toBe(false)
+    expect(
+      canSwitchMfaMethodDuringChallenge({ sessionVerified: true, hasCompletedSetup: false }),
+    ).toBe(false)
   })
 })
 

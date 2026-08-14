@@ -16,6 +16,7 @@ import { mfaVerifiedExpiresAt, resolveMfaSessionKey } from '@/lib/auth/mfa-sessi
 import { buildMfaStatus } from '@/lib/auth/mfa-status'
 import { migrateLegacyTotpMfa } from '@/lib/auth/migrate-legacy-totp'
 import {
+  canSwitchMfaMethodDuringChallenge,
   mfaRedirectPath,
   roleRequiresMfa,
   safeMfaNext,
@@ -484,6 +485,15 @@ export async function getStaffMfaRedirect(intendedPath: string): Promise<string>
   return mfaRedirectPath(profile.role, status, ROLE_HOME[profile.role], intendedPath)
 }
 
+async function hasCompletedMfaSetup(userId: string): Promise<boolean> {
+  const admin = createAdminClient()
+  const { count } = await admin
+    .from('mfa_verified_sessions')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+  return (count ?? 0) > 0
+}
+
 export async function getMfaStatus(): Promise<
   MfaActionResult<{
     enabled: boolean
@@ -497,6 +507,7 @@ export async function getMfaStatus(): Promise<
     usesTwilioVerify: boolean
     phoneDeliveryChannel: 'sms' | 'whatsapp' | null
     phoneChannels: MfaPhoneChannel[]
+    canSwitchMethod: boolean
   }>
 > {
   try {
@@ -512,6 +523,7 @@ export async function getMfaStatus(): Promise<
       profile.mfa_method === 'sms' || profile.mfa_method === 'email' ? profile.mfa_method : null
 
     const phoneChannels = method === 'sms' ? resolveMfaPhoneChannels() : []
+    const completedSetup = await hasCompletedMfaSetup(user.id)
 
     return {
       success: true,
@@ -531,6 +543,10 @@ export async function getMfaStatus(): Promise<
         phoneDeliveryChannel:
           method === 'sms' && phoneChannels.length === 1 ? phoneChannels[0]! : null,
         phoneChannels,
+        canSwitchMethod: canSwitchMfaMethodDuringChallenge({
+          sessionVerified: status.sessionVerified,
+          hasCompletedSetup: completedSetup,
+        }),
       },
     }
   } catch (err) {
@@ -645,6 +661,50 @@ export async function enableEmailMfa(): Promise<MfaActionResult> {
 
   if (error) return { success: false, error: 'Could not enable email verification.' }
   return { success: true }
+}
+
+export async function switchMfaMethod(
+  next: MfaMethod,
+  intendedPath?: string,
+): Promise<MfaActionResult<{ redirectTo: string }>> {
+  const { supabase, user, profile } = await requireStaffContext()
+  if (!user || !profile) return { success: false, error: 'Not signed in.' }
+
+  const status = await buildMfaStatus(supabase, user.id, profileForStatus(profile))
+  const completedSetup = await hasCompletedMfaSetup(user.id)
+  if (
+    !canSwitchMfaMethodDuringChallenge({
+      sessionVerified: status.sessionVerified,
+      hasCompletedSetup: completedSetup,
+    })
+  ) {
+    return {
+      success: false,
+      error: 'Finish this sign-in, then change your verification method in settings.',
+    }
+  }
+
+  if (next === profile.mfa_method) {
+    const redirectTo = mfaRedirectPath(profile.role, status, ROLE_HOME[profile.role], intendedPath)
+    return { success: true, data: { redirectTo } }
+  }
+
+  if (next === 'email' && !profile.email?.trim()) {
+    return { success: false, error: 'Your account has no email address on file.' }
+  }
+
+  const switched = next === 'sms' ? await enableSmsMfa() : await enableEmailMfa()
+  if (!switched.success) return switched as MfaActionResult<{ redirectTo: string }>
+
+  const updated = (await loadStaffProfile(user.id)) ?? profile
+  const nextStatus = await buildMfaStatus(supabase, user.id, profileForStatus(updated))
+  const redirectTo = mfaRedirectPath(
+    updated.role,
+    nextStatus,
+    ROLE_HOME[updated.role],
+    intendedPath,
+  )
+  return { success: true, data: { redirectTo } }
 }
 
 export async function sendMfaSmsCode(

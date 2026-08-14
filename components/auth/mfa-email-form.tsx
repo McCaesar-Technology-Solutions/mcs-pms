@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { getMfaStatus, sendMfaEmailCode, verifyMfaEmailCode } from '@/app/actions/mfa'
 import { safeMfaNext } from '@/lib/auth/mfa'
+import { MfaSwitchMethodButton } from '@/components/auth/mfa-switch-method-button'
 
 interface MfaEmailFormProps {
   nextPath: string
@@ -23,6 +24,7 @@ export function MfaEmailForm({ nextPath, mode }: MfaEmailFormProps) {
   const [loading, setLoading] = useState(false)
   const [sending, setSending] = useState(false)
   const [bootstrapping, setBootstrapping] = useState(true)
+  const [canSwitchMethod, setCanSwitchMethod] = useState(false)
   const verifyInFlight = useRef(false)
   const codeInputRef = useRef<HTMLInputElement>(null)
 
@@ -56,7 +58,8 @@ export function MfaEmailForm({ nextPath, mode }: MfaEmailFormProps) {
           return
         }
 
-        const { hasEmail, maskedEmail: masked, method, sessionVerified } = status.data!
+        const { hasEmail, maskedEmail: masked, method, sessionVerified, canSwitchMethod } =
+          status.data!
 
         if (mode === 'verify' && sessionVerified) {
           router.replace(destination)
@@ -70,6 +73,7 @@ export function MfaEmailForm({ nextPath, mode }: MfaEmailFormProps) {
         }
 
         setMaskedEmail(masked)
+        setCanSwitchMethod(Boolean(canSwitchMethod))
 
         if (mode === 'verify' || hasEmail) {
           if (!sessionVerified) {
@@ -208,6 +212,9 @@ export function MfaEmailForm({ nextPath, mode }: MfaEmailFormProps) {
       >
         {sending ? 'Sending…' : 'Resend code'}
       </button>
+      {canSwitchMethod && (
+        <MfaSwitchMethodButton current="email" nextPath={destination} disabled={sending || loading} />
+      )}
     </form>
   )
 }

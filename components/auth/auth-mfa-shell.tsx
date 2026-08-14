@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import { signOut } from '@/app/actions/auth'
 import { AuthBrand } from '@/components/brand/auth-brand'
 
 interface AuthMfaShellProps {
@@ -14,11 +14,14 @@ export function AuthMfaShell({ title, description, children }: AuthMfaShellProps
       <AuthBrand subtitle={title} />
       <p className="mb-6 text-sm text-white/75">{description}</p>
       {children}
-      <p className="mt-6 text-center text-xs text-white/50">
-        <Link href="/login" className="font-semibold text-[var(--brand-gold)] hover:underline">
+      <form action={signOut} className="mt-6 text-center">
+        <button
+          type="submit"
+          className="text-xs font-semibold text-[var(--brand-gold)] hover:underline"
+        >
           Sign out and use another account
-        </Link>
-      </p>
+        </button>
+      </form>
     </div>
   )
 }
