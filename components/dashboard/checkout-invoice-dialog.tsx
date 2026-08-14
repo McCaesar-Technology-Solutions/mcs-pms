@@ -12,6 +12,8 @@ import { InvoiceWhatsAppShare } from '@/components/dashboard/invoice-whatsapp-sh
 import { CenteredModal, ModalBody, ModalFooter, ModalHeader } from '@/components/ui/centered-modal'
 import { downloadInvoicePdf, printInvoicePdf } from '@/lib/export/invoice-pdf'
 import { invoiceHasTaxBreakdown, PAYMENT_METHOD_LABELS } from '@/lib/tax'
+import { displayBillToName } from '@/lib/billing/bill-to'
+import { invoiceProductLabel } from '@/lib/invoices/product-label'
 import type { ExportHotelInfo, InvoiceExportRow } from '@/lib/export/types'
 import type { PaymentMethod } from '@/types'
 
@@ -189,8 +191,8 @@ export function CheckoutInvoiceDialog({
         <p className="modal-panel-subtle text-sm">
           {description ??
             (showCollect
-              ? `${guestName ?? invoice?.guestName ?? 'Guest'} — collect stay payment (pay before enter).`
-              : `${guestName ?? invoice?.guestName ?? 'Guest'} — print, download, or send via WhatsApp.`)}
+              ? `${displayBillToName(guestName ?? invoice?.guestName ?? 'Guest', invoice?.billToName)} — collect stay payment (pay before enter).`
+              : `${displayBillToName(guestName ?? invoice?.guestName ?? 'Guest', invoice?.billToName)} — print, download, or send via WhatsApp.`)}
         </p>
       </ModalHeader>
 
@@ -247,7 +249,13 @@ export function CheckoutInvoiceDialog({
 
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Accommodation</span>
+                <span className="text-muted-foreground">
+                  {invoiceProductLabel({
+                    roomNumber: invoice.roomNumber,
+                    nights: invoice.nights,
+                    roomCategoryName: invoice.roomCategoryName,
+                  })}
+                </span>
                 <span className="font-medium">
                   {money(
                     (invoice.discountAmount ?? 0) > 0

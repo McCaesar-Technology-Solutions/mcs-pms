@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
-import { requireVerifiedStaff, consumeStaffAuthError } from '@/lib/auth/staff-session'
+import { requireVerifiedStaff } from '@/lib/auth/staff-session'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { writeAuditLog } from '@/lib/audit/log'
 import { fulfillGuestRequest, notifyRequestStatus } from '@/lib/guest/request-fulfillment'
@@ -18,7 +18,7 @@ export type GuestRequestStatusResult = { housekeepingTaskId?: string }
 
 async function requirePortalEditor(hotelId: string) {
   const result = await requireVerifiedStaff({ roles: ['owner', 'manager'] })
-  if (!result.ok) return { ok: false as const, error: consumeStaffAuthError(result.error) }
+  if (!result.ok) return { ok: false as const, error: result.error ?? 'Not authorized.' }
 
   const { profile, userId } = result
 
@@ -267,7 +267,7 @@ export async function updateGuestRequestStatus(
   status: z.infer<typeof requestStatusSchema>,
 ): Promise<GuestPortalStaffResult<GuestRequestStatusResult>> {
   const auth = await requireVerifiedStaff({ roles: ['owner', 'manager', 'receptionist'] })
-  if (!auth.ok) return { success: false, error: consumeStaffAuthError(auth.error) }
+  if (!auth.ok) return { success: false, error: auth.error ?? 'Not authorized.' }
 
   const { profile, userId, supabase } = auth
   if (!profile.hotel_id) return { success: false, error: 'Not authorized.' }
@@ -362,7 +362,7 @@ export async function scheduleGuestHousekeepingRequest(
   requestId: string,
 ): Promise<GuestPortalStaffResult<{ taskId: string }>> {
   const auth = await requireVerifiedStaff({ roles: ['owner', 'manager', 'receptionist'] })
-  if (!auth.ok) return { success: false, error: consumeStaffAuthError(auth.error) }
+  if (!auth.ok) return { success: false, error: auth.error ?? 'Not authorized.' }
 
   const { profile, userId } = auth
   if (!profile.hotel_id) return { success: false, error: 'Not authorized.' }
@@ -412,7 +412,7 @@ export async function getStaffComplaintPhotoUrl(
   complaintId: string,
 ): Promise<GuestPortalStaffResult<{ url: string }>> {
   const auth = await requireVerifiedStaff()
-  if (!auth.ok) return { success: false, error: consumeStaffAuthError(auth.error) }
+  if (!auth.ok) return { success: false, error: auth.error ?? 'Not authorized.' }
 
   const { profile } = auth
   if (!profile.hotel_id) return { success: false, error: 'Not authorized.' }

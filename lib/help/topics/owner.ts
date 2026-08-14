@@ -148,7 +148,7 @@ export const ownerHelpTopics: HelpTopic[] = [
       'Set VAT TIN, invoice prefix, and tax rates in Settings first.',
       'GRA Reports — export period summaries and invoice lists.',
       'Stay invoices include NHIL, GETFund, VAT, and levies when Include Ghana tax is checked.',
-      'Tourism levy (default 1%) is added outside the NHIL/GETFund/VAT base and appears on GRA exports. COVID levy is no longer charged.',
+      'NHIL, GETFund, VAT, and tourism levy are each calculated on the stay amount. VAT is not charged on the levies. Older invoices keep stacked VAT if they were issued that way.',
       'Taxed invoices stamp Bill-to Tax ID GHA-728071939-8; hotel VAT Reg stays separate.',
     ],
     href: '/owner/gra-reports',
@@ -163,7 +163,7 @@ export const ownerHelpTopics: HelpTopic[] = [
     steps: [
       'Settings → Property → Tax rates (%).',
       'Change a rate only when your GRA treatment differs from the system defaults.',
-      'Tourism levy defaults to 1%. Blank uses that default; set 0 to turn it off — it is not part of the VAT base. COVID levy is removed.',
+      'Tourism levy defaults to 1%. Blank uses that default; set 0 to turn it off. COVID levy is removed.',
       'New invoices use the rates you save; older invoices keep their frozen snapshot.',
     ],
     href: '/owner/settings',

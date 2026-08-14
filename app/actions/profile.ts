@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { requireVerifiedStaff, consumeStaffAuthError } from '@/lib/auth/staff-session'
+import { requireVerifiedStaff } from '@/lib/auth/staff-session'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { phoneSchema } from '@/lib/phone'
 import { z } from 'zod'
@@ -21,7 +21,7 @@ export async function updateProfilePhone(phone: string): Promise<ProfileActionRe
   const result = await requireVerifiedStaff({
     roles: ['owner', 'manager', 'technician', 'receptionist'],
   })
-  if (!result.ok) return { success: false, error: consumeStaffAuthError(result.error) }
+  if (!result.ok) return { success: false, error: result.error ?? 'Not authorized.' }
 
   const existing = result.profile.phone?.trim()
   const next = parsed.data.phone.trim()

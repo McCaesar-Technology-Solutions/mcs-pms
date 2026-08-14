@@ -74,6 +74,8 @@ const bookAndCheckInSchema = createReservationSchema.extend({
   ghanaCardNumber: ghanaCardInputSchema,
   /** Optional GRA tax on the stay invoice created at check-in (default off). */
   includeTax: z.boolean().optional(),
+  billToSameAsGuest: z.boolean().optional(),
+  billToName: z.string().max(120).optional().or(z.literal('')),
   /** Go-live / in-house enrollment — skip welcome + new-booking SMS noise. */
   quietEnrollment: z.boolean().optional(),
 })
@@ -308,7 +310,7 @@ export async function bookAndCheckIn(input: unknown): Promise<BookAndCheckInResu
     return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid input.' }
   }
 
-  const { quietEnrollment, phone, email, ghanaCardNumber, includeTax, ...reservationFields } =
+  const { quietEnrollment, phone, email, ghanaCardNumber, includeTax, billToSameAsGuest, billToName, ...reservationFields } =
     parsed.data
 
   const createResult = await createReservation(reservationFields, {
@@ -327,6 +329,8 @@ export async function bookAndCheckIn(input: unknown): Promise<BookAndCheckInResu
       guestName: reservationFields.guestName,
       ghanaCardNumber: ghanaCardNumber === undefined ? undefined : ghanaCardNumber ?? '',
       includeTax: includeTax === true,
+      billToSameAsGuest,
+      billToName,
     },
     { quiet: quietEnrollment === true },
   )
@@ -578,6 +582,7 @@ export async function completeCheckoutReservation(
   earlyCheckout = false,
   markAsPaid = true,
   includeTax = false,
+  billTo?: { billToSameAsGuest?: boolean; billToName?: string },
 ): Promise<ReservationActionResult> {
   if (!VALID_PAYMENT_METHODS.includes(paymentMethod)) {
     return { success: false, error: 'Invalid payment method.' }
@@ -589,6 +594,8 @@ export async function completeCheckoutReservation(
     earlyCheckout,
     markAsPaid,
     includeTax,
+    billToSameAsGuest: billTo?.billToSameAsGuest,
+    billToName: billTo?.billToName,
   })
   if (!result.success) return { success: false, error: result.error }
   revalidateReservationViews()
@@ -631,12 +638,19 @@ export async function recordWalkoutReservation(
   paymentMethod: PaymentMethod = 'cash',
   earlyCheckout = false,
   includeTax = false,
+  billTo?: { billToSameAsGuest?: boolean; billToName?: string },
 ): Promise<ReservationActionResult> {
   if (!VALID_PAYMENT_METHODS.includes(paymentMethod)) {
     return { success: false, error: 'Invalid payment method.' }
   }
   const { recordWalkoutStay } = await import('@/app/actions/stays')
-  const result = await recordWalkoutStay(id, { paymentMethod, earlyCheckout, includeTax })
+  const result = await recordWalkoutStay(id, {
+    paymentMethod,
+    earlyCheckout,
+    includeTax,
+    billToSameAsGuest: billTo?.billToSameAsGuest,
+    billToName: billTo?.billToName,
+  })
   if (!result.success) return { success: false, error: result.error }
   revalidateReservationViews()
   return { success: true, invoiceId: result.data?.invoiceId ?? undefined }

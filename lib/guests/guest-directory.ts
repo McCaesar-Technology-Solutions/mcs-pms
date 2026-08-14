@@ -101,6 +101,8 @@ export interface GuestRow {
   tokenExpiresAt: string | null
   portalPin: string | null
   reservationId: string | null
+  /** Bill-to name on the stay invoice when it differs from the guest. */
+  invoiceBillToName: string | null
   isInHouse: boolean
   canCheckOut: boolean
   doNotDisturb: boolean

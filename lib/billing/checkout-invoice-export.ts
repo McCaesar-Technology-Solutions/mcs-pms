@@ -6,9 +6,11 @@ export function buildCheckoutInvoicePreview(input: {
   invoiceId: string
   invoiceNumber: string
   guestName: string
+  billToName?: string | null
   guestPhone?: string | null
   guestTaxId?: string | null
   roomNumber: string | null
+  roomCategoryName?: string | null
   checkIn: string
   checkOut: string
   issuedAt: string
@@ -33,9 +35,11 @@ export function buildCheckoutInvoicePreview(input: {
       id: input.invoiceId,
     }),
     guestName: input.guestName,
+    billToName: input.billToName ?? null,
     guestPhone: input.guestPhone ?? null,
     guestTaxId: input.guestTaxId ?? null,
     roomNumber: input.roomNumber,
+    roomCategoryName: input.roomCategoryName ?? null,
     checkIn: input.checkIn,
     checkOut: input.checkOut,
     nights: stayNights(input.checkIn, input.checkOut),

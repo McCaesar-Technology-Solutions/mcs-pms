@@ -27,7 +27,7 @@ Production features shipped beyond the original UI prototype. The screen-by-scre
 - **Staff** — invite managers and receptionists by **email**, technicians by **phone**; WhatsApp invite share; pay profiles for payroll.
 - **Billing / GRA / Analytics** — owner Billing (refunds, payment ledger), GRA reports, analytics, night/period audit. Managers issue unpaid/ad-hoc invoices and record payments. Receptionists record stay payments and WhatsApp bills. Optional **Include Ghana tax**; tourism levy default 1%; per-hotel tax rate overrides; taxed invoices stamp Bill-to Tax ID `GHA-728071939-8`. Managers' dashboard hides revenue.
 - **Payroll** — owner (full) / manager (draft): pay profiles, pay runs (draft → approve → paid), housekeeping commission, payslip PDF + MoMo/bank CSV.
-- **Inventory / expenses** — stock movements; owner expenses.
+- **Inventory / expenses** — owner and manager stock movements; owner expenses. Reception has no inventory screen.
 - **Guest privacy** — export/erase PII from the staff dashboard.
 - **Production ops** — health/ready endpoints; daily Vercel crons + GitHub Actions; notification outbox with retries.
 
@@ -71,7 +71,7 @@ The app is **production-ready as a custom PMS** for a hotel or portfolio operato
 | 2FA | SMS OTP — **mandatory** owner, manager, and receptionist in production |
 | Guest sessions | HMAC-signed tokens; `SameSite=Strict`; room + surname entry |
 | Privacy / Terms | `/privacy`, `/terms` published |
-| Migrations | Through `074` — apply all migrations; see `docs/GO-LIVE.md` |
+| Migrations | Through `075` — apply all migrations; see `docs/GO-LIVE.md` |
 
 Realtime updates require an **open browser tab** — not push when the app is closed.
 

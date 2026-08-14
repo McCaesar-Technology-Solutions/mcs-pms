@@ -1,8 +1,8 @@
 # Receptionist guide — MOJO Apartments
 
-You are the **front desk**. You handle bookings, check-in and check-out, stay invoices and payments, guest messages, room status, inventory issues, guest door access, and logging complaints.
+You are the **front desk**. You handle bookings, check-in and check-out, stay invoices and payments, guest messages, room status, guest door access, and logging complaints.
 
-You do **not** apply discounts, create ad-hoc (non-stay) bills, leave stay invoices unpaid, refund money, change room rates, approve complaints, or run the housekeeping board.
+You do **not** apply discounts, create ad-hoc (non-stay) bills, leave stay invoices unpaid, refund money, change room rates, approve complaints, run the housekeeping board, or manage inventory.
 
 Tap **Help** (bottom-right) for the same topics on the page you are on.
 
@@ -32,7 +32,6 @@ One property only. In production you may need **SMS two-factor authentication**.
 | Access | `/receptionist/access` | Guest unlock, cards, retry sync |
 | Billing | `/receptionist/billing` | View invoices, record payments, print / WhatsApp |
 | Complaints | `/receptionist/complaints` | Log and track issues |
-| Inventory | `/receptionist/inventory` | Issue stock / check levels |
 
 ### Top bar
 
@@ -254,17 +253,7 @@ You can track status and message on the issue. You **cannot** assign technicians
 
 ---
 
-## 11. Inventory
-
-**Path:** `/receptionist/inventory`
-
-- Check stock levels.
-- **Issue** stock when supplies are used (front desk / housekeeping).
-- You **cannot** create new items or edit item details — ask a manager.
-
----
-
-## 12. What receptionists cannot do
+## 11. What receptionists cannot do
 
 | Cannot | Who can |
 |--------|---------|
@@ -275,6 +264,7 @@ You can track status and message on the issue. You **cannot** assign technicians
 | Change room prices / add-delete rooms | Owner / Manager |
 | Approve / close complaints | Manager |
 | Housekeeping kanban | Manager |
+| Inventory (stock levels / issue) | Owner / Manager |
 | Invite staff | Owner / Manager |
 | Access setup, staff badges, attendance | Owner (setup) / Manager (staff + attendance) |
 | Night / period audits | Owner / Manager |
@@ -282,7 +272,7 @@ You can track status and message on the issue. You **cannot** assign technicians
 
 ---
 
-## 13. Shift checklist
+## 12. Shift checklist
 
 ### Start of shift
 
@@ -308,7 +298,7 @@ You can track status and message on the issue. You **cannot** assign technicians
 
 ---
 
-## 14. Quick answers for guests
+## 13. Quick answers for guests
 
 | Guest asks | You say |
 |------------|---------|

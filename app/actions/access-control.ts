@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
-import { requireVerifiedStaff, consumeStaffAuthError } from '@/lib/auth/staff-session'
+import { requireVerifiedStaff } from '@/lib/auth/staff-session'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { ownerOwnsHotel } from '@/lib/data/properties'
 import { encryptAccessSecret, generateAgentToken } from '@/lib/access/crypto'
@@ -43,7 +43,7 @@ function revalidateAccess() {
 
 async function requireOwnerHotel(hotelId: string) {
   const result = await requireVerifiedStaff({ roles: ['owner'] })
-  if (!result.ok) return { ok: false as const, error: consumeStaffAuthError(result.error) }
+  if (!result.ok) return { ok: false as const, error: result.error ?? 'Not authorized.' }
   if (!(await ownerOwnsHotel(result.userId, hotelId))) {
     return { ok: false as const, error: 'Not authorized for this property.' }
   }
@@ -52,7 +52,7 @@ async function requireOwnerHotel(hotelId: string) {
 
 async function requireAccessOps(hotelId: string) {
   const result = await requireVerifiedStaff({ roles: ['owner', 'manager', 'receptionist'] })
-  if (!result.ok) return { ok: false as const, error: consumeStaffAuthError(result.error) }
+  if (!result.ok) return { ok: false as const, error: result.error ?? 'Not authorized.' }
 
   if (result.profile.role === 'owner') {
     if (!(await ownerOwnsHotel(result.userId, hotelId))) {
@@ -69,7 +69,7 @@ async function requireAccessOps(hotelId: string) {
 
 async function requireAccessEditor(hotelId: string) {
   const result = await requireVerifiedStaff({ roles: ['owner', 'manager'] })
-  if (!result.ok) return { ok: false as const, error: consumeStaffAuthError(result.error) }
+  if (!result.ok) return { ok: false as const, error: result.error ?? 'Not authorized.' }
 
   if (result.profile.role === 'owner') {
     if (!(await ownerOwnsHotel(result.userId, hotelId))) {

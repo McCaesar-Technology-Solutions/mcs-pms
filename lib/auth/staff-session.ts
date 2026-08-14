@@ -8,14 +8,6 @@ export const MFA_ENROLL_REQUIRED_ERROR =
 export const MFA_VERIFY_REQUIRED_ERROR =
   'Complete two-factor verification at /verify-mfa before continuing.'
 
-let lastStaffAuthError: string | null = null
-
-export function consumeStaffAuthError(fallback = 'Not authorized.'): string {
-  const message = lastStaffAuthError ?? fallback
-  lastStaffAuthError = null
-  return message
-}
-
 export type VerifiedStaffResult =
   | {
       ok: true
@@ -53,15 +45,13 @@ function profileForMfa(profile: Profile) {
 export async function requireVerifiedStaff(
   options: VerifiedStaffOptions = {},
 ): Promise<VerifiedStaffResult> {
-  lastStaffAuthError = null
   const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
   if (!user) {
-    lastStaffAuthError = 'Not signed in.'
-    return { ok: false, error: lastStaffAuthError, supabase }
+    return { ok: false, error: 'Not signed in.', supabase }
   }
 
   const { data: profile } = await supabase
@@ -71,27 +61,23 @@ export async function requireVerifiedStaff(
     .maybeSingle()
 
   if (!profile || profile.is_active === false) {
-    lastStaffAuthError = 'Not authorized.'
-    return { ok: false, error: lastStaffAuthError, supabase }
+    return { ok: false, error: 'Not authorized.', supabase }
   }
 
   const typedProfile = profile as Profile
 
   if (options.roles && !options.roles.includes(typedProfile.role)) {
-    lastStaffAuthError = 'Not authorized.'
-    return { ok: false, error: lastStaffAuthError, supabase }
+    return { ok: false, error: 'Not authorized.', supabase }
   }
 
   if (!options.skipMfa) {
     const status = await buildMfaStatus(supabase, user.id, profileForMfa(typedProfile))
     const gate = mfaGateForRole(typedProfile.role, status)
     if (gate === 'enroll') {
-      lastStaffAuthError = MFA_ENROLL_REQUIRED_ERROR
-      return { ok: false, error: lastStaffAuthError, supabase }
+      return { ok: false, error: MFA_ENROLL_REQUIRED_ERROR, supabase }
     }
     if (gate === 'verify') {
-      lastStaffAuthError = MFA_VERIFY_REQUIRED_ERROR
-      return { ok: false, error: lastStaffAuthError, supabase }
+      return { ok: false, error: MFA_VERIFY_REQUIRED_ERROR, supabase }
     }
   }
 
@@ -104,7 +90,7 @@ export async function requireVerifiedStaff(
   }
 }
 
-/** Returns profile or null; call consumeStaffAuthError() for the rejection reason. */
+/** Returns profile or null. */
 export async function loadVerifiedStaffProfile(
   options?: VerifiedStaffOptions,
 ): Promise<Profile | null> {

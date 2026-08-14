@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { randomUUID } from 'node:crypto'
-import { requireVerifiedStaff, consumeStaffAuthError } from '@/lib/auth/staff-session'
+import { requireVerifiedStaff } from '@/lib/auth/staff-session'
 import {
   canApplyGuestDiscount,
   canCreateManualInvoice,
@@ -26,6 +26,7 @@ import {
 } from '@/lib/billing/invoice-payments'
 import { applyInvoicePaymentRecord } from '@/lib/billing/apply-payment'
 import { createOrRefreshStayInvoice } from '@/lib/billing/build-stay-invoice'
+import { resolveBillToName } from '@/lib/billing/bill-to'
 import { computeDiscountAmount, normalizeDiscountType } from '@/lib/billing/discount'
 import { syncReservationPaymentFromInvoice } from '@/lib/billing/reservation-payment'
 import { calculateStayTotal, type RateType } from '@/lib/pricing/stay-totals'
@@ -80,6 +81,8 @@ const createManualInvoiceSchema = z.object({
   ]),
   markAsPaid: z.boolean().default(false),
   includeTax: z.boolean().default(false),
+  billToSameAsGuest: z.boolean().optional(),
+  billToName: z.string().max(120).optional().or(z.literal('')),
 })
 
 const partialPaymentSchema = z.object({
@@ -117,6 +120,8 @@ const issueStayInvoiceSchema = z
     ]),
     markAsPaid: z.boolean().default(false),
     includeTax: z.boolean().default(false),
+    billToSameAsGuest: z.boolean().optional(),
+    billToName: z.string().max(120).optional().or(z.literal('')),
     discountType: z.enum(['none', 'percent', 'fixed']).optional(),
     discountValue: z.coerce.number().min(0).optional(),
     discountReason: z.string().max(200).optional().or(z.literal('')),
@@ -175,14 +180,14 @@ async function requireInvoiceViewer() {
 export async function getStaffInvoiceExport(invoiceId: string): Promise<StaffInvoiceExportResult> {
   const profile = await requireInvoiceViewer()
   if (!profile?.hotel_id) {
-    return { success: false, error: consumeStaffAuthError() ?? 'Not authorized.' }
+    return { success: false, error: 'Not authorized.' }
   }
 
   const admin = createAdminClient()
   const { data: row } = await admin
     .from('invoices')
     .select(
-      '*, hotels(name, address, city, region, vat_registration_number, vat_mode, notification_from_email, guest_portal_emergency_phone), reservations(check_in, check_out, rooms(number))',
+      '*, hotels(name, address, city, region, vat_registration_number, vat_mode, notification_from_email, guest_portal_emergency_phone), reservations(check_in, check_out, rooms(number, room_categories(name)))',
     )
     .eq('id', invoiceId)
     .eq('hotel_id', profile.hotel_id)
@@ -214,7 +219,7 @@ export async function getStaffInvoiceExport(invoiceId: string): Promise<StaffInv
   const reservation = row.reservations as unknown as {
     check_in: string
     check_out: string
-    rooms?: { number: string } | null
+    rooms?: { number: string; room_categories?: { name: string } | null } | null
   } | null
 
   const checkIn = reservation?.check_in ?? null
@@ -236,8 +241,13 @@ export async function getStaffInvoiceExport(invoiceId: string): Promise<StaffInv
       invoice: {
         invoiceNumber: formatInvoiceNumber({ invoice_number: row.invoice_number, id: row.id }),
         guestName: row.guest_name,
+        billToName: row.bill_to_name ?? null,
         guestPhone,
         roomNumber: reservation?.rooms?.number ?? null,
+        roomCategoryName:
+          row.room_category_name?.trim() ||
+          reservation?.rooms?.room_categories?.name?.trim() ||
+          null,
         checkIn,
         checkOut,
         nights: checkIn && checkOut ? stayNights(checkIn, checkOut) : null,
@@ -486,7 +496,7 @@ export async function issueStayInvoice(input: unknown): Promise<IssueStayInvoice
   const result = await requireVerifiedStaff({ roles: ['owner', 'manager', 'receptionist'] })
   const hotelId = result.ok ? result.profile.hotel_id : null
   if (!result.ok || !hotelId || !canIssueStayInvoice(result.profile.role)) {
-    return { success: false, error: consumeStaffAuthError() ?? 'Not authorized.' }
+    return { success: false, error: result.ok ? 'Not authorized.' : (result.error ?? 'Not authorized.') }
   }
   const profile = result.profile
 
@@ -602,6 +612,8 @@ export async function issueStayInvoice(input: unknown): Promise<IssueStayInvoice
       includeTax: parsed.data.includeTax,
       guestPhone,
       roomNumber,
+      billToSameAsGuest: parsed.data.billToSameAsGuest,
+      billToName: parsed.data.billToName,
     })
 
     void writeAuditLog({
@@ -658,11 +670,20 @@ export async function createManualInvoice(
   const invoiceNumber = await allocateInvoiceNumber(profile.hotel_id)
 
   const guestTaxId = resolveInvoiceTaxId(parsed.data.includeTax)
+  const billTo = resolveBillToName({
+    guestName: parsed.data.guestName,
+    billToSameAsGuest: parsed.data.billToSameAsGuest,
+    billToName: parsed.data.billToName,
+  })
+  if (!billTo.ok) {
+    return { success: false, error: billTo.error }
+  }
 
   const { error } = await admin.from('invoices').insert({
     hotel_id: profile.hotel_id,
     guest_id: parsed.data.guestId ?? null,
     guest_name: parsed.data.guestName.trim(),
+    bill_to_name: billTo.value,
     invoice_number: invoiceNumber,
     subtotal: taxes.subtotal,
     nhil_amount: taxes.nhil,

@@ -1182,6 +1182,7 @@ export type Database = {
           reservation_id: string | null
           guest_id: string | null
           guest_name: string
+          bill_to_name: string | null
           invoice_number: string | null
           subtotal: number
           discount_amount: number
@@ -1194,6 +1195,7 @@ export type Database = {
           tourism_levy_amount: number
           tax_snapshot: Json | null
           guest_tax_id: string | null
+          room_category_name: string | null
           total_amount: number
           payment_method:
             | 'mtn_momo'
@@ -1216,6 +1218,7 @@ export type Database = {
           reservation_id?: string | null
           guest_id?: string | null
           guest_name: string
+          bill_to_name?: string | null
           invoice_number: string | null
           subtotal: number
           discount_amount?: number
@@ -1228,6 +1231,7 @@ export type Database = {
           tourism_levy_amount?: number
           tax_snapshot?: Json | null
           guest_tax_id?: string | null
+          room_category_name?: string | null
           total_amount: number
           payment_method?:
             | 'mtn_momo'
@@ -1250,6 +1254,7 @@ export type Database = {
           reservation_id?: string | null
           guest_id?: string | null
           guest_name?: string
+          bill_to_name?: string | null
           subtotal?: number
           discount_amount?: number
           discount_reason?: string | null
@@ -1261,6 +1266,7 @@ export type Database = {
           tourism_levy_amount?: number
           tax_snapshot?: Json | null
           guest_tax_id?: string | null
+          room_category_name?: string | null
           total_amount?: number
           payment_method?:
             | 'mtn_momo'

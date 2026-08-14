@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { requireVerifiedStaff, consumeStaffAuthError } from '@/lib/auth/staff-session'
+import { requireVerifiedStaff } from '@/lib/auth/staff-session'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { ensureGuestPortalSlug } from '@/lib/guest-portal'
 import { ensureDefaultGuestRules } from '@/lib/data/guest-rules'
@@ -13,6 +13,7 @@ import {
   propertyImagePublicUrl,
   propertyImageStoragePath,
 } from '@/lib/properties/image-storage'
+import { validateFileSignature } from '@/lib/security/file-signature'
 import type { Property } from '@/types'
 
 export type PropertyActionResult<T = void> =
@@ -85,7 +86,7 @@ async function seedRooms(hotelId: string, totalRooms: number, ownerId: string) {
 export async function fetchOwnerProperties(): Promise<PropertyActionResult<Property[]>> {
   const auth = await requireVerifiedStaff({ roles: ['owner'] })
   if (!auth.ok) {
-    return { success: false, error: consumeStaffAuthError(auth.error) }
+    return { success: false, error: auth.error ?? 'Not authorized.' }
   }
 
   try {
@@ -202,9 +203,14 @@ export async function uploadPropertyProfileImage(
     return { success: false, error: 'Image must be 5 MB or smaller.' }
   }
 
-  const ext = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg'
-  const path = propertyImageStoragePath(hotelId, ext)
   const buffer = Buffer.from(await file.arrayBuffer())
+  const sniffed = validateFileSignature(buffer, ['image/jpeg', 'image/png', 'image/webp'])
+  if (!sniffed) {
+    return { success: false, error: 'Use JPEG, PNG, or WebP.' }
+  }
+
+  const ext = sniffed === 'image/png' ? 'png' : sniffed === 'image/webp' ? 'webp' : 'jpg'
+  const path = propertyImageStoragePath(hotelId, ext)
 
   const admin = createAdminClient()
 
@@ -215,7 +221,7 @@ export async function uploadPropertyProfileImage(
     .maybeSingle()
 
   const { error: uploadError } = await admin.storage.from(PROPERTY_IMAGE_BUCKET).upload(path, buffer, {
-    contentType: file.type,
+    contentType: sniffed,
     upsert: false,
   })
 

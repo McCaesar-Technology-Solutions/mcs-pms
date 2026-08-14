@@ -1,6 +1,8 @@
 import { jsPDF } from 'jspdf'
 import { amountInWordsCedis } from '@/lib/export/amount-in-words'
 import { withInvoiceHotelContact } from '@/lib/export/invoice-hotel-contact'
+import { invoiceProductLabel } from '@/lib/invoices/product-label'
+import { displayBillToName } from '@/lib/billing/bill-to'
 import type { ExportHotelInfo, InvoiceExportRow } from '@/lib/export/types'
 import { whatsAppHref } from '@/lib/phone'
 import {
@@ -44,14 +46,11 @@ function moneyPlain(value: number): string {
 }
 
 function productLabel(invoice: InvoiceExportRow): string {
-  const nights = invoice.nights ?? 1
-  const room = invoice.roomNumber ? `Room ${invoice.roomNumber}` : 'Accommodation'
-  if (nights >= 28) {
-    const months = Math.max(1, Math.round(nights / 30))
-    return `${room} (${months === 1 ? 'One month' : `${months} months`})`
-  }
-  if (nights === 7) return `${room} (One week)`
-  return `${room} (${nights} night${nights === 1 ? '' : 's'})`
+  return invoiceProductLabel({
+    roomNumber: invoice.roomNumber,
+    nights: invoice.nights,
+    roomCategoryName: invoice.roomCategoryName,
+  })
 }
 
 function drawLabeledLine(
@@ -193,7 +192,7 @@ function invoiceFileName(invoice: InvoiceExportRow): string {
 function invoiceWhatsAppMessage(hotel: ExportHotelInfo, invoice: InvoiceExportRow): string {
   const status = invoice.paymentStatus === 'paid' ? 'paid' : 'issued'
   return [
-    `Hi ${invoice.guestName},`,
+    `Hi ${displayBillToName(invoice.guestName, invoice.billToName)},`,
     '',
     `Here is your ${status} invoice from ${hotel.name}.`,
     `Invoice: ${invoice.invoiceNumber}`,
@@ -320,12 +319,18 @@ async function buildInvoicePdf(hotelInput: ExportHotelInfo, invoice: InvoiceExpo
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(12)
   doc.setTextColor(...BRAND.purpleInk)
-  doc.text(invoice.guestName, margin, y)
+  const billTo = displayBillToName(invoice.guestName, invoice.billToName)
+  doc.text(billTo, margin, y)
   y += 5.5
 
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(9)
   doc.setTextColor(...BRAND.muted)
+
+  if (billTo.trim().toLowerCase() !== invoice.guestName.trim().toLowerCase()) {
+    doc.text(`Guest: ${invoice.guestName}`, margin, y)
+    y += 4.5
+  }
 
   if (invoice.roomNumber) {
     doc.text(`Room ${invoice.roomNumber}`, margin, y)

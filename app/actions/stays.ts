@@ -11,6 +11,7 @@ import {
 import { getHotelTaxConfig } from '@/lib/data/settings'
 import { allocateInvoiceNumber } from '@/lib/invoices/numbering'
 import { createOrRefreshStayInvoice } from '@/lib/billing/build-stay-invoice'
+import { resolveBillToName } from '@/lib/billing/bill-to'
 import { createPostCheckoutCleanTask } from '@/lib/housekeeping/checkout-task'
 import { phoneSchema } from '@/lib/phone'
 import { generatePortalPin } from '@/lib/guest/portal-pin'
@@ -74,6 +75,8 @@ const checkInStaySchema = z.object({
   ghanaCardNumber: ghanaCardInputSchema,
   /** Optional GRA tax on the stay invoice created at check-in (default off). */
   includeTax: z.boolean().optional(),
+  billToSameAsGuest: z.boolean().optional(),
+  billToName: z.string().max(120).optional().or(z.literal('')),
 })
 
 const walkInCheckInSchema = z.object({
@@ -88,6 +91,8 @@ const walkInCheckInSchema = z.object({
   weeklyRate: z.coerce.number().min(0).optional(),
   monthlyRate: z.coerce.number().min(0).optional(),
   includeTax: z.boolean().optional(),
+  billToSameAsGuest: z.boolean().optional(),
+  billToName: z.string().max(120).optional().or(z.literal('')),
 })
 
 async function requireManager() {
@@ -238,6 +243,8 @@ export async function checkInStay(
     guestName?: string
     ghanaCardNumber?: string
     includeTax?: boolean
+    billToSameAsGuest?: boolean
+    billToName?: string
   },
   opts?: { quiet?: boolean },
 ): Promise<
@@ -516,6 +523,8 @@ export async function checkInStay(
       includeTax: parsed.data.includeTax === true,
       guestPhone: parsed.data.phone.trim(),
       roomNumber: roomRow?.number ?? null,
+      billToSameAsGuest: parsed.data.billToSameAsGuest,
+      billToName: parsed.data.billToName,
     })
     invoiceId = issued.invoiceId
     invoicePreview = issued.invoicePreview
@@ -668,6 +677,8 @@ export async function walkInCheckIn(input: unknown): Promise<
     guestName: parsed.data.name.trim(),
     ghanaCardNumber: parsed.data.ghanaCardNumber ?? undefined,
     includeTax: parsed.data.includeTax === true,
+    billToSameAsGuest: parsed.data.billToSameAsGuest,
+    billToName: parsed.data.billToName,
   })
 
   if (!checkInResult.success || !checkInResult.data) {
@@ -714,6 +725,8 @@ async function executeStayCheckout(
     earlyCheckout?: boolean
     markAsPaid?: boolean
     includeTax: boolean
+    billToSameAsGuest?: boolean
+    billToName?: string | null
     departureStatus: StayDepartureStatus
   },
 ): Promise<StayActionResult<{ invoiceId: string | null; invoicePreview?: InvoiceExportRow }>> {
@@ -761,6 +774,8 @@ async function executeStayCheckout(
       effectiveCheckOut,
       guestPhone,
       roomNumber,
+      billToSameAsGuest: input.billToSameAsGuest,
+      billToName: input.billToName,
     })
     invoiceId = issued.invoiceId
     invoicePreview = issued.invoicePreview
@@ -954,6 +969,8 @@ export async function completeCheckoutStay(input: {
   earlyCheckout?: boolean
   markAsPaid?: boolean
   includeTax?: boolean
+  billToSameAsGuest?: boolean
+  billToName?: string | null
 }): Promise<StayActionResult<{ invoiceId: string | null; invoicePreview?: InvoiceExportRow }>> {
   const { profile, userId } = await requireManager()
   if (!profile?.hotel_id || !userId || !['owner', 'manager', 'receptionist'].includes(profile.role)) {
@@ -988,6 +1005,8 @@ export async function completeCheckoutStay(input: {
     earlyCheckout: input.earlyCheckout,
     markAsPaid: input.markAsPaid,
     includeTax,
+    billToSameAsGuest: input.billToSameAsGuest,
+    billToName: input.billToName,
     departureStatus: 'checked_out',
   })
 }
@@ -999,6 +1018,8 @@ export async function checkOutStay(input: {
   earlyCheckout?: boolean
   markAsPaid?: boolean
   includeTax?: boolean
+  billToSameAsGuest?: boolean
+  billToName?: string | null
 }): Promise<StayActionResult<{ invoiceId: string | null; invoicePreview?: InvoiceExportRow }>> {
   const { profile, userId } = await requireManager()
   if (!profile?.hotel_id || !userId || !['owner', 'manager', 'receptionist'].includes(profile.role)) {
@@ -1090,6 +1111,21 @@ export async function checkOutStay(input: {
     }
 
     const nightlyRate = await getRoomNightlyRate(admin, guest.room_id)
+    const { data: roomMeta } = await admin
+      .from('rooms')
+      .select('room_categories(name)')
+      .eq('id', guest.room_id)
+      .maybeSingle()
+    const roomCat = roomMeta?.room_categories as { name?: string } | null
+    const roomCategoryName = roomCat?.name?.trim() || null
+    const billTo = resolveBillToName({
+      guestName: guest.name,
+      billToSameAsGuest: input.billToSameAsGuest,
+      billToName: input.billToName,
+    })
+    if (!billTo.ok) {
+      return { success: false, error: billTo.error }
+    }
     const { taxes: roomTaxes, rates } = await computeCheckoutTaxes(
       admin,
       profile.hotel_id,
@@ -1152,6 +1188,8 @@ export async function checkOutStay(input: {
         reservation_id: newRes?.id ?? null,
         guest_id: guest.id,
         guest_name: guest.name,
+        bill_to_name: billTo.value,
+        room_category_name: roomCategoryName,
         invoice_number: invoiceNumber,
         subtotal: taxes.subtotal,
         nhil_amount: taxes.nhil,
@@ -1267,12 +1305,20 @@ export async function checkOutStay(input: {
     earlyCheckout: input.earlyCheckout,
     markAsPaid: input.markAsPaid,
     includeTax,
+    billToSameAsGuest: input.billToSameAsGuest,
+    billToName: input.billToName,
   })
 }
 
 export async function recordWalkoutStay(
   reservationId: string,
-  input?: { paymentMethod?: PaymentMethod; earlyCheckout?: boolean; includeTax?: boolean },
+  input?: {
+    paymentMethod?: PaymentMethod
+    earlyCheckout?: boolean
+    includeTax?: boolean
+    billToSameAsGuest?: boolean
+    billToName?: string | null
+  },
 ): Promise<StayActionResult<{ invoiceId: string | null }>> {
   const { profile, userId } = await requireManager()
   if (!profile?.hotel_id || !userId || !['owner', 'manager', 'receptionist'].includes(profile.role)) {
@@ -1307,6 +1353,8 @@ export async function recordWalkoutStay(
     earlyCheckout: input?.earlyCheckout,
     markAsPaid: false,
     includeTax: input?.includeTax === true,
+    billToSameAsGuest: input?.billToSameAsGuest,
+    billToName: input?.billToName,
     departureStatus: 'walkout',
   })
 }

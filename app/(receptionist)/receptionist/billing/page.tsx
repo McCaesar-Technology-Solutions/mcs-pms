@@ -31,6 +31,7 @@ export default async function ReceptionistBillingPage({
         canCreateInvoice={false}
         canRefund={false}
         onlinePaymentsEnabled={paymentsEnabled}
+        showKpis={false}
       />
     </div>
   )

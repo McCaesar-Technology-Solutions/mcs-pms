@@ -4,7 +4,6 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getVerifiedProfile } from '@/lib/auth/get-profile'
-import { consumeStaffAuthError } from '@/lib/auth/staff-session'
 import { reconcileHotelBillingState } from '@/lib/billing/reconcile-hotel-billing'
 import { writeAuditLog } from '@/lib/audit/log'
 import { computeCloseMetrics } from '@/lib/audits/compute-close-metrics'
@@ -128,7 +127,7 @@ async function insertPeriodAudit(input: {
 
 export async function runMonthlyAudit(notes?: string): Promise<PeriodAuditResult> {
   const profile = await requireAuditProfile()
-  if (!profile) return { success: false, error: consumeStaffAuthError() }
+  if (!profile) return { success: false, error: 'Not authorized.' }
 
   const month = currentCalendarMonth()
   return insertPeriodAudit({
@@ -147,7 +146,7 @@ export async function runMonthlyAudit(notes?: string): Promise<PeriodAuditResult
 
 export async function runYearlyAudit(notes?: string): Promise<PeriodAuditResult> {
   const profile = await requireAuditProfile()
-  if (!profile) return { success: false, error: consumeStaffAuthError() }
+  if (!profile) return { success: false, error: 'Not authorized.' }
 
   const year = currentCalendarYear()
   return insertPeriodAudit({

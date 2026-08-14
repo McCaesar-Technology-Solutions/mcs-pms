@@ -32,6 +32,7 @@ function guest(overrides: Partial<GuestRow> & Pick<GuestRow, 'id' | 'name'>): Gu
     tokenExpiresAt: null,
     portalPin: null,
     reservationId: null,
+    invoiceBillToName: null,
     isInHouse: false,
     canCheckOut: false,
     doNotDisturb: false,

@@ -11,6 +11,7 @@ import {
   roomImagePublicUrl,
   roomImageStoragePath,
 } from '@/lib/rooms/image-storage'
+import { validateFileSignature } from '@/lib/security/file-signature'
 import type { DbRoomStatus } from '@/types'
 import { runNotifyTask } from '@/lib/notifications/notify-task'
 
@@ -352,13 +353,18 @@ export async function uploadRoomProfileImage(
 
   if (!room) return { success: false, error: 'Room not found.' }
 
-  const ext = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg'
-  const path = roomImageStoragePath(profile.hotel_id, roomId, ext)
   const buffer = Buffer.from(await file.arrayBuffer())
+  const sniffed = validateFileSignature(buffer, ['image/jpeg', 'image/png', 'image/webp'])
+  if (!sniffed) {
+    return { success: false, error: 'Use JPEG, PNG, or WebP.' }
+  }
+
+  const ext = sniffed === 'image/png' ? 'png' : sniffed === 'image/webp' ? 'webp' : 'jpg'
+  const path = roomImageStoragePath(profile.hotel_id, roomId, ext)
   const admin = createAdminClient()
 
   const { error: uploadError } = await admin.storage.from(ROOM_IMAGE_BUCKET).upload(path, buffer, {
-    contentType: file.type,
+    contentType: sniffed,
     upsert: false,
   })
 

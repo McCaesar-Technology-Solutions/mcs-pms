@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { requireVerifiedStaff, consumeStaffAuthError } from '@/lib/auth/staff-session'
+import { requireVerifiedStaff } from '@/lib/auth/staff-session'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { writeAuditLog } from '@/lib/audit/log'
 import {
@@ -20,7 +20,7 @@ export type GuestRulesActionResult<T = void> =
 
 async function requireRulesEditor(hotelId: string) {
   const result = await requireVerifiedStaff({ roles: ['owner', 'manager'] })
-  if (!result.ok) return { ok: false as const, error: consumeStaffAuthError(result.error) }
+  if (!result.ok) return { ok: false as const, error: result.error ?? 'Not authorized.' }
 
   const { profile, userId } = result
 

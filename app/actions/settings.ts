@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { requireVerifiedStaff, consumeStaffAuthError } from '@/lib/auth/staff-session'
+import { requireVerifiedStaff } from '@/lib/auth/staff-session'
 import { ownerOwnsHotel } from '@/lib/data/properties'
 import { updateHotelSettingsSchema, updateNotificationPrefsSchema, updateReservationLifecycleSettingsSchema } from '@/lib/validations'
 import type { NotificationSmsPrefs } from '@/lib/notifications/preferences'
@@ -23,7 +23,7 @@ function revalidateSettingsViews() {
 
 async function requireOwnerSettings(hotelId: string) {
   const result = await requireVerifiedStaff({ roles: ['owner'] })
-  if (!result.ok) return { ok: false as const, error: consumeStaffAuthError(result.error) }
+  if (!result.ok) return { ok: false as const, error: result.error ?? 'Not authorized.' }
   if (!(await ownerOwnsHotel(result.userId, hotelId))) {
     return { ok: false as const, error: 'You do not have access to this property.' }
   }
@@ -32,7 +32,7 @@ async function requireOwnerSettings(hotelId: string) {
 
 async function requireOwnerOrManagerSettings(hotelId: string) {
   const result = await requireVerifiedStaff({ roles: ['owner', 'manager'] })
-  if (!result.ok) return { ok: false as const, error: consumeStaffAuthError(result.error) }
+  if (!result.ok) return { ok: false as const, error: result.error ?? 'Not authorized.' }
 
   if (result.profile.role === 'owner') {
     if (!(await ownerOwnsHotel(result.userId, hotelId))) {

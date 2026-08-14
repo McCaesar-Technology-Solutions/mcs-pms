@@ -3,7 +3,7 @@
 import { after } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
-import { requireVerifiedStaff, consumeStaffAuthError } from '@/lib/auth/staff-session'
+import { requireVerifiedStaff } from '@/lib/auth/staff-session'
 import { tryCreateAdminClient } from '@/lib/supabase/admin'
 import { normalizeInventoryCategory } from '@/lib/inventory/categories'
 import {
@@ -58,8 +58,8 @@ const adjustStockSchema = z.object({
 
 async function requireInventoryStaff(options?: { includeTechnician?: boolean }) {
   const roles = options?.includeTechnician
-    ? (['owner', 'manager', 'receptionist', 'technician'] as const)
-    : (['owner', 'manager', 'receptionist'] as const)
+    ? (['owner', 'manager', 'technician'] as const)
+    : (['owner', 'manager'] as const)
   const result = await requireVerifiedStaff({ roles: [...roles] })
   if (!result.ok) return null
   if (!result.profile.hotel_id) return null
@@ -71,7 +71,6 @@ function revalidateInventory() {
   // server-action responses (a common source of "Server Components render" errors).
   revalidatePath('/owner/inventory', 'page')
   revalidatePath('/manager/inventory', 'page')
-  revalidatePath('/receptionist/inventory', 'page')
 }
 
 function scheduleInventoryRevalidation() {
@@ -129,7 +128,7 @@ export async function createInventoryItem(
     }
 
     const profile = await requireInventoryStaff()
-    if (!profile) return { success: false, error: consumeStaffAuthError() }
+    if (!profile) return { success: false, error: 'Not authorized.' }
 
     const adminResult = requireInventoryAdmin()
     if (!adminResult.ok) return { success: false, error: adminResult.error }
@@ -203,7 +202,7 @@ export async function updateInventoryItem(
     }
 
     const profile = await requireInventoryStaff()
-    if (!profile) return { success: false, error: consumeStaffAuthError() }
+    if (!profile) return { success: false, error: 'Not authorized.' }
 
     const adminResult = requireInventoryAdmin()
     if (!adminResult.ok) return { success: false, error: adminResult.error }
@@ -283,7 +282,7 @@ export async function receiveInventoryStock(
     }
 
     const profile = await requireInventoryStaff()
-    if (!profile?.hotel_id) return { success: false, error: consumeStaffAuthError() }
+    if (!profile?.hotel_id) return { success: false, error: 'Not authorized.' }
 
     const adminResult = requireInventoryAdmin()
     if (!adminResult.ok) return { success: false, error: adminResult.error }
@@ -363,7 +362,7 @@ export async function issueInventoryStock(
     }
 
     const profile = await requireInventoryStaff()
-    if (!profile?.hotel_id) return { success: false, error: consumeStaffAuthError() }
+    if (!profile?.hotel_id) return { success: false, error: 'Not authorized.' }
 
     const adminResult = requireInventoryAdmin()
     if (!adminResult.ok) return { success: false, error: adminResult.error }
@@ -394,7 +393,7 @@ export async function adjustInventoryStock(
     }
 
     const profile = await requireInventoryStaff()
-    if (!profile?.hotel_id) return { success: false, error: consumeStaffAuthError() }
+    if (!profile?.hotel_id) return { success: false, error: 'Not authorized.' }
 
     const adminResult = requireInventoryAdmin()
     if (!adminResult.ok) return { success: false, error: adminResult.error }
@@ -433,7 +432,7 @@ export async function adjustInventoryStock(
 export async function fetchInventoryMovements(itemId?: string) {
   return safeInventoryAction('fetchInventoryMovements', async () => {
     const profile = await requireInventoryStaff()
-    if (!profile?.hotel_id) return { success: false as const, error: consumeStaffAuthError() }
+    if (!profile?.hotel_id) return { success: false as const, error: 'Not authorized.' }
 
     const adminResult = requireInventoryAdmin()
     if (!adminResult.ok) return { success: false, error: adminResult.error }
@@ -473,7 +472,7 @@ export async function loadInventoryItemsForStaff(): Promise<
 > {
   return safeInventoryAction('loadInventoryItemsForStaff', async () => {
     const profile = await requireInventoryStaff({ includeTechnician: true })
-    if (!profile?.hotel_id) return { success: false, error: consumeStaffAuthError() }
+    if (!profile?.hotel_id) return { success: false, error: 'Not authorized.' }
 
     const adminResult = requireInventoryAdmin()
     if (!adminResult.ok) return { success: false, error: adminResult.error }

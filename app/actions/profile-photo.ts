@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { loadVerifiedStaffProfile, consumeStaffAuthError } from '@/lib/auth/staff-session'
+import { loadVerifiedStaffProfile } from '@/lib/auth/staff-session'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getGuestFromSession } from '@/app/actions/guest'
 import {
@@ -10,6 +10,7 @@ import {
   profilePhotoPublicUrl,
   staffProfileStoragePath,
 } from '@/lib/profile-photos/storage'
+import { validateFileSignature } from '@/lib/security/file-signature'
 
 export type ProfilePhotoActionResult<T = void> =
   | { success: true; data?: T }
@@ -64,11 +65,16 @@ export async function uploadMyProfilePhoto(
     .eq('id', profile.id)
     .maybeSingle()
 
-  const path = staffProfileStoragePath(profile.hotel_id!, profile.id, fileExt(file.type))
   const buffer = Buffer.from(await file.arrayBuffer())
+  const sniffed = validateFileSignature(buffer, ['image/jpeg', 'image/png', 'image/webp'])
+  if (!sniffed) {
+    return { success: false, error: 'Use JPEG, PNG, or WebP.' }
+  }
+
+  const path = staffProfileStoragePath(profile.hotel_id!, profile.id, fileExt(sniffed))
 
   const { error: uploadError } = await admin.storage.from(PROFILE_PHOTO_BUCKET).upload(path, buffer, {
-    contentType: file.type,
+    contentType: sniffed,
     upsert: false,
   })
   if (uploadError) {
@@ -143,11 +149,16 @@ export async function uploadGuestProfilePhoto(
     .eq('id', guest.id)
     .maybeSingle()
 
-  const path = guestProfileStoragePath(guest.hotel_id, guest.id, fileExt(file.type))
   const buffer = Buffer.from(await file.arrayBuffer())
+  const sniffed = validateFileSignature(buffer, ['image/jpeg', 'image/png', 'image/webp'])
+  if (!sniffed) {
+    return { success: false, error: 'Use JPEG, PNG, or WebP.' }
+  }
+
+  const path = guestProfileStoragePath(guest.hotel_id, guest.id, fileExt(sniffed))
 
   const { error: uploadError } = await admin.storage.from(PROFILE_PHOTO_BUCKET).upload(path, buffer, {
-    contentType: file.type,
+    contentType: sniffed,
     upsert: false,
   })
   if (uploadError) {

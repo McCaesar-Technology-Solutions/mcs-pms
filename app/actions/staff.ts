@@ -2,7 +2,7 @@
 
 import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
-import { loadVerifiedStaffProfile, consumeStaffAuthError } from '@/lib/auth/staff-session'
+import { loadVerifiedStaffProfile } from '@/lib/auth/staff-session'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getClientIp } from '@/lib/auth/client-ip'
 import { assertRateLimit, ipRateKey, STAFF_RATE_LIMITS } from '@/lib/rate-limit'

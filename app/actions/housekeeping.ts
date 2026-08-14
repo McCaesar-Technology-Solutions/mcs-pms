@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { loadVerifiedStaffProfile, consumeStaffAuthError } from '@/lib/auth/staff-session'
+import { loadVerifiedStaffProfile } from '@/lib/auth/staff-session'
 import { applyHousekeepingSideEffects } from '@/lib/housekeeping/side-effects'
 import { recordInventoryUsageLines, validateInventoryUsageLines } from '@/lib/inventory/movements'
 import { canTransition, statusUpdateFields } from '@/lib/housekeeping/task-flow'
@@ -288,7 +288,6 @@ export async function setHousekeepingTaskStatus(
       }
       revalidatePath('/owner/inventory')
       revalidatePath('/manager/inventory')
-      revalidatePath('/receptionist/inventory')
     }
 
     if (task.task_type === 'clean') {

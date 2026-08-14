@@ -69,6 +69,7 @@ function mapReservation(
   row: ReservationRow,
   folioMap: Map<string, number>,
   invoiceId: string | null = null,
+  invoiceBillToName: string | null = null,
 ): Reservation {
   const nights = nightsBetween(row.check_in, row.check_out)
   const rateType = (row.rate_type ?? 'nightly') as Reservation['rateType']
@@ -113,6 +114,7 @@ function mapReservation(
     paymentStatus,
     depositAmount,
     invoiceId,
+    invoiceBillToName,
     discountType,
     discountValue,
     discountAmount,
@@ -337,25 +339,31 @@ async function finalizePage(
     ? await loadFolioSubtotalMap(admin, hotelId, inHouseGuestIds)
     : new Map<string, number>()
 
-  const invoiceByReservation = new Map<string, string>()
+  const invoiceByReservation = new Map<string, { id: string; billToName: string | null }>()
   if (admin && pageRows.length > 0) {
     const { data: invoiceRows } = await admin
       .from('invoices')
-      .select('id, reservation_id')
+      .select('id, reservation_id, bill_to_name')
       .eq('hotel_id', hotelId)
       .in(
         'reservation_id',
         pageRows.map((r) => r.id),
       )
     for (const inv of invoiceRows ?? []) {
-      if (inv.reservation_id) invoiceByReservation.set(inv.reservation_id, inv.id)
+      if (inv.reservation_id) {
+        invoiceByReservation.set(inv.reservation_id, {
+          id: inv.id,
+          billToName: inv.bill_to_name?.trim() || null,
+        })
+      }
     }
   }
 
   return {
-    reservations: pageRows.map((row) =>
-      mapReservation(row, folioMap, invoiceByReservation.get(row.id) ?? null),
-    ),
+    reservations: pageRows.map((row) => {
+      const inv = invoiceByReservation.get(row.id)
+      return mapReservation(row, folioMap, inv?.id ?? null, inv?.billToName ?? null)
+    }),
     totalCount,
     page,
     pageSize,

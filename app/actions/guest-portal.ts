@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { after } from 'next/server'
 import { z } from 'zod'
-import { loadVerifiedStaffProfile, consumeStaffAuthError } from '@/lib/auth/staff-session'
+import { loadVerifiedStaffProfile } from '@/lib/auth/staff-session'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { findActiveGuestForRoom } from '@/lib/data/guest-room-access'
 import {
@@ -26,9 +26,10 @@ import { guestNeedsRulesAcceptance } from '@/lib/guest-rules/needs-acceptance'
 import { getGuestFromSession, submitGuestComplaint } from '@/app/actions/guest'
 import {
   GUEST_COMPLAINT_PHOTO_BUCKET,
-  guestComplaintPhotoMime,
+  guestComplaintPhotoClientTypeHint,
   uploadGuestComplaintPhoto,
 } from '@/lib/guest/complaint-photos'
+import { validateFileSignature } from '@/lib/security/file-signature'
 import { notifyGuestRequestCreated } from '@/lib/notifications/guest-requests'
 import { guestFacingAuthorName } from '@/lib/contacts/display'
 import { loadGuestPortalContext } from '@/lib/data/guest-portal'
@@ -149,7 +150,7 @@ export async function getStaffPropertyPortalInfo(): Promise<
     roles: ['owner', 'manager', 'receptionist'],
   })
   if (!profile?.hotel_id) {
-    return { success: false, error: consumeStaffAuthError() }
+    return { success: false, error: 'Not authorized.' }
   }
 
   const slug = await ensureGuestPortalSlug(profile.hotel_id)
@@ -526,10 +527,10 @@ export async function submitGuestComplaintWithPhoto(
   }
 
   const photo = formData.get('photo')
-  let photoMime: string | null = null
+  let photoHint: string | null = null
   if (photo instanceof File && photo.size > 0) {
-    photoMime = guestComplaintPhotoMime(photo)
-    if (!photoMime) return { success: false, error: 'Photo must be JPEG, PNG, or WebP.' }
+    photoHint = guestComplaintPhotoClientTypeHint(photo)
+    if (!photoHint) return { success: false, error: 'Photo must be JPEG, PNG, or WebP.' }
     if (photo.size > 5 * 1024 * 1024) return { success: false, error: 'Photo must be under 5 MB.' }
   }
 
@@ -538,12 +539,14 @@ export async function submitGuestComplaintWithPhoto(
     return result as GuestPortalActionResult<{ reference: string }>
   }
 
-  if (photo instanceof File && photo.size > 0 && photoMime) {
+  if (photo instanceof File && photo.size > 0 && photoHint) {
     const { complaintId, hotelId } = result.data
     after(async () => {
       try {
         const buffer = Buffer.from(await photo.arrayBuffer())
-        await uploadGuestComplaintPhoto(hotelId, complaintId, buffer, photoMime)
+        const sniffed = validateFileSignature(buffer, ['image/jpeg', 'image/png', 'image/webp'])
+        if (!sniffed) return
+        await uploadGuestComplaintPhoto(hotelId, complaintId, buffer, sniffed)
       } catch {
         // Photo is optional — complaint is already saved.
       }
@@ -626,7 +629,7 @@ export async function getGuestInvoiceReceiptExport(
   const { data: row } = await admin
     .from('invoices')
     .select(
-      '*, hotels(name, address, city, region, vat_registration_number, vat_mode, notification_from_email, guest_portal_emergency_phone), reservations(check_in, check_out, rooms(number))',
+      '*, hotels(name, address, city, region, vat_registration_number, vat_mode, notification_from_email, guest_portal_emergency_phone), reservations(check_in, check_out, rooms(number, room_categories(name)))',
     )
     .eq('id', invoiceId)
     .eq('guest_id', auth.guest.id)
@@ -651,7 +654,7 @@ export async function getGuestInvoiceReceiptExport(
   const reservation = row.reservations as unknown as {
     check_in: string
     check_out: string
-    rooms?: { number: string } | null
+    rooms?: { number: string; room_categories?: { name: string } | null } | null
   } | null
 
   const checkIn = reservation?.check_in ?? auth.guest.check_in
@@ -673,8 +676,13 @@ export async function getGuestInvoiceReceiptExport(
       invoice: {
         invoiceNumber: formatInvoiceNumber({ invoice_number: row.invoice_number, id: row.id }),
         guestName: row.guest_name,
+        billToName: row.bill_to_name ?? null,
         guestPhone: auth.guest.phone ?? null,
         roomNumber: reservation?.rooms?.number ?? auth.roomNumber,
+        roomCategoryName:
+          row.room_category_name?.trim() ||
+          reservation?.rooms?.room_categories?.name?.trim() ||
+          null,
         checkIn: checkIn ?? null,
         checkOut: checkOut ?? null,
         nights: checkIn && checkOut ? stayNights(checkIn, checkOut) : null,

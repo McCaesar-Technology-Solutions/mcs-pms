@@ -4,6 +4,7 @@ import {
   defaultHotelTaxRates,
   type HotelTaxRates,
   type InvoiceTaxes,
+  type VatBase,
 } from '@/lib/tax'
 
 export interface UnbilledFolioCharge {
@@ -23,6 +24,7 @@ export function mergeRoomTaxesWithFolio(
   folioSubtotal: number,
   includeTax = false,
   rates: HotelTaxRates = defaultHotelTaxRates(),
+  vatBase: VatBase = 'stay',
 ): InvoiceTaxes {
   if (folioSubtotal === 0) return roomTaxes
 
@@ -75,7 +77,7 @@ export function mergeRoomTaxesWithFolio(
     }
   }
 
-  const folioTaxes = computeInvoiceTaxes(folioSubtotal, 'exclusive', rates)
+  const folioTaxes = computeInvoiceTaxes(folioSubtotal, 'exclusive', rates, vatBase)
   return {
     subtotal: round2(roomTaxes.subtotal + folioTaxes.subtotal),
     nhil: round2(roomTaxes.nhil + folioTaxes.nhil),
@@ -136,6 +138,7 @@ export async function prepareCheckoutTaxesWithFolio(
   roomTaxes: InvoiceTaxes,
   includeTax = false,
   rates: HotelTaxRates = defaultHotelTaxRates(),
+  vatBase: VatBase = 'stay',
 ): Promise<{
   taxes: InvoiceTaxes
   folioCharges: UnbilledFolioCharge[]
@@ -143,6 +146,6 @@ export async function prepareCheckoutTaxesWithFolio(
 }> {
   const folioCharges = await loadUnbilledFolioCharges(admin, hotelId, guestId, reservationId)
   const folioSubtotal = sumFolioSubtotal(folioCharges)
-  const taxes = mergeRoomTaxesWithFolio(roomTaxes, folioSubtotal, includeTax, rates)
+  const taxes = mergeRoomTaxesWithFolio(roomTaxes, folioSubtotal, includeTax, rates, vatBase)
   return { taxes, folioCharges, folioSubtotal }
 }

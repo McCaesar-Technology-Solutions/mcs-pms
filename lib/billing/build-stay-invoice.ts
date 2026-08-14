@@ -8,6 +8,7 @@ import {
   resolveInvoiceTaxRates,
   type HotelTaxRates,
   type InvoiceTaxes,
+  type VatBase,
   type VatMode,
 } from '@/lib/tax'
 import { calculateStayTotal, type RateType } from '@/lib/pricing/stay-totals'
@@ -30,6 +31,7 @@ import {
   syncReservationPaymentFromInvoice,
 } from '@/lib/billing/reservation-payment'
 import { deriveInvoicePaymentStatus, invoiceBalanceDue } from '@/lib/billing/invoice-payments'
+import { resolveBillToName } from '@/lib/billing/bill-to'
 import type { InvoiceExportRow } from '@/lib/export/types'
 import type { PaymentMethod, PaymentStatus } from '@/types'
 
@@ -112,6 +114,21 @@ async function computeRoomChargeAmount(
   return Math.max(0, Number(reservation.total_amount ?? 0))
 }
 
+async function loadRoomCategoryName(
+  admin: AdminClient,
+  roomId: string | null | undefined,
+): Promise<string | null> {
+  if (!roomId) return null
+  const { data } = await admin
+    .from('rooms')
+    .select('room_categories(name)')
+    .eq('id', roomId)
+    .maybeSingle()
+  const cat = data?.room_categories as { name?: string } | { name?: string }[] | null
+  const name = Array.isArray(cat) ? cat[0]?.name : cat?.name
+  return name?.trim() || null
+}
+
 async function computeRoomTaxesForStay(
   admin: AdminClient,
   reservation: StayInvoiceReservation,
@@ -119,6 +136,7 @@ async function computeRoomTaxesForStay(
   includeTax: boolean,
   vatMode: VatMode,
   rates: HotelTaxRates,
+  vatBase: VatBase,
 ): Promise<{
   taxes: InvoiceTaxes
   discountAmount: number
@@ -134,7 +152,7 @@ async function computeRoomTaxesForStay(
 
   const taxes = !includeTax
     ? noTaxInvoice(taxableBase)
-    : computeInvoiceTaxes(taxableBase, vatMode, rates)
+    : computeInvoiceTaxes(taxableBase, vatMode, rates, vatBase)
 
   return { taxes, discountAmount, roomListBase }
 }
@@ -163,6 +181,8 @@ export async function createOrRefreshStayInvoice(
     effectiveCheckOut?: string
     guestPhone?: string | null
     roomNumber?: string | null
+    billToSameAsGuest?: boolean
+    billToName?: string | null
   },
 ): Promise<{
   invoiceId: string
@@ -183,7 +203,7 @@ export async function createOrRefreshStayInvoice(
   const { data: existing } = await admin
     .from('invoices')
     .select(
-      'id, invoice_number, amount_paid, payment_status, paid_at, guest_tax_id, tax_snapshot, nhil_amount, getfund_amount, covid_levy_amount, vat_amount, elevy_amount, tourism_levy_amount',
+      'id, invoice_number, amount_paid, payment_status, paid_at, guest_tax_id, tax_snapshot, nhil_amount, getfund_amount, covid_levy_amount, vat_amount, elevy_amount, tourism_levy_amount, bill_to_name, room_category_name',
     )
     .eq('reservation_id', reservation.id)
     .eq('hotel_id', reservation.hotel_id)
@@ -195,10 +215,25 @@ export async function createOrRefreshStayInvoice(
 
   const { vatMode, rates: hotelRates } = await getHotelTaxConfig(reservation.hotel_id)
   // Freeze rates after first issue so owner rate edits do not rewrite in-flight invoices.
-  const { rates, snapshot: taxSnapshot } = resolveInvoiceTaxRates(
+  const { rates, snapshot: taxSnapshot, vatBase } = resolveInvoiceTaxRates(
     existing?.tax_snapshot,
     hotelRates,
   )
+
+  const billTo = resolveBillToName({
+    guestName: reservation.guest_name,
+    existing: existing?.bill_to_name ?? null,
+    billToSameAsGuest: input.billToSameAsGuest,
+    billToName: input.billToName,
+  })
+  if (!billTo.ok) {
+    throw new Error(billTo.error)
+  }
+
+  const roomCategoryName =
+    (await loadRoomCategoryName(admin, reservation.room_id)) ??
+    existing?.room_category_name ??
+    null
 
   const { taxes: roomTaxes, discountAmount } = await computeRoomTaxesForStay(
     admin,
@@ -207,6 +242,7 @@ export async function createOrRefreshStayInvoice(
     includeTax,
     vatMode,
     rates,
+    vatBase,
   )
 
   const discountFields = invoiceDiscountFields(discountAmount, reservation.discount_reason)
@@ -229,6 +265,7 @@ export async function createOrRefreshStayInvoice(
         roomTaxes,
         includeTax,
         rates,
+        vatBase,
       )
     : { taxes: roomTaxes, folioCharges: [] as Array<{ id: string }>, folioSubtotal: 0 }
 
@@ -242,14 +279,21 @@ export async function createOrRefreshStayInvoice(
     tax_snapshot: taxSnapshot,
   }
 
+  const partyPersist = {
+    bill_to_name: billTo.value,
+    room_category_name: roomCategoryName,
+  }
+
   // Hotel policy: every taxed invoice uses the fixed Bill-to Tax ID.
   const guestTaxId = resolveInvoiceTaxId(includeTax)
 
   const previewBase = {
     guestName: reservation.guest_name,
+    billToName: billTo.value,
     guestPhone: input.guestPhone ?? null,
     guestTaxId,
     roomNumber: input.roomNumber ?? null,
+    roomCategoryName,
     checkIn: reservation.check_in,
     checkOut: effectiveCheckOut,
     issuedAt: now,
@@ -287,6 +331,7 @@ export async function createOrRefreshStayInvoice(
           subtotal: taxes.subtotal,
           ...discountFields,
           ...taxPersist,
+          ...partyPersist,
           guest_tax_id: guestTaxId,
           total_amount: taxes.total,
           payment_method: input.paymentMethod,
@@ -341,6 +386,7 @@ export async function createOrRefreshStayInvoice(
           subtotal: taxes.subtotal,
           ...discountFields,
           ...taxPersist,
+          ...partyPersist,
           guest_tax_id: guestTaxId,
           total_amount: taxes.total,
           payment_method: input.paymentMethod,
@@ -406,6 +452,7 @@ export async function createOrRefreshStayInvoice(
       subtotal: taxes.subtotal,
       ...discountFields,
       ...taxPersist,
+      ...partyPersist,
       guest_tax_id: guestTaxId,
       total_amount: taxes.total,
       payment_method: input.paymentMethod,

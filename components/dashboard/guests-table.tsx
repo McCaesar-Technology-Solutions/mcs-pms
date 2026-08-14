@@ -38,6 +38,7 @@ import { hasPhoneNumber } from '@/lib/phone'
 import { usePagination } from '@/lib/hooks/use-pagination'
 import { toast } from 'sonner'
 import { PAYMENT_METHOD_LABELS } from '@/lib/tax'
+import { BillToFields } from '@/components/dashboard/bill-to-fields'
 import type { InvoiceExportRow } from '@/lib/export/types'
 import type { PaymentMethod } from '@/types'
 import { canEraseGuestData, canIssueUnpaidStayInvoice } from '@/lib/auth/tenant-access'
@@ -714,6 +715,8 @@ function GuestStayInvoicePanel({
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
   const [markAsPaid, setMarkAsPaid] = useState(!canLeaveUnpaid)
   const [includeTax, setIncludeTax] = useState(false)
+  const [billToSameAsGuest, setBillToSameAsGuest] = useState(!guest.invoiceBillToName?.trim())
+  const [billToName, setBillToName] = useState(guest.invoiceBillToName ?? '')
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
@@ -737,6 +740,8 @@ function GuestStayInvoicePanel({
         paymentMethod,
         markAsPaid: paidNow,
         includeTax,
+        billToSameAsGuest,
+        billToName: billToSameAsGuest ? undefined : billToName,
       })
       if (!result.success) {
         setError(result.error)
@@ -785,6 +790,13 @@ function GuestStayInvoicePanel({
         />
         Include VAT &amp; GRA levies
       </label>
+      <BillToFields
+        guestName={guest.name}
+        sameAsGuest={billToSameAsGuest}
+        onSameAsGuestChange={setBillToSameAsGuest}
+        billToName={billToName}
+        onBillToNameChange={setBillToName}
+      />
       <select
         value={paymentMethod}
         onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
@@ -821,7 +833,7 @@ function GuestStayInvoicePanel({
         </button>
         <button
           type="button"
-          disabled={pending}
+          disabled={pending || (!billToSameAsGuest && billToName.trim().length < 2)}
           onClick={submit}
           className="flex-[2] rounded-lg bg-[#D4A62E] py-2 text-sm font-semibold text-gray-900 disabled:opacity-50"
         >
@@ -1019,6 +1031,8 @@ function GuestCheckoutPanel({
   const [earlyCheckout, setEarlyCheckout] = useState(false)
   const [markAsPaid, setMarkAsPaid] = useState(true)
   const [includeTax, setIncludeTax] = useState(false)
+  const [billToSameAsGuest, setBillToSameAsGuest] = useState(!guest.invoiceBillToName?.trim())
+  const [billToName, setBillToName] = useState(guest.invoiceBillToName ?? '')
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
@@ -1041,6 +1055,8 @@ function GuestCheckoutPanel({
         earlyCheckout,
         markAsPaid,
         includeTax,
+        billToSameAsGuest,
+        billToName: billToSameAsGuest ? undefined : billToName,
       })
       if (result.success) {
         toast.success('Guest checked out')
@@ -1078,6 +1094,13 @@ function GuestCheckoutPanel({
         />
         Include VAT &amp; GRA levies on invoice refresh
       </label>
+      <BillToFields
+        guestName={guest.name}
+        sameAsGuest={billToSameAsGuest}
+        onSameAsGuestChange={setBillToSameAsGuest}
+        billToName={billToName}
+        onBillToNameChange={setBillToName}
+      />
       <label className="flex items-center gap-2 text-sm">
         <input
           type="checkbox"
@@ -1116,7 +1139,7 @@ function GuestCheckoutPanel({
         </button>
         <button
           type="button"
-          disabled={pending || !markAsPaid}
+          disabled={pending || !markAsPaid || (!billToSameAsGuest && billToName.trim().length < 2)}
           onClick={submit}
           className="flex-[2] rounded-lg bg-[#3C216C] py-2 text-sm font-semibold text-white disabled:opacity-50"
         >

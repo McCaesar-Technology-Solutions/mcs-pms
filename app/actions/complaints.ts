@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
-import { loadVerifiedStaffProfile, consumeStaffAuthError, requireVerifiedStaff } from '@/lib/auth/staff-session'
+import { loadVerifiedStaffProfile, requireVerifiedStaff } from '@/lib/auth/staff-session'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { writeAuditLog } from '@/lib/audit/log'
@@ -63,7 +63,7 @@ async function assertComplaintStaffAccess(
 export async function getHotelComplaints(): Promise<ComplaintActionResult<Complaint[]>> {
   const profile = await requireStaffProfile()
   if (!profile) {
-    return { success: false, error: consumeStaffAuthError() }
+    return { success: false, error: 'Not authorized.' }
   }
 
   try {
@@ -234,7 +234,7 @@ export async function getTechnicianComplaints(
   includeCompleted = false,
 ): Promise<ComplaintActionResult<Complaint[]>> {
   const auth = await requireTechnician()
-  if (!auth) return { success: false, error: consumeStaffAuthError() }
+  if (!auth) return { success: false, error: 'Not authorized.' }
 
   // Admin client so we can join guest contact details (guests are hidden from
   // technicians by RLS). Scoped to jobs assigned to this technician only.
@@ -456,7 +456,7 @@ export async function scheduleTechnicianComplaintVisit(
   input: unknown,
 ): Promise<ComplaintActionResult> {
   const auth = await requireTechnician()
-  if (!auth) return { success: false, error: consumeStaffAuthError() }
+  if (!auth) return { success: false, error: 'Not authorized.' }
 
   const parsed = scheduleComplaintVisitSchema.safeParse(input)
   if (!parsed.success) {
@@ -575,7 +575,7 @@ export async function rejectComplaint(
 
 export async function startTechnicianComplaint(complaintId: string): Promise<ComplaintActionResult> {
   const auth = await requireTechnician()
-  if (!auth) return { success: false, error: consumeStaffAuthError() }
+  if (!auth) return { success: false, error: 'Not authorized.' }
 
   const { data: complaint } = await auth.supabase
     .from('complaints')
@@ -610,7 +610,7 @@ export async function startTechnicianComplaint(complaintId: string): Promise<Com
 
 export async function markComplaintComplete(complaintId: string): Promise<ComplaintActionResult> {
   const auth = await requireTechnician()
-  if (!auth) return { success: false, error: consumeStaffAuthError() }
+  if (!auth) return { success: false, error: 'Not authorized.' }
 
   const { data: complaint } = await auth.supabase
     .from('complaints')
@@ -674,7 +674,7 @@ export async function getComplaintEvents(
   complaintId: string,
 ): Promise<ComplaintActionResult<ComplaintEvent[]>> {
   const profile = await requireStaffProfile()
-  if (!profile) return { success: false, error: consumeStaffAuthError() }
+  if (!profile) return { success: false, error: 'Not authorized.' }
 
   const access = await assertComplaintStaffAccess(complaintId, profile)
   if (!access.ok) return { success: false, error: access.error }
@@ -907,7 +907,7 @@ export async function getTechnicianComplaintPhotoUrl(
   complaintId: string,
 ): Promise<ComplaintActionResult<{ url: string }>> {
   const auth = await requireTechnician()
-  if (!auth) return { success: false, error: consumeStaffAuthError() }
+  if (!auth) return { success: false, error: 'Not authorized.' }
 
   const admin = createAdminClient()
   const { data } = await admin

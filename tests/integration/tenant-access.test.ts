@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   canAccessBilling,
+  canAccessInventory,
   canApplyGuestDiscount,
   canCreateManualInvoice,
   canIssueStayInvoice,
@@ -72,6 +73,13 @@ describe('tenant access — billing', () => {
     expect(canApplyGuestDiscount('manager')).toBe(true)
     expect(canApplyGuestDiscount('receptionist')).toBe(false)
     expect(canApplyGuestDiscount('technician')).toBe(false)
+  })
+
+  it('limits inventory to owner and manager', () => {
+    expect(canAccessInventory('owner')).toBe(true)
+    expect(canAccessInventory('manager')).toBe(true)
+    expect(canAccessInventory('receptionist')).toBe(false)
+    expect(canAccessInventory('technician')).toBe(false)
   })
 
   it('maps billing paths to role prefixes', () => {

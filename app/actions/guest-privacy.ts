@@ -4,7 +4,6 @@ import { randomUUID } from 'node:crypto'
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getVerifiedProfile } from '@/lib/auth/get-profile'
-import { consumeStaffAuthError } from '@/lib/auth/staff-session'
 import { canEraseGuestData, canStaffExportGuestData } from '@/lib/auth/tenant-access'
 import { writeAuditLog } from '@/lib/audit/log'
 import { revokeGuestAccess } from '@/lib/access/lifecycle'
@@ -202,7 +201,7 @@ export async function getGuestDeleteEligibility(
 ): Promise<GuestDeleteEligibility> {
   const profile = await getVerifiedProfile()
   if (!profile?.hotel_id || !canEraseGuestData(profile.role)) {
-    return { success: false, error: consumeStaffAuthError() }
+    return { success: false, error: 'Not authorized.' }
   }
 
   const admin = createAdminClient()
@@ -247,7 +246,7 @@ export async function getGuestDeleteEligibility(
 export async function exportGuestData(guestId: string): Promise<GuestPrivacyResult> {
   const profile = await getVerifiedProfile()
   if (!profile?.hotel_id || !canStaffExportGuestData(profile.role)) {
-    return { success: false, error: consumeStaffAuthError() }
+    return { success: false, error: 'Not authorized.' }
   }
 
   const admin = createAdminClient()
@@ -297,7 +296,7 @@ export async function eraseGuestPersonalData(guestId: string): Promise<GuestPriv
   if (!profile?.hotel_id || !canEraseGuestData(profile.role)) {
     return {
       success: false,
-      error: consumeStaffAuthError('Not authorized to erase guest data.'),
+      error: 'Not authorized to erase guest data.',
     }
   }
 
@@ -389,7 +388,7 @@ export async function hardDeleteGuest(guestId: string): Promise<GuestPrivacyResu
   if (!profile?.hotel_id || !canEraseGuestData(profile.role)) {
     return {
       success: false,
-      error: consumeStaffAuthError('Not authorized to delete guests.'),
+      error: 'Not authorized to delete guests.',
     }
   }
 

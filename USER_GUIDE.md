@@ -41,6 +41,7 @@ Index and money-permissions summary: [docs/README.md](docs/README.md)
 | Access (Hikvision) | ✓ full | Ops + staff + attendance | Guest unlock / cards | — | Door PIN if enabled |
 | Complaints | Log + read-only | Assign + close | Log + track | Do the work | Submit + sign off |
 | Housekeeping board | ✓ | ✓ | — | Claim / tasks | Request clean |
+| Inventory | ✓ | ✓ | — | Consume on jobs | — |
 | Billing view / print / WhatsApp | ✓ | ✓ | ✓ | — | Own invoices |
 | Record stay payments | ✓ | ✓ | ✓ | — | Pay now if enabled |
 | Issue unpaid / ad-hoc invoices | ✓ | ✓ | — | — | — |
@@ -68,4 +69,4 @@ Staff and guest views refresh when data changes (Supabase Realtime). Keep the br
 
 ## Technical setup
 
-Hubtel / Arkesel SMS, online payments flag, Supabase migrations through **074**, `.env.local` — see [DEPLOYMENT.md](DEPLOYMENT.md).
+Hubtel / Arkesel SMS, online payments flag, Supabase migrations through **075**, `.env.local` — see [DEPLOYMENT.md](DEPLOYMENT.md).

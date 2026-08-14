@@ -156,6 +156,8 @@ export interface Reservation {
   depositAmount: number
   /** Stay-linked invoice when one exists. */
   invoiceId?: string | null
+  /** Bill-to name on that invoice when it differs from the guest. */
+  invoiceBillToName?: string | null
   discountType?: 'none' | 'percent' | 'fixed'
   discountValue?: number
   discountAmount?: number
@@ -490,6 +492,8 @@ export interface DbInvoice {
   reservation_id: string | null
   guest_id: string | null
   guest_name: string
+  /** Payer printed on BILL TO. Null = same as guest_name. */
+  bill_to_name?: string | null
   invoice_number: string | null
   subtotal: number
   discount_amount?: number | null
@@ -500,6 +504,8 @@ export interface DbInvoice {
   covid_levy_amount: number | null
   elevy_amount: number | null
   tourism_levy_amount?: number | null
+  /** Frozen room category name at issue. */
+  room_category_name?: string | null
   tax_snapshot?: {
     nhil: number
     getfund: number
@@ -507,6 +513,7 @@ export interface DbInvoice {
     vat: number
     elevy: number
     tourism: number
+    vat_base?: 'stay' | 'stacked'
   } | null
   /** Guest Ghana Card frozen at issue (Bill-to tax ID). */
   guest_tax_id?: string | null

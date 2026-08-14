@@ -3,7 +3,6 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { getVerifiedProfile } from '@/lib/auth/get-profile'
-import { consumeStaffAuthError } from '@/lib/auth/staff-session'
 import { writeAuditLog } from '@/lib/audit/log'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getGuestFromSession } from '@/app/actions/guest'
@@ -72,7 +71,7 @@ export async function initiateStaffPayment(input: unknown): Promise<PaymentActio
 
   const profile = await getVerifiedProfile()
   if (!profile?.hotel_id || !['owner', 'manager', 'receptionist'].includes(profile.role)) {
-    return { success: false, error: consumeStaffAuthError() }
+    return { success: false, error: 'Not authorized.' }
   }
 
   const admin = createAdminClient()
@@ -130,7 +129,7 @@ export async function initiateStaffDepositPayment(input: unknown): Promise<Payme
 
   const profile = await getVerifiedProfile()
   if (!profile?.hotel_id || !['owner', 'manager', 'receptionist'].includes(profile.role)) {
-    return { success: false, error: consumeStaffAuthError() }
+    return { success: false, error: 'Not authorized.' }
   }
 
   const admin = createAdminClient()
@@ -269,7 +268,7 @@ export async function markPaymentAbandoned(input: unknown): Promise<PaymentStatu
 
   const profile = await getVerifiedProfile()
   if (!profile?.hotel_id || !['owner', 'manager', 'receptionist'].includes(profile.role)) {
-    return { success: false, error: consumeStaffAuthError() }
+    return { success: false, error: 'Not authorized.' }
   }
 
   const admin = createAdminClient()

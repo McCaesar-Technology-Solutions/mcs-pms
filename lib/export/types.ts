@@ -15,10 +15,14 @@ export interface ExportHotelInfo {
 export interface InvoiceExportRow {
   invoiceNumber: string
   guestName: string
+  /** Payer on BILL TO when different from the stay guest. */
+  billToName?: string | null
   guestPhone?: string | null
   /** Guest Ghana Card / tax ID (snapshot). */
   guestTaxId?: string | null
   roomNumber: string | null
+  /** Frozen room category at issue (e.g. Deluxe). */
+  roomCategoryName?: string | null
   checkIn: string | null
   checkOut: string | null
   nights: number | null

@@ -11,8 +11,10 @@ describe('mergeRoomTaxesWithFolio', () => {
 
   it('adds folio subtotal with GRA taxes on checkout', () => {
     const room = computeInvoiceTaxes(1000, 'exclusive')
-    const merged = mergeRoomTaxesWithFolio(room, 200)
-    expect(merged.subtotal).toBeGreaterThan(room.subtotal)
+    const folio = computeInvoiceTaxes(200, 'exclusive')
+    const merged = mergeRoomTaxesWithFolio(room, 200, true)
+    expect(merged.subtotal).toBe(1200)
+    expect(merged.vat).toBe(room.vat + folio.vat)
     expect(merged.total).toBeGreaterThan(room.total)
   })
 })

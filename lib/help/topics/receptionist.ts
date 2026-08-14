@@ -13,11 +13,12 @@ export const receptionistHelpTopics: HelpTopic[] = [
       'Rooms — view nightly/weekly/monthly rates (read-only) and update status.',
       'Access — guest unlock and cards only.',
       'Complaints — log issues on behalf of a guest.',
+      'Inventory is manager/owner only — ask them if supplies are low.',
       'Press ⌘K (or use Search) to jump to a page or find a guest quickly.',
     ],
     href: '/receptionist/dashboard',
     hrefLabel: 'Open dashboard',
-    keywords: ['navigation', 'menu', 'search', 'keyboard'],
+    keywords: ['navigation', 'menu', 'search', 'keyboard', 'inventory', 'stock'],
   },
   {
     id: 'check-in',

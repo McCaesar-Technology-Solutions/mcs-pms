@@ -27,6 +27,7 @@ import {
   type VatMode,
 } from '@/lib/tax'
 import { GuestSearchField } from '@/components/dashboard/guest-search-field'
+import { BillToFields } from '@/components/dashboard/bill-to-fields'
 import { formatInvoiceNumber } from '@/lib/invoices/numbering'
 import { InvoiceWhatsAppDialog, InvoiceWhatsAppShare } from '@/components/dashboard/invoice-whatsapp-share'
 import { downloadInvoicePdf } from '@/lib/export/invoice-pdf'
@@ -96,9 +97,11 @@ function toExportRow(inv: InvoiceWithRoom): InvoiceExportRow {
   return {
     invoiceNumber: formatInvoiceNumber(inv),
     guestName: inv.guest_name,
+    billToName: inv.bill_to_name ?? null,
     guestPhone: inv.guestPhone,
     guestTaxId: inv.guest_tax_id ?? null,
     roomNumber: inv.roomNumber,
+    roomCategoryName: inv.roomCategoryName ?? inv.room_category_name ?? null,
     checkIn: inv.checkIn,
     checkOut: inv.checkOut,
     nights: inv.nights,
@@ -135,6 +138,8 @@ interface BillingOverviewProps {
   canRefund?: boolean
   /** When true, staff can open a Paystack checkout link for open balances. */
   onlinePaymentsEnabled?: boolean
+  /** Revenue / collection KPI tiles. Owner and manager only. */
+  showKpis?: boolean
 }
 
 export function BillingOverview({
@@ -149,6 +154,7 @@ export function BillingOverview({
   canCreateInvoice,
   canRefund,
   onlinePaymentsEnabled = false,
+  showKpis = true,
 }: BillingOverviewProps) {
   const allowRecordPayment = canRecordPayment ?? !readOnly
   const allowCreateInvoice = canCreateInvoice ?? !readOnly
@@ -166,6 +172,8 @@ export function BillingOverview({
   const [newPaymentMethod, setNewPaymentMethod] = useState<PaymentMethod>('cash')
   const [newMarkPaid, setNewMarkPaid] = useState(false)
   const [newIncludeTax, setNewIncludeTax] = useState(false)
+  const [newBillToSameAsGuest, setNewBillToSameAsGuest] = useState(true)
+  const [newBillToName, setNewBillToName] = useState('')
   const [partialAmount, setPartialAmount] = useState('')
   const [partialMethod, setPartialMethod] = useState<PaymentMethod>('cash')
   const [whatsAppInvoice, setWhatsAppInvoice] = useState<InvoiceWithRoom | null>(null)
@@ -224,10 +232,11 @@ export function BillingOverview({
   }
 
   function exportSelectedCsv() {
-    const header = ['Invoice', 'Guest', 'Room', 'Date', 'Due', 'Status', 'Method', 'Amount']
+    const header = ['Invoice', 'Guest', 'Bill to', 'Room', 'Date', 'Due', 'Status', 'Method', 'Amount']
     const csvRows = selection.selected.map((r) => [
       r.id,
       r.guestName,
+      r.invoice?.bill_to_name?.trim() || r.guestName,
       String(r.roomNumber),
       r.date,
       r.dueDate,
@@ -274,6 +283,8 @@ export function BillingOverview({
         paymentMethod: newPaymentMethod,
         markAsPaid: newMarkPaid,
         includeTax: newIncludeTax,
+        billToSameAsGuest: newBillToSameAsGuest,
+        billToName: newBillToSameAsGuest ? undefined : newBillToName,
       })
       if (result.success) {
         toast.success('Invoice created')
@@ -281,7 +292,9 @@ export function BillingOverview({
         setNewGuestName('')
         setNewGuestId(null)
         setNewDescription('')
-        setNewSubtotal('')
+        setNewIncludeTax(false)
+        setNewBillToSameAsGuest(true)
+        setNewBillToName('')
         router.refresh()
       } else {
         toast.error(result.error)
@@ -381,6 +394,7 @@ export function BillingOverview({
           { key: 'csv', label: 'Export CSV', icon: Download, onClick: exportSelectedCsv },
         ]}
       />
+      {showKpis && (
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <div className="surface-card stat-tile stat-tile-emerald p-6">
           <p className="text-sm font-medium text-muted-foreground">Total revenue</p>
@@ -411,6 +425,7 @@ export function BillingOverview({
           </div>
         </div>
       </div>
+      )}
 
       <div className="surface-card">
         <div className="surface-card-header flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -611,9 +626,13 @@ export function BillingOverview({
             <ModalHeader onClose={() => setDetail(null)}>
               <h3 className="text-lg font-semibold">Invoice {formatInvoiceNumber(detail)}</h3>
               <p className="modal-panel-subtle text-sm">
-                {detail.guest_name}
+                {detail.bill_to_name?.trim() || detail.guest_name}
                 {detail.roomNumber ? ` · Room ${detail.roomNumber}` : ''}
               </p>
+              {detail.bill_to_name?.trim() &&
+                detail.bill_to_name.trim().toLowerCase() !== detail.guest_name.trim().toLowerCase() && (
+                  <p className="modal-panel-subtle text-xs">Guest: {detail.guest_name}</p>
+                )}
               {detail.guest_tax_id && (
                 <p className="modal-panel-subtle text-xs">Tax ID: {detail.guest_tax_id}</p>
               )}
@@ -864,6 +883,13 @@ export function BillingOverview({
               }
             }}
           />
+          <BillToFields
+            guestName={newGuestName}
+            sameAsGuest={newBillToSameAsGuest}
+            onSameAsGuestChange={setNewBillToSameAsGuest}
+            billToName={newBillToName}
+            onBillToNameChange={setNewBillToName}
+          />
           <div>
             <label className="text-sm font-semibold">Description (optional)</label>
             <input
@@ -933,7 +959,12 @@ export function BillingOverview({
         <ModalFooter>
           <button
             type="button"
-            disabled={pending || newGuestName.trim().length < 2 || newSubtotalNum <= 0}
+            disabled={
+              pending ||
+              newGuestName.trim().length < 2 ||
+              newSubtotalNum <= 0 ||
+              (!newBillToSameAsGuest && newBillToName.trim().length < 2)
+            }
             onClick={submitNewInvoice}
             className="app-btn app-btn-primary w-full"
           >

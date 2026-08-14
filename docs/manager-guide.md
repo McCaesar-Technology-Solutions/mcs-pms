@@ -272,6 +272,7 @@ You cannot change compensation or commission rules.
 - Receive, issue, adjust stock.
 - View movement history.
 - You **cannot** delete items or record expenses from stock (owner).
+- Reception **cannot** open inventory — they will ask you if supplies are low.
 
 ---
 

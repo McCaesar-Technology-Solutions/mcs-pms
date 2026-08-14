@@ -7,6 +7,7 @@ import type { DbInvoice } from '@/types'
 
 export interface InvoiceWithRoom extends DbInvoice {
   roomNumber: string | null
+  roomCategoryName: string | null
   checkIn: string | null
   checkOut: string | null
   nights: number | null
@@ -17,7 +18,7 @@ interface InvoiceQueryRow extends DbInvoice {
   reservations?: {
     check_in: string
     check_out: string
-    rooms?: { number: string } | null
+    rooms?: { number: string; room_categories?: { name: string } | null } | null
   } | null
 }
 
@@ -32,7 +33,7 @@ export async function getInvoicesData(limit?: number): Promise<InvoiceWithRoom[]
 
   const { data } = await supabase
     .from('invoices')
-    .select('*, reservations(check_in, check_out, rooms(number))')
+    .select('*, reservations(check_in, check_out, rooms(number, room_categories(name)))')
     .eq('hotel_id', profile.hotel_id)
     .order('issued_at', { ascending: false })
     .limit(clampLimit(limit))
@@ -54,6 +55,10 @@ export async function getInvoicesData(limit?: number): Promise<InvoiceWithRoom[]
     return {
       ...row,
       roomNumber: row.reservations?.rooms?.number ?? null,
+      roomCategoryName:
+        row.room_category_name?.trim() ||
+        row.reservations?.rooms?.room_categories?.name?.trim() ||
+        null,
       checkIn,
       checkOut,
       nights: checkIn && checkOut ? stayNights(checkIn, checkOut) : null,

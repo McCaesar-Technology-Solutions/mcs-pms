@@ -81,7 +81,7 @@ import {
 import { FormField } from '@/components/ui/form-field'
 import { cn } from '@/lib/utils'
 
-export type InventoryStaffRole = 'owner' | 'manager' | 'receptionist'
+export type InventoryStaffRole = 'owner' | 'manager'
 
 interface InventoryManagerProps {
   items: InventoryRow[]
@@ -401,7 +401,7 @@ function InventoryManagerInner({
   }
 
   const complaintsHref = `/${staffRole}/complaints`
-  const housekeepingHref = staffRole === 'receptionist' ? null : `/${staffRole}/housekeeping`
+  const housekeepingHref = `/${staffRole}/housekeeping`
 
   return (
     <div className="space-y-6">

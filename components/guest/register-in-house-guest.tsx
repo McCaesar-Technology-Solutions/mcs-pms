@@ -7,6 +7,7 @@ import { enrollGuest, getEnrollmentRooms } from '@/app/actions/guest'
 import { CheckoutInvoiceDialog } from '@/components/dashboard/checkout-invoice-dialog'
 import { PortalLinkPanel } from '@/components/dashboard/portal-link-panel'
 import { FormField, APP_FIELD_CLASS } from '@/components/ui/form-field'
+import { BillToFields } from '@/components/dashboard/bill-to-fields'
 import type { InvoiceExportRow } from '@/lib/export/types'
 import { toast } from 'sonner'
 import {
@@ -82,6 +83,8 @@ function RegisterInHouseGuestModal({ onClose }: { onClose: () => void }) {
   const [email, setEmail] = useState('')
   const [ghanaCardNumber, setGhanaCardNumber] = useState('')
   const [includeTax, setIncludeTax] = useState(false)
+  const [billToSameAsGuest, setBillToSameAsGuest] = useState(true)
+  const [billToName, setBillToName] = useState('')
   const [roomId, setRoomId] = useState('')
   const [checkIn, setCheckIn] = useState(today)
   const [checkOut, setCheckOut] = useState(addDaysISO(today, 1))
@@ -197,6 +200,8 @@ function RegisterInHouseGuestModal({ onClose }: { onClose: () => void }) {
         weeklyRate: Number(weeklyRate || 0),
         monthlyRate: Number(monthlyRate || 0),
         includeTax,
+        billToSameAsGuest,
+        billToName: billToSameAsGuest ? undefined : billToName,
       })
       if (!res.success) {
         setError(res.error)
@@ -232,7 +237,8 @@ function RegisterInHouseGuestModal({ onClose }: { onClose: () => void }) {
     name.trim().length >= 2 &&
     phoneValid &&
     (rateType !== 'weekly' || Number(weeklyRate) > 0) &&
-    (rateType !== 'monthly' || Number(monthlyRate) > 0)
+    (rateType !== 'monthly' || Number(monthlyRate) > 0) &&
+    (billToSameAsGuest || billToName.trim().length >= 2)
 
   if (result) {
     const waMessage = `Hi ${name.trim() || 'there'}, here is your guest portal link: ${result.loginUrl}. Or scan the property QR and use room PIN ${result.portalPin}.`
@@ -367,6 +373,14 @@ function RegisterInHouseGuestModal({ onClose }: { onClose: () => void }) {
             </span>
           </span>
         </label>
+
+        <BillToFields
+          guestName={name}
+          sameAsGuest={billToSameAsGuest}
+          onSameAsGuestChange={setBillToSameAsGuest}
+          billToName={billToName}
+          onBillToNameChange={setBillToName}
+        />
 
         <div className="grid grid-cols-2 gap-3">
           <FormField label="Arrived" required hint="Can be in the past">

@@ -7,7 +7,7 @@ export function guestComplaintPhotoPath(hotelId: string, complaintId: string, ex
   return `${hotelId}/${complaintId}.${safeExt}`
 }
 
-export function guestComplaintPhotoMime(file: File): string | null {
+export function guestComplaintPhotoClientTypeHint(file: File): string | null {
   const allowed = ['image/jpeg', 'image/png', 'image/webp']
   return allowed.includes(file.type) ? file.type : null
 }

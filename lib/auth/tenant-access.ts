@@ -58,6 +58,11 @@ export function canApplyGuestDiscount(role: UserRole | string | null | undefined
   return role === 'owner' || role === 'manager'
 }
 
+/** Inventory page and stock writes — owner and manager only. Technicians may consume via housekeeping/complaints. */
+export function canAccessInventory(role: UserRole | string | null | undefined): boolean {
+  return role === 'owner' || role === 'manager'
+}
+
 /** Payroll overview: owners manage fully; managers may view and prepare drafts. */
 export function canAccessPayroll(role: UserRole | string | null | undefined): boolean {
   return role === 'owner' || role === 'manager'

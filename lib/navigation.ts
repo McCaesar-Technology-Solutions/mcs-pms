@@ -84,7 +84,6 @@ export const receptionistNavigation: NavItem[] = [
   { name: 'Access', href: '/receptionist/access', icon: 'key-round' },
   { name: 'Billing', href: '/receptionist/billing', icon: 'banknote' },
   { name: 'Complaints', href: '/receptionist/complaints', icon: 'wrench' },
-  { name: 'Inventory', href: '/receptionist/inventory', icon: 'package' },
 ]
 
 export const technicianNavigation: NavItem[] = [

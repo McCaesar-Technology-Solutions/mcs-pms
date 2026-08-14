@@ -5,7 +5,6 @@ import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getVerifiedProfile } from '@/lib/auth/get-profile'
-import { consumeStaffAuthError } from '@/lib/auth/staff-session'
 import { writeAuditLog } from '@/lib/audit/log'
 import { clampLimit } from '@/lib/data/pagination'
 import { isFolioPostingBlocked } from '@/lib/folio/lock'
@@ -43,7 +42,7 @@ export async function postGuestCharge(input: unknown): Promise<FolioActionResult
 
   const profile = await getVerifiedProfile()
   if (!profile?.hotel_id || !['owner', 'manager', 'receptionist'].includes(profile.role)) {
-    return { success: false, error: consumeStaffAuthError() }
+    return { success: false, error: 'Not authorized.' }
   }
 
   if (parsed.data.chargeType === 'discount' && !canApplyGuestDiscount(profile.role)) {

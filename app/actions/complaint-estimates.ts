@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { requireVerifiedStaff, consumeStaffAuthError } from '@/lib/auth/staff-session'
+import { requireVerifiedStaff } from '@/lib/auth/staff-session'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getComplaintEstimate } from '@/lib/data/complaint-estimates'
@@ -13,6 +13,7 @@ import {
   sanitizeDownloadFilename,
 } from '@/lib/complaints/invoice-storage'
 import { submitComplaintEstimateSchema } from '@/lib/validations'
+import { validateFileSignature } from '@/lib/security/file-signature'
 import type { ComplaintEstimate } from '@/types'
 import { runNotifyTask } from '@/lib/notifications/notify-task'
 
@@ -29,7 +30,7 @@ function revalidateEstimateViews() {
 
 async function requireAssignedTechnician(complaintId: string) {
   const result = await requireVerifiedStaff({ roles: ['technician'] })
-  if (!result.ok) return { error: consumeStaffAuthError(result.error) }
+  if (!result.ok) return { error: result.error ?? 'Not authorized.' }
 
   const { supabase, user, profile } = result
 
@@ -64,7 +65,7 @@ async function requireInvoiceViewer(complaintId: string) {
   const result = await requireVerifiedStaff({
     roles: ['owner', 'manager', 'receptionist', 'technician'],
   })
-  if (!result.ok) return { error: consumeStaffAuthError(result.error) }
+  if (!result.ok) return { error: result.error ?? 'Not authorized.' }
 
   const { supabase, user, profile } = result
 
@@ -349,7 +350,22 @@ export async function submitComplaintEstimateWithFile(
       return { success: false, error: 'Invoice file must be 10 MB or smaller.' }
     }
 
-    const ext = invoiceFileExtension(file.type)
+    if (!invoiceFileExtension(file.type)) {
+      return { success: false, error: 'Upload a PDF or image (JPEG, PNG, WebP).' }
+    }
+
+    const buffer = Buffer.from(await file.arrayBuffer())
+    const sniffed = validateFileSignature(buffer, [
+      'image/jpeg',
+      'image/png',
+      'image/webp',
+      'application/pdf',
+    ])
+    if (!sniffed) {
+      return { success: false, error: 'Upload a PDF or image (JPEG, PNG, WebP).' }
+    }
+
+    const ext = invoiceFileExtension(sniffed)
     if (!ext) {
       return { success: false, error: 'Upload a PDF or image (JPEG, PNG, WebP).' }
     }
@@ -363,12 +379,11 @@ export async function submitComplaintEstimateWithFile(
 
     removeOldFilePath = existing?.invoice_file_path ?? null
     const path = invoiceStoragePath(ctx.complaint.hotel_id, parsed.data.complaintId, ext)
-    const buffer = Buffer.from(await file.arrayBuffer())
 
     const { error: uploadError } = await admin.storage
       .from(COMPLAINT_INVOICE_BUCKET)
       .upload(path, buffer, {
-        contentType: file.type,
+        contentType: sniffed,
         upsert: true,
       })
 
@@ -378,7 +393,7 @@ export async function submitComplaintEstimateWithFile(
 
     invoiceFilePath = path
     invoiceFileName = sanitizeDownloadFilename(file.name)
-    invoiceFileMime = file.type
+    invoiceFileMime = sniffed
   }
 
   return persistComplaintEstimate({

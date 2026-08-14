@@ -395,6 +395,8 @@ export async function enrollGuest(input: {
   weeklyRate?: number
   monthlyRate?: number
   includeTax?: boolean
+  billToSameAsGuest?: boolean
+  billToName?: string
 }): Promise<EnrollGuestResult> {
   const parsed = enrollGuestSchema.safeParse(input)
   if (!parsed.success) {
@@ -455,6 +457,8 @@ export async function enrollGuest(input: {
     weeklyRate,
     monthlyRate,
     includeTax: parsed.data.includeTax === true,
+    billToSameAsGuest: parsed.data.billToSameAsGuest,
+    billToName: parsed.data.billToName,
     quietEnrollment: true,
   })
 
@@ -492,6 +496,8 @@ export async function checkOutGuest(input: {
   earlyCheckout?: boolean
   markAsPaid?: boolean
   includeTax?: boolean
+  billToSameAsGuest?: boolean
+  billToName?: string
 }): Promise<GuestActionResult> {
   const result = await checkOutStay({
     guestId: input.guestId,
@@ -499,6 +505,8 @@ export async function checkOutGuest(input: {
     earlyCheckout: input.earlyCheckout,
     markAsPaid: input.markAsPaid,
     includeTax: input.includeTax,
+    billToSameAsGuest: input.billToSameAsGuest,
+    billToName: input.billToName,
   })
   if (!result.success) return { success: false, error: result.error }
   return { success: true }

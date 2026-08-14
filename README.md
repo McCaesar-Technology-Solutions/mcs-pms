@@ -10,7 +10,7 @@ The app is a **working PMS** with real persistence, role-based access, and live 
 
 | Area | Status |
 |------|--------|
-| Supabase schema + RLS (migrations `001`–`074`) | Done |
+| Supabase schema + RLS (migrations `001`–`075`) | Done |
 | Auth: owner signup, staff invites, password reset, MFA | Done |
 | Roles: owner, manager, receptionist, technician, guest | Done |
 | Reservations, lifecycle v2, check-in/out, walk-ins, discounts, guest portal | Done |
@@ -41,7 +41,7 @@ Open [http://localhost:3000/login](http://localhost:3000/login).
 
 ### Database
 
-Apply migrations `001`–`074` in `supabase/migrations/`. See [DEPLOYMENT.md](DEPLOYMENT.md) and [docs/GO-LIVE.md](docs/GO-LIVE.md).
+Apply migrations `001`–`075` in `supabase/migrations/`. See [DEPLOYMENT.md](DEPLOYMENT.md) and [docs/GO-LIVE.md](docs/GO-LIVE.md).
 
 Optional seed:
 
@@ -100,7 +100,7 @@ lib/
   data/             server-side data loaders
   supabase/         client, server, middleware, admin
   notifications/    SMS/WhatsApp (Arkesel, Twilio, Hubtel)
-supabase/migrations/  SQL schema (001–074)
+supabase/migrations/  SQL schema (001–075)
 docs/               role guides + GO-LIVE checklist
 ```
 

@@ -52,6 +52,8 @@ const GUEST_LIST_COLUMNS =
   'id, name, email, phone, ghana_card_number, room_id, check_in, check_out, created_at, token, token_expires_at, portal_pin, do_not_disturb, rooms(number)'
 
 async function mapGuestRows(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  hotelId: string,
   guests: GuestQueryRow[],
   reservations: DbReservation[],
 ): Promise<GuestRow[]> {
@@ -91,15 +93,47 @@ async function mapGuestRows(
         token: guest.token,
         tokenExpiresAt: guest.token_expires_at,
         portalPin: await revealStoredPortalPin(guest.portal_pin),
-        reservationId: derived.reservationId,
-        isInHouse: derived.isInHouse,
+    reservationId: derived.reservationId,
+    invoiceBillToName: null as string | null,
+    isInHouse: derived.isInHouse,
         canCheckOut: derived.canCheckOut,
         doNotDisturb: Boolean(guest.do_not_disturb),
       }
     }),
   )
 
-  return sortGuestDirectory(rows)
+  return attachInvoiceBillTo(supabase, hotelId, sortGuestDirectory(rows))
+}
+
+async function attachInvoiceBillTo(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  hotelId: string,
+  rows: GuestRow[],
+): Promise<GuestRow[]> {
+  const reservationIds = [
+    ...new Set(rows.map((r) => r.reservationId).filter((id): id is string => Boolean(id))),
+  ]
+  if (!reservationIds.length) return rows
+
+  const { data } = await supabase
+    .from('invoices')
+    .select('reservation_id, bill_to_name')
+    .eq('hotel_id', hotelId)
+    .in('reservation_id', reservationIds)
+
+  const byReservation = new Map<string, string | null>()
+  for (const inv of data ?? []) {
+    if (inv.reservation_id) {
+      byReservation.set(inv.reservation_id, inv.bill_to_name?.trim() || null)
+    }
+  }
+
+  return rows.map((row) => ({
+    ...row,
+    invoiceBillToName: row.reservationId
+      ? (byReservation.get(row.reservationId) ?? null)
+      : null,
+  }))
 }
 
 async function loadReservationsForGuests(
@@ -214,7 +248,7 @@ export async function getGuestsPage(options?: {
       hotelId,
       guestRows.map((g) => g.id),
     )
-    const rows = await mapGuestRows(guestRows, reservations)
+    const rows = await mapGuestRows(supabase, hotelId, guestRows, reservations)
     return paginateMappedGuests(rows, page, pageSize, status)
   }
 
@@ -244,6 +278,8 @@ export async function getGuestsPage(options?: {
       .in('id', occupyingIds)
 
     const occupyingMapped = await mapGuestRows(
+      supabase,
+      hotelId,
       (occupyingGuests ?? []) as unknown as GuestQueryRow[],
       await loadReservationsForGuests(supabase, hotelId, occupyingIds),
     )
@@ -263,6 +299,8 @@ export async function getGuestsPage(options?: {
       const { data: others } = await othersQuery
       const otherRows = (others ?? []) as unknown as GuestQueryRow[]
       const otherMapped = await mapGuestRows(
+        supabase,
+        hotelId,
         otherRows,
         await loadReservationsForGuests(
           supabase,
@@ -303,6 +341,8 @@ export async function getGuestsPage(options?: {
 
   return {
     guests: await mapGuestRows(
+      supabase,
+      hotelId,
       pageGuests,
       await loadReservationsForGuests(
         supabase,

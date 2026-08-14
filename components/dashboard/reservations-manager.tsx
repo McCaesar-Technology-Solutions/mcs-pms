@@ -28,6 +28,7 @@ import {
   releaseNoShowRoomHold,
 } from '@/app/actions/stays'
 import { GuestSearchField } from '@/components/dashboard/guest-search-field'
+import { BillToFields } from '@/components/dashboard/bill-to-fields'
 import { APP_FIELD_CLASS, FormField } from '@/components/ui/form-field'
 import { formatGhs, MONEY_CLASS } from '@/lib/format/money'
 import { GuestDndBadge } from '@/components/ui/guest-dnd-badge'
@@ -925,11 +926,16 @@ function ReservationDrawer({
   const [portalPin, setPortalPin] = useState<string | null>(null)
   const [newCheckOut, setNewCheckOut] = useState(initialExtendDate ?? reservation.checkOutDate)
   const [newRoomId, setNewRoomId] = useState(reservation.roomId)
+  const [billToSameAsGuest, setBillToSameAsGuest] = useState(
+    !reservation.invoiceBillToName?.trim(),
+  )
+  const [billToName, setBillToName] = useState(reservation.invoiceBillToName ?? '')
 
   useEffect(() => {
-    if (!initialExtendDate) return
-    setNewCheckOut(initialExtendDate)
-  }, [initialExtendDate])
+    const existing = reservation.invoiceBillToName?.trim() || ''
+    setBillToSameAsGuest(!existing)
+    setBillToName(existing)
+  }, [reservation.id, reservation.invoiceBillToName])
 
   useEffect(() => {
     if (initialExtendStay) {
@@ -1259,6 +1265,13 @@ function ReservationDrawer({
                   />
                   Include Ghana tax
                 </label>
+                <BillToFields
+                  guestName={reservation.guestName}
+                  sameAsGuest={billToSameAsGuest}
+                  onSameAsGuestChange={setBillToSameAsGuest}
+                  billToName={billToName}
+                  onBillToNameChange={setBillToName}
+                />
                 <div className="flex gap-2">
                   <button
                     type="button"
@@ -1270,7 +1283,7 @@ function ReservationDrawer({
                   </button>
                   <button
                     type="button"
-                    disabled={pending}
+                    disabled={pending || (!billToSameAsGuest && billToName.trim().length < 2)}
                     onClick={() => {
                       setError(null)
                       startTransition(async () => {
@@ -1280,6 +1293,8 @@ function ReservationDrawer({
                           paymentMethod,
                           markAsPaid: paidNow,
                           includeTax,
+                          billToSameAsGuest,
+                          billToName: billToSameAsGuest ? undefined : billToName,
                           ...(canDiscount
                             ? {
                                 discountType: issueDiscountType,
@@ -1738,6 +1753,13 @@ function ReservationDrawer({
                       </span>
                     </span>
                   </label>
+                  <BillToFields
+                    guestName={guestName}
+                    sameAsGuest={billToSameAsGuest}
+                    onSameAsGuestChange={setBillToSameAsGuest}
+                    billToName={billToName}
+                    onBillToNameChange={setBillToName}
+                  />
                   <div className="flex gap-2">
                     <button
                       type="button"
@@ -1749,7 +1771,7 @@ function ReservationDrawer({
                     </button>
                     <button
                       type="button"
-                      disabled={pending || !phone.trim() || !guestName.trim()}
+                      disabled={pending || !phone.trim() || !guestName.trim() || (!billToSameAsGuest && billToName.trim().length < 2)}
                       onClick={() => {
                         setError(null)
                         startTransition(async () => {
@@ -1760,6 +1782,8 @@ function ReservationDrawer({
                             guestName,
                             ghanaCardNumber,
                             includeTax,
+                            billToSameAsGuest,
+                            billToName: billToSameAsGuest ? undefined : billToName,
                           })
                           if (result.success && result.data) {
                             setPortalUrl(result.data.loginUrl)
@@ -1860,7 +1884,10 @@ function ReservationDrawer({
                       ) {
                         return
                       }
-                      run(() => recordWalkoutReservation(reservation.id, paymentMethod, earlyCheckout, includeTax))
+                      run(() => recordWalkoutReservation(reservation.id, paymentMethod, earlyCheckout, includeTax, {
+                        billToSameAsGuest,
+                        billToName: billToSameAsGuest ? undefined : billToName,
+                      }))
                     }}
                     className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 py-3 text-sm font-semibold text-red-800"
                   >
@@ -1925,7 +1952,10 @@ function ReservationDrawer({
                       ) {
                         return
                       }
-                      run(() => recordWalkoutReservation(reservation.id, paymentMethod, earlyCheckout, includeTax))
+                      run(() => recordWalkoutReservation(reservation.id, paymentMethod, earlyCheckout, includeTax, {
+                        billToSameAsGuest,
+                        billToName: billToSameAsGuest ? undefined : billToName,
+                      }))
                     }}
                     className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 py-3 text-sm font-semibold text-red-800"
                   >
@@ -1960,7 +1990,10 @@ function ReservationDrawer({
                       ) {
                         return
                       }
-                      run(() => recordWalkoutReservation(reservation.id, paymentMethod, earlyCheckout, includeTax))
+                      run(() => recordWalkoutReservation(reservation.id, paymentMethod, earlyCheckout, includeTax, {
+                        billToSameAsGuest,
+                        billToName: billToSameAsGuest ? undefined : billToName,
+                      }))
                     }}
                     className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 py-3 text-sm font-semibold text-red-800"
                   >
@@ -2051,6 +2084,13 @@ function ReservationDrawer({
                     />
                     Include VAT &amp; GRA levies on invoice refresh
                   </label>
+                  <BillToFields
+                    guestName={reservation.guestName}
+                    sameAsGuest={billToSameAsGuest}
+                    onSameAsGuestChange={setBillToSameAsGuest}
+                    billToName={billToName}
+                    onBillToNameChange={setBillToName}
+                  />
                   <label className="flex items-center gap-2 text-sm">
                     <input
                       type="checkbox"
@@ -2093,7 +2133,7 @@ function ReservationDrawer({
                     </button>
                     <button
                       type="button"
-                      disabled={pending || (balance > 0 && !markAsPaid)}
+                      disabled={pending || (balance > 0 && !markAsPaid) || (!billToSameAsGuest && billToName.trim().length < 2)}
                       onClick={() =>
                         run(() =>
                           completeCheckoutReservation(
@@ -2102,6 +2142,10 @@ function ReservationDrawer({
                             earlyCheckout,
                             balance > 0 ? markAsPaid : true,
                             includeTax,
+                            {
+                              billToSameAsGuest,
+                              billToName: billToSameAsGuest ? undefined : billToName,
+                            },
                           ),
                         )
                       }
@@ -2306,6 +2350,8 @@ function ReservationFormModal({
   const [discountValue, setDiscountValue] = useState('0')
   const [discountReason, setDiscountReason] = useState('')
   const [includeTax, setIncludeTax] = useState(false)
+  const [billToSameAsGuest, setBillToSameAsGuest] = useState(true)
+  const [billToName, setBillToName] = useState('')
   const [selectedGuestId, setSelectedGuestId] = useState<string | null>(null)
   const [portalUrl, setPortalUrl] = useState<string | null>(null)
   const [portalPin, setPortalPin] = useState<string | null>(null)
@@ -2400,6 +2446,8 @@ function ReservationFormModal({
           email: email.trim() || undefined,
           ghanaCardNumber: ghanaCardNumber.trim() || undefined,
           includeTax,
+          billToSameAsGuest,
+          billToName: billToSameAsGuest ? undefined : billToName,
         })
         if (result.success) {
           setPortalUrl(result.data.loginUrl)
@@ -2454,6 +2502,7 @@ function ReservationFormModal({
     datesValid &&
     guestName.trim().length >= 2 &&
     (flowMode !== 'check_in_now' || phone.trim().length > 0) &&
+    (flowMode !== 'check_in_now' || billToSameAsGuest || billToName.trim().length >= 2) &&
     (rateType !== 'weekly' || Number(weeklyRate) > 0) &&
     (rateType !== 'monthly' || Number(monthlyRate) > 0)
 
@@ -2674,6 +2723,13 @@ function ReservationFormModal({
                 </span>
               </span>
             </label>
+            <BillToFields
+              guestName={guestName}
+              sameAsGuest={billToSameAsGuest}
+              onSameAsGuestChange={setBillToSameAsGuest}
+              billToName={billToName}
+              onBillToNameChange={setBillToName}
+            />
           </>
         )}
 
