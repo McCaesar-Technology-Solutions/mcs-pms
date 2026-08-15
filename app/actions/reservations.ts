@@ -9,6 +9,7 @@ import { calculateStayTotal, type RateType } from '@/lib/pricing/stay-totals'
 import { getRoomRates } from '@/lib/pricing/room-rates'
 import { createReservationSchema, updateReservationSchema } from '@/lib/validations'
 import { phoneSchema } from '@/lib/phone'
+import { guestIdDocumentFieldShape } from '@/lib/guests/id-document'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { writeAuditLog, moneyDelta } from '@/lib/audit/log'
 import { validateReservationCancellation } from '@/lib/reservations/cancel-eligibility'
@@ -32,7 +33,6 @@ import {
   reservationBalanceDue,
 } from '@/lib/billing/reservation-payment'
 import { computeDiscountAmount, normalizeDiscountType } from '@/lib/billing/discount'
-import { ghanaCardInputSchema } from '@/lib/billing/ghana-card'
 import { canApplyGuestDiscount } from '@/lib/auth/tenant-access'
 import { todayISO } from '@/lib/stays/helpers'
 import { revalidateStayViews } from '@/lib/stays/revalidate'
@@ -71,7 +71,7 @@ export type BookAndCheckInResult =
 const bookAndCheckInSchema = createReservationSchema.extend({
   phone: phoneSchema,
   email: z.string().email().optional().or(z.literal('')),
-  ghanaCardNumber: ghanaCardInputSchema,
+  ...guestIdDocumentFieldShape,
   /** Optional GRA tax on the stay invoice created at check-in (default off). */
   includeTax: z.boolean().optional(),
   billToSameAsGuest: z.boolean().optional(),
@@ -310,7 +310,7 @@ export async function bookAndCheckIn(input: unknown): Promise<BookAndCheckInResu
     return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid input.' }
   }
 
-  const { quietEnrollment, phone, email, ghanaCardNumber, includeTax, billToSameAsGuest, billToName, ...reservationFields } =
+  const { quietEnrollment, phone, email, idDocumentType, idDocumentNumber, idDocumentCountry, includeTax, billToSameAsGuest, billToName, ...reservationFields } =
     parsed.data
 
   const createResult = await createReservation(reservationFields, {
@@ -327,7 +327,9 @@ export async function bookAndCheckIn(input: unknown): Promise<BookAndCheckInResu
       email: email || undefined,
       guestId: reservationFields.guestId ?? undefined,
       guestName: reservationFields.guestName,
-      ghanaCardNumber: ghanaCardNumber === undefined ? undefined : ghanaCardNumber ?? '',
+      idDocumentType,
+      idDocumentNumber,
+      idDocumentCountry,
       includeTax: includeTax === true,
       billToSameAsGuest,
       billToName,

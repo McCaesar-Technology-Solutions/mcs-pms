@@ -1,4 +1,5 @@
 import type { ReservationChannel } from '@/types'
+import type { GuestIdDocumentType } from '@/lib/guests/id-document'
 import {
   isInHouseReservationStatus,
   isOccupyingReservationStatus,
@@ -85,7 +86,11 @@ export interface GuestRow {
   name: string
   email: string | null
   phone: string | null
-  /** Ghana Card / NIA number (guest tax ID). */
+  /** ghana_card | passport | drivers_license — guest record only, not invoice Tax ID. */
+  idDocumentType: GuestIdDocumentType | null
+  idDocumentNumber: string | null
+  idDocumentCountry: string | null
+  /** Ghana Card number when type is ghana_card; otherwise null. */
   ghanaCardNumber: string | null
   roomNumber: string | null
   roomId: string | null

@@ -9,6 +9,7 @@ import {
   type GuestDirectoryFilter,
   type GuestRow,
 } from '@/lib/guests/guest-directory'
+import { guestIdDocumentFromRow } from '@/lib/guests/id-document'
 import {
   clampLimit,
   DEFAULT_LIST_LIMIT,
@@ -37,6 +38,9 @@ interface GuestQueryRow {
   email: string | null
   phone: string | null
   ghana_card_number?: string | null
+  id_document_type?: string | null
+  id_document_number?: string | null
+  id_document_country?: string | null
   room_id: string | null
   check_in: string | null
   check_out: string | null
@@ -49,7 +53,7 @@ interface GuestQueryRow {
 }
 
 const GUEST_LIST_COLUMNS =
-  'id, name, email, phone, ghana_card_number, room_id, check_in, check_out, created_at, token, token_expires_at, portal_pin, do_not_disturb, rooms(number)'
+  'id, name, email, phone, ghana_card_number, id_document_type, id_document_number, id_document_country, room_id, check_in, check_out, created_at, token, token_expires_at, portal_pin, do_not_disturb, rooms(number)'
 
 async function mapGuestRows(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -73,13 +77,17 @@ async function mapGuestRows(
         guestCheckIn: guest.check_in,
         guestCheckOut: guest.check_out,
       })
+      const idDocument = guestIdDocumentFromRow(guest)
 
       return {
         id: guest.id,
         name: guest.name,
         email: guest.email,
         phone: guest.phone,
-        ghanaCardNumber: guest.ghana_card_number ?? null,
+        idDocumentType: idDocument.type,
+        idDocumentNumber: idDocument.number,
+        idDocumentCountry: idDocument.country,
+        ghanaCardNumber: idDocument.type === 'ghana_card' ? idDocument.number : null,
         roomNumber: guest.rooms?.number ?? null,
         roomId: guest.room_id,
         checkIn: derived.checkIn,
@@ -237,7 +245,7 @@ export async function getGuestsPage(options?: {
     if (search) {
       const pattern = `%${search.replace(/[%_,]/g, '')}%`
       guestQuery = guestQuery.or(
-        `name.ilike.${pattern},email.ilike.${pattern},phone.ilike.${pattern}`,
+        `name.ilike.${pattern},email.ilike.${pattern},phone.ilike.${pattern},ghana_card_number.ilike.${pattern},id_document_number.ilike.${pattern}`,
       )
     }
 

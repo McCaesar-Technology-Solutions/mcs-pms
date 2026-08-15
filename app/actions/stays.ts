@@ -3,11 +3,15 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { computeInvoiceTaxes, noTaxInvoice, taxSnapshotFromRates } from '@/lib/tax'
+import { resolveInvoiceTaxId } from '@/lib/billing/ghana-card'
 import {
-  ghanaCardInputSchema,
-  parseGhanaCard,
-  resolveInvoiceTaxId,
-} from '@/lib/billing/ghana-card'
+  guestIdDocumentColumns,
+  guestIdDocumentFieldShape,
+  guestIdDocumentFromRow,
+  guestIdDocumentHasValue,
+  parseGuestIdDocumentFields,
+  type GuestIdDocumentType,
+} from '@/lib/guests/id-document'
 import { getHotelTaxConfig } from '@/lib/data/settings'
 import { allocateInvoiceNumber } from '@/lib/invoices/numbering'
 import { createOrRefreshStayInvoice } from '@/lib/billing/build-stay-invoice'
@@ -72,7 +76,7 @@ const checkInStaySchema = z.object({
   email: z.string().email().optional().or(z.literal('')),
   guestId: z.string().uuid().optional(),
   guestName: z.string().min(2).optional(),
-  ghanaCardNumber: ghanaCardInputSchema,
+  ...guestIdDocumentFieldShape,
   /** Optional GRA tax on the stay invoice created at check-in (default off). */
   includeTax: z.boolean().optional(),
   billToSameAsGuest: z.boolean().optional(),
@@ -83,7 +87,7 @@ const walkInCheckInSchema = z.object({
   name: z.string().trim().min(2).max(120),
   phone: phoneSchema,
   email: z.string().email().optional().or(z.literal('')),
-  ghanaCardNumber: ghanaCardInputSchema,
+  ...guestIdDocumentFieldShape,
   roomId: z.string().uuid(),
   checkOut: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   rateType: z.enum(['nightly', 'weekly', 'monthly']).optional(),
@@ -199,6 +203,9 @@ export async function searchGuests(query: string): Promise<
     name: string
     phone: string | null
     email: string | null
+    idDocumentType: GuestIdDocumentType | null
+    idDocumentNumber: string | null
+    idDocumentCountry: string | null
     ghanaCardNumber: string | null
   }[]>
 > {
@@ -213,10 +220,10 @@ export async function searchGuests(query: string): Promise<
   const admin = createAdminClient()
   const { data, error } = await admin
     .from('guests')
-    .select('id, name, phone, email, ghana_card_number')
+    .select('id, name, phone, email, ghana_card_number, id_document_type, id_document_number, id_document_country')
     .eq('hotel_id', profile.hotel_id)
     .or(
-      `name.ilike.%${q}%,phone.ilike.%${q}%,email.ilike.%${q}%,ghana_card_number.ilike.%${q}%`,
+      `name.ilike.%${q}%,phone.ilike.%${q}%,email.ilike.%${q}%,ghana_card_number.ilike.%${q}%,id_document_number.ilike.%${q}%`,
     )
     .order('name')
     .limit(8)
@@ -224,13 +231,19 @@ export async function searchGuests(query: string): Promise<
   if (error) return { success: false, error: error.message }
   return {
     success: true,
-    data: (data ?? []).map((g) => ({
-      id: g.id,
-      name: g.name,
-      phone: g.phone,
-      email: g.email,
-      ghanaCardNumber: g.ghana_card_number ?? null,
-    })),
+    data: (data ?? []).map((g) => {
+      const doc = guestIdDocumentFromRow(g)
+      return {
+        id: g.id,
+        name: g.name,
+        phone: g.phone,
+        email: g.email,
+        idDocumentType: doc.type,
+        idDocumentNumber: doc.number,
+        idDocumentCountry: doc.country,
+        ghanaCardNumber: doc.type === 'ghana_card' ? doc.number : null,
+      }
+    }),
   }
 }
 
@@ -241,7 +254,9 @@ export async function checkInStay(
     email?: string
     guestId?: string
     guestName?: string
-    ghanaCardNumber?: string
+    idDocumentType?: 'ghana_card' | 'passport' | 'drivers_license' | null
+    idDocumentNumber?: string
+    idDocumentCountry?: string
     includeTax?: boolean
     billToSameAsGuest?: boolean
     billToName?: string
@@ -262,6 +277,11 @@ export async function checkInStay(
   if (!parsed.success) {
     return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid input.' }
   }
+  const idParsed = parseGuestIdDocumentFields(parsed.data)
+  if (!idParsed.ok) return { success: false, error: idParsed.error }
+  const idPatch = guestIdDocumentHasValue(idParsed.value)
+    ? guestIdDocumentColumns(idParsed.value)
+    : {}
 
   const { supabase, profile, userId } = await requireManager()
   if (!profile?.hotel_id || !userId || !['owner', 'manager', 'receptionist'].includes(profile.role)) {
@@ -362,9 +382,7 @@ export async function checkInStay(
         name: guestName,
         phone: parsed.data.phone.trim(),
         email: parsed.data.email || null,
-        ...(parsed.data.ghanaCardNumber !== undefined
-          ? { ghana_card_number: parsed.data.ghanaCardNumber }
-          : {}),
+        ...idPatch,
         room_id: reservation.room_id,
         check_in: reservation.check_in,
         check_out: reservation.check_out,
@@ -384,7 +402,7 @@ export async function checkInStay(
         name: guestName,
         phone: parsed.data.phone.trim(),
         email: parsed.data.email || null,
-        ghana_card_number: parsed.data.ghanaCardNumber ?? null,
+        ...guestIdDocumentColumns(idParsed.value),
         check_in: reservation.check_in,
         check_out: reservation.check_out,
         token,
@@ -675,7 +693,9 @@ export async function walkInCheckIn(input: unknown): Promise<
     phone: parsed.data.phone,
     email: parsed.data.email,
     guestName: parsed.data.name.trim(),
-    ghanaCardNumber: parsed.data.ghanaCardNumber ?? undefined,
+    idDocumentType: parsed.data.idDocumentType,
+    idDocumentNumber: parsed.data.idDocumentNumber,
+    idDocumentCountry: parsed.data.idDocumentCountry,
     includeTax: parsed.data.includeTax === true,
     billToSameAsGuest: parsed.data.billToSameAsGuest,
     billToName: parsed.data.billToName,

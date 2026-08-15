@@ -18,7 +18,7 @@ export interface InvoiceExportRow {
   /** Payer on BILL TO when different from the stay guest. */
   billToName?: string | null
   guestPhone?: string | null
-  /** Guest Ghana Card / tax ID (snapshot). */
+  /** Hotel GRA Tax ID snapshot (not the guest’s ID document). */
   guestTaxId?: string | null
   roomNumber: string | null
   /** Frozen room category at issue (e.g. Deluxe). */

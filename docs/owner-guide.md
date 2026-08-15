@@ -143,7 +143,7 @@ Open a confirmed booking → **Collect payment before check-in**. This creates o
 ### Check in
 
 1. Open **Confirmed** / **Pre-arrival** → **Check in guest**.
-2. Phone required. Ghana Card optional (guest records).
+2. Phone required. Optional ID (Ghana Card, passport, or driver’s licence) for guest records — not used as invoice Tax ID.
 3. Tick **Include Ghana tax** when you need a GRA tax invoice.
 4. Stay invoice is created — collect in the dialog (or leave unpaid as owner).
 5. Share **portal link** or QR.
@@ -191,7 +191,7 @@ Rules:
 
 **Path:** `/owner/guests`
 
-- Search and open a guest profile (name, phone, email, Ghana Card).
+- Search and open a guest profile (name, phone, email, ID document).
 - **Register in-house guest** — go-live for people already staying (real past arrival allowed). Creates a stay invoice; skips automatic welcome SMS.
 - **Walk-in check-in** — for guests arriving now.
 - **Guest portal** — copy link, QR, WhatsApp, regenerate, revoke.

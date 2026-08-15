@@ -1,4 +1,4 @@
-/** Ghana Card / NIA number used as guest tax ID on invoices. */
+/** Ghana Card / NIA number. Guest record identity only — invoice Tax ID uses resolveInvoiceTaxId. */
 
 import { z } from 'zod'
 

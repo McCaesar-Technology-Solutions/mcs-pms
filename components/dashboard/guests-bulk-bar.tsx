@@ -12,6 +12,7 @@ import {
   OCCUPANCY_LABEL,
   type GuestRow,
 } from '@/lib/guests/guest-directory'
+import { GUEST_ID_DOCUMENT_LABEL } from '@/lib/guests/id-document'
 
 interface GuestsBulkBarProps {
   selected: GuestRow[]
@@ -51,7 +52,9 @@ export function GuestsBulkBar({ selected, onClear }: GuestsBulkBarProps) {
       'Room',
       'Occupancy',
       'Loyalty',
-      'Ghana Card',
+      'ID type',
+      'ID number',
+      'ID country',
       'Stays',
       'Total spent',
       'Last stay',
@@ -66,7 +69,9 @@ export function GuestsBulkBar({ selected, onClear }: GuestsBulkBarProps) {
       guestRoomLabel(g),
       OCCUPANCY_LABEL[g.occupancy],
       LOYALTY_LABEL[g.loyalty],
-      g.ghanaCardNumber ?? '',
+      g.idDocumentType ? GUEST_ID_DOCUMENT_LABEL[g.idDocumentType] : '',
+      g.idDocumentNumber ?? '',
+      g.idDocumentCountry ?? '',
       String(g.totalStays),
       String(g.totalSpent),
       g.lastStay ?? '',

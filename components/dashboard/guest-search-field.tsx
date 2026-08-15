@@ -4,13 +4,31 @@ import { useEffect, useId, useState } from 'react'
 import { Check, Search, X } from 'lucide-react'
 import { searchGuests } from '@/app/actions/stays'
 import { APP_FIELD_CLASS, FORM_FIELD_LABEL_CLASS } from '@/components/ui/form-field'
+import {
+  formatGuestIdDocument,
+  guestIdDocumentFromRow,
+  type GuestIdDocument,
+  type GuestIdDocumentType,
+} from '@/lib/guests/id-document'
 
 export interface GuestSearchMatch {
   id: string
   name: string
   phone: string | null
   email: string | null
+  idDocumentType: GuestIdDocumentType | null
+  idDocumentNumber: string | null
+  idDocumentCountry: string | null
   ghanaCardNumber: string | null
+}
+
+export function guestSearchMatchIdDocument(guest: GuestSearchMatch): GuestIdDocument {
+  return guestIdDocumentFromRow({
+    id_document_type: guest.idDocumentType,
+    id_document_number: guest.idDocumentNumber,
+    id_document_country: guest.idDocumentCountry,
+    ghana_card_number: guest.ghanaCardNumber,
+  })
 }
 
 interface GuestSearchFieldProps {
@@ -24,7 +42,7 @@ interface GuestSearchFieldProps {
 
 export function GuestSearchField({
   label,
-  placeholder = 'Search name or phone…',
+  placeholder = 'Search name, phone, or ID…',
   fieldClass = APP_FIELD_CLASS,
   selectedGuestId,
   onSelectGuest,
@@ -139,8 +157,12 @@ export function GuestSearchField({
                     className="w-full px-3 py-2.5 text-left text-sm hover:bg-secondary"
                   >
                     <span className="font-medium text-foreground">{g.name}</span>
-                    {g.phone && (
-                      <span className="mt-0.5 block text-xs text-muted-foreground">{g.phone}</span>
+                    {(g.phone || g.idDocumentNumber) && (
+                      <span className="mt-0.5 block text-xs text-muted-foreground">
+                        {[g.phone, g.idDocumentNumber ? formatGuestIdDocument(guestSearchMatchIdDocument(g)) : null]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </span>
                     )}
                   </button>
                 </li>

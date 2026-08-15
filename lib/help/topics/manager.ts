@@ -121,7 +121,7 @@ export const managerHelpTopics: HelpTopic[] = [
       'Apply % or fixed guest discounts before tax when creating/editing a booking or refreshing the invoice. You may post folio discount credits. Reception cannot.',
       'You can issue stay invoices unpaid (balance due) or create ad-hoc bills from Billing. Reception records payment when issuing.',
       'Tax is optional on issue/refresh — check Include Ghana tax when you need VAT & GRA levies (Tax ID GHA-728071939-8).',
-      'Guest Ghana Card remains optional on the guest record.',
+      'Guest ID (Ghana Card, passport, or driver’s licence) remains optional on the guest record and is not the invoice Tax ID.',
       'Record full or partial payments at the desk; refunds stay owner-only. WhatsApp or print the PDF.',
       'Checkout reuses that same stay invoice — it will not create a duplicate.',
     ],

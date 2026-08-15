@@ -104,7 +104,7 @@ Use Unpaid / Deposit paid / Paid / etc. to find balances before departure.
 ### Check in
 
 1. Open Confirmed / Pre-arrival → **Check in guest**.
-2. Phone **required**. Ghana Card optional (guest records).
+2. Phone **required**. Optional ID (Ghana Card, passport, or driver’s licence) for guest records — not used as invoice Tax ID.
 3. Tick **Include Ghana tax** if the guest needs a GRA tax invoice.
 4. If the bill is not in the guest’s name, untick **Bill to person same as guest?** and enter the bill-to name.
 5. Stay invoice is created — **collect payment** in the dialog (pay before enter). You must record payment; you cannot issue an unpaid stay invoice.
@@ -169,7 +169,7 @@ Payment for the stay is taken **at check-in**. Checkout is departure + any unpai
 ### Walk-in
 
 1. **Walk-in check-in**.
-2. Name, phone, optional Ghana Card, room, checkout date.
+2. Name, phone, optional ID (Ghana Card, passport, or driver’s licence), room, checkout date.
 3. Share portal link / QR.
 
 ### Register in-house guest (go-live)
@@ -184,7 +184,7 @@ For people **already staying**:
 
 ### Guest card
 
-- Edit phone / email / Ghana Card.
+- Edit phone / email / ID document.
 - **Guest folio** — post description + amount (₵). Cannot post while checkout in progress. Cannot post discount credits.
 - Copy / regenerate / revoke portal link; WhatsApp share.
 - **Export PII** if asked (erase is manager/owner only).

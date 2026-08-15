@@ -401,6 +401,9 @@ export interface Guest {
   email: string | null
   phone: string | null
   ghana_card_number: string | null
+  id_document_type?: string | null
+  id_document_number?: string | null
+  id_document_country?: string | null
   token: string
   token_expires_at: string | null
   check_in: string | null
@@ -515,7 +518,7 @@ export interface DbInvoice {
     tourism: number
     vat_base?: 'stay' | 'stacked'
   } | null
-  /** Guest Ghana Card frozen at issue (Bill-to tax ID). */
+  /** Hotel GRA Tax ID frozen at issue (not the guest’s ID document). */
   guest_tax_id?: string | null
   total_amount: number
   payment_method: PaymentMethod | null

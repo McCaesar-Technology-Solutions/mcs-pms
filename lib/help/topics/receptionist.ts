@@ -41,7 +41,7 @@ export const receptionistHelpTopics: HelpTopic[] = [
     steps: [
       'Open Reservations and find a Confirmed or Pre-arrival booking.',
       'Tap Check in guest — phone number is required.',
-      'Optional: enter Ghana Card for guest records (invoice Tax ID is always GHA-728071939-8 when taxed).',
+      'Optional: enter Ghana Card, passport, or driver’s licence for guest records (invoice Tax ID is always GHA-728071939-8 when taxed).',
       'A stay invoice is created automatically (pay before enter) — collect payment in the dialog. You cannot leave it unpaid.',
       'If the bill is not in the guest’s name, untick Bill to person same as guest and enter the bill-to name.',
       'Share the portal link or QR so the guest can message you or log complaints.',
@@ -49,7 +49,7 @@ export const receptionistHelpTopics: HelpTopic[] = [
     ],
     href: '/receptionist/reservations',
     hrefLabel: 'Open reservations',
-    keywords: ['arrival', 'check in', 'check-in', 'portal', 'qr', 'ghana card', 'tax id'],
+    keywords: ['arrival', 'check in', 'check-in', 'portal', 'qr', 'ghana card', 'passport', 'licence', 'tax id'],
     pathPrefixes: ['/receptionist/reservations', '/receptionist/guests'],
   },
   {
@@ -59,7 +59,7 @@ export const receptionistHelpTopics: HelpTopic[] = [
     steps: [
       'Open Guests → Register in-house guest.',
       'Enter their real arrival date (can be in the past) and planned departure.',
-      'Optional: Ghana Card for guest records.',
+      'Optional: Ghana Card, passport, or driver’s licence for guest records.',
       'Assign their room and rate — a stay invoice is created automatically (Tax ID GHA-728071939-8 when taxed).',
       'Share the portal link or PIN on WhatsApp and collect payment.',
       'Use Walk-in check-in only for guests who are arriving now.',

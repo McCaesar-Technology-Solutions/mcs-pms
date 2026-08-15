@@ -23,7 +23,7 @@ Repeat per apartment/room (one active Airbnb import feed per room).
 
 ## Ops notes
 
-- Guest phone, Ghana Card, and Airbnb payout amounts are **not** in iCal. Staff still check in and can mark **Channel prepaid**.
+- Guest phone, ID document, and Airbnb payout amounts are **not** in iCal. Staff still check in and can mark **Channel prepaid**.
 - In-house stays are never overwritten or cancelled by sync.
 - Cancelled / checked-out iCal rows release their UID so the same Airbnb booking can re-import later.
 - Empty or sharply truncated feeds **do not** mass-cancel open bookings (safety guard). Sync status shows an error until the feed looks healthy again.

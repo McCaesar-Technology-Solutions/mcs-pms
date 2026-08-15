@@ -109,7 +109,7 @@ Owners configure hold timers and automated jobs under **Settings → Reservation
 
 ### Check in
 
-Phone required → optional Ghana Card → optional **Include Ghana tax** → stay invoice created → collect payment (you may leave unpaid) → share portal link / QR → room **Occupied**. Door access queues if Hikvision is enabled.
+Phone required → optional ID (Ghana Card, passport, or driver’s licence) → optional **Include Ghana tax** → stay invoice created → collect payment (you may leave unpaid) → share portal link / QR → room **Occupied**. Door access queues if Hikvision is enabled.
 
 ### While in-house
 
@@ -144,7 +144,7 @@ Phone required → optional Ghana Card → optional **Include Ghana tax** → st
 ### Walk-in check-in
 
 1. **Walk-in check-in**.
-2. Name, **phone** (required), email, optional Ghana Card, room, checkout date, rate type.
+2. Name, **phone** (required), email, optional ID (Ghana Card, passport, or driver’s licence), room, checkout date, rate type.
 3. Portal link + QR immediately.
 
 ### Register in-house guest (go-live)
@@ -153,7 +153,7 @@ For people already staying: real arrival (can be past) + planned departure. A st
 
 ### Guest detail
 
-- Edit contact and Ghana Card.
+- Edit contact and ID document.
 - Manage portal link / QR / WhatsApp / regenerate / revoke.
 - **Guest folio** — post incidentals; you can post a **Discount (credit)**.
 - **Generate stay invoice & collect** if they have no invoice yet.

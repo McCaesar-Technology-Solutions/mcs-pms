@@ -8,6 +8,10 @@ import { CheckoutInvoiceDialog } from '@/components/dashboard/checkout-invoice-d
 import { PortalLinkPanel } from '@/components/dashboard/portal-link-panel'
 import { FormField, APP_FIELD_CLASS } from '@/components/ui/form-field'
 import { BillToFields } from '@/components/dashboard/bill-to-fields'
+import {
+  GuestIdDocumentFields,
+  useGuestIdDocumentFields,
+} from '@/components/dashboard/guest-id-document-fields'
 import type { InvoiceExportRow } from '@/lib/export/types'
 import { toast } from 'sonner'
 import {
@@ -81,7 +85,7 @@ function RegisterInHouseGuestModal({ onClose }: { onClose: () => void }) {
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
-  const [ghanaCardNumber, setGhanaCardNumber] = useState('')
+  const idFields = useGuestIdDocumentFields()
   const [includeTax, setIncludeTax] = useState(false)
   const [billToSameAsGuest, setBillToSameAsGuest] = useState(true)
   const [billToName, setBillToName] = useState('')
@@ -191,7 +195,7 @@ function RegisterInHouseGuestModal({ onClose }: { onClose: () => void }) {
         name: name.trim(),
         phone: phoneParsed.data,
         email: email.trim() || undefined,
-        ghanaCardNumber: ghanaCardNumber.trim() || undefined,
+        ...idFields.payload,
         roomId,
         checkIn,
         checkOut,
@@ -350,14 +354,11 @@ function RegisterInHouseGuestModal({ onClose }: { onClose: () => void }) {
           />
         </FormField>
 
-        <FormField label="Ghana Card (optional)" hint="Stored on the guest record">
-          <input
-            value={ghanaCardNumber}
-            onChange={(e) => setGhanaCardNumber(e.target.value.toUpperCase())}
-            placeholder="GHA-728071939-8"
-            className={`${APP_FIELD_CLASS} uppercase`}
-          />
-        </FormField>
+        <GuestIdDocumentFields
+          state={idFields.state}
+          onChange={idFields.setState}
+          allowNone
+        />
 
         <label className="flex items-start gap-2 text-sm text-foreground">
           <input

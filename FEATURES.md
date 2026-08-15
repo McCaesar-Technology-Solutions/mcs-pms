@@ -19,7 +19,7 @@ Production features shipped beyond the original UI prototype. The screen-by-scre
 ### Operations
 
 - **Reservations** — create, check-in, check-out, extend, move room, cancel, no-show; **pay-at-check-in** stay invoice created and collected at check-in; checkout reuses that invoice for extras. **Rate types:** nightly, weekly (÷7), monthly (÷30). **Guest discounts** (percent or fixed, pre-tax) — owner/manager only. **Lifecycle v2** (migration `051`): event-sourced status machine, holds, cancellation rules, scheduled jobs. Enable crons per property via **Settings → Reservation lifecycle**.
-- **Guests** — directory, walk-in, **register in-house** (go-live with past arrival), portal link + QR + PIN, Ghana Card (optional records), folio (discount credits owner/manager), PII export; erase is manager+.
+- **Guests** — directory, walk-in, **register in-house** (go-live with past arrival), portal link + QR + PIN, optional ID (Ghana Card, passport, or driver’s licence; not invoice Tax ID), folio (discount credits owner/manager), PII export; erase is manager+.
 - **Rooms** — inventory, categories, nightly/weekly/monthly rates, status grid; owner can delete rooms.
 - **Access control (Hikvision)** — optional on-site agent + ISAPI; check-in provisions unit + shared + gym; checkout revokes; Today / Guests / Staff / Attendance / Setup. See [docs/access-control.md](docs/access-control.md).
 - **Housekeeping** — kanban (desktop + `/mobile/housekeeping`); auto Clean then Inspect after checkout. Technicians claim from `/technician/tasks`.

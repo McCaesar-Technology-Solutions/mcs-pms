@@ -386,7 +386,9 @@ export async function enrollGuest(input: {
   name: string
   phone: string
   email?: string
-  ghanaCardNumber?: string
+  idDocumentType?: 'ghana_card' | 'passport' | 'drivers_license' | null
+  idDocumentNumber?: string
+  idDocumentCountry?: string
   roomId: string
   checkIn: string
   checkOut: string
@@ -444,10 +446,9 @@ export async function enrollGuest(input: {
     guestName: parsed.data.name,
     phone: parsed.data.phone,
     email: parsed.data.email || undefined,
-    ghanaCardNumber:
-      parsed.data.ghanaCardNumber === undefined
-        ? undefined
-        : (parsed.data.ghanaCardNumber ?? ''),
+    idDocumentType: parsed.data.idDocumentType,
+    idDocumentNumber: parsed.data.idDocumentNumber,
+    idDocumentCountry: parsed.data.idDocumentCountry,
     roomId: parsed.data.roomId,
     checkIn,
     checkOut,
@@ -517,22 +518,26 @@ export async function updateGuest(input: {
   name: string
   email?: string
   phone: string
-  ghanaCardNumber?: string
+  idDocumentType?: 'ghana_card' | 'passport' | 'drivers_license' | null
+  idDocumentNumber?: string
+  idDocumentCountry?: string
 }): Promise<GuestActionResult> {
   const { phoneSchema } = await import('@/lib/phone')
-  const { parseGhanaCard } = await import('@/lib/billing/ghana-card')
+  const { parseGuestIdDocumentFields, guestIdDocumentColumns } = await import(
+    '@/lib/guests/id-document'
+  )
   const name = input.name.trim()
   if (name.length < 2) return { success: false, error: 'Name is required.' }
   const phoneParsed = phoneSchema.safeParse(input.phone)
   if (!phoneParsed.success) {
     return { success: false, error: phoneParsed.error.issues[0]?.message ?? 'Invalid phone.' }
   }
-  let ghanaCardNumber: string | null | undefined
-  if (input.ghanaCardNumber !== undefined) {
-    const cardParsed = parseGhanaCard(input.ghanaCardNumber)
-    if (!cardParsed.ok) return { success: false, error: cardParsed.error }
-    ghanaCardNumber = cardParsed.value
-  }
+  const idParsed = parseGuestIdDocumentFields({
+    idDocumentType: input.idDocumentType,
+    idDocumentNumber: input.idDocumentNumber,
+    idDocumentCountry: input.idDocumentCountry,
+  })
+  if (!idParsed.ok) return { success: false, error: idParsed.error }
 
   const manager = await requireHotelManager()
   if (!manager?.hotel_id || !['owner', 'manager', 'receptionist'].includes(manager.role)) {
@@ -546,7 +551,7 @@ export async function updateGuest(input: {
       name,
       phone: phoneParsed.data,
       email: input.email?.trim() || null,
-      ...(ghanaCardNumber !== undefined ? { ghana_card_number: ghanaCardNumber } : {}),
+      ...guestIdDocumentColumns(idParsed.value),
     })
     .eq('id', input.guestId)
     .eq('hotel_id', manager.hotel_id)

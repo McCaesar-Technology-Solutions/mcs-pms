@@ -872,7 +872,7 @@ export function BillingOverview({
             />
           </div>
           <GuestSearchField
-            label="Link guest (optional — copies Ghana Card tax ID)"
+            label="Link guest (optional)"
             selectedGuestId={newGuestId}
             onSelectGuest={(g) => {
               if (g) {

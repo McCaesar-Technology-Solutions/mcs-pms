@@ -27,7 +27,14 @@ import {
   moveStayRoom,
   releaseNoShowRoomHold,
 } from '@/app/actions/stays'
-import { GuestSearchField } from '@/components/dashboard/guest-search-field'
+import {
+  GuestSearchField,
+  guestSearchMatchIdDocument,
+} from '@/components/dashboard/guest-search-field'
+import {
+  GuestIdDocumentFields,
+  useGuestIdDocumentFields,
+} from '@/components/dashboard/guest-id-document-fields'
 import { BillToFields } from '@/components/dashboard/bill-to-fields'
 import { APP_FIELD_CLASS, FormField } from '@/components/ui/form-field'
 import { formatGhs, MONEY_CLASS } from '@/lib/format/money'
@@ -892,7 +899,7 @@ function ReservationDrawer({
   const [includeTax, setIncludeTax] = useState(false)
   const [phone, setPhone] = useState(reservation.guestPhone)
   const [email, setEmail] = useState(reservation.guestEmail)
-  const [ghanaCardNumber, setGhanaCardNumber] = useState('')
+  const idFields = useGuestIdDocumentFields()
   const [guestName, setGuestName] = useState(reservation.guestName)
   const [editGuestName, setEditGuestName] = useState(reservation.guestName)
   const [editRoomId, setEditRoomId] = useState(reservation.roomId)
@@ -1716,14 +1723,11 @@ function ReservationDrawer({
                       className={APP_FIELD_CLASS}
                     />
                   </FormField>
-                  <FormField label="Ghana Card (tax ID, optional)">
-                    <input
-                      value={ghanaCardNumber}
-                      onChange={(e) => setGhanaCardNumber(e.target.value.toUpperCase())}
-                      placeholder="GHA-728071939-8"
-                      className={`${APP_FIELD_CLASS} uppercase`}
-                    />
-                  </FormField>
+                  <GuestIdDocumentFields
+                    state={idFields.state}
+                    onChange={idFields.setState}
+                    allowNone
+                  />
                   <GuestSearchField
                     label="Find returning guest"
                     selectedGuestId={selectedGuestId}
@@ -1733,7 +1737,7 @@ function ReservationDrawer({
                         setGuestName(g.name)
                         setPhone(g.phone ?? '')
                         setEmail(g.email ?? '')
-                        setGhanaCardNumber(g.ghanaCardNumber ?? '')
+                        idFields.applyDocument(guestSearchMatchIdDocument(g))
                       } else {
                         setSelectedGuestId(null)
                       }
@@ -1780,7 +1784,7 @@ function ReservationDrawer({
                             email,
                             guestId: selectedGuestId ?? undefined,
                             guestName,
-                            ghanaCardNumber,
+                            ...idFields.payload,
                             includeTax,
                             billToSameAsGuest,
                             billToName: billToSameAsGuest ? undefined : billToName,
@@ -2335,7 +2339,7 @@ function ReservationFormModal({
   const [guestName, setGuestName] = useState('')
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
-  const [ghanaCardNumber, setGhanaCardNumber] = useState('')
+  const idFields = useGuestIdDocumentFields()
   const [roomId, setRoomId] = useState(roomOptions[0]?.id ?? '')
   const [checkIn, setCheckIn] = useState(today)
   const [checkOut, setCheckOut] = useState(tomorrow)
@@ -2444,7 +2448,7 @@ function ReservationFormModal({
           ...basePayload,
           phone: phone.trim(),
           email: email.trim() || undefined,
-          ghanaCardNumber: ghanaCardNumber.trim() || undefined,
+          ...idFields.payload,
           includeTax,
           billToSameAsGuest,
           billToName: billToSameAsGuest ? undefined : billToName,
@@ -2602,7 +2606,7 @@ function ReservationFormModal({
               setGuestName(g.name)
               setPhone(g.phone ?? '')
               setEmail(g.email ?? '')
-              setGhanaCardNumber(g.ghanaCardNumber ?? '')
+              idFields.applyDocument(guestSearchMatchIdDocument(g))
             } else {
               setSelectedGuestId(null)
             }
@@ -2701,14 +2705,11 @@ function ReservationFormModal({
                 className={APP_FIELD_CLASS}
               />
             </FormField>
-            <FormField label="Ghana Card (tax ID, optional)">
-              <input
-                value={ghanaCardNumber}
-                onChange={(e) => setGhanaCardNumber(e.target.value.toUpperCase())}
-                placeholder="GHA-728071939-8"
-                className={`${APP_FIELD_CLASS} uppercase`}
-              />
-            </FormField>
+            <GuestIdDocumentFields
+              state={idFields.state}
+              onChange={idFields.setState}
+              allowNone
+            />
             <label className="flex items-start gap-2 text-sm text-foreground">
               <input
                 type="checkbox"

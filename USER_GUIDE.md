@@ -57,7 +57,7 @@ Index and money-permissions summary: [docs/README.md](docs/README.md)
 - **Deposits** can be recorded on a reservation before check-in.
 - **Folio** charges (minibar, laundry, etc.) post on the guest profile and roll into the stay invoice.
 - **Discounts** (percent or fixed, before tax) — owner and manager only. Reception asks a manager.
-- **Include Ghana tax** is optional when issuing. Taxed invoices use Bill-to Tax ID `GHA-728071939-8`. Guest Ghana Card is optional on the guest record.
+- **Include Ghana tax** is optional when issuing. Taxed invoices use Bill-to Tax ID `GHA-728071939-8`. Guest ID (Ghana Card, passport, or driver’s licence) is optional on the guest record and is not the invoice Tax ID.
 - **Cancel / no-show with deposit** → forfeit (staff) or refund (owner only).
 - **Refunds** of invoice payments stay owner-only.
 
@@ -69,4 +69,4 @@ Staff and guest views refresh when data changes (Supabase Realtime). Keep the br
 
 ## Technical setup
 
-Hubtel / Arkesel SMS, online payments flag, Supabase migrations through **076**, `.env.local` — see [DEPLOYMENT.md](DEPLOYMENT.md).
+Hubtel / Arkesel SMS, online payments flag, Supabase migrations through **077**, `.env.local` — see [DEPLOYMENT.md](DEPLOYMENT.md).

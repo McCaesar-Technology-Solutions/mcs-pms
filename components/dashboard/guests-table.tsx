@@ -39,6 +39,11 @@ import { usePagination } from '@/lib/hooks/use-pagination'
 import { toast } from 'sonner'
 import { PAYMENT_METHOD_LABELS } from '@/lib/tax'
 import { BillToFields } from '@/components/dashboard/bill-to-fields'
+import {
+  GuestIdDocumentFields,
+  useGuestIdDocumentFields,
+} from '@/components/dashboard/guest-id-document-fields'
+import { formatGuestIdDocument } from '@/lib/guests/id-document'
 import type { InvoiceExportRow } from '@/lib/export/types'
 import type { PaymentMethod } from '@/types'
 import { canEraseGuestData, canIssueUnpaidStayInvoice } from '@/lib/auth/tenant-access'
@@ -231,7 +236,8 @@ export function GuestsTable({
       const matchesSearch =
         guest.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (guest.email ?? '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (guest.phone ?? '').includes(searchQuery)
+        (guest.phone ?? '').includes(searchQuery) ||
+        (guest.idDocumentNumber ?? '').toLowerCase().includes(searchQuery.toLowerCase())
       const matchesStatus = guestMatchesDirectoryFilter(guest, selectedStatus)
       return matchesSearch && matchesStatus
     })
@@ -576,9 +582,11 @@ export function GuestsTable({
                     <div className="flex items-center gap-3 surface-inset p-3 rounded-xl">
                       <FileText className="h-5 w-5 text-primary" />
                       <span className="text-sm">
-                        {selectedGuest.ghanaCardNumber
-                          ? `Tax ID ${selectedGuest.ghanaCardNumber}`
-                          : 'No Ghana Card on file'}
+                        {formatGuestIdDocument({
+                          type: selectedGuest.idDocumentType,
+                          number: selectedGuest.idDocumentNumber,
+                          country: selectedGuest.idDocumentCountry,
+                        })}
                       </span>
                     </div>
                     <div className="flex items-center gap-3 surface-inset p-3 rounded-xl">
@@ -953,7 +961,7 @@ function GuestDeletePanel({
               ) : (
                 <div className="space-y-2 text-sm text-muted-foreground">
                   <p>
-                    Soft erase clears name, phone, email, Ghana Card, and portal access. Stay and
+                    Soft erase clears name, phone, email, ID document, and portal access. Stay and
                     invoice history stay on file for compliance — invoices remain printable.
                   </p>
                   <p className="text-xs">
@@ -1370,7 +1378,11 @@ function GuestEditForm({
   const [name, setName] = useState(guest.name)
   const [email, setEmail] = useState(guest.email ?? '')
   const [phone, setPhone] = useState(guest.phone ?? '')
-  const [ghanaCardNumber, setGhanaCardNumber] = useState(guest.ghanaCardNumber ?? '')
+  const idFields = useGuestIdDocumentFields({
+    type: guest.idDocumentType,
+    number: guest.idDocumentNumber,
+    country: guest.idDocumentCountry,
+  })
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
@@ -1382,7 +1394,7 @@ function GuestEditForm({
         name,
         email: email || undefined,
         phone,
-        ghanaCardNumber,
+        ...idFields.payload,
       })
       if (result.success) {
         toast.success('Guest profile updated')
@@ -1421,20 +1433,7 @@ function GuestEditForm({
           className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm"
         />
       </div>
-      <div>
-        <label className="text-xs font-semibold text-muted-foreground">
-          Ghana Card (tax ID)
-        </label>
-        <input
-          value={ghanaCardNumber}
-          onChange={(e) => setGhanaCardNumber(e.target.value.toUpperCase())}
-          placeholder="GHA-728071939-8"
-          className="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm uppercase"
-        />
-        <p className="mt-1 text-xs text-muted-foreground">
-          Shown on invoices as Tax ID. Format GHA-#########-#
-        </p>
-      </div>
+      <GuestIdDocumentFields state={idFields.state} onChange={idFields.setState} allowNone />
       {error && <p className="text-sm text-destructive">{error}</p>}
       <div className="flex gap-2">
         <button
