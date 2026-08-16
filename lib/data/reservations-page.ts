@@ -17,6 +17,13 @@ import {
   isSecuredPaymentStatus,
   type ReservationListFilters,
 } from '@/lib/reservations/search-params'
+import {
+  compareDeskReservationList,
+  occupyingStatusesInFilter,
+  reservationStatusFilterValues,
+  shouldPinOccupyingStays,
+} from '@/lib/reservations/list-query'
+import { isOccupyingReservationStatus, OCCUPYING_STATUSES } from '@/lib/reservations/lifecycle'
 import type {
   DbReservation,
   DbRoom,
@@ -95,8 +102,9 @@ function mapReservation(
   const discountType = normalizeDiscountType(row.discount_type)
   const discountValue = Number(row.discount_value ?? 0)
   const discountAmount = Number(row.discount_amount ?? 0)
-  const folioSubtotal =
-    status === 'checked_in' ? folioSubtotalForStay(folioMap, row.guest_id, row.id) : 0
+  const folioSubtotal = isOccupyingReservationStatus(status)
+    ? folioSubtotalForStay(folioMap, row.guest_id, row.id)
+    : 0
   const estimatedTotal = Math.max(0, total - discountAmount) + folioSubtotal
   const balanceDue = reservationBalanceDue(estimatedTotal, paidAmount)
   const channel = (row.channel ?? 'direct') as Reservation['channel']
@@ -217,11 +225,24 @@ export async function getReservationWorkspaceData(): Promise<ReservationWorkspac
   }
 }
 
+type StatusQueryMode = 'filter' | 'occupying' | 'others'
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function applyColumnFilters(query: any, filters: ReservationListFilters, hotelId: string) {
+function applyColumnFilters(
+  query: any,
+  filters: ReservationListFilters,
+  hotelId: string,
+  statusMode: StatusQueryMode = 'filter',
+) {
   let next = query.eq('hotel_id', hotelId)
-  if (filters.status && filters.status !== 'all') {
-    next = next.eq('status', filters.status)
+  if (statusMode === 'occupying') {
+    next = next.in('status', [...OCCUPYING_STATUSES])
+  } else if (statusMode === 'others') {
+    next = next.not('status', 'in', occupyingStatusesInFilter())
+  } else {
+    const statuses = reservationStatusFilterValues(filters.status)
+    if (statuses?.length === 1) next = next.eq('status', statuses[0])
+    else if (statuses && statuses.length > 1) next = next.in('status', statuses)
   }
   if (filters.paymentStatus && filters.paymentStatus !== 'all') {
     next = next.eq('payment_status', filters.paymentStatus)
@@ -229,6 +250,98 @@ async function applyColumnFilters(query: any, filters: ReservationListFilters, h
   if (filters.checkInDate) next = next.eq('check_in', filters.checkInDate)
   if (filters.checkOutDate) next = next.eq('check_out', filters.checkOutDate)
   return next
+}
+
+function orderForStatusFilter(filters: ReservationListFilters) {
+  const statuses = reservationStatusFilterValues(filters.status)
+  const occupyingOnly =
+    statuses != null &&
+    statuses.every((status) =>
+      (OCCUPYING_STATUSES as readonly string[]).includes(status),
+    )
+  return occupyingOnly
+    ? { column: 'check_out' as const, ascending: true }
+    : { column: 'check_in' as const, ascending: false }
+}
+
+async function fetchOccupyingPinnedPage(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  filters: ReservationListFilters,
+  hotelId: string,
+): Promise<{ pageRows: ReservationRow[]; totalCount: number; error?: string }> {
+  const pageSize = filters.pageSize
+  const page = filters.page
+  const offset = pageToOffset(page, pageSize)
+
+  const occupyingCountQuery = applyColumnFilters(
+    supabase.from('reservations').select('id', { count: 'exact', head: true }),
+    filters,
+    hotelId,
+    'occupying',
+  )
+  const othersCountQuery = applyColumnFilters(
+    supabase.from('reservations').select('id', { count: 'exact', head: true }),
+    filters,
+    hotelId,
+    'others',
+  )
+  const [
+    { count: occupyingCount, error: occCountError },
+    { count: othersCount, error: othersCountError },
+  ] = await Promise.all([occupyingCountQuery, othersCountQuery])
+  if (occCountError || othersCountError) {
+    return {
+      pageRows: [],
+      totalCount: 0,
+      error: occCountError?.message ?? othersCountError?.message,
+    }
+  }
+
+  const occupyingTotal = occupyingCount ?? 0
+  const totalCount = occupyingTotal + (othersCount ?? 0)
+  let pageRows: ReservationRow[] = []
+
+  if (occupyingTotal > 0 && offset < occupyingTotal) {
+    let occQuery = applyColumnFilters(
+      supabase.from('reservations').select(RESERVATION_SELECT),
+      filters,
+      hotelId,
+      'occupying',
+    )
+    occQuery = occQuery.order('check_out', { ascending: true }).range(offset, offset + pageSize - 1)
+    const { data, error } = await occQuery
+    if (error) return { pageRows: [], totalCount: 0, error: error.message }
+    pageRows = (data ?? []) as unknown as ReservationRow[]
+    const remaining = pageSize - pageRows.length
+    if (remaining > 0) {
+      let othersQuery = applyColumnFilters(
+        supabase.from('reservations').select(RESERVATION_SELECT),
+        filters,
+        hotelId,
+        'others',
+      )
+      othersQuery = othersQuery.order('check_in', { ascending: false }).range(0, remaining - 1)
+      const { data: others, error: othersError } = await othersQuery
+      if (othersError) return { pageRows: [], totalCount: 0, error: othersError.message }
+      pageRows = [...pageRows, ...((others ?? []) as unknown as ReservationRow[])]
+    }
+  } else {
+    const othersOffset = Math.max(0, offset - occupyingTotal)
+    let othersQuery = applyColumnFilters(
+      supabase.from('reservations').select(RESERVATION_SELECT),
+      filters,
+      hotelId,
+      'others',
+    )
+    othersQuery = othersQuery
+      .order('check_in', { ascending: false })
+      .range(othersOffset, othersOffset + pageSize - 1)
+    const { data, error } = await othersQuery
+    if (error) return { pageRows: [], totalCount: 0, error: error.message }
+    pageRows = (data ?? []) as unknown as ReservationRow[]
+  }
+
+  return { pageRows, totalCount }
 }
 
 export async function getReservationsPage(
@@ -256,7 +369,7 @@ export async function getReservationsPage(
     const needsCompoundScan = Boolean(search) || filters.paymentSecured
 
     if (needsCompoundScan) {
-      let query = await applyColumnFilters(
+      let query = applyColumnFilters(
         supabase.from('reservations').select(RESERVATION_SELECT),
         filters,
         hotelId,
@@ -276,6 +389,14 @@ export async function getReservationsPage(
           isSecuredPaymentStatus(row.payment_status, Number(row.deposit_amount ?? 0)),
         )
       }
+      if (shouldPinOccupyingStays(filters)) {
+        rows = [...rows].sort((a, b) =>
+          compareDeskReservationList(
+            { status: a.status ?? '', checkIn: a.check_in, checkOut: a.check_out },
+            { status: b.status ?? '', checkIn: b.check_in, checkOut: b.check_out },
+          ),
+        )
+      }
 
       const totalCount = rows.length
       const offset = pageToOffset(page, pageSize)
@@ -283,7 +404,24 @@ export async function getReservationsPage(
       return finalizePage(pageRows, totalCount, page, pageSize, hotelId, admin, options)
     }
 
-    const countQuery = await applyColumnFilters(
+    if (shouldPinOccupyingStays(filters)) {
+      const pinned = await fetchOccupyingPinnedPage(supabase, filters, hotelId)
+      if (pinned.error) {
+        console.error('[reservations-page] occupying pin failed:', pinned.error)
+        return empty
+      }
+      return finalizePage(
+        pinned.pageRows,
+        pinned.totalCount,
+        page,
+        pageSize,
+        hotelId,
+        admin,
+        options,
+      )
+    }
+
+    const countQuery = applyColumnFilters(
       supabase.from('reservations').select('id', { count: 'exact', head: true }),
       filters,
       hotelId,
@@ -295,13 +433,14 @@ export async function getReservationsPage(
     }
 
     const offset = pageToOffset(page, pageSize)
-    let pageQuery = await applyColumnFilters(
+    const order = orderForStatusFilter(filters)
+    let pageQuery = applyColumnFilters(
       supabase.from('reservations').select(RESERVATION_SELECT),
       filters,
       hotelId,
     )
     pageQuery = pageQuery
-      .order('check_in', { ascending: false })
+      .order(order.column, { ascending: order.ascending })
       .range(offset, offset + pageSize - 1)
 
     const { data, error } = await pageQuery
@@ -348,7 +487,7 @@ async function finalizePage(
   }
 
   const inHouseGuestIds = pageRows
-    .filter((r) => r.status === 'checked_in' && r.guest_id)
+    .filter((r) => isOccupyingReservationStatus(r.status) && r.guest_id)
     .map((r) => r.guest_id as string)
   const folioMap = admin
     ? await loadFolioSubtotalMap(admin, hotelId, inHouseGuestIds)

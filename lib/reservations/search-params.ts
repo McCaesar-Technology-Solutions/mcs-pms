@@ -64,7 +64,7 @@ export function parseReservationSearchParams(params: {
   page: number
   filters: ReservationListFilters
 } {
-  const status = params.status
+  const status = params.status === 'in_house' ? 'checked_in' : params.status
   const initialStatus =
     status && status !== 'all' && (STATUS_VALUES as readonly string[]).includes(status)
       ? (status as Exclude<ReservationStatusFilter, 'all'>)

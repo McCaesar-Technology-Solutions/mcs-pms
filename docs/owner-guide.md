@@ -116,7 +116,7 @@ Use Messages for general stay questions. Repair talk lives on the complaint itse
 
 ### Filters
 
-- **Stay status** — provisional, confirmed, pre-arrival, checked in, checkout in progress, overstay, checked out, post stay, cancelled, no-show.
+- **Stay status** — **In house** is everyone occupying a room (checked in, overstay, checkout in progress, dispute hold). They also sit at the top of **All**.
 - **Payment** — unpaid, deposit paid, partial, paid, overdue, refunded.
 
 ### Create a booking

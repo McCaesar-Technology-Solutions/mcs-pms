@@ -2,12 +2,14 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/lib/supabase/types'
 import { datesOverlap, type RoomRef } from '@/lib/data/occupancy'
 import { floorLabel } from '@/lib/data/front-desk-ops'
-import { OCCUPANCY_BLOCKING_STATUSES } from '@/lib/reservations/lifecycle'
+import { OCCUPANCY_BLOCKING_STATUSES, OCCUPYING_STATUSES, isOccupyingReservationStatus } from '@/lib/reservations/lifecycle'
 import type { Reservation } from '@/types'
 
 type Client = SupabaseClient<Database>
 
-const BLOCKING_RESERVATION_STATUSES = OCCUPANCY_BLOCKING_STATUSES
+const DATED_TIMELINE_STATUSES = OCCUPANCY_BLOCKING_STATUSES
+const RESERVATION_TIMELINE_SELECT =
+  'id, room_id, check_in, check_out, guest_name, channel, guest_id, status, rooms(number)' as const
 
 const CHANNEL_SOURCE_MAP: Record<string, Reservation['source']> = {
   airbnb: 'airbnb',
@@ -32,6 +34,17 @@ export interface OccupancyTimelineBar {
 
 function todayISO(): string {
   return new Date().toISOString().split('T')[0]
+}
+
+function tomorrowISO(today: string): string {
+  const d = new Date(`${today}T12:00:00`)
+  d.setDate(d.getDate() + 1)
+  return d.toISOString().slice(0, 10)
+}
+
+/** Keep a still-occupying stay visible on today when stored check-out is in the past. */
+export function extendStayThroughToday(checkOut: string, today: string): string {
+  return checkOut > today ? checkOut : tomorrowISO(today)
 }
 
 /** A guest occupies the room on `date` when check-in ≤ date < check-out. */
@@ -69,26 +82,36 @@ export async function getOccupancyTimelineBars(
 ): Promise<{ rooms: RoomRef[]; bars: OccupancyTimelineBar[] }> {
   const today = todayISO()
 
-  const [roomsRes, reservationsRes, guestsRes] = await Promise.all([
+  const [roomsRes, datedRes, occupyingRes, guestsRes] = await Promise.all([
     client.from('rooms').select('id, number, floor').eq('hotel_id', hotelId).order('number'),
     client
       .from('reservations')
-      .select('id, room_id, check_in, check_out, guest_name, channel, guest_id, rooms(number)')
+      .select(RESERVATION_TIMELINE_SELECT)
       .eq('hotel_id', hotelId)
-      .in('status', BLOCKING_RESERVATION_STATUSES)
+      .in('status', [...DATED_TIMELINE_STATUSES])
       .gte('check_out', today),
+    client
+      .from('reservations')
+      .select(RESERVATION_TIMELINE_SELECT)
+      .eq('hotel_id', hotelId)
+      .in('status', [...OCCUPYING_STATUSES]),
     client
       .from('guests')
       .select('id, room_id, check_in, check_out, name, rooms(number)')
       .eq('hotel_id', hotelId)
-      .gte('check_out', today),
+      .not('room_id', 'is', null),
   ])
 
   const rooms = (roomsRes.data ?? []) as RoomRef[]
   const bars: OccupancyTimelineBar[] = []
+  const seenReservationIds = new Set<string>()
 
-  for (const row of reservationsRes.data ?? []) {
+  for (const row of [...(occupyingRes.data ?? []), ...(datedRes.data ?? [])]) {
+    if (!row.id || seenReservationIds.has(row.id)) continue
     if (!row.room_id || !row.check_in || !row.check_out) continue
+    seenReservationIds.add(row.id)
+    const occupying = isOccupyingReservationStatus(row.status)
+    if (!occupying && row.check_out < today) continue
     const roomNumber =
       row.rooms && typeof row.rooms === 'object' && 'number' in row.rooms
         ? String((row.rooms as { number: string }).number)
@@ -99,7 +122,7 @@ export async function getOccupancyTimelineBars(
       roomNumber,
       guestName: row.guest_name,
       checkIn: row.check_in,
-      checkOut: row.check_out,
+      checkOut: occupying ? extendStayThroughToday(row.check_out, today) : row.check_out,
       source: reservationSource(row.channel),
       kind: 'reservation',
     })
@@ -108,7 +131,7 @@ export async function getOccupancyTimelineBars(
   for (const row of guestsRes.data ?? []) {
     if (!row.room_id || !row.check_in || !row.check_out) continue
     const guestCheckIn = row.check_in
-    const guestCheckOut = row.check_out
+    const guestCheckOut = extendStayThroughToday(row.check_out, today)
 
     const overlapsReservation = bars.some(
       (bar) =>

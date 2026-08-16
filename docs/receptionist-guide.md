@@ -70,6 +70,8 @@ Tabs / sections typically include:
 
 **Path:** `/receptionist/reservations`
 
+People currently in a room sit at the top of **All**. Tap **In house** to see only them (including overstay and checkout-in-progress).
+
 ### Create a booking
 
 1. **New reservation**.

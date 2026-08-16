@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  extendStayThroughToday,
   groupTimelineRoomsByFloor,
   isFirstVisibleStayDate,
   nightsBetween,
@@ -7,6 +8,19 @@ import {
   stayDates,
   type OccupancyTimelineBar,
 } from '@/lib/data/occupancy-timeline'
+
+describe('extendStayThroughToday', () => {
+  it('keeps a future check-out', () => {
+    expect(extendStayThroughToday('2026-08-20', '2026-08-16')).toBe('2026-08-20')
+  })
+
+  it('extends a past check-out through today', () => {
+    expect(extendStayThroughToday('2026-08-14', '2026-08-16')).toBe('2026-08-17')
+    expect(stayCoversDate('2026-08-01', extendStayThroughToday('2026-08-14', '2026-08-16'), '2026-08-16')).toBe(
+      true,
+    )
+  })
+})
 
 describe('stayCoversDate', () => {
   it('treats check-out as exclusive (departure day is not occupied)', () => {

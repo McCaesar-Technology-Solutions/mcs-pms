@@ -86,6 +86,8 @@ Also review **guest requests** (housekeeping, late checkout, extension) and appr
 
 **Path:** `/manager/reservations`
 
+People currently in a room sit at the top of **All**. Tap **In house** to see only them (including overstay and checkout-in-progress).
+
 Same front-desk tools as the owner **except deposit refunds and invoice refunds** (owner only).
 
 ### Typical flow

@@ -51,6 +51,12 @@ describe('parseReservationSearchParams', () => {
     expect(result.filters.status).toBe('all')
     expect(result.filters.paymentStatus).toBe('all')
   })
+
+  it('maps in_house to the In house occupying filter', () => {
+    const result = parseReservationSearchParams({ status: 'in_house' })
+    expect(result.initialStatus).toBe('checked_in')
+    expect(result.filters.status).toBe('checked_in')
+  })
 })
 
 describe('bookingRefSearchPrefix', () => {

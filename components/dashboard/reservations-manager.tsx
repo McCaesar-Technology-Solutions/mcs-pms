@@ -58,6 +58,7 @@ import {
   canCancelReservationStatus,
   canUpdateReservationFields,
   getAvailableActions,
+  isOccupyingReservationStatus,
   reservationStatusLabel,
 } from '@/lib/reservations/lifecycle'
 import type { RoomOption } from '@/lib/data/dashboard'
@@ -70,6 +71,7 @@ import {
   RESERVATION_PAYMENT_FILTERS,
   RESERVATION_STATUS_FILTERS,
 } from '@/lib/reservations/search-params'
+import { compareDeskReservationList } from '@/lib/reservations/list-query'
 
 const STATUS_FILTERS = RESERVATION_STATUS_FILTERS
 
@@ -335,13 +337,17 @@ export function ReservationsManager({
     if (serverPagination) return reservations
 
     const q = search.toLowerCase()
-    return reservations.filter((res) => {
+    const rows = reservations.filter((res) => {
       const matchesSearch =
         !q ||
         res.guestName.toLowerCase().includes(q) ||
         res.bookingRef.toLowerCase().includes(q) ||
         res.roomNumber.includes(q)
-      const matchesStatus = statusFilter === 'all' || res.status === statusFilter
+      const matchesStatus =
+        statusFilter === 'all' ||
+        (statusFilter === 'checked_in'
+          ? isOccupyingReservationStatus(res.status)
+          : res.status === statusFilter)
       const matchesPayment = paymentFilter === 'all' || res.paymentStatus === paymentFilter
       const matchesCheckIn = !checkInDateFilter || res.checkInDate === checkInDateFilter
       const matchesCheckOut = !checkOutDateFilter || res.checkOutDate === checkOutDateFilter
@@ -355,6 +361,15 @@ export function ReservationsManager({
         matchesSecured
       )
     })
+    if (statusFilter === 'all' && !checkInDateFilter && !checkOutDateFilter) {
+      return [...rows].sort((a, b) =>
+        compareDeskReservationList(
+          { status: a.status, checkIn: a.checkInDate, checkOut: a.checkOutDate },
+          { status: b.status, checkIn: b.checkInDate, checkOut: b.checkOutDate },
+        ),
+      )
+    }
+    return rows
   }, [
     reservations,
     search,
