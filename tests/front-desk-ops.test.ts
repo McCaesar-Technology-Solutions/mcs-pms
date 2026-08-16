@@ -4,6 +4,8 @@ import {
   computeExtendedTodayOperations,
   computeFloorSummary,
   countPrepaidArrivals,
+  frontDeskOpsLinks,
+  guestRequestsHref,
   groupRoomsByFloor,
 } from '@/lib/data/front-desk-ops'
 import { parseOpsDate, shiftOpsDate } from '@/lib/dates/ops-date'
@@ -166,5 +168,14 @@ describe('front desk ops', () => {
     expect(summary.occupied).toBe(1)
     expect(summary.dirty).toBe(1)
     expect(summary.arrivals).toBe(0)
+  })
+
+  it('sends Guest requests to the dashboard inbox for every staff role', () => {
+    expect(guestRequestsHref('/owner')).toBe('/owner/dashboard#guest-requests')
+    expect(guestRequestsHref('/manager')).toBe('/manager/dashboard#guest-requests')
+    expect(guestRequestsHref('/receptionist')).toBe('/receptionist/dashboard#guest-requests')
+    expect(frontDeskOpsLinks('/owner', '2026-08-16').guestRequests).toBe(
+      '/owner/dashboard#guest-requests',
+    )
   })
 })

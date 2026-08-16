@@ -44,6 +44,7 @@ export function PageTabShell({
   )
 
   const [active, setActive] = useState(fallback)
+  const [scrollToId, setScrollToId] = useState<string | null>(null)
 
   useEffect(() => {
     const sync = () => {
@@ -52,21 +53,32 @@ export function PageTabShell({
       setActive(tab)
 
       const anchor = hash.replace(/^#/, '').split('?')[0]
-      if (anchor && anchor !== tab && document.getElementById(anchor)) {
-        requestAnimationFrame(() => {
-          const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-          document.getElementById(anchor)?.scrollIntoView({
-            behavior: reduceMotion ? 'auto' : 'smooth',
-            block: 'start',
-          })
-        })
-      }
+      setScrollToId(anchor && anchor !== tab ? anchor : null)
     }
 
     sync()
     window.addEventListener('hashchange', sync)
     return () => window.removeEventListener('hashchange', sync)
   }, [resolveTab])
+
+  useEffect(() => {
+    if (!scrollToId) return
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const tryScroll = () => {
+      const el = document.getElementById(scrollToId)
+      if (!el) return false
+      el.scrollIntoView({
+        behavior: reduceMotion ? 'auto' : 'smooth',
+        block: 'start',
+      })
+      return true
+    }
+    if (tryScroll()) return
+    const frame = window.requestAnimationFrame(() => {
+      tryScroll()
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [active, scrollToId])
 
   function selectTab(id: string) {
     setActive(id)

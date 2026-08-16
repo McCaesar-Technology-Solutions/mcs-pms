@@ -10,6 +10,8 @@ import { SectionHeading } from '@/components/dashboard/section-heading'
 import { PageTabShell } from '@/components/dashboard/page-tab-shell'
 import { getDashboardData } from '@/lib/data/dashboard'
 import { loadHotelGuestFeedback } from '@/lib/data/guest-feedback'
+import { loadHotelGuestRequests } from '@/lib/data/guest-portal'
+import { GuestRequestsPanel } from '@/components/dashboard/guest-requests-panel'
 import { getHousekeepingTasks } from '@/lib/data/housekeeping'
 import { countOverdueTasks } from '@/lib/housekeeping/task-view'
 import { FrontDeskOpsSection } from '@/components/dashboard/front-desk-ops-section'
@@ -42,6 +44,8 @@ import { DeliveryIssuesPanel } from '@/components/dashboard/delivery-issues-pane
 const OWNER_HASH_TO_TAB: Record<string, string> = {
   'guest-feedback': 'guest-reviews',
   'guest-reviews': 'guest-reviews',
+  'guest-requests': 'requests',
+  requests: 'requests',
   'night-audit': 'night-audit',
 }
 
@@ -71,11 +75,12 @@ export default async function DashboardPage({
     : []
 
   const supabase = await createClient()
-  const [guestFeedback, occupancyToday, lowStockCount, deadNotifications] = await Promise.all([
+  const [guestFeedback, occupancyToday, lowStockCount, deadNotifications, guestRequests] = await Promise.all([
     hotelId ? loadHotelGuestFeedback(hotelId) : null,
     hotelId ? getOccupancyToday(supabase, hotelId) : undefined,
     hotelId ? countLowStockForHotel(hotelId) : 0,
     hotelId ? getRecentDeadNotifications(hotelId) : [],
+    hotelId ? loadHotelGuestRequests(hotelId) : [],
   ])
 
   const todayOps =
@@ -94,6 +99,7 @@ export default async function DashboardPage({
   const bookingsSparkline = computeBookingsSparkline(reservations)
   const occupancySparkline = computeOccupancySparkline(availability)
   const overdueTasks = countOverdueTasks(tasks.filter((t) => t.status !== 'done'))
+  const pendingRequests = guestRequests.filter((r) => r.status === 'pending').length
   const businessDate = todayISO()
   const todayClosed = nightAudits.some((a) => a.business_date === businessDate)
 
@@ -129,6 +135,7 @@ export default async function DashboardPage({
           defaultTab="overview"
           tabs={[
             { id: 'overview', label: 'Overview' },
+            { id: 'requests', label: 'Requests', badge: pendingRequests || undefined },
             { id: 'guest-reviews', label: 'Guest reviews' },
             {
               id: 'night-audit',
@@ -165,6 +172,18 @@ export default async function DashboardPage({
                 <OpsCalendarPanel events={opsCalendarEvents} canManage />
                 <DashboardMoreLinks />
               </>
+            ),
+            requests: hotelId ? (
+              <section className="dashboard-section scroll-mt-24">
+                <GuestRequestsPanel
+                  hotelId={hotelId}
+                  initialRequests={guestRequests}
+                  reservationsHrefBase="/owner/reservations"
+                  housekeepingHrefBase="/owner/housekeeping"
+                />
+              </section>
+            ) : (
+              <p className="text-sm text-muted-foreground">No property linked to this account.</p>
             ),
             'guest-reviews': guestFeedback ? (
               <section id="guest-reviews" className="dashboard-section scroll-mt-24">

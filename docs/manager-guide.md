@@ -63,12 +63,13 @@ You are locked to **one property** (no property switcher).
 | Complaints snapshot | Link to full page |
 | Housekeeping summary | Link to kanban |
 | **Ops calendar** | Add training / meetings / events |
-| **Guest portal** tab | Wi‑Fi, rules, request toggles, local guide |
+| **Guest portal** tab | Wi‑Fi, rules, local guide |
+| **Requests** tab | Housekeeping, late checkout, extensions from the guest portal |
 | **Guest reviews** | Portal feedback |
 | **Audits** | Night + monthly + yearly |
 | **Activity** | Audit / SMS logs |
 
-Also review **guest requests** (housekeeping, late checkout, extension) and approve / deny / schedule as needed.
+Also review **Requests** (housekeeping, late checkout, extension) and approve / deny / schedule as needed.
 
 ---
 

@@ -37,6 +37,9 @@ export function LivePageTabShell({
         if (tab.id === 'overview') {
           return { ...tab, badge: counts.overview > 0 ? counts.overview : undefined }
         }
+        if (tab.id === 'requests') {
+          return { ...tab, badge: counts.requests > 0 ? counts.requests : undefined }
+        }
         if (tab.id === 'guest-portal') {
           return { ...tab, badge: counts.guestPortal > 0 ? counts.guestPortal : undefined }
         }

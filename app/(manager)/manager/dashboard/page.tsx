@@ -50,7 +50,8 @@ const MANAGER_HASH_TO_TAB: Record<string, string> = {
   'ops-inbox': 'overview',
   'guest-feedback': 'guest-reviews',
   'guest-reviews': 'guest-reviews',
-  'guest-requests': 'guest-portal',
+  'guest-requests': 'requests',
+  requests: 'requests',
   'night-audit': 'night-audit',
   'audit-log': 'activity',
   'sms-log': 'activity',
@@ -178,7 +179,8 @@ export default async function ManagerDashboardPage({
           defaultTab="overview"
           tabs={[
             { id: 'overview', label: 'Overview', badge: tabBadges.overview },
-            { id: 'guest-portal', label: 'Guest portal', badge: tabBadges.guestPortal },
+            { id: 'requests', label: 'Requests', badge: tabBadges.requests },
+            { id: 'guest-portal', label: 'Guest portal' },
             { id: 'guest-reviews', label: 'Guest reviews' },
             {
               id: 'night-audit',
@@ -214,13 +216,19 @@ export default async function ManagerDashboardPage({
                 </div>
               </>
             ),
-            'guest-portal': hotelId ? (
-              <>
+            requests: hotelId ? (
+              <section className="dashboard-section scroll-mt-24">
                 <GuestRequestsPanel
                   hotelId={hotelId}
                   initialRequests={guestRequests}
                   reservationsHrefBase="/manager/reservations"
                 />
+              </section>
+            ) : (
+              <p className="text-sm text-muted-foreground">No property linked to this account.</p>
+            ),
+            'guest-portal': hotelId ? (
+              <>
                 <ManagerNotificationSummary smsPrefs={smsPrefs} emailPrefs={emailPrefs} />
                 <GuestPortalSettingsPanel
                   hotelId={hotelId}

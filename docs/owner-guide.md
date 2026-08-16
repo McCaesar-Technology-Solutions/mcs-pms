@@ -94,6 +94,7 @@ Check **Outstanding** every morning. The amount is **remaining due** on open inv
 - **Channel performance** — revenue by source.
 - **GRA tax summary** — filing snapshot.
 - **Guest reviews** — feedback from the portal.
+- **Requests** — housekeeping, late checkout, and stay extensions from the guest portal (not Settings).
 - **Night audit** — close the business day (once per date).
 - **Monthly / yearly audits** — period close snapshots.
 

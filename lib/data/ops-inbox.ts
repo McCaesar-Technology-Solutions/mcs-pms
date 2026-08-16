@@ -151,7 +151,7 @@ export async function loadOpsInbox(hotelId: string, limit = 12): Promise<OpsInbo
     } else if (r.request_type === 'housekeeping' && hkTask) {
       requestHref = `/manager/housekeeping?task=${encodeURIComponent(hkTask.id)}&guestRequest=${encodeURIComponent(r.id)}`
     } else if (r.request_type === 'housekeeping') {
-      requestHref = '/manager/dashboard#guest-portal'
+      requestHref = '/manager/dashboard#guest-requests'
     }
     items.push({
       id: r.id,

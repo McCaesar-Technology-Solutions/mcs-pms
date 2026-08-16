@@ -187,6 +187,21 @@ export const ownerHelpTopics: HelpTopic[] = [
     pathPrefixes: ['/owner/settings'],
   },
   {
+    id: 'guest-requests',
+    title: 'Guest requests',
+    summary: 'Housekeeping, late checkout, and stay extensions from the portal.',
+    steps: [
+      'Dashboard → Requests tab (not Settings).',
+      'Open a request to acknowledge, complete, or decline.',
+      'Stay extensions jump to Reservations to pick the new check-out date.',
+      'Housekeeping requests can schedule a cleaning task.',
+    ],
+    href: '/owner/dashboard#guest-requests',
+    hrefLabel: 'Open guest requests',
+    keywords: ['guest requests', 'housekeeping', 'late checkout', 'extension'],
+    pathPrefixes: ['/owner/dashboard'],
+  },
+  {
     id: 'register-in-house',
     title: 'Register guests already in house',
     summary: 'Go-live: put current occupants on the system with real stay dates.',

@@ -6,7 +6,7 @@ export const receptionistHelpTopics: HelpTopic[] = [
     title: 'Find your way around',
     summary: 'Main screens and what each one is for.',
     steps: [
-      'Dashboard — today’s arrivals, departures, and requests. Unpaid invoices are not listed here.',
+      'Dashboard — today’s arrivals, departures, and the Requests tab for guest portal requests.',
       'Reservations — bookings, check-in, checkout, deposits, stay invoices.',
       'Billing — view invoices, record payments, print or WhatsApp bills.',
       'Guests — register in-house guests, walk-ins, portal links (in-house only), folio.',

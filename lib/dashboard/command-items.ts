@@ -137,6 +137,15 @@ export function buildCommandItems(role?: Profile['role']): CommandItem[] {
         keywords: ['search', 'complaint', 'issue', 'maintenance'],
         icon: Search,
       },
+      {
+        id: 'action-guest-requests',
+        label: 'Guest requests',
+        description: 'Housekeeping, late checkout, and stay extensions',
+        href: `${prefix}/dashboard#guest-requests`,
+        kind: 'action',
+        keywords: ['guest', 'requests', 'housekeeping', 'extension', 'late checkout'],
+        icon: Search,
+      },
     )
   }
 
@@ -168,10 +177,10 @@ export function buildCommandItems(role?: Profile['role']): CommandItem[] {
       {
         id: 'action-guest-portal',
         label: 'Guest portal settings',
-        description: 'Wi-Fi copy, rules, and request settings',
+        description: 'Wi-Fi copy and house rules',
         href: '/manager/dashboard#guest-portal',
         kind: 'action',
-        keywords: ['guest', 'portal', 'requests', 'wifi', 'settings'],
+        keywords: ['guest', 'portal', 'wifi', 'settings', 'rules'],
         icon: Settings,
       },
       {

@@ -1,4 +1,5 @@
 import { getProfile } from '@/lib/auth/get-profile'
+import { guestRequestsHref } from '@/lib/data/front-desk-ops'
 import { canAccessInventory } from '@/lib/auth/tenant-access'
 import { countLowStockForHotel } from '@/lib/data/inventory'
 import { isPendingCompletion, needsGuestCompletionApproval } from '@/lib/complaints/workflow'
@@ -81,11 +82,6 @@ function messagesHref(
   return `${prefix}/messages`
 }
 
-function guestRequestsHref(prefix: string): string {
-  if (prefix === '/owner') return '/owner/settings#guest-requests'
-  if (prefix === '/receptionist') return '/receptionist/dashboard#guest-requests'
-  return '/manager/dashboard#guest-requests'
-}
 
 export async function fetchStaffAlerts(limit = 30): Promise<StaffAlert[]> {
   try {
@@ -436,15 +432,21 @@ export async function getNavBadgeMap(): Promise<Record<string, number>> {
 }
 
 /** Manager dashboard tab badge counts */
-export async function getManagerTabBadges(): Promise<{ overview: number; guestPortal: number }> {
+export async function getManagerTabBadges(): Promise<{
+  overview: number
+  requests: number
+  guestPortal: number
+}> {
   const profile = await getProfile()
   if (!profile?.hotel_id || profile.role !== 'manager') {
-    return { overview: 0, guestPortal: 0 }
+    return { overview: 0, requests: 0, guestPortal: 0 }
   }
 
   const alerts = await fetchStaffAlerts(50)
+  const requestCount = alerts.filter((a) => a.kind === 'guest_request').length
   return {
     overview: alerts.filter((a) => a.kind !== 'guest_request').length,
-    guestPortal: alerts.filter((a) => a.kind === 'guest_request').length,
+    requests: requestCount,
+    guestPortal: 0,
   }
 }

@@ -194,7 +194,7 @@ export async function loadHotelGuestRequests(hotelId: string): Promise<GuestRequ
     )
     .eq('hotel_id', hotelId)
     .order('created_at', { ascending: false })
-    .limit(15)
+    .limit(50)
 
   if (error) return []
 

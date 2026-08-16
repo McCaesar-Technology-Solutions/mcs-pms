@@ -126,6 +126,12 @@ export function GuestRequestsPanel({
   }
 
   const pendingRequests = requests.filter((r) => r.status === 'pending')
+  const visibleRequests = [...requests].sort((a, b) => {
+    const aOpen = isEditableRequestStatus(a.status) ? 0 : 1
+    const bOpen = isEditableRequestStatus(b.status) ? 0 : 1
+    if (aOpen !== bOpen) return aOpen - bOpen
+    return b.createdAt.localeCompare(a.createdAt)
+  })
 
   return (
     <div id="guest-requests" className="surface-card overflow-hidden scroll-mt-24">
@@ -153,7 +159,7 @@ export function GuestRequestsPanel({
         </p>
       ) : (
         <div className="list-stack">
-          {requests.slice(0, 10).map((req) => (
+          {visibleRequests.map((req) => (
             <div
               key={req.id}
               className="list-row flex-wrap items-center justify-between"

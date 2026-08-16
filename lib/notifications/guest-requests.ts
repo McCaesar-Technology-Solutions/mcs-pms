@@ -44,7 +44,7 @@ export async function notifyGuestRequestCreated(requestId: string): Promise<void
   await notifyManagers({
     hotelId: data.hotel_id,
     templateKey: 'guest_request',
-    smsBody: smsLine(label, 'from', guestName, roomPart, notePart ? `- ${notePart}` : null, smsUrl('/manager/dashboard')),
+    smsBody: smsLine(label, 'from', guestName, roomPart, notePart ? `- ${notePart}` : null, smsUrl('/manager/dashboard#guest-requests')),
     email: {
       subject: `${label} — ${guestName}`,
       preview: `${guestName} submitted a ${label.toLowerCase()} request.`,
@@ -52,8 +52,8 @@ export async function notifyGuestRequestCreated(requestId: string): Promise<void
         `${guestName}${roomNumber ? ` · Room ${roomNumber}` : ''} submitted a ${label.toLowerCase()} request.`,
         ...(data.note?.trim() ? [data.note.trim()] : []),
       ],
-      actionUrl: appUrl('/manager/dashboard'),
-      actionLabel: 'Open dashboard',
+      actionUrl: appUrl('/manager/dashboard#guest-requests'),
+      actionLabel: 'Open requests',
     },
   })
 }

@@ -114,7 +114,7 @@ export default async function ReceptionistDashboardPage({
             ),
             requests:
               hotelId ? (
-                <section id="guest-requests" className="dashboard-section scroll-mt-24">
+                <section className="dashboard-section scroll-mt-24">
                   <GuestRequestsPanel
                   hotelId={hotelId}
                   initialRequests={guestRequests}

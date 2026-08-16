@@ -55,6 +55,12 @@ function revalidatePortalViews() {
   revalidatePath('/guest')
 }
 
+function revalidateGuestRequestInbox() {
+  revalidatePath('/owner/dashboard')
+  revalidatePath('/manager/dashboard')
+  revalidatePath('/receptionist/dashboard')
+}
+
 export async function fetchGuestPortalSettings(hotelId: string): Promise<
   GuestPortalStaffResult<{
     wifiSsid: string | null
@@ -346,8 +352,7 @@ export async function updateGuestRequestStatus(
 
   void notifyRequestStatus(requestId, parsed.data, fulfillmentDetail)
 
-  revalidatePath('/manager/dashboard')
-  revalidatePath('/receptionist/dashboard')
+  revalidateGuestRequestInbox()
   revalidatePath('/manager/housekeeping')
   revalidatePath('/owner/housekeeping')
   revalidatePath('/technician/tasks')
@@ -399,8 +404,7 @@ export async function scheduleGuestHousekeepingRequest(
     return { success: false, error: 'Could not schedule housekeeping for this room.' }
   }
 
-  revalidatePath('/manager/dashboard')
-  revalidatePath('/receptionist/dashboard')
+  revalidateGuestRequestInbox()
   revalidatePath('/manager/housekeeping')
   revalidatePath('/owner/housekeeping')
   revalidatePath('/technician/tasks')

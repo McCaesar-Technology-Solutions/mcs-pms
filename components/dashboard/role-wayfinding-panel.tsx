@@ -12,26 +12,25 @@ export function RoleWayfindingPanel({ role }: RoleWayfindingPanelProps) {
         <WayfindingTip id="nav-basics" role={role} title="Find anything quickly">
           Press <kbd className="rounded bg-muted px-1.5 py-0.5 text-[11px] font-semibold">⌘K</kbd> (or{' '}
           <kbd className="rounded bg-muted px-1.5 py-0.5 text-[11px] font-semibold">Ctrl+K</kbd>) to search live
-          data — guests, rooms, bookings, complaints, and more. Dashboard sections use tabs below so you
-          don&apos;t have to scroll the whole page.
+          data — guests, rooms, bookings, complaints, and more. Guest requests from the portal are on the dashboard{' '}
+          <strong className="font-semibold text-foreground">Requests</strong> tab. Portal Wi‑Fi and rules stay in{' '}
+          <strong className="font-semibold text-foreground">Settings → Guest portal</strong>.
         </WayfindingTip>
       )
     case 'manager':
       return (
-        <WayfindingTip id="nav-basics" role={role} title="Where guest portal settings live">
-          Portal settings (Wi‑Fi, rules, requests) are on the dashboard{' '}
-          <strong className="font-semibold text-foreground">Guest portal</strong> tab. Share QR codes,
-          links, and PINs from <strong className="font-semibold text-foreground">Guests</strong> in the
-          sidebar. Press{' '}
-          <kbd className="rounded bg-muted px-1.5 py-0.5 text-[11px] font-semibold">⌘K</kbd> to search across
-          the property.
+        <WayfindingTip id="nav-basics" role={role} title="Requests vs portal settings">
+          Guest requests (housekeeping, late checkout, extensions) are on the dashboard{' '}
+          <strong className="font-semibold text-foreground">Requests</strong> tab. Wi‑Fi, rules, and portal copy
+          stay on <strong className="font-semibold text-foreground">Guest portal</strong>. Share QR codes, links,
+          and PINs from <strong className="font-semibold text-foreground">Guests</strong> in the sidebar.
         </WayfindingTip>
       )
     case 'receptionist':
       return (
         <WayfindingTip id="nav-basics" role={role} title="Front desk shortcuts">
-          Today&apos;s arrivals and departures are on your dashboard. Guest requests from the portal appear in{' '}
-          <strong className="font-semibold text-foreground">Guest requests</strong> below. Press{' '}
+          Today&apos;s arrivals and departures are on your dashboard. Guest requests from the portal appear in the{' '}
+          <strong className="font-semibold text-foreground">Requests</strong> tab. Press{' '}
           <kbd className="rounded bg-muted px-1.5 py-0.5 text-[11px] font-semibold">⌘K</kbd> to search reservations,
           guests, or rooms.
         </WayfindingTip>

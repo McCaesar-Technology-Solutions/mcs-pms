@@ -19,7 +19,6 @@ import { createAdminClient } from '@/lib/supabase/admin'
 const SETTINGS_HASH_TO_TAB: Record<string, string> = {
   'guest-portal': 'guest-portal',
   'guest-feedback': 'guest-portal',
-  'guest-requests': 'guest-portal',
   notifications: 'alerts',
   'audit-log': 'activity',
   'sms-log': 'activity',

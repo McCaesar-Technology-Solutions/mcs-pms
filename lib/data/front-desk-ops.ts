@@ -259,6 +259,10 @@ export function computeFloorSummary(
 
 export type StaffRoutePrefix = '/owner' | '/manager' | '/receptionist'
 
+export function guestRequestsHref(prefix: string): string {
+  return `${prefix}/dashboard#guest-requests`
+}
+
 export function frontDeskOpsLinks(prefix: StaffRoutePrefix, date: string) {
   const q = encodeURIComponent(date)
   return {
@@ -266,10 +270,7 @@ export function frontDeskOpsLinks(prefix: StaffRoutePrefix, date: string) {
     arrivals: `${prefix}/reservations?checkIn=${q}`,
     departures: `${prefix}/reservations?checkOut=${q}`,
     dirty: `${prefix}/rooms?view=floor&filter=dirty&opsDate=${q}`,
-    guestRequests:
-      prefix === '/owner'
-        ? `${prefix}/settings#guest-requests`
-        : `${prefix}/dashboard#guest-requests`,
+    guestRequests: guestRequestsHref(prefix),
     messages:
       prefix === '/owner'
         ? `${prefix}/messages`
