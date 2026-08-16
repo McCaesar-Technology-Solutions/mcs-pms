@@ -158,6 +158,7 @@ For people already staying: real arrival (can be past) + planned departure. A st
 - **Guest folio** — post incidentals; you can post a **Discount (credit)**.
 - **Generate stay invoice & collect** if they have no invoice yet.
 - **Export PII** or **Erase / delete** (reception cannot erase). Erasing an in-house guest ends the stay and frees the room.
+- **Extend stay** — pick a later check-out (same as Reservations). Room total and portal access update automatically.
 - **Check out** from guest card when useful.
 
 ---

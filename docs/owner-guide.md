@@ -197,6 +197,7 @@ Rules:
 - **Guest portal** — copy link, QR, WhatsApp, regenerate, revoke.
 - **Guest folio** (in-house) — post charges; discount credits allowed for you and managers.
 - **Generate stay invoice & collect** if they are in house without an invoice.
+- **Extend stay** — pick a later check-out from the guest card (same as Reservations).
 - **Check out** from the guest card (same two-step flow).
 - **Export PII** — download guest personal data.
 - **Erase PII** — permanently remove guest personal data (you and managers). Hard-delete only orphan rows with no history.

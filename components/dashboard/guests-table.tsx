@@ -20,10 +20,12 @@ import {
   Trash2,
   FileText,
   Receipt,
+  CalendarPlus,
 } from 'lucide-react'
 import { CenteredModal, ModalBody, ModalFooter, ModalHeader } from '@/components/ui/centered-modal'
 import { GuestDndBadge } from '@/components/ui/guest-dnd-badge'
 import { regenerateGuestAccess, revokeGuestAccess, checkOutGuest, updateGuest } from '@/app/actions/guest'
+import { extendStay } from '@/app/actions/stays'
 import {
   eraseGuestPersonalData,
   getGuestDeleteEligibility,
@@ -39,6 +41,7 @@ import { usePagination } from '@/lib/hooks/use-pagination'
 import { toast } from 'sonner'
 import { PAYMENT_METHOD_LABELS } from '@/lib/tax'
 import { BillToFields } from '@/components/dashboard/bill-to-fields'
+import { APP_FIELD_CLASS, FormField } from '@/components/ui/form-field'
 import {
   GuestIdDocumentFields,
   useGuestIdDocumentFields,
@@ -656,6 +659,19 @@ export function GuestsTable({
 
               {!readOnly && <GuestAccessLink guest={selectedGuest} />}
 
+              {!readOnly &&
+                selectedGuest.canCheckOut &&
+                selectedGuest.reservationId &&
+                selectedGuest.occupancy === 'in_house' && (
+                  <GuestExtendStayPanel
+                    guest={selectedGuest}
+                    onExtended={(checkOut) => {
+                      setSelectedGuest({ ...selectedGuest, checkOut, lastStay: checkOut })
+                      router.refresh()
+                    }}
+                  />
+                )}
+
               {!readOnly && selectedGuest.canCheckOut && (
                 <GuestCheckoutPanel
                   guest={selectedGuest}
@@ -1025,6 +1041,103 @@ function GuestDeletePanel({
         </ModalFooter>
       </CenteredModal>
     </>
+  )
+}
+
+function addDaysISO(iso: string, days: number) {
+  const d = new Date(`${iso}T12:00:00`)
+  d.setDate(d.getDate() + days)
+  return d.toISOString().slice(0, 10)
+}
+
+function GuestExtendStayPanel({
+  guest,
+  onExtended,
+}: {
+  guest: GuestRow
+  onExtended: (checkOut: string) => void
+}) {
+  const currentOut = guest.checkOut ?? ''
+  const [open, setOpen] = useState(false)
+  const [newCheckOut, setNewCheckOut] = useState(() =>
+    currentOut ? addDaysISO(currentOut, 1) : '',
+  )
+  const [error, setError] = useState<string | null>(null)
+  const [pending, startTransition] = useTransition()
+
+  useEffect(() => {
+    if (currentOut) setNewCheckOut(addDaysISO(currentOut, 1))
+  }, [currentOut])
+
+  if (!guest.reservationId || !currentOut) return null
+
+  function submit() {
+    if (!guest.reservationId) return
+    setError(null)
+    startTransition(async () => {
+      const result = await extendStay(guest.reservationId!, newCheckOut)
+      if (!result.success) {
+        const rooms = result.suggestions?.map((r) => r.number).join(', ')
+        setError(
+          rooms ? `${result.error} Try room ${rooms}.` : (result.error ?? 'Could not extend stay.'),
+        )
+        toast.error(result.error ?? 'Could not extend stay.')
+        return
+      }
+      toast.success('Stay extended')
+      setOpen(false)
+      onExtended(newCheckOut)
+    })
+  }
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex w-full items-center justify-center gap-2 rounded-xl bg-white py-3 text-sm font-semibold text-foreground shadow-elevation-1"
+      >
+        <CalendarPlus className="h-4 w-4" />
+        Extend stay
+      </button>
+    )
+  }
+
+  return (
+    <div className="space-y-3 rounded-xl surface-inset p-4">
+      <p className="text-sm font-semibold">Extend stay</p>
+      <p className="text-xs text-muted-foreground">
+        Current check-out {currentOut}. New date must be later. Room total and portal access update
+        automatically.
+      </p>
+      <FormField label="New check-out date">
+        <input
+          type="date"
+          value={newCheckOut}
+          min={addDaysISO(currentOut, 1)}
+          onChange={(e) => setNewCheckOut(e.target.value)}
+          className={APP_FIELD_CLASS}
+        />
+      </FormField>
+      {error && <p className="text-sm text-destructive">{error}</p>}
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          className="flex-1 rounded-xl bg-white py-2 text-sm font-semibold shadow-elevation-1"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          disabled={pending || !newCheckOut || newCheckOut <= currentOut}
+          onClick={submit}
+          className="flex-[2] rounded-xl bg-primary py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+        >
+          {pending ? 'Saving…' : 'Extend'}
+        </button>
+      </div>
+    </div>
   )
 }
 

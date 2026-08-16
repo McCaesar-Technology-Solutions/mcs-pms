@@ -188,6 +188,7 @@ For people **already staying**:
 - **Guest folio** — post description + amount (₵). Cannot post while checkout in progress. Cannot post discount credits.
 - Copy / regenerate / revoke portal link; WhatsApp share.
 - **Export PII** if asked (erase is manager/owner only).
+- **Extend stay** — pick a later check-out (same as Reservations). Room total and portal access update automatically.
 - Check out from guest page if easier.
 
 ---
