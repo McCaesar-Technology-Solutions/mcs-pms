@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { phoneSchema } from '@/lib/phone'
 import { newPasswordFieldSchema } from '@/lib/auth/password-policy'
-import { guestIdDocumentFieldShape } from '@/lib/guests/id-document'
+import { guestIdDocumentFieldShape, refineGuestIdDocumentFields } from '@/lib/guests/id-document'
 
 export const signInSchema = z
   .object({
@@ -88,7 +88,7 @@ export const enrollGuestSchema = z.object({
   includeTax: z.boolean().optional(),
   billToSameAsGuest: z.boolean().optional(),
   billToName: z.string().max(120).optional().or(z.literal('')),
-})
+}).superRefine(refineGuestIdDocumentFields)
 
 export const submitComplaintSchema = z.object({
   category: z.enum([

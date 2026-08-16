@@ -43,6 +43,8 @@ import { getManagerTabBadges } from '@/lib/data/staff-alerts'
 import { OpsCalendarPanel } from '@/components/dashboard/ops-calendar-panel'
 import { loadOpsCalendarEvents, opsCalendarWeekRange } from '@/lib/data/ops-calendar'
 import { todayISO } from '@/lib/stays/helpers'
+import { getRecentDeadNotifications } from '@/lib/data/notification-outbox'
+import { DeliveryIssuesPanel } from '@/components/dashboard/delivery-issues-panel'
 
 const MANAGER_HASH_TO_TAB: Record<string, string> = {
   'ops-inbox': 'overview',
@@ -101,11 +103,12 @@ export default async function ManagerDashboardPage({
   let emailPrefs: Record<string, boolean> | null = null
   let guestFeedback: Awaited<ReturnType<typeof loadHotelGuestFeedback>> | null = null
   let opsCalendarEvents: Awaited<ReturnType<typeof loadOpsCalendarEvents>> = []
+  let deadNotifications: Awaited<ReturnType<typeof getRecentDeadNotifications>> = []
   if (hotelId) {
     try {
       const { fromIso, toIso } = opsCalendarWeekRange()
       const admin = tryCreateAdminClient()
-      const [{ data: hotel }, requests, inbox, feedback, hotelPrefs, calendarEvents] =
+      const [{ data: hotel }, requests, inbox, feedback, hotelPrefs, calendarEvents, dead] =
         await Promise.all([
           admin
             ? admin.from('hotels').select('name').eq('id', hotelId).maybeSingle()
@@ -121,12 +124,14 @@ export default async function ManagerDashboardPage({
                 .maybeSingle()
             : Promise.resolve({ data: null }),
           loadOpsCalendarEvents(hotelId, fromIso, toIso),
+          getRecentDeadNotifications(hotelId),
         ])
       propertyName = hotel?.name ?? propertyName
       guestRequests = requests
       opsInbox = inbox
       guestFeedback = feedback
       opsCalendarEvents = calendarEvents
+      deadNotifications = dead
       smsPrefs = (hotelPrefs.data?.notification_sms_prefs as Record<string, boolean>) ?? null
       emailPrefs = (hotelPrefs.data?.notification_email_prefs as Record<string, boolean>) ?? null
     } catch (err) {
@@ -191,6 +196,8 @@ export default async function ManagerDashboardPage({
                 </section>
 
                 <OpsInboxPanel items={opsInbox} />
+
+                <DeliveryIssuesPanel items={deadNotifications} />
 
                 <OpsCalendarPanel events={opsCalendarEvents} canManage />
 

@@ -125,7 +125,11 @@ export function AccessOpsPanel({
   const [guestQuery, setGuestQuery] = useState('')
   const [jobFilter, setJobFilter] = useState<JobFilter>(() => {
     const open = jobs.some(
-      (j) => j.status === 'pending' || j.status === 'claimed' || j.status === 'failed',
+      (j) =>
+        j.status === 'pending' ||
+        j.status === 'claimed' ||
+        j.status === 'failed' ||
+        j.status === 'dead',
     )
     return open ? 'open' : 'all'
   })
@@ -170,7 +174,11 @@ export function AccessOpsPanel({
     let list = [...jobs]
     if (jobFilter === 'open') {
       list = list.filter(
-        (j) => j.status === 'pending' || j.status === 'claimed' || j.status === 'failed',
+        (j) =>
+          j.status === 'pending' ||
+          j.status === 'claimed' ||
+          j.status === 'failed' ||
+          j.status === 'dead',
       )
     } else if (jobFilter === 'failed') {
       list = list.filter((j) => j.status === 'failed' || j.status === 'dead')
@@ -186,6 +194,16 @@ export function AccessOpsPanel({
   }, [jobs, jobFilter])
 
   const openJobCount = jobs.filter(
+    (j) =>
+      j.status === 'pending' ||
+      j.status === 'claimed' ||
+      j.status === 'failed' ||
+      j.status === 'dead',
+  ).length
+  const failedJobCount = jobs.filter(
+    (j) => j.status === 'failed' || j.status === 'dead',
+  ).length
+  const cancellableJobCount = jobs.filter(
     (j) => j.status === 'pending' || j.status === 'claimed' || j.status === 'failed',
   ).length
 
@@ -469,7 +487,7 @@ export function AccessOpsPanel({
                   <button
                     type="button"
                     className="app-btn app-btn-ghost h-8 text-xs"
-                    disabled={pending || openJobCount === 0}
+                    disabled={pending || cancellableJobCount === 0}
                     onClick={() =>
                       run(async () => {
                         const result = await cancelOpenAccessJobsAction(hotelId)
@@ -501,7 +519,7 @@ export function AccessOpsPanel({
               {(
                 [
                   ['open', `Open${openJobCount ? ` (${openJobCount})` : ''}`],
-                  ['failed', 'Failed'],
+                  ['failed', `Failed${failedJobCount ? ` (${failedJobCount})` : ''}`],
                   ['pending', 'Pending'],
                   ['all', 'All'],
                 ] as const

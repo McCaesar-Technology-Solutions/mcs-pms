@@ -899,7 +899,11 @@ function ReservationDrawer({
   const [includeTax, setIncludeTax] = useState(false)
   const [phone, setPhone] = useState(reservation.guestPhone)
   const [email, setEmail] = useState(reservation.guestEmail)
-  const idFields = useGuestIdDocumentFields()
+  const idFields = useGuestIdDocumentFields({
+    type: reservation.guestIdDocumentType ?? null,
+    number: reservation.guestIdDocumentNumber ?? null,
+    country: reservation.guestIdDocumentCountry ?? null,
+  })
   const [guestName, setGuestName] = useState(reservation.guestName)
   const [editGuestName, setEditGuestName] = useState(reservation.guestName)
   const [editRoomId, setEditRoomId] = useState(reservation.roomId)
@@ -928,7 +932,9 @@ function ReservationDrawer({
   const [issueDiscountReason, setIssueDiscountReason] = useState(
     reservation.discountReason ?? '',
   )
-  const [selectedGuestId, setSelectedGuestId] = useState<string | null>(null)
+  const [selectedGuestId, setSelectedGuestId] = useState<string | null>(
+    reservation.guestId || null,
+  )
   const [portalUrl, setPortalUrl] = useState<string | null>(null)
   const [portalPin, setPortalPin] = useState<string | null>(null)
   const [newCheckOut, setNewCheckOut] = useState(initialExtendDate ?? reservation.checkOutDate)

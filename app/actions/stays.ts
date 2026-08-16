@@ -10,6 +10,7 @@ import {
   guestIdDocumentFromRow,
   guestIdDocumentHasValue,
   parseGuestIdDocumentFields,
+  refineGuestIdDocumentFields,
   type GuestIdDocumentType,
 } from '@/lib/guests/id-document'
 import { getHotelTaxConfig } from '@/lib/data/settings'
@@ -81,7 +82,7 @@ const checkInStaySchema = z.object({
   includeTax: z.boolean().optional(),
   billToSameAsGuest: z.boolean().optional(),
   billToName: z.string().max(120).optional().or(z.literal('')),
-})
+}).superRefine(refineGuestIdDocumentFields)
 
 const walkInCheckInSchema = z.object({
   name: z.string().trim().min(2).max(120),
@@ -97,7 +98,7 @@ const walkInCheckInSchema = z.object({
   includeTax: z.boolean().optional(),
   billToSameAsGuest: z.boolean().optional(),
   billToName: z.string().max(120).optional().or(z.literal('')),
-})
+}).superRefine(refineGuestIdDocumentFields)
 
 async function requireManager() {
   const result = await requireVerifiedStaff()
@@ -214,7 +215,7 @@ export async function searchGuests(query: string): Promise<
     return { success: false, error: 'Not authorized.' }
   }
 
-  const q = query.trim().replace(/[,()]/g, ' ').trim()
+  const q = query.trim().replace(/[%_,()]/g, ' ').replace(/\s+/g, ' ').trim()
   if (q.length < 2) return { success: true, data: [] }
 
   const admin = createAdminClient()

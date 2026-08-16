@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { Json } from '@/lib/supabase/types'
 import type { AccessJobType, AccessJobPayload } from '@/lib/access/types'
+import { captureException } from '@/lib/monitoring/sentry'
 import {
   dedupeAttendanceRows,
   parseAttendancePullRecord,
@@ -216,6 +217,19 @@ export async function completeAccessJob(input: {
 
   const dead = job.attempts >= job.max_attempts
   const backoffMs = Math.min(30_000 * Math.max(1, job.attempts), 15 * 60_000)
+
+  if (dead) {
+    captureException(
+      new Error(`[access-job:dead] ${job.job_type} failed permanently after ${job.attempts} attempts`),
+      {
+        access_job_id: job.id,
+        access_job_type: job.job_type,
+        hotel_id: job.hotel_id,
+        credential_id: job.credential_id ?? undefined,
+        last_error: input.error ?? 'Agent reported failure',
+      },
+    )
+  }
 
   await admin
     .from('access_jobs')

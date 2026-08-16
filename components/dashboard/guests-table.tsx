@@ -321,7 +321,7 @@ export function GuestsTable({
             <input
               type="search"
               aria-label="Search guests"
-              placeholder="Search by name, email, or phone..."
+              placeholder="Search by name, email, phone, or ID…"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="flex-1 bg-transparent outline-none text-foreground placeholder:text-muted-foreground"
@@ -561,6 +561,7 @@ export function GuestsTable({
                 </div>
                 {!readOnly && editingGuest ? (
                   <GuestEditForm
+                    key={selectedGuest.id}
                     guest={selectedGuest}
                     onCancel={() => setEditingGuest(false)}
                     onSaved={() => {

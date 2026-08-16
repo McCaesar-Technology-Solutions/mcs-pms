@@ -119,4 +119,21 @@ describe('guest ID document', () => {
     )
     expect(guestIdDocumentHasValue(EMPTY_GUEST_ID_DOCUMENT)).toBe(false)
   })
+
+  it('rejects invalid ID on enroll schema before a stay is created', async () => {
+    const { enrollGuestSchema } = await import('@/lib/validations')
+    const result = enrollGuestSchema.safeParse({
+      name: 'Ama Mensah',
+      phone: '+233201234567',
+      roomId: '11111111-1111-4111-8111-111111111111',
+      checkIn: '2026-08-01',
+      checkOut: '2026-08-03',
+      idDocumentType: 'passport',
+      idDocumentNumber: 'AB12',
+    })
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.error.issues[0]?.message).toMatch(/6–12/)
+    }
+  })
 })

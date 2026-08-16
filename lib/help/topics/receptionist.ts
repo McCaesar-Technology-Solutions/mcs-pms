@@ -66,7 +66,7 @@ export const receptionistHelpTopics: HelpTopic[] = [
     ],
     href: '/receptionist/guests',
     hrefLabel: 'Open guests',
-    keywords: ['enroll', 'register', 'in house', 'go live', 'existing guest', 'migration', 'ghana card'],
+    keywords: ['enroll', 'register', 'in house', 'go live', 'existing guest', 'migration', 'ghana card', 'passport', 'licence'],
     pathPrefixes: ['/receptionist/guests'],
   },
   {

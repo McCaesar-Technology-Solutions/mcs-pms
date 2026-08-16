@@ -21,7 +21,7 @@ export interface GlobalSearchResult {
 }
 
 function sanitizeQuery(raw: string): string {
-  return raw.trim().replace(/[,()]/g, ' ').replace(/\s+/g, ' ').trim()
+  return raw.trim().replace(/[%_,()]/g, ' ').replace(/\s+/g, ' ').trim()
 }
 
 function prefixForRole(role: Profile['role']): string {
@@ -65,9 +65,11 @@ export async function searchGlobal(
       (async () => {
         const { data } = await supabase
           .from('guests')
-          .select('id, name, phone, email, rooms(number)')
+          .select('id, name, phone, email, id_document_number, rooms(number)')
           .eq('hotel_id', hotelId)
-          .or(`name.ilike.${pattern},phone.ilike.${pattern},email.ilike.${pattern}`)
+          .or(
+            `name.ilike.${pattern},phone.ilike.${pattern},email.ilike.${pattern},id_document_number.ilike.${pattern},ghana_card_number.ilike.${pattern}`,
+          )
           .order('name')
           .limit(perKind)
 
@@ -77,9 +79,15 @@ export async function searchGlobal(
             id: `guest-${row.id}`,
             kind: 'guest',
             label: row.name,
-            subtitle: [room?.number ? `Room ${room.number}` : null, row.phone, row.email]
-              .filter(Boolean)
-              .join(' · ') || 'Guest',
+            subtitle:
+              [
+                room?.number ? `Room ${room.number}` : null,
+                row.phone,
+                row.email,
+                row.id_document_number,
+              ]
+                .filter(Boolean)
+                .join(' · ') || 'Guest',
             href: `${prefix}/guests?open=${row.id}`,
           })
         }

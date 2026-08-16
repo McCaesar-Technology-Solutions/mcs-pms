@@ -204,3 +204,13 @@ export function parseGuestIdDocumentFields(
     country: data.idDocumentCountry,
   })
 }
+
+export function refineGuestIdDocumentFields(
+  data: GuestIdDocumentFormFields,
+  ctx: z.RefinementCtx,
+) {
+  const parsed = parseGuestIdDocumentFields(data)
+  if (!parsed.ok) {
+    ctx.addIssue({ code: 'custom', message: parsed.error, path: ['idDocumentNumber'] })
+  }
+}

@@ -192,14 +192,14 @@ export const ownerHelpTopics: HelpTopic[] = [
     summary: 'Go-live: put current occupants on the system with real stay dates.',
     steps: [
       'Guests → Register in-house guest.',
-      'Enter real arrival (can be past) and planned departure.',
+      'Enter real arrival (can be past) and planned departure. Optional ID: Ghana Card, passport, or driver’s licence.',
       'A stay invoice is created automatically — collect payment from Billing or the reservation.',
       'Share the portal link or PIN on WhatsApp — automatic welcome SMS is skipped.',
       'Use Walk-in check-in only for guests arriving now.',
     ],
     href: '/owner/guests',
     hrefLabel: 'Open guests',
-    keywords: ['enroll', 'register', 'in house', 'go live', 'existing guest', 'migration'],
+    keywords: ['enroll', 'register', 'in house', 'go live', 'existing guest', 'migration', 'ghana card', 'passport', 'licence'],
     pathPrefixes: ['/owner/guests'],
   },
 ]

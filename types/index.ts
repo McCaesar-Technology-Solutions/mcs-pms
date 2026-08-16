@@ -174,6 +174,10 @@ export interface Reservation {
   createdAt: string
   updatedAt: string
   guestDoNotDisturb?: boolean
+  /** Optional ID already on the linked guest record (check-in prefill). */
+  guestIdDocumentType?: 'ghana_card' | 'passport' | 'drivers_license' | null
+  guestIdDocumentNumber?: string | null
+  guestIdDocumentCountry?: string | null
   roomHeldUntil?: string | null
 }
 

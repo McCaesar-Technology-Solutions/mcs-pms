@@ -26,6 +26,7 @@ import { guestNeedsRulesAcceptance } from '@/lib/guest-rules/needs-acceptance'
 import { getGuestFromSession, submitGuestComplaint } from '@/app/actions/guest'
 import {
   GUEST_COMPLAINT_PHOTO_BUCKET,
+  GUEST_COMPLAINT_PHOTO_MAX_BYTES,
   guestComplaintPhotoClientTypeHint,
   uploadGuestComplaintPhoto,
 } from '@/lib/guest/complaint-photos'
@@ -531,7 +532,6 @@ export async function submitGuestComplaintWithPhoto(
   if (photo instanceof File && photo.size > 0) {
     photoHint = guestComplaintPhotoClientTypeHint(photo)
     if (!photoHint) return { success: false, error: 'Photo must be JPEG, PNG, or WebP.' }
-    if (photo.size > 5 * 1024 * 1024) return { success: false, error: 'Photo must be under 5 MB.' }
   }
 
   const result = await submitGuestComplaint(parsed.data)
@@ -543,6 +543,7 @@ export async function submitGuestComplaintWithPhoto(
     const { complaintId, hotelId } = result.data
     after(async () => {
       try {
+        if (photo.size > GUEST_COMPLAINT_PHOTO_MAX_BYTES) return
         const buffer = Buffer.from(await photo.arrayBuffer())
         const sniffed = validateFileSignature(buffer, ['image/jpeg', 'image/png', 'image/webp'])
         if (!sniffed) return

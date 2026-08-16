@@ -23,6 +23,7 @@ import type {
   Reservation,
   ReservationPaymentStatus,
 } from '@/types'
+import { guestIdDocumentFromRow } from '@/lib/guests/id-document'
 
 export interface ReservationsPageResult {
   reservations: Reservation[]
@@ -41,7 +42,15 @@ export interface ReservationWorkspaceData {
 
 interface ReservationRow extends DbReservation {
   rooms?: { number: string } | null
-  guests?: { email: string | null; phone: string | null; do_not_disturb?: boolean | null } | null
+  guests?: {
+    email: string | null
+    phone: string | null
+    do_not_disturb?: boolean | null
+    ghana_card_number?: string | null
+    id_document_type?: string | null
+    id_document_number?: string | null
+    id_document_country?: string | null
+  } | null
 }
 
 const CHANNEL_SOURCE_MAP: Record<string, Reservation['source']> = {
@@ -53,7 +62,7 @@ const CHANNEL_SOURCE_MAP: Record<string, Reservation['source']> = {
 }
 
 const RESERVATION_SELECT =
-  '*, rooms(number), guests(email, phone, do_not_disturb)' as const
+  '*, rooms(number), guests(email, phone, do_not_disturb, ghana_card_number, id_document_type, id_document_number, id_document_country)' as const
 
 /** Max rows scanned when filters need in-memory matching (search / secured). */
 const COMPOUND_SCAN_LIMIT = 500
@@ -91,6 +100,7 @@ function mapReservation(
   const estimatedTotal = Math.max(0, total - discountAmount) + folioSubtotal
   const balanceDue = reservationBalanceDue(estimatedTotal, paidAmount)
   const channel = (row.channel ?? 'direct') as Reservation['channel']
+  const idDocument = guestIdDocumentFromRow(row.guests ?? {})
 
   return {
     id: row.id,
@@ -99,6 +109,9 @@ function mapReservation(
     guestName: row.guest_name,
     guestEmail: row.guests?.email ?? '',
     guestPhone: row.guests?.phone ?? '',
+    guestIdDocumentType: idDocument.type,
+    guestIdDocumentNumber: idDocument.number,
+    guestIdDocumentCountry: idDocument.country,
     roomId: row.room_id ?? '',
     roomNumber: row.rooms?.number ?? '—',
     propertyId: row.hotel_id,
@@ -142,6 +155,8 @@ function matchesSearch(row: ReservationRow, search: string): boolean {
   }
   if (row.id.toLowerCase().startsWith(q) || row.id.toLowerCase().includes(q)) return true
   if (row.guest_name.toLowerCase().includes(q)) return true
+  if ((row.guests?.id_document_number ?? '').toLowerCase().includes(q)) return true
+  if ((row.guests?.ghana_card_number ?? '').toLowerCase().includes(q)) return true
   if ((row.rooms?.number ?? '').toLowerCase().includes(q)) return true
   const bookingRef = `mojo-${row.id.slice(0, 8)}`
   return bookingRef.includes(q.replace(/\s+/g, ''))

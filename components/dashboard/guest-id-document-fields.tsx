@@ -61,6 +61,10 @@ export function GuestIdDocumentFields({
   allowNone = true,
 }: GuestIdDocumentFieldsProps) {
   const showCountry = state.type === 'passport' || state.type === 'drivers_license'
+  const countries =
+    state.country && !GUEST_ID_COUNTRIES.some((c) => c.code === state.country)
+      ? [{ code: state.country, name: state.country }, ...GUEST_ID_COUNTRIES]
+      : GUEST_ID_COUNTRIES
   const placeholder =
     state.type === 'ghana_card'
       ? 'GHA-728071939-8'
@@ -76,7 +80,7 @@ export function GuestIdDocumentFields({
         ? '6–12 letters or digits. Issuing country optional.'
         : state.type === 'drivers_license'
           ? 'Letters, digits, or hyphens. Issuing country optional.'
-          : 'Optional. Ghana Card, passport, or driver’s licence.'
+          : 'Optional. Ghana Card, passport, or driver’s licence. Leave as None to skip, or to keep an ID already on file.'
 
   function setType(type: GuestIdDocumentType | '') {
     onChange({
@@ -107,15 +111,7 @@ export function GuestIdDocumentFields({
         <FormField label={`${GUEST_ID_DOCUMENT_LABEL[state.type]} number`}>
           <input
             value={state.number}
-            onChange={(e) =>
-              onChange({
-                ...state,
-                number:
-                  state.type === 'ghana_card' || state.type === 'passport'
-                    ? e.target.value.toUpperCase()
-                    : e.target.value.toUpperCase(),
-              })
-            }
+            onChange={(e) => onChange({ ...state, number: e.target.value.toUpperCase() })}
             placeholder={placeholder}
             className={`${APP_FIELD_CLASS} uppercase`}
             autoComplete="off"
@@ -131,7 +127,7 @@ export function GuestIdDocumentFields({
             aria-label="Issuing country"
           >
             <option value="">Not specified</option>
-            {GUEST_ID_COUNTRIES.map((c) => (
+            {countries.map((c) => (
               <option key={c.code} value={c.code}>
                 {c.name} ({c.code})
               </option>

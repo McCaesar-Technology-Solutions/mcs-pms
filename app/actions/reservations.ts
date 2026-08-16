@@ -9,7 +9,7 @@ import { calculateStayTotal, type RateType } from '@/lib/pricing/stay-totals'
 import { getRoomRates } from '@/lib/pricing/room-rates'
 import { createReservationSchema, updateReservationSchema } from '@/lib/validations'
 import { phoneSchema } from '@/lib/phone'
-import { guestIdDocumentFieldShape } from '@/lib/guests/id-document'
+import { guestIdDocumentFieldShape, parseGuestIdDocumentFields, refineGuestIdDocumentFields } from '@/lib/guests/id-document'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { writeAuditLog, moneyDelta } from '@/lib/audit/log'
 import { validateReservationCancellation } from '@/lib/reservations/cancel-eligibility'
@@ -78,7 +78,7 @@ const bookAndCheckInSchema = createReservationSchema.extend({
   billToName: z.string().max(120).optional().or(z.literal('')),
   /** Go-live / in-house enrollment — skip welcome + new-booking SMS noise. */
   quietEnrollment: z.boolean().optional(),
-})
+}).superRefine(refineGuestIdDocumentFields)
 
 const VALID_CHANNELS: ReservationChannel[] = [
   'airbnb',
@@ -309,6 +309,9 @@ export async function bookAndCheckIn(input: unknown): Promise<BookAndCheckInResu
   if (!parsed.success) {
     return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid input.' }
   }
+
+  const idParsed = parseGuestIdDocumentFields(parsed.data)
+  if (!idParsed.ok) return { success: false, error: idParsed.error }
 
   const { quietEnrollment, phone, email, idDocumentType, idDocumentNumber, idDocumentCountry, includeTax, billToSameAsGuest, billToName, ...reservationFields } =
     parsed.data

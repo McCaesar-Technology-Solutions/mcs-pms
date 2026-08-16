@@ -1,4 +1,5 @@
 export const GUEST_COMPLAINT_PHOTO_BUCKET = 'guest-complaint-photos'
+export const GUEST_COMPLAINT_PHOTO_MAX_BYTES = 5 * 1024 * 1024 // 5MB, matches rooms/properties uploads
 
 const UPLOAD_TIMEOUT_MS = 12_000
 

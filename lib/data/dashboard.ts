@@ -24,6 +24,7 @@ import type {
   Room,
   RoomStatus,
 } from '@/types'
+import { guestIdDocumentFromRow } from '@/lib/guests/id-document'
 import {
   filterMetricsEligible,
   filterOpenBookings,
@@ -102,7 +103,15 @@ function nightsBetween(checkIn: string, checkOut: string): number {
 
 interface ReservationRow extends DbReservation {
   rooms?: { number: string } | null
-  guests?: { email: string | null; phone: string | null; do_not_disturb?: boolean | null } | null
+  guests?: {
+    email: string | null
+    phone: string | null
+    do_not_disturb?: boolean | null
+    ghana_card_number?: string | null
+    id_document_type?: string | null
+    id_document_number?: string | null
+    id_document_country?: string | null
+  } | null
 }
 
 function mapReservation(row: ReservationRow, folioMap: Map<string, number>): Reservation {
@@ -125,6 +134,7 @@ function mapReservation(row: ReservationRow, folioMap: Map<string, number>): Res
   const estimatedTotal = total + folioSubtotal
   const balanceDue = reservationBalanceDue(estimatedTotal, paidAmount)
   const channel = (row.channel ?? 'direct') as Reservation['channel']
+  const idDocument = guestIdDocumentFromRow(row.guests ?? {})
 
   return {
     id: row.id,
@@ -133,6 +143,9 @@ function mapReservation(row: ReservationRow, folioMap: Map<string, number>): Res
     guestName: row.guest_name,
     guestEmail: row.guests?.email ?? '',
     guestPhone: row.guests?.phone ?? '',
+    guestIdDocumentType: idDocument.type,
+    guestIdDocumentNumber: idDocument.number,
+    guestIdDocumentCountry: idDocument.country,
     roomId: row.room_id ?? '',
     roomNumber: row.rooms?.number ?? '—',
     propertyId: row.hotel_id,
@@ -296,7 +309,7 @@ export async function getDashboardData(): Promise<DashboardData> {
         .order('number'),
       supabase
         .from('reservations')
-        .select('*, rooms(number), guests(email, phone, do_not_disturb)')
+        .select('*, rooms(number), guests(email, phone, do_not_disturb, ghana_card_number, id_document_type, id_document_number, id_document_country)')
         .eq('hotel_id', hotelId)
         .order('check_in', { ascending: false })
         .limit(clampLimit(DASHBOARD_HISTORY_LIMIT)),
@@ -391,7 +404,7 @@ export async function getStaffReservationsPageData(): Promise<StaffReservationsP
         .order('number'),
       supabase
         .from('reservations')
-        .select('*, rooms(number), guests(email, phone, do_not_disturb)')
+        .select('*, rooms(number), guests(email, phone, do_not_disturb, ghana_card_number, id_document_type, id_document_number, id_document_country)')
         .eq('hotel_id', hotelId)
         .order('check_in', { ascending: false })
         .limit(clampLimit(DASHBOARD_HISTORY_LIMIT)),

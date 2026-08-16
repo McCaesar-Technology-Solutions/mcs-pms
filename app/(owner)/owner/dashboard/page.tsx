@@ -36,6 +36,8 @@ import { OpsCalendarPanel } from '@/components/dashboard/ops-calendar-panel'
 import { createClient } from '@/lib/supabase/server'
 import { loadOpsCalendarEvents, opsCalendarWeekRange } from '@/lib/data/ops-calendar'
 import { todayISO } from '@/lib/stays/helpers'
+import { getRecentDeadNotifications } from '@/lib/data/notification-outbox'
+import { DeliveryIssuesPanel } from '@/components/dashboard/delivery-issues-panel'
 
 const OWNER_HASH_TO_TAB: Record<string, string> = {
   'guest-feedback': 'guest-reviews',
@@ -69,10 +71,11 @@ export default async function DashboardPage({
     : []
 
   const supabase = await createClient()
-  const [guestFeedback, occupancyToday, lowStockCount] = await Promise.all([
+  const [guestFeedback, occupancyToday, lowStockCount, deadNotifications] = await Promise.all([
     hotelId ? loadHotelGuestFeedback(hotelId) : null,
     hotelId ? getOccupancyToday(supabase, hotelId) : undefined,
     hotelId ? countLowStockForHotel(hotelId) : 0,
+    hotelId ? getRecentDeadNotifications(hotelId) : [],
   ])
 
   const todayOps =
@@ -158,6 +161,7 @@ export default async function DashboardPage({
                 <section className="dashboard-section dashboard-section--compact">
                   <OperationsSummary tasks={tasks} />
                 </section>
+                <DeliveryIssuesPanel items={deadNotifications} />
                 <OpsCalendarPanel events={opsCalendarEvents} canManage />
                 <DashboardMoreLinks />
               </>

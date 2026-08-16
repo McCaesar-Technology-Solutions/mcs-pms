@@ -26,7 +26,11 @@ import { createAdminClient } from '@/lib/supabase/admin'
 
 function openJobBadge(jobs: { status: string }[]) {
   return jobs.filter(
-    (j) => j.status === 'pending' || j.status === 'claimed' || j.status === 'failed',
+    (j) =>
+      j.status === 'pending' ||
+      j.status === 'claimed' ||
+      j.status === 'failed' ||
+      j.status === 'dead',
   ).length
 }
 

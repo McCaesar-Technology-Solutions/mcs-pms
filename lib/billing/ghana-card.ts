@@ -6,7 +6,7 @@ const GHANA_CARD_RE = /^GHA-\d{9}-\d$/
 
 /**
  * Default Bill-to Tax ID stamped on every taxed invoice (hotel policy).
- * Guest Ghana Card is still captured for records; invoice Tax ID uses this value when tax applies.
+ * Guest ID (Ghana Card, passport, or licence) is stored on the guest record only.
  */
 export const DEFAULT_INVOICE_TAX_ID = 'GHA-728071939-8'
 
