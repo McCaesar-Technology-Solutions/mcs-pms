@@ -14,6 +14,7 @@ export type GuestOccupancy =
   | 'in_house'
   | 'checking_out'
   | 'overstay'
+  | 'dispute_hold'
   | 'departed'
   | 'upcoming'
   | 'none'
@@ -35,6 +36,7 @@ export const OCCUPANCY_LABEL: Record<GuestOccupancy, string> = {
   in_house: 'In house',
   checking_out: 'Checking out',
   overstay: 'Overstay',
+  dispute_hold: 'Dispute hold',
   departed: 'Checked out',
   upcoming: 'Upcoming',
   none: 'No stay',
@@ -74,11 +76,12 @@ const DEPARTED_STATUSES = ['checked_out', 'post_stay', 'archived', 'walkout'] as
 
 const OCCUPANCY_RANK: Record<GuestOccupancy, number> = {
   overstay: 0,
-  checking_out: 1,
-  in_house: 2,
-  upcoming: 3,
-  departed: 4,
-  none: 5,
+  dispute_hold: 1,
+  checking_out: 2,
+  in_house: 3,
+  upcoming: 4,
+  departed: 5,
+  none: 6,
 }
 
 export interface GuestRow {
@@ -170,8 +173,9 @@ export function deriveGuestOccupancy(
   guestCheckOut: string | null,
 ): GuestOccupancy {
   if (reservations.some((r) => r.status === 'overstay')) return 'overstay'
+  if (reservations.some((r) => r.status === 'dispute_hold')) return 'dispute_hold'
   if (reservations.some((r) => r.status === 'checkout_in_progress')) return 'checking_out'
-  if (reservations.some((r) => r.status === 'checked_in' || r.status === 'dispute_hold')) {
+  if (reservations.some((r) => r.status === 'checked_in')) {
     return 'in_house'
   }
   if (guestRoomId) return 'in_house'
@@ -210,7 +214,10 @@ export function buildGuestDirectoryFields(input: {
     input.guestCheckOut,
   )
   const isInHouse =
-    occupancy === 'in_house' || occupancy === 'checking_out' || occupancy === 'overstay'
+    occupancy === 'in_house' ||
+    occupancy === 'checking_out' ||
+    occupancy === 'overstay' ||
+    occupancy === 'dispute_hold'
   const occupying = reservations.filter((r) => isOccupyingReservationStatus(r.status))
   const canCheckOut = occupying.some((r) => isInHouseReservationStatus(r.status))
   const active = pickActiveStay(occupying)

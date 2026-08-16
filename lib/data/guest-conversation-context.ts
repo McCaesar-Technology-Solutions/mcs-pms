@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin'
+import { isOccupyingReservationStatus } from '@/lib/reservations/lifecycle'
 
 export interface GuestConversationContext {
   guestId: string
@@ -49,7 +50,7 @@ export async function loadGuestConversationContext(
     .limit(5)
 
   const active =
-    reservations?.find((r) => r.status === 'checked_in') ??
+    reservations?.find((r) => isOccupyingReservationStatus(r.status)) ??
     reservations?.find((r) => r.status === 'confirmed') ??
     reservations?.[0]
 

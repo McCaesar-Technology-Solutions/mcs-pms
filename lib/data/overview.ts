@@ -3,8 +3,8 @@ import {
   ARRIVING_STATUSES,
   DEPARTING_STATUSES,
   filterMetricsEligible,
+  isOccupyingReservationStatus,
   isOpenBookingStatus,
-  OPEN_BOOKING_STATUSES,
 } from '@/lib/reservations/lifecycle'
 
 export interface ChannelPerf {
@@ -144,16 +144,8 @@ export function computeTodayOperations(
   reservations: Reservation[],
   today = new Date().toISOString().split('T')[0],
 ): TodayOperations {
-  const active = (status: string) =>
-    (OPEN_BOOKING_STATUSES as readonly string[]).includes(status)
-
   return {
-    guestsInHouse: reservations.filter(
-      (r) =>
-        r.status === 'checked_in' ||
-        r.status === 'overstay' ||
-        r.status === 'checkout_in_progress',
-    ).length,
+    guestsInHouse: reservations.filter((r) => isOccupyingReservationStatus(r.status)).length,
     arrivalsToday: reservations.filter(
       (r) =>
         (ARRIVING_STATUSES as readonly string[]).includes(r.status) && r.checkInDate === today,

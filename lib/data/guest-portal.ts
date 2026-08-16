@@ -1,7 +1,7 @@
 import { tryCreateAdminClient } from '@/lib/supabase/admin'
 import { getHotelGuestRules, type GuestRuleRow } from '@/lib/data/guest-rules'
 import { getHotelLocalGuide, type LocalGuideRow } from '@/lib/data/local-guide'
-import { loadGuestRequestHousekeepingTasks } from '@/lib/housekeeping/guest-task'
+import { OCCUPYING_STATUSES } from '@/lib/reservations/lifecycle'
 import { propertyImagePublicUrl } from '@/lib/properties/image-storage'
 import { roomImagePublicUrl } from '@/lib/rooms/image-storage'
 import type { Guest } from '@/types'
@@ -211,7 +211,7 @@ export async function loadHotelGuestRequests(hotelId: string): Promise<GuestRequ
       .select('id, guest_id, status')
       .eq('hotel_id', hotelId)
       .in('guest_id', guestIds)
-      .in('status', ['checked_in', 'overstay', 'checkout_in_progress'])
+      .in('status', [...OCCUPYING_STATUSES])
 
     for (const reservation of activeReservations ?? []) {
       if (!reservation.guest_id || reservationIdsByGuest.has(reservation.guest_id)) continue

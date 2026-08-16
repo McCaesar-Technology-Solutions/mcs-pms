@@ -119,7 +119,7 @@ You can also **Collect payment before check-in** on a confirmed booking.
 ### While in house
 
 - **Extend stay** / **Move room**.
-- Post **folio** charges from **Guests** (no discount credits — ask a manager).
+- Post **folio** charges from **Guests** (no discount credits — ask a manager). Charges and guest requests stay on the stay during **dispute hold**; a manager must start or release the hold, or check out, from Reservations.
 - **Approve late checkout** when policy allows.
 - **Generate stay invoice & collect** from the guest card if they somehow have no invoice.
 
@@ -145,6 +145,8 @@ Payment for the stay is taken **at check-in**. Checkout is departure + any unpai
 6. Confirm → room **Cleaning**; same stay invoice refreshed (no duplicate). Print, download, or **WhatsApp** the bill.
 
 **Walkout** — only if the guest already left without paying. Not a “pay later” path.
+
+**Dispute hold** — you cannot start or end it. The guest stays in the room; folio still works. Ask a manager to release the hold, check out, or record a walkout on Reservations.
 
 ### Cancel / no-show
 
@@ -187,11 +189,11 @@ For people **already staying**:
 ### Guest card
 
 - Edit phone / email / ID document.
-- **Guest folio** — post description + amount (₵). Cannot post while checkout in progress. Cannot post discount credits.
+- **Guest folio** — post description + amount (₵). Cannot post while checkout in progress. You can still post during **dispute hold**. Cannot post discount credits.
 - Copy / regenerate / revoke portal link; WhatsApp share.
 - **Export PII** if asked (erase is manager/owner only).
 - **Extend stay** — pick a later check-out (same as Reservations). Room total and portal access update automatically.
-- Check out from guest page if easier.
+- Check out from guest page if easier. If the card shows **Dispute hold**, checkout is paused — ask a manager to release the hold, check out, or record a walkout on Reservations.
 
 ---
 

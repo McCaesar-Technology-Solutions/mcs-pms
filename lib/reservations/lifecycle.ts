@@ -45,8 +45,8 @@ export const ARRIVING_STATUSES = ['confirmed', 'pre_arrival'] as const
 export const DEPARTING_STATUSES = ['checked_in', 'overstay', 'checkout_in_progress'] as const
 
 /**
- * Guest is physically in-house (front desk, directory checkout, privacy).
- * Dispute hold occupies the room but is not a desk checkout path.
+ * Guest is physically in-house (Guests-card checkout path).
+ * Dispute hold occupies the room but checkout runs from Reservations.
  */
 export const IN_HOUSE_STATUSES = [
   'checked_in',
@@ -148,6 +148,23 @@ export function statusAfterDisputeHoldRelease(
   return checkOut > today ? 'checked_in' : 'overstay'
 }
 
+export function canStartDisputeHold(status: string | null | undefined): boolean {
+  return status === 'checked_in' || status === 'overstay' || status === 'checkout_in_progress'
+}
+
+export const STAY_NOTE_MIN_LENGTH = 3
+export const STAY_NOTE_MAX_LENGTH = 200
+
+export function parseRequiredStayNote(
+  note: string,
+  emptyMessage = 'Add a short note.',
+): { ok: true; note: string } | { ok: false; error: string } {
+  const trimmed = note.trim()
+  if (trimmed.length < STAY_NOTE_MIN_LENGTH) return { ok: false, error: emptyMessage }
+  if (trimmed.length > STAY_NOTE_MAX_LENGTH) return { ok: false, error: 'Note is too long.' }
+  return { ok: true, note: trimmed }
+}
+
 export function canCancelReservationStatus(status: string | null | undefined): boolean {
   return (
     status === 'confirmed' ||
@@ -161,6 +178,7 @@ export function reservationStatusLabel(status: string | null | undefined): strin
   if (status === 'checked_in') return 'In house'
   if (status === 'checkout_in_progress') return 'Checking out'
   if (status === 'overstay') return 'Overstay'
+  if (status === 'dispute_hold') return 'Dispute hold'
   if (!status) return ''
   return status.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 }
@@ -204,6 +222,7 @@ export function getAvailableActions(
       break
     case 'checkout_in_progress':
       actions.push('complete_checkout', 'record_walkout')
+      if (role === 'manager') actions.push('dispute_hold')
       break
     default:
       break

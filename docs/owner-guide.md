@@ -156,7 +156,7 @@ Open a confirmed booking → **Collect payment before check-in**. This creates o
 - **Move room** — reassign if free.
 - **Guest folio** — post extras from **Guests** (minibar, laundry). Shows as **Folio (unbilled)** on the reservation. You can also post a **Discount (credit)**.
 - **Approve late checkout** — when overstay needs more time.
-- **Dispute hold** — pause checkout while a billing dispute is open. **Release hold** (note required) resumes the stay; checkout and walkout also work from the hold.
+- **Dispute hold** — pause checkout while a billing dispute is open (reason required). You can start it from in-house or **checkout in progress**; the folio unlocks so charges can still be posted. The guest still occupies the room; guest requests stay on this stay. **Release hold** (note required) resumes the stay; checkout and walkout also work from the hold.
 - **Release no-show hold** — when a no-show is still blocking a room.
 
 ### Check out
@@ -200,7 +200,7 @@ Rules:
 - **Guest folio** (in-house) — post charges; discount credits allowed for you and managers.
 - **Generate stay invoice & collect** if they are in house without an invoice.
 - **Extend stay** — pick a later check-out from the guest card (same as Reservations).
-- **Check out** from the guest card (same two-step flow).
+- **Check out** from the guest card (same two-step flow). **Dispute hold** stays stay in house — use Reservations to release the hold, begin checkout, or record a walkout.
 - **Export PII** — download guest personal data.
 - **Erase PII** — permanently remove guest personal data (you and managers). Hard-delete only orphan rows with no history.
 

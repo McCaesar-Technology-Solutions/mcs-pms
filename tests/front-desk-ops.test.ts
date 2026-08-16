@@ -3,6 +3,7 @@ import {
   buildRoomBoardSignals,
   computeExtendedTodayOperations,
   computeFloorSummary,
+  countGuestsInHouseNow,
   countPrepaidArrivals,
   frontDeskOpsLinks,
   guestRequestsHref,
@@ -149,6 +150,13 @@ describe('front desk ops', () => {
 
   it('counts prepaid arrivals', () => {
     expect(countPrepaidArrivals(reservations, '2026-06-15')).toBe(1)
+  })
+
+  it('counts dispute hold as occupying the house', () => {
+    expect(countGuestsInHouseNow(reservations)).toBe(1)
+    expect(
+      countGuestsInHouseNow([{ ...reservations[0], status: 'dispute_hold' }]),
+    ).toBe(1)
   })
 
   it('computes extended ops metrics', () => {

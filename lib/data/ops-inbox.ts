@@ -3,6 +3,7 @@ import { resolveHotelTenantAccess } from '@/lib/data/tenant-guard'
 import { isPendingCompletion, needsGuestCompletionApproval } from '@/lib/complaints/workflow'
 import { loadGuestConversations } from '@/lib/data/guest-conversations'
 import { loadGuestRequestHousekeepingTasks } from '@/lib/housekeeping/guest-task'
+import { OCCUPYING_STATUSES } from '@/lib/reservations/lifecycle'
 import type { Complaint } from '@/types'
 
 export type OpsInboxKind =
@@ -132,7 +133,7 @@ export async function loadOpsInbox(hotelId: string, limit = 12): Promise<OpsInbo
       .select('id, guest_id')
       .eq('hotel_id', hotelId)
       .in('guest_id', requestGuestIds)
-      .in('status', ['checked_in', 'overstay', 'checkout_in_progress'])
+      .in('status', [...OCCUPYING_STATUSES])
 
     for (const reservation of activeReservations ?? []) {
       if (!reservation.guest_id || requestReservationIds.has(reservation.guest_id)) continue

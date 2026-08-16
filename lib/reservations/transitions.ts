@@ -98,7 +98,7 @@ export const ALLOWED_TRANSITIONS: Partial<
     dispute_hold: {
       eventType: 'dispute_hold_started',
       requiredRole: 'manager',
-      sideEffects: ['room-status'],
+      sideEffects: ['room-status', 'folio'],
     },
     walkout: {
       eventType: 'walkout_detected',
@@ -115,7 +115,7 @@ export const ALLOWED_TRANSITIONS: Partial<
     dispute_hold: {
       eventType: 'dispute_hold_started',
       requiredRole: 'manager',
-      sideEffects: ['room-status'],
+      sideEffects: ['room-status', 'folio'],
     },
     walkout: {
       eventType: 'walkout_detected',
@@ -127,6 +127,11 @@ export const ALLOWED_TRANSITIONS: Partial<
     checked_out: {
       eventType: 'checkout_completed',
       sideEffects: ['inventory', 'room-status', 'channel'],
+    },
+    dispute_hold: {
+      eventType: 'dispute_hold_started',
+      requiredRole: 'manager',
+      sideEffects: ['room-status', 'folio'],
     },
     walkout: {
       eventType: 'walkout_detected',

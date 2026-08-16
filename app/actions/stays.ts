@@ -43,7 +43,7 @@ import {
   prepareCheckoutTaxesWithFolio,
 } from '@/lib/folio/rollup'
 import { writeAuditLog, logRoomStatusChange } from '@/lib/audit/log'
-import { canCheckIn, canCheckOut, IN_HOUSE_STATUSES, statusAfterDisputeHoldRelease } from '@/lib/reservations/lifecycle'
+import { canCheckIn, canCheckOut, canStartDisputeHold, parseRequiredStayNote, OCCUPYING_STATUSES, statusAfterDisputeHoldRelease } from '@/lib/reservations/lifecycle'
 import { validateCheckoutBalance } from '@/lib/reservations/checkout-validation'
 import { runNotifyTask } from '@/lib/notifications/notify-task'
 import {
@@ -190,7 +190,7 @@ async function findInHouseGuestByPhone(
         .from('reservations')
         .select('id')
         .eq('guest_id', g.id)
-        .in('status', ['checked_in', 'checkout_in_progress', 'overstay'])
+        .in('status', [...OCCUPYING_STATUSES])
         .maybeSingle()
       if (activeRes) return g.id
     }
@@ -1088,7 +1088,7 @@ export async function checkOutStay(input: {
       .select('*')
       .eq('guest_id', input.guestId)
       .eq('hotel_id', profile.hotel_id)
-      .in('status', [...IN_HOUSE_STATUSES])
+      .in('status', [...OCCUPYING_STATUSES])
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle()
@@ -1099,21 +1099,6 @@ export async function checkOutStay(input: {
 
   // Legacy guest without reservation — create checkout record on the fly
   if (!reservation && input.guestId) {
-    const { data: disputeHold } = await admin
-      .from('reservations')
-      .select('id')
-      .eq('guest_id', input.guestId)
-      .eq('hotel_id', profile.hotel_id)
-      .eq('status', 'dispute_hold')
-      .limit(1)
-      .maybeSingle()
-    if (disputeHold) {
-      return {
-        success: false,
-        error: 'This stay is on dispute hold. Complete checkout from Reservations.',
-      }
-    }
-
     const { data: guest } = await admin
       .from('guests')
       .select('*')
@@ -1800,11 +1785,17 @@ export async function markNoShow(
   return { success: true }
 }
 
-export async function beginDisputeHold(reservationId: string): Promise<StayActionResult> {
+export async function beginDisputeHold(
+  reservationId: string,
+  note: string,
+): Promise<StayActionResult> {
   const { profile, userId } = await requireManager()
   if (!profile?.hotel_id || !userId || !['owner', 'manager'].includes(profile.role)) {
     return { success: false, error: 'Not authorized.' }
   }
+
+  const parsedNote = parseRequiredStayNote(note, 'Add a short reason for the hold.')
+  if (!parsedNote.ok) return { success: false, error: parsedNote.error }
 
   const admin = createAdminClient()
   const { data: reservation } = await admin
@@ -1815,8 +1806,8 @@ export async function beginDisputeHold(reservationId: string): Promise<StayActio
     .maybeSingle()
 
   if (!reservation) return { success: false, error: 'Reservation not found.' }
-  if (reservation.status !== 'checked_in' && reservation.status !== 'overstay') {
-    return { success: false, error: 'Dispute hold applies only to in-house stays.' }
+  if (!canStartDisputeHold(reservation.status)) {
+    return { success: false, error: 'Dispute hold applies only to in-house stays or checkout in progress.' }
   }
 
   const result = await transitionReservation({
@@ -1825,7 +1816,7 @@ export async function beginDisputeHold(reservationId: string): Promise<StayActio
     toStatus: 'dispute_hold',
     actorId: userId,
     actorRole: normalizeActorRole(profile.role),
-    payload: { reason: 'billing_dispute' },
+    payload: { reason: parsedNote.note },
   })
 
   if (!result.success) return { success: false, error: result.error ?? 'Could not start dispute hold.' }
@@ -1839,6 +1830,7 @@ export async function beginDisputeHold(reservationId: string): Promise<StayActio
     entityId: reservationId,
     action: 'dispute_hold_started',
     summary: `${reservation.guest_name}: billing dispute hold`,
+    details: { reason: parsedNote.note, fromStatus: reservation.status },
   })
 
   return { success: true }
@@ -1853,13 +1845,8 @@ export async function releaseDisputeHold(
     return { success: false, error: 'Not authorized.' }
   }
 
-  const trimmed = note.trim()
-  if (trimmed.length < 3) {
-    return { success: false, error: 'Add a short note explaining the resolution.' }
-  }
-  if (trimmed.length > 200) {
-    return { success: false, error: 'Note is too long.' }
-  }
+  const parsedNote = parseRequiredStayNote(note, 'Add a short note explaining the resolution.')
+  if (!parsedNote.ok) return { success: false, error: parsedNote.error }
 
   const admin = createAdminClient()
   const { data: reservation } = await admin
@@ -1888,7 +1875,7 @@ export async function releaseDisputeHold(
     toStatus,
     actorId: userId,
     actorRole: normalizeActorRole(profile.role),
-    payload: { note: trimmed },
+    payload: { note: parsedNote.note },
   })
 
   if (!result.success) {
@@ -1904,7 +1891,7 @@ export async function releaseDisputeHold(
     entityId: reservationId,
     action: 'dispute_hold_released',
     summary: `${reservation.guest_name}: dispute hold released (${toStatus.replace(/_/g, ' ')})`,
-    details: { note: trimmed, toStatus },
+    details: { note: parsedNote.note, toStatus },
   })
 
   return { success: true }

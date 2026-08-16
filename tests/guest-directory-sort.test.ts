@@ -95,6 +95,9 @@ describe('deriveGuestOccupancy', () => {
     expect(
       deriveGuestOccupancy([stay({ status: 'checkout_in_progress' })], null, null, null),
     ).toBe('checking_out')
+    expect(deriveGuestOccupancy([stay({ status: 'dispute_hold' })], null, null, null)).toBe(
+      'dispute_hold',
+    )
   })
 
   it('treats a legacy room assignment without a reservation as in-house', () => {
@@ -180,7 +183,7 @@ describe('buildGuestDirectoryFields', () => {
       guestCheckIn: '2026-08-01',
       guestCheckOut: '2026-08-13',
     })
-    expect(dispute.occupancy).toBe('in_house')
+    expect(dispute.occupancy).toBe('dispute_hold')
     expect(dispute.isInHouse).toBe(true)
     expect(dispute.canCheckOut).toBe(false)
   })

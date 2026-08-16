@@ -21,4 +21,12 @@ describe('help assistant', () => {
     expect(ranked).toHaveLength(1)
     expect(ranked[0]?.id).toBe('walkout')
   })
+
+  it('surfaces dispute hold for desk roles', () => {
+    expect(rankHelpTopics(getHelpPack('receptionist').topics, '/', 'dispute')[0]?.id).toBe(
+      'dispute-hold',
+    )
+    expect(rankHelpTopics(getHelpPack('manager').topics, '/', 'dispute')[0]?.id).toBe('dispute-hold')
+    expect(rankHelpTopics(getHelpPack('owner').topics, '/', 'dispute')[0]?.id).toBe('dispute-hold')
+  })
 })

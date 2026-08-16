@@ -85,7 +85,7 @@ export async function postGuestCharge(input: unknown): Promise<FolioActionResult
     .insert({
       hotel_id: profile.hotel_id,
       guest_id: parsed.data.guestId,
-      reservation_id: parsed.data.reservationId ?? null,
+      reservation_id: parsed.data.reservationId ?? folioLock.reservationId ?? null,
       description: parsed.data.description.trim(),
       amount: signedAmount,
       charge_type: parsed.data.chargeType,

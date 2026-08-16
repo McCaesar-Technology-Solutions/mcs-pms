@@ -66,6 +66,20 @@ export const ownerHelpTopics: HelpTopic[] = [
     pathPrefixes: ['/owner/reservations', '/owner/guests', '/owner/billing'],
   },
   {
+    id: 'dispute-hold',
+    title: 'Billing dispute hold',
+    summary: 'Pause checkout while the guest stays in the room.',
+    steps: [
+      'On Reservations, open an in-house stay or checkout in progress → Dispute hold, and enter a reason.',
+      'The guest stays occupying the room. Folio charges and guest requests stay on this stay.',
+      'Release hold (note required) to resume the stay, or begin checkout / record walkout from the hold.',
+    ],
+    href: '/owner/reservations',
+    hrefLabel: 'Open reservations',
+    keywords: ['dispute', 'hold', 'billing', 'paused'],
+    pathPrefixes: ['/owner/reservations', '/owner/guests'],
+  },
+  {
     id: 'erase-guest',
     title: 'Erase or delete a guest',
     summary: 'Owner/manager only — privacy erase; hard-delete only orphans.',

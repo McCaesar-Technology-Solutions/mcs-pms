@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   canCancelReservationStatus,
+  canStartDisputeHold,
   filterMetricsEligible,
   filterOpenBookings,
   getAvailableActions,
@@ -9,6 +10,8 @@ import {
   isOpenBookingStatus,
   isVoidedReservationStatus,
   isInHouseReservationStatus,
+  isOccupyingReservationStatus,
+  parseRequiredStayNote,
   statusAfterDisputeHoldRelease,
 } from '@/lib/reservations/lifecycle'
 import {
@@ -38,6 +41,15 @@ describe('reservation lifecycle groupings', () => {
     expect(isInHouseReservationStatus('dispute_hold')).toBe(false)
     expect(isInHouseReservationStatus('checked_out')).toBe(false)
     expect(isInHouseReservationStatus('post_stay')).toBe(false)
+  })
+
+  it('treats dispute hold as occupying but not a Guests-card checkout path', () => {
+    expect(isOccupyingReservationStatus('checked_in')).toBe(true)
+    expect(isOccupyingReservationStatus('overstay')).toBe(true)
+    expect(isOccupyingReservationStatus('checkout_in_progress')).toBe(true)
+    expect(isOccupyingReservationStatus('dispute_hold')).toBe(true)
+    expect(isOccupyingReservationStatus('confirmed')).toBe(false)
+    expect(isOccupyingReservationStatus('checked_out')).toBe(false)
   })
 
   it('treats cancelled, no_show, and released as void', () => {
@@ -95,6 +107,23 @@ describe('dispute hold', () => {
     expect(getAvailableActions('dispute_hold', 'staff')).toEqual([])
     expect(getAvailableActions('dispute_hold', 'receptionist')).toEqual([])
   })
+
+  it('lets managers start a hold from in-house or checkout in progress', () => {
+    expect(canStartDisputeHold('checked_in')).toBe(true)
+    expect(canStartDisputeHold('overstay')).toBe(true)
+    expect(canStartDisputeHold('checkout_in_progress')).toBe(true)
+    expect(canStartDisputeHold('dispute_hold')).toBe(false)
+    expect(getAvailableActions('checkout_in_progress', 'manager')).toContain('dispute_hold')
+    expect(getAvailableActions('checkout_in_progress', 'owner')).toContain('dispute_hold')
+    expect(getAvailableActions('checkout_in_progress', 'receptionist')).not.toContain('dispute_hold')
+  })
+
+  it('requires a short reason or resolution note', () => {
+    expect(parseRequiredStayNote('  ').ok).toBe(false)
+    expect(parseRequiredStayNote('ab').ok).toBe(false)
+    expect(parseRequiredStayNote('Guest disputes minibar').ok).toBe(true)
+    expect(parseRequiredStayNote('x'.repeat(201)).ok).toBe(false)
+  })
 })
 
 describe('reservation transition table', () => {
@@ -125,6 +154,8 @@ describe('reservation transition table', () => {
     expect(getTransitionDef('confirmed', 'no_show')?.requiredRole).toBe('staff')
     expect(getTransitionDef('checked_in', 'walkout')?.eventType).toBe('walkout_detected')
     expect(getTransitionDef('checked_in', 'dispute_hold')?.eventType).toBe('dispute_hold_started')
+    expect(getTransitionDef('checkout_in_progress', 'dispute_hold')?.eventType).toBe('dispute_hold_started')
+    expect(getTransitionDef('checkout_in_progress', 'dispute_hold')?.requiredRole).toBe('manager')
     expect(getTransitionDef('dispute_hold', 'checkout_in_progress')?.eventType).toBe('checkout_initiated')
     expect(getTransitionDef('dispute_hold', 'checked_in')?.eventType).toBe('dispute_hold_released')
     expect(getTransitionDef('dispute_hold', 'overstay')?.eventType).toBe('dispute_hold_released')

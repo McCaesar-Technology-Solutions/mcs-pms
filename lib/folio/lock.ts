@@ -1,6 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-
-const OPEN_STAY_STATUSES = ['checked_in', 'overstay', 'checkout_in_progress'] as const
+import { OCCUPYING_STATUSES } from '@/lib/reservations/lifecycle'
 
 export async function findActiveReservationForGuest(
   admin: SupabaseClient,
@@ -12,7 +11,7 @@ export async function findActiveReservationForGuest(
     .select('id, folio_locked, status')
     .eq('hotel_id', hotelId)
     .eq('guest_id', guestId)
-    .in('status', [...OPEN_STAY_STATUSES])
+    .in('status', [...OCCUPYING_STATUSES])
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle()

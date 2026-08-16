@@ -68,6 +68,21 @@ export const managerHelpTopics: HelpTopic[] = [
     pathPrefixes: ['/manager/reservations'],
   },
   {
+    id: 'dispute-hold',
+    title: 'Billing dispute hold',
+    summary: 'Pause checkout while the guest stays in the room.',
+    steps: [
+      'On Reservations, open an in-house stay or checkout in progress → Dispute hold, and enter a reason.',
+      'The guest stays occupying the room. Folio charges and guest requests stay on this stay.',
+      'Release hold (note required) to resume the stay, or begin checkout / record walkout from the hold.',
+      'Reception cannot start or end a hold — they will ask you.',
+    ],
+    href: '/manager/reservations',
+    hrefLabel: 'Open reservations',
+    keywords: ['dispute', 'hold', 'billing', 'paused'],
+    pathPrefixes: ['/manager/reservations', '/manager/guests'],
+  },
+  {
     id: 'guest-portal',
     title: 'Guest portal & requests',
     summary: 'What guests see on their phones, and requests they send you.',

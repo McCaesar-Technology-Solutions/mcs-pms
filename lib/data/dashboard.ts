@@ -29,6 +29,7 @@ import {
   filterMetricsEligible,
   filterOpenBookings,
   isOccupancyBlockingStatus,
+  isOccupyingReservationStatus,
 } from '@/lib/reservations/lifecycle'
 
 export interface RoomOption {
@@ -127,10 +128,9 @@ function mapReservation(row: ReservationRow, folioMap: Map<string, number>): Res
   const paidAmount = Number(row.amount_paid ?? 0)
   const paymentStatus = (row.payment_status ?? 'unpaid') as ReservationPaymentStatus
   const depositAmount = Number(row.deposit_amount ?? 0)
-  const folioSubtotal =
-    status === 'checked_in'
-      ? folioSubtotalForStay(folioMap, row.guest_id, row.id)
-      : 0
+  const folioSubtotal = isOccupyingReservationStatus(status)
+    ? folioSubtotalForStay(folioMap, row.guest_id, row.id)
+    : 0
   const estimatedTotal = total + folioSubtotal
   const balanceDue = reservationBalanceDue(estimatedTotal, paidAmount)
   const channel = (row.channel ?? 'direct') as Reservation['channel']
@@ -325,11 +325,11 @@ export async function getDashboardData(): Promise<DashboardData> {
 
     const dbRooms = (roomsRes.data ?? []) as DbRoom[]
     const reservationRows = (reservationsRes.data ?? []) as unknown as ReservationRow[]
-    const inHouseGuestIds = reservationRows
-      .filter((r) => r.status === 'checked_in' && r.guest_id)
+    const occupyingGuestIds = reservationRows
+      .filter((r) => isOccupyingReservationStatus(r.status) && r.guest_id)
       .map((r) => r.guest_id as string)
     const folioMap = admin
-      ? await loadFolioSubtotalMap(admin, hotelId, inHouseGuestIds)
+      ? await loadFolioSubtotalMap(admin, hotelId, occupyingGuestIds)
       : new Map<string, number>()
     const reservations = reservationRows.map((row) => mapReservation(row, folioMap))
     const invoices = (invoicesRes.data ?? []) as DbInvoice[]
@@ -414,11 +414,11 @@ export async function getStaffReservationsPageData(): Promise<StaffReservationsP
 
     const dbRooms = (roomsRes.data ?? []) as DbRoom[]
     const reservationRows = (reservationsRes.data ?? []) as unknown as ReservationRow[]
-    const inHouseGuestIds = reservationRows
-      .filter((r) => r.status === 'checked_in' && r.guest_id)
+    const occupyingGuestIds = reservationRows
+      .filter((r) => isOccupyingReservationStatus(r.status) && r.guest_id)
       .map((r) => r.guest_id as string)
     const folioMap = admin
-      ? await loadFolioSubtotalMap(admin, hotelId, inHouseGuestIds)
+      ? await loadFolioSubtotalMap(admin, hotelId, occupyingGuestIds)
       : new Map<string, number>()
 
     return {

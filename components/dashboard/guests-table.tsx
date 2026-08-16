@@ -87,6 +87,8 @@ function occupancyClass(occupancy: GuestOccupancy) {
   switch (occupancy) {
     case 'overstay':
       return 'bg-red-700 text-white'
+    case 'dispute_hold':
+      return 'bg-amber-700 text-amber-50'
     case 'checking_out':
       return 'bg-orange-600 text-white'
     case 'in_house':
@@ -652,7 +654,7 @@ export function GuestsTable({
               )}
 
               {!readOnly && selectedGuest.isInHouse && !selectedGuest.reservationId && (
-                <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+                <p className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-950">
                   No linked reservation — open Reservations to issue a stay invoice for this guest.
                 </p>
               )}
@@ -682,9 +684,11 @@ export function GuestsTable({
                 />
               )}
 
-              {!readOnly && selectedGuest.isInHouse && !selectedGuest.canCheckOut && (
-                <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
-                  This stay is on billing dispute hold. A manager must release it on Reservations before checkout.
+              {!readOnly && selectedGuest.occupancy === 'dispute_hold' && (
+                <p className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-950">
+                  {staffRole === 'owner' || staffRole === 'manager'
+                    ? 'Billing dispute hold — guest stays in the room and folio stays open. Open Reservations to release the hold, begin checkout, or record a walkout.'
+                    : 'Billing dispute hold — guest stays in the room. Ask a manager or owner to release the hold, check out, or record a walkout on Reservations.'}
                 </p>
               )}
 

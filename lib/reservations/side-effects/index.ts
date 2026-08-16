@@ -140,6 +140,14 @@ export async function runFolioSideEffect(ctx: SideEffectContext): Promise<void> 
     // Folio opens implicitly when guest_charges are posted; no separate open row.
     return
   }
+  if (ctx.toStatus === 'dispute_hold') {
+    await ctx.admin
+      .from('reservations')
+      .update({ folio_locked: false })
+      .eq('id', ctx.reservation.id)
+      .eq('hotel_id', ctx.reservation.hotel_id)
+    return
+  }
   if (ctx.toStatus === 'checkout_in_progress') {
     // folio_locked set in RPC
     return

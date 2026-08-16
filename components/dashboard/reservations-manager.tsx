@@ -61,6 +61,7 @@ import {
   getAvailableActions,
   isOccupyingReservationStatus,
   reservationStatusLabel,
+  STAY_NOTE_MIN_LENGTH,
 } from '@/lib/reservations/lifecycle'
 import type { RoomOption } from '@/lib/data/dashboard'
 import type { OccupancySpan } from '@/lib/data/occupancy'
@@ -905,7 +906,7 @@ function ReservationDrawer({
   const [editing, setEditing] = useState(false)
   const [extending, setExtending] = useState(false)
   const [moving, setMoving] = useState(false)
-  const [releasingHold, setReleasingHold] = useState(false)
+  const [holdMode, setHoldMode] = useState<'start' | 'release' | null>(null)
   const [holdNote, setHoldNote] = useState('')
   const [voidDialog, setVoidDialog] = useState<'cancel' | 'no_show' | null>(null)
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
@@ -1037,7 +1038,23 @@ function ReservationDrawer({
         return
       }
       toast.success('Dispute hold released')
-      setReleasingHold(false)
+      setHoldMode(null)
+      setHoldNote('')
+      onMutated()
+    })
+  }
+
+  function submitStartHold() {
+    setError(null)
+    startTransition(async () => {
+      const result = await beginDisputeHold(reservation.id, holdNote)
+      if (!result.success) {
+        setError(result.error ?? 'Could not start hold.')
+        toast.error(result.error ?? 'Could not start hold.')
+        return
+      }
+      toast.success('Dispute hold started')
+      setHoldMode(null)
       setHoldNote('')
       onMutated()
     })
@@ -1871,7 +1888,8 @@ function ReservationDrawer({
               {(reservation.status === 'checked_in' || reservation.status === 'overstay') &&
                 !checkingOut &&
                 !extending &&
-                !moving && (
+                !moving &&
+                holdMode === null && (
                 <>
                   <button
                     type="button"
@@ -1946,16 +1964,10 @@ function ReservationDrawer({
                       type="button"
                       disabled={pending}
                       onClick={() => {
-                        if (
-                          !window.confirm(
-                            'Start billing dispute hold? The guest stays in-house but checkout is paused until resolved.',
-                          )
-                        ) {
-                          return
-                        }
-                        run(() => beginDisputeHold(reservation.id))
+                        setHoldNote('')
+                        setHoldMode('start')
                       }}
-                      className="flex w-full items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50 py-3 text-sm font-semibold text-amber-900"
+                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-amber-50 py-3 text-sm font-semibold text-amber-950"
                     >
                       Dispute hold
                     </button>
@@ -1967,7 +1979,7 @@ function ReservationDrawer({
                 !checkingOut &&
                 !extending &&
                 !moving &&
-                !releasingHold && (
+                holdMode === null && (
                 <>
                   <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-950">
                     {canReleaseHold
@@ -1978,7 +1990,10 @@ function ReservationDrawer({
                     <button
                       type="button"
                       disabled={pending}
-                      onClick={() => setReleasingHold(true)}
+                      onClick={() => {
+                        setHoldNote('')
+                        setHoldMode('release')
+                      }}
                       className="flex w-full items-center justify-center gap-2 rounded-xl bg-white py-3 text-sm font-semibold text-foreground shadow-elevation-1"
                     >
                       <Unlock className="h-4 w-4" />
@@ -2030,7 +2045,48 @@ function ReservationDrawer({
                 </>
               )}
 
-              {releasingHold && reservation.status === 'dispute_hold' && (
+              {holdMode === 'start' && canDisputeHold && (
+                <div className="space-y-3 rounded-xl surface-inset p-4">
+                  <p className="text-sm font-semibold">Start dispute hold</p>
+                  <p className="text-xs text-muted-foreground">
+                    {reservation.status === 'checkout_in_progress'
+                      ? 'Checkout pauses and the folio unlocks so charges can still be posted. The guest stays in the room.'
+                      : 'The guest stays in the room. Checkout is paused until a manager releases the hold.'}
+                  </p>
+                  <FormField label="Reason">
+                    <textarea
+                      value={holdNote}
+                      onChange={(e) => setHoldNote(e.target.value)}
+                      rows={3}
+                      maxLength={200}
+                      placeholder="Why is checkout paused?"
+                      className={APP_FIELD_CLASS}
+                    />
+                  </FormField>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setHoldMode(null)
+                        setHoldNote('')
+                      }}
+                      className="flex-1 rounded-xl bg-white py-2.5 text-sm font-semibold shadow-elevation-1"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      disabled={pending || holdNote.trim().length < STAY_NOTE_MIN_LENGTH}
+                      onClick={submitStartHold}
+                      className="flex-[2] rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+                    >
+                      {pending ? 'Saving…' : 'Start hold'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {holdMode === 'release' && reservation.status === 'dispute_hold' && (
                 <div className="space-y-3 rounded-xl surface-inset p-4">
                   <p className="text-sm font-semibold">Release dispute hold</p>
                   <p className="text-xs text-muted-foreground">
@@ -2050,7 +2106,7 @@ function ReservationDrawer({
                     <button
                       type="button"
                       onClick={() => {
-                        setReleasingHold(false)
+                        setHoldMode(null)
                         setHoldNote('')
                       }}
                       className="flex-1 rounded-xl bg-white py-2.5 text-sm font-semibold shadow-elevation-1"
@@ -2059,7 +2115,7 @@ function ReservationDrawer({
                     </button>
                     <button
                       type="button"
-                      disabled={pending || holdNote.trim().length < 3}
+                      disabled={pending || holdNote.trim().length < STAY_NOTE_MIN_LENGTH}
                       onClick={submitReleaseHold}
                       className="flex-[2] rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50"
                     >
@@ -2069,7 +2125,11 @@ function ReservationDrawer({
                 </div>
               )}
 
-              {reservation.status === 'checkout_in_progress' && !checkingOut && !extending && !moving && (
+              {reservation.status === 'checkout_in_progress' &&
+                !checkingOut &&
+                !extending &&
+                !moving &&
+                holdMode === null && (
                 <>
                   <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-950">
                     Checkout in progress — folio is locked. Post any final charges before completing, or record a walkout if the guest left without paying.
@@ -2083,6 +2143,19 @@ function ReservationDrawer({
                     <LogOut className="h-4 w-4" />
                     Complete checkout
                   </button>
+                  {canDisputeHold && (
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() => {
+                        setHoldNote('')
+                        setHoldMode('start')
+                      }}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-amber-50 py-3 text-sm font-semibold text-amber-950"
+                    >
+                      Dispute hold
+                    </button>
+                  )}
                   <button
                     type="button"
                     disabled={pending}
@@ -2099,7 +2172,7 @@ function ReservationDrawer({
                         billToName: billToSameAsGuest ? undefined : billToName,
                       }))
                     }}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 py-3 text-sm font-semibold text-red-800"
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-50 py-3 text-sm font-semibold text-red-800"
                   >
                     <UserX className="h-4 w-4" />
                     Record walkout

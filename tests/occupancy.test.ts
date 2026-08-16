@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   INDEFINITE_OCCUPANCY_STATUSES,
   isOccupancyBlockingStatus,
+  isOccupyingReservationStatus,
+  OCCUPYING_STATUSES,
   STALE_IN_HOUSE_STATUSES,
 } from '@/lib/reservations/lifecycle'
 
@@ -20,5 +22,10 @@ describe('occupancy', () => {
   it('treats stale in-house statuses as past-departure room holds', () => {
     expect(STALE_IN_HOUSE_STATUSES).toContain('checked_in')
     expect(STALE_IN_HOUSE_STATUSES).toContain('checkout_in_progress')
+  })
+
+  it('includes dispute hold in occupying statuses used for folio and requests', () => {
+    expect(OCCUPYING_STATUSES).toContain('dispute_hold')
+    expect(isOccupyingReservationStatus('dispute_hold')).toBe(true)
   })
 })

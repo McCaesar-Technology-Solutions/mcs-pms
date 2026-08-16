@@ -9,7 +9,7 @@ import { writeAuditLog } from '@/lib/audit/log'
 import { revokeGuestAccess } from '@/lib/access/lifecycle'
 import { transitionReservation } from '@/lib/reservations/state-machine'
 import { normalizeActorRole } from '@/lib/reservations/transitions'
-import { IN_HOUSE_STATUSES } from '@/lib/reservations/lifecycle'
+import { OCCUPYING_STATUSES } from '@/lib/reservations/lifecycle'
 
 const GUEST_ID_DOCUMENT_BUCKET = 'guest-id-documents'
 
@@ -109,11 +109,11 @@ async function guestHasActiveStay(
     .select('id', { count: 'exact', head: true })
     .eq('hotel_id', hotelId)
     .eq('guest_id', guestId)
-    .in('status', [...IN_HOUSE_STATUSES])
+    .in('status', [...OCCUPYING_STATUSES])
   return (count ?? 0) > 0
 }
 
-/** End in-house stays so erase/delete frees the room (does not require prior checkout). */
+/** End occupying stays so erase/delete frees the room (does not require prior checkout). */
 async function releaseInHouseStaysForGuest(input: {
   admin: ReturnType<typeof createAdminClient>
   hotelId: string
@@ -130,7 +130,7 @@ async function releaseInHouseStaysForGuest(input: {
     .select('id, status')
     .eq('hotel_id', hotelId)
     .eq('guest_id', guestId)
-    .in('status', [...IN_HOUSE_STATUSES])
+    .in('status', [...OCCUPYING_STATUSES])
 
   for (const row of active ?? []) {
     if (row.status === 'checkout_in_progress') {
