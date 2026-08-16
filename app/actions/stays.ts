@@ -43,7 +43,7 @@ import {
   prepareCheckoutTaxesWithFolio,
 } from '@/lib/folio/rollup'
 import { writeAuditLog, logRoomStatusChange } from '@/lib/audit/log'
-import { canCheckIn, canCheckOut, IN_HOUSE_STATUSES } from '@/lib/reservations/lifecycle'
+import { canCheckIn, canCheckOut, IN_HOUSE_STATUSES, statusAfterDisputeHoldRelease } from '@/lib/reservations/lifecycle'
 import { validateCheckoutBalance } from '@/lib/reservations/checkout-validation'
 import { runNotifyTask } from '@/lib/notifications/notify-task'
 import {
@@ -954,8 +954,10 @@ export async function beginCheckoutStay(reservationId: string): Promise<StayActi
     .maybeSingle()
 
   if (!reservation) return { success: false, error: 'Reservation not found.' }
-  if (!canCheckOut(reservation.status)) {
-    return { success: false, error: 'Only checked-in or overstay stays can begin checkout.' }
+  const canBegin =
+    canCheckOut(reservation.status) || reservation.status === 'dispute_hold'
+  if (!canBegin) {
+    return { success: false, error: 'Only in-house stays can begin checkout.' }
   }
 
   const result = await transitionReservation({
@@ -1361,7 +1363,7 @@ export async function recordWalkoutStay(
 
   if (!reservation) return { success: false, error: 'Reservation not found.' }
 
-  const walkoutAllowed = ['checked_in', 'overstay', 'checkout_in_progress']
+  const walkoutAllowed = ['checked_in', 'overstay', 'checkout_in_progress', 'dispute_hold']
   if (!walkoutAllowed.includes(reservation.status ?? '')) {
     return { success: false, error: 'Walkout is only available for in-house stays.' }
   }
@@ -1837,6 +1839,72 @@ export async function beginDisputeHold(reservationId: string): Promise<StayActio
     entityId: reservationId,
     action: 'dispute_hold_started',
     summary: `${reservation.guest_name}: billing dispute hold`,
+  })
+
+  return { success: true }
+}
+
+export async function releaseDisputeHold(
+  reservationId: string,
+  note: string,
+): Promise<StayActionResult> {
+  const { profile, userId } = await requireManager()
+  if (!profile?.hotel_id || !userId || !['owner', 'manager'].includes(profile.role)) {
+    return { success: false, error: 'Not authorized.' }
+  }
+
+  const trimmed = note.trim()
+  if (trimmed.length < 3) {
+    return { success: false, error: 'Add a short note explaining the resolution.' }
+  }
+  if (trimmed.length > 200) {
+    return { success: false, error: 'Note is too long.' }
+  }
+
+  const admin = createAdminClient()
+  const { data: reservation } = await admin
+    .from('reservations')
+    .select('id, hotel_id, status, guest_name, check_out')
+    .eq('id', reservationId)
+    .eq('hotel_id', profile.hotel_id)
+    .maybeSingle()
+
+  if (!reservation) return { success: false, error: 'Reservation not found.' }
+  if (reservation.status !== 'dispute_hold') {
+    return { success: false, error: 'This stay is not on dispute hold.' }
+  }
+
+  const { data: hotel } = await admin
+    .from('hotels')
+    .select('timezone')
+    .eq('id', profile.hotel_id)
+    .maybeSingle()
+  const today = hotelTodayISO(normalizeHotelTimezone(hotel?.timezone))
+  const toStatus = statusAfterDisputeHoldRelease(reservation.check_out, today)
+
+  const result = await transitionReservation({
+    reservationId,
+    hotelId: profile.hotel_id,
+    toStatus,
+    actorId: userId,
+    actorRole: normalizeActorRole(profile.role),
+    payload: { note: trimmed },
+  })
+
+  if (!result.success) {
+    return { success: false, error: result.error ?? 'Could not release dispute hold.' }
+  }
+
+  revalidateStayViews()
+  void writeAuditLog({
+    hotelId: profile.hotel_id,
+    actorId: userId,
+    actorName: profile.name,
+    entityType: 'reservation',
+    entityId: reservationId,
+    action: 'dispute_hold_released',
+    summary: `${reservation.guest_name}: dispute hold released (${toStatus.replace(/_/g, ' ')})`,
+    details: { note: trimmed, toStatus },
   })
 
   return { success: true }

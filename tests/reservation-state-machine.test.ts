@@ -3,11 +3,13 @@ import {
   canCancelReservationStatus,
   filterMetricsEligible,
   filterOpenBookings,
+  getAvailableActions,
   isMetricsEligibleStatus,
   isOccupancyBlockingStatus,
   isOpenBookingStatus,
   isVoidedReservationStatus,
   isInHouseReservationStatus,
+  statusAfterDisputeHoldRelease,
 } from '@/lib/reservations/lifecycle'
 import {
   actorMeetsRequiredRole,
@@ -69,6 +71,32 @@ describe('reservation lifecycle groupings', () => {
   })
 })
 
+describe('dispute hold', () => {
+  it('resumes as in-house when check-out is still in the future', () => {
+    expect(statusAfterDisputeHoldRelease('2026-08-20', '2026-08-16')).toBe('checked_in')
+  })
+
+  it('resumes as overstay when check-out is today or past', () => {
+    expect(statusAfterDisputeHoldRelease('2026-08-16', '2026-08-16')).toBe('overstay')
+    expect(statusAfterDisputeHoldRelease('2026-08-14', '2026-08-16')).toBe('overstay')
+  })
+
+  it('lets managers release, check out, or walk out; reception cannot', () => {
+    expect(getAvailableActions('dispute_hold', 'manager')).toEqual([
+      'release_dispute_hold',
+      'begin_checkout',
+      'record_walkout',
+    ])
+    expect(getAvailableActions('dispute_hold', 'owner')).toEqual([
+      'release_dispute_hold',
+      'begin_checkout',
+      'record_walkout',
+    ])
+    expect(getAvailableActions('dispute_hold', 'staff')).toEqual([])
+    expect(getAvailableActions('dispute_hold', 'receptionist')).toEqual([])
+  })
+})
+
 describe('reservation transition table', () => {
   const allStatuses: ReservationStatus[] = [
     'inquiry',
@@ -98,6 +126,9 @@ describe('reservation transition table', () => {
     expect(getTransitionDef('checked_in', 'walkout')?.eventType).toBe('walkout_detected')
     expect(getTransitionDef('checked_in', 'dispute_hold')?.eventType).toBe('dispute_hold_started')
     expect(getTransitionDef('dispute_hold', 'checkout_in_progress')?.eventType).toBe('checkout_initiated')
+    expect(getTransitionDef('dispute_hold', 'checked_in')?.eventType).toBe('dispute_hold_released')
+    expect(getTransitionDef('dispute_hold', 'overstay')?.eventType).toBe('dispute_hold_released')
+    expect(getTransitionDef('dispute_hold', 'checked_in')?.requiredRole).toBe('manager')
     expect(getTransitionDef('overstay', 'walkout')?.requiredRole).toBe('staff')
   })
 

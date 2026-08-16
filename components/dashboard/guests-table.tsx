@@ -684,7 +684,7 @@ export function GuestsTable({
 
               {!readOnly && selectedGuest.isInHouse && !selectedGuest.canCheckOut && (
                 <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
-                  This stay is on dispute hold. Complete checkout from Reservations.
+                  This stay is on billing dispute hold. A manager must release it on Reservations before checkout.
                 </p>
               )}
 

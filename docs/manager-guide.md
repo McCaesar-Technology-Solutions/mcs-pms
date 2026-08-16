@@ -119,7 +119,7 @@ Phone required → optional ID (Ghana Card, passport, or driver’s licence) →
 - **Extend stay**, **Move room**, **Edit** (confirmed only).
 - Post **folio** from Guests (including **Discount (credit)**).
 - **Approve late checkout** on overstay.
-- **Dispute hold** when a lifecycle hold needs review.
+- **Dispute hold** pauses checkout while a billing dispute is open. **Release hold** (note required) resumes the stay, or check out / walkout from the hold.
 
 ### Check out
 

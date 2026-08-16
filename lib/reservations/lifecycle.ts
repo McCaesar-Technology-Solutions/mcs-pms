@@ -88,6 +88,7 @@ export type ReservationAction =
   | 'complete_checkout'
   | 'record_walkout'
   | 'dispute_hold'
+  | 'release_dispute_hold'
   | 'release_no_show_room'
 
 const EDITABLE_STATUSES: ReservationStatus[] = [
@@ -139,6 +140,14 @@ export function canCheckOut(status: string | null | undefined): boolean {
   return status === 'checked_in' || status === 'overstay'
 }
 
+/** After a billing dispute is released, resume as in-house or overstay from the stay dates. */
+export function statusAfterDisputeHoldRelease(
+  checkOut: string,
+  today: string,
+): 'checked_in' | 'overstay' {
+  return checkOut > today ? 'checked_in' : 'overstay'
+}
+
 export function canCancelReservationStatus(status: string | null | undefined): boolean {
   return (
     status === 'confirmed' ||
@@ -187,7 +196,7 @@ export function getAvailableActions(
       break
     case 'dispute_hold':
       if (role === 'manager') {
-        actions.push('begin_checkout', 'record_walkout')
+        actions.push('release_dispute_hold', 'begin_checkout', 'record_walkout')
       }
       break
     case 'no_show':

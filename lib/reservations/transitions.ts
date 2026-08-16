@@ -135,6 +135,16 @@ export const ALLOWED_TRANSITIONS: Partial<
     },
   },
   dispute_hold: {
+    checked_in: {
+      eventType: 'dispute_hold_released',
+      requiredRole: 'manager',
+      sideEffects: ['room-status'],
+    },
+    overstay: {
+      eventType: 'dispute_hold_released',
+      requiredRole: 'manager',
+      sideEffects: ['room-status', 'folio'],
+    },
     checkout_in_progress: {
       eventType: 'checkout_initiated',
       requiredRole: 'manager',

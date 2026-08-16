@@ -156,7 +156,8 @@ Open a confirmed booking → **Collect payment before check-in**. This creates o
 - **Move room** — reassign if free.
 - **Guest folio** — post extras from **Guests** (minibar, laundry). Shows as **Folio (unbilled)** on the reservation. You can also post a **Discount (credit)**.
 - **Approve late checkout** — when overstay needs more time.
-- **Dispute hold / release no-show hold** — when lifecycle holds apply.
+- **Dispute hold** — pause checkout while a billing dispute is open. **Release hold** (note required) resumes the stay; checkout and walkout also work from the hold.
+- **Release no-show hold** — when a no-show is still blocking a room.
 
 ### Check out
 

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useTransition } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
-import { ChevronRight, LogIn, LogOut, Plus, Receipt, Search, X, XCircle, CalendarPlus, ArrowRightLeft, UserX, Pencil } from 'lucide-react'
+import { ChevronRight, LogIn, LogOut, Plus, Receipt, Search, X, XCircle, CalendarPlus, ArrowRightLeft, UserX, Pencil, Unlock } from 'lucide-react'
 import { issueStayInvoice } from '@/app/actions/invoices'
 import { CheckoutInvoiceDialog } from '@/components/dashboard/checkout-invoice-dialog'
 import {
@@ -25,6 +25,7 @@ import {
   extendStay,
   markNoShow,
   moveStayRoom,
+  releaseDisputeHold,
   releaseNoShowRoomHold,
 } from '@/app/actions/stays'
 import {
@@ -904,6 +905,8 @@ function ReservationDrawer({
   const [editing, setEditing] = useState(false)
   const [extending, setExtending] = useState(false)
   const [moving, setMoving] = useState(false)
+  const [releasingHold, setReleasingHold] = useState(false)
+  const [holdNote, setHoldNote] = useState('')
   const [voidDialog, setVoidDialog] = useState<'cancel' | 'no_show' | null>(null)
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
   const [depositAmount, setDepositAmount] = useState('')
@@ -1024,6 +1027,22 @@ function ReservationDrawer({
     })
   }
 
+  function submitReleaseHold() {
+    setError(null)
+    startTransition(async () => {
+      const result = await releaseDisputeHold(reservation.id, holdNote)
+      if (!result.success) {
+        setError(result.error ?? 'Could not release hold.')
+        toast.error(result.error ?? 'Could not release hold.')
+        return
+      }
+      toast.success('Dispute hold released')
+      setReleasingHold(false)
+      setHoldNote('')
+      onMutated()
+    })
+  }
+
   const balance = reservation.balanceDue
   const hasCollectedDeposit = reservation.paidAmount > 0.009
   const canRefundDeposit = staffRole === 'owner'
@@ -1048,6 +1067,9 @@ function ReservationDrawer({
   const canCheckInNow = canCheckIn(reservation.status)
   const lifecycleActions = getAvailableActions(reservation.status, staffRole)
   const canDisputeHold = lifecycleActions.includes('dispute_hold')
+  const canReleaseHold = lifecycleActions.includes('release_dispute_hold')
+  const canCheckoutFromHold = lifecycleActions.includes('begin_checkout')
+  const canWalkoutFromHold = lifecycleActions.includes('record_walkout')
   const canReleaseNoShowRoom =
     lifecycleActions.includes('release_no_show_room') && Boolean(reservation.roomHeldUntil)
   const editDatesValid = editCheckOut > editCheckIn
@@ -1944,50 +1966,107 @@ function ReservationDrawer({
               {reservation.status === 'dispute_hold' &&
                 !checkingOut &&
                 !extending &&
-                !moving && (
+                !moving &&
+                !releasingHold && (
                 <>
                   <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-950">
-                    Billing dispute hold — resolve the dispute before completing checkout.
+                    {canReleaseHold
+                      ? 'Billing dispute hold — guest stays in the room. Release the hold to resume the stay, or check out / record walkout when the bill is settled.'
+                      : 'Billing dispute hold — guest stays in the room. Ask a manager or owner to release the hold, check out, or record a walkout.'}
                   </p>
-                  <button
-                    type="button"
-                    disabled={pending}
-                    onClick={() =>
-                      run(
-                        () => beginCheckoutReservation(reservation.id),
-                        () => {
-                          onMutated()
-                          setCheckingOut(true)
-                        },
-                      )
-                    }
-                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#3C216C] py-3 text-sm font-semibold text-white shadow-elevation-1"
-                  >
-                    <LogOut className="h-4 w-4" />
-                    Begin checkout
-                  </button>
-                  <button
-                    type="button"
-                    disabled={pending}
-                    onClick={() => {
-                      if (
-                        !window.confirm(
-                          'Record walkout? Guest left without paying. An invoice with balance due will be created and the room released.',
+                  {canReleaseHold && (
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() => setReleasingHold(true)}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-white py-3 text-sm font-semibold text-foreground shadow-elevation-1"
+                    >
+                      <Unlock className="h-4 w-4" />
+                      Release hold
+                    </button>
+                  )}
+                  {canCheckoutFromHold && (
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() =>
+                        run(
+                          () => beginCheckoutReservation(reservation.id),
+                          () => {
+                            onMutated()
+                            setCheckingOut(true)
+                          },
                         )
-                      ) {
-                        return
                       }
-                      run(() => recordWalkoutReservation(reservation.id, paymentMethod, earlyCheckout, includeTax, {
-                        billToSameAsGuest,
-                        billToName: billToSameAsGuest ? undefined : billToName,
-                      }))
-                    }}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 py-3 text-sm font-semibold text-red-800"
-                  >
-                    <UserX className="h-4 w-4" />
-                    Record walkout
-                  </button>
+                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#3C216C] py-3 text-sm font-semibold text-white shadow-elevation-1"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      Begin checkout
+                    </button>
+                  )}
+                  {canWalkoutFromHold && (
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() => {
+                        if (
+                          !window.confirm(
+                            'Record walkout? Guest left without paying. An invoice with balance due will be created and the room released.',
+                          )
+                        ) {
+                          return
+                        }
+                        run(() => recordWalkoutReservation(reservation.id, paymentMethod, earlyCheckout, includeTax, {
+                          billToSameAsGuest,
+                          billToName: billToSameAsGuest ? undefined : billToName,
+                        }))
+                      }}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 py-3 text-sm font-semibold text-red-800"
+                    >
+                      <UserX className="h-4 w-4" />
+                      Record walkout
+                    </button>
+                  )}
                 </>
+              )}
+
+              {releasingHold && reservation.status === 'dispute_hold' && (
+                <div className="space-y-3 rounded-xl surface-inset p-4">
+                  <p className="text-sm font-semibold">Release dispute hold</p>
+                  <p className="text-xs text-muted-foreground">
+                    Returns the stay to in-house (or overstay if the booked check-out has passed).
+                  </p>
+                  <FormField label="Resolution note">
+                    <textarea
+                      value={holdNote}
+                      onChange={(e) => setHoldNote(e.target.value)}
+                      rows={3}
+                      maxLength={200}
+                      placeholder="How was the dispute settled?"
+                      className={APP_FIELD_CLASS}
+                    />
+                  </FormField>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setReleasingHold(false)
+                        setHoldNote('')
+                      }}
+                      className="flex-1 rounded-xl bg-white py-2.5 text-sm font-semibold shadow-elevation-1"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      disabled={pending || holdNote.trim().length < 3}
+                      onClick={submitReleaseHold}
+                      className="flex-[2] rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+                    >
+                      {pending ? 'Saving…' : 'Release hold'}
+                    </button>
+                  </div>
+                </div>
               )}
 
               {reservation.status === 'checkout_in_progress' && !checkingOut && !extending && !moving && (
