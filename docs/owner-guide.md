@@ -131,22 +131,26 @@ Use Messages for general stay questions. Repair talk lives on the complaint itse
 
 Receptionists cannot apply discounts — they will ask you or a manager.
 
-### Record a deposit
+### Record a payment (before invoice exists)
 
-1. Open reservation → **Payment** → **Record deposit**.
+1. Open reservation → **Payment** → **Record payment**.
 2. Amount (≤ balance due) + method (cash, MoMo, card).
-3. **Channel prepaid** — only when Airbnb/Booking.com already paid you.
+3. **Channel prepaid** — one-click when Airbnb/Booking.com already paid you.
+
+### Check-in payment minimum
+
+Under **Settings → Reservation lifecycle**, set how much must be collected before a guest enters (default **50%** of the stay). Reception must meet this minimum; owners and managers can waive for prepaid channels or approved exceptions.
 
 ### Collect before check-in
 
-Open a confirmed booking → **Collect payment before check-in**. This creates or refreshes the stay invoice. You may leave it unpaid (balance due) or record payment now.
+Open a confirmed booking → **Collect payment before check-in**. This creates or refreshes the stay invoice. Record full or partial payment — the collect dialog shows **Pay balance**, **Pay minimum**, and **payment history**.
 
 ### Check in
 
 1. Open **Confirmed** / **Pre-arrival** → **Check in guest**.
 2. Phone required. Optional ID (Ghana Card, passport, or driver’s licence) for guest records — not used as invoice Tax ID.
 3. Tick **Include Ghana tax** when you need a GRA tax invoice.
-4. Stay invoice is created — collect in the dialog (or leave unpaid as owner).
+4. Stay invoice is created — collect in the dialog (full or partial; meet the check-in minimum unless waived).
 5. Share **portal link** or QR.
 6. If Hikvision is on, door access is queued automatically.
 
@@ -289,9 +293,13 @@ Tabs: **Invoices** · **Payment ledger** · **Online payments**.
 | Action | When |
 |--------|------|
 | **Record payment** | Full remaining balance |
-| **Partial payment** | Some now |
+| **Partial payment** | Some now — paid so far, this payment, and remaining are shown |
 | **Refund** | Reverse a payment (**you only**) |
 | **Download PDF / WhatsApp** | Share with guest |
+
+**Outstanding on reservations** uses the stay invoice balance when one exists — same number as Billing.
+
+After upgrading partial-payments, run once: `npx tsx scripts/backfill-payment-records.ts --dry-run` (then without `--dry-run` if gaps are found).
 
 ### Other tools
 

@@ -105,7 +105,8 @@ export const receptionistHelpTopics: HelpTopic[] = [
     title: 'Issue invoices and record payments',
     summary: 'Stay invoices are created at check-in; collect payment before the guest enters.',
     steps: [
-      'Check-in creates the stay invoice automatically — choose Include Ghana tax on the check-in form if needed, then record payment in the collect dialog.',
+      'Check-in creates the stay invoice automatically — choose Include Ghana tax on the check-in form if needed, then record full or partial payment in the collect dialog.',
+      'The hotel sets a check-in minimum (Settings → Reservation lifecycle). Collect at least that amount before the guest enters unless a manager waives it.',
       'Bill to can differ from the guest name when you issue or check in.',
       'Billing has no revenue tiles — open the invoice and record payment, print, or WhatsApp.',
       'Or collect before check-in: open a confirmed booking → Collect payment before check-in.',
@@ -169,12 +170,13 @@ export const receptionistHelpTopics: HelpTopic[] = [
   },
   {
     id: 'deposit',
-    title: 'Record a deposit',
-    summary: 'Collect part of the stay before or at booking.',
+    title: 'Record a payment',
+    summary: 'Collect part of the stay before check-in or against the stay invoice.',
     steps: [
-      'Open the reservation → Payment section → Record deposit.',
+      'Open the reservation → Payment section → Record payment.',
       'Enter amount (cannot exceed balance due) and payment method.',
-      'For Airbnb/Booking.com prepaid stays, use Channel prepaid when applicable.',
+      'At check-in, the collect dialog shows the hotel minimum (e.g. 50%) — pay that amount or the full balance.',
+      'Managers can waive the minimum for prepaid channels or approved exceptions.',
     ],
     href: '/receptionist/reservations',
     hrefLabel: 'Open reservations',

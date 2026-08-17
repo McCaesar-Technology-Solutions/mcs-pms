@@ -1,7 +1,18 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { PaymentMethod } from '@/types'
+import type { PaymentMethod, PaymentStatus } from '@/types'
 import { deriveInvoicePaymentStatus, invoiceBalanceDue } from '@/lib/billing/invoice-payments'
 import { syncReservationPaymentFromInvoice } from '@/lib/billing/reservation-payment'
+
+export type ApplyInvoicePaymentRecordResult =
+  | {
+      ok: true
+      amountApplied: number
+      balanceDue: number
+      paymentStatus: PaymentStatus
+      invoiceId: string
+      reservationId: string | null
+    }
+  | { ok: false; error: string }
 
 export async function applyInvoicePaymentRecord(
   admin: SupabaseClient,
@@ -13,8 +24,9 @@ export async function applyInvoicePaymentRecord(
     provider: 'manual' | 'paystack' | 'hubtel'
     providerReference?: string
     idempotencyKey: string
+    metadata?: Record<string, unknown>
   },
-): Promise<{ ok: true } | { ok: false; error: string }> {
+): Promise<ApplyInvoicePaymentRecordResult> {
   const { data: invoice } = await admin
     .from('invoices')
     .select('id, guest_id, reservation_id, total_amount, amount_paid, payment_status')
@@ -30,7 +42,17 @@ export async function applyInvoicePaymentRecord(
   const total = Number(invoice.total_amount ?? 0)
   const currentPaid = Number(invoice.amount_paid ?? 0)
   const balance = invoiceBalanceDue(total, currentPaid)
-  if (balance <= 0) return { ok: true }
+
+  if (balance <= 0) {
+    return {
+      ok: true,
+      amountApplied: 0,
+      balanceDue: 0,
+      paymentStatus: deriveInvoicePaymentStatus(total, currentPaid, invoice.payment_status),
+      invoiceId: invoice.id,
+      reservationId: invoice.reservation_id,
+    }
+  }
 
   const payAmount = Math.min(input.amount, balance)
   const newPaid = Math.round((currentPaid + payAmount) * 100) / 100
@@ -44,10 +66,21 @@ export async function applyInvoicePaymentRecord(
     .maybeSingle()
 
   if (existingPayment?.status === 'success') {
-    return { ok: true }
+    const paid = Number(invoice.amount_paid ?? 0)
+    return {
+      ok: true,
+      amountApplied: 0,
+      balanceDue: invoiceBalanceDue(total, paid),
+      paymentStatus: deriveInvoicePaymentStatus(total, paid, invoice.payment_status),
+      invoiceId: invoice.id,
+      reservationId: invoice.reservation_id,
+    }
   }
 
+  let amountApplied = 0
+
   if (!existingPayment) {
+    amountApplied = payAmount
     await admin.from('payment_records').insert({
       hotel_id: input.hotelId,
       invoice_id: input.invoiceId,
@@ -60,8 +93,10 @@ export async function applyInvoicePaymentRecord(
       status: 'success',
       idempotency_key: input.idempotencyKey,
       completed_at: now,
+      metadata: { ...(input.metadata ?? {}), paymentMethod: input.paymentMethod },
     })
   } else {
+    amountApplied = payAmount
     await admin
       .from('payment_records')
       .update({ status: 'success', completed_at: now, amount: payAmount })
@@ -82,5 +117,12 @@ export async function applyInvoicePaymentRecord(
     await syncReservationPaymentFromInvoice(admin, invoice.reservation_id)
   }
 
-  return { ok: true }
+  return {
+    ok: true,
+    amountApplied,
+    balanceDue: invoiceBalanceDue(total, newPaid),
+    paymentStatus: newStatus,
+    invoiceId: invoice.id,
+    reservationId: invoice.reservation_id,
+  }
 }

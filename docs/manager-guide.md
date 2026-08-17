@@ -252,11 +252,16 @@ You **can** issue stay invoices, create unpaid or paid ad-hoc bills, record full
 
 You **cannot** refund invoice payments — send those to the owner.
 
-- Check-in / collect-before-check-in creates the stay invoice. Tick **Include Ghana tax** when you need VAT & levies (Bill-to Tax ID `GHA-728071939-8`).
+- Check-in / collect-before-check-in creates the stay invoice. Record **full or partial** payments in the collect dialog — the hotel sets a **check-in minimum** under **Settings → Reservation lifecycle** (default 50% of the stay).
+- Reception must meet that minimum before the guest enters; you can **waive** it for prepaid channels or approved exceptions.
+- Every payment is logged in **payment history** on the collect dialog and in Billing — one ledger for the stay invoice and reservation.
+- Tick **Include Ghana tax** when you need VAT & levies (Bill-to Tax ID `GHA-728071939-8`).
 - **Bill to** can differ from the guest name when issuing.
 - Apply % or fixed guest discounts when creating/editing a booking or refreshing the invoice.
 - Checkout reuses the same stay invoice — it will not create a duplicate.
 - **Online payments** tab shows guest Pay-now attempts when that feature is enabled.
+
+**Ledger backfill (once per property after upgrade):** run `npx tsx scripts/backfill-payment-records.ts --dry-run` then without `--dry-run` if gaps are reported.
 
 ---
 

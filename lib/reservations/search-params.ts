@@ -117,7 +117,7 @@ export function bookingRefSearchPrefix(query: string): string | null {
 
 export function isSecuredPaymentStatus(
   paymentStatus: ReservationPaymentStatus | string | null | undefined,
-  depositAmount: number,
+  amountCollected: number,
 ): boolean {
   if (
     paymentStatus === 'paid' ||
@@ -126,6 +126,6 @@ export function isSecuredPaymentStatus(
   ) {
     return true
   }
-  if (paymentStatus === 'partial') return depositAmount > 0
+  if (paymentStatus === 'partial') return amountCollected > 0.009
   return false
 }

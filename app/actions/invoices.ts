@@ -20,7 +20,11 @@ import {
   taxSnapshotFromRates,
 } from '@/lib/tax'
 import { resolveInvoiceTaxId } from '@/lib/billing/ghana-card'
-import { getHotelTaxConfig } from '@/lib/data/settings'
+import { getHotelTaxConfig, getHotelCheckInPaymentPolicy } from '@/lib/data/settings'
+import {
+  getStayPaymentHistory,
+  type StayPaymentHistoryRow,
+} from '@/lib/data/stay-payment-history'
 import {
   invoiceBalanceDue,
 } from '@/lib/billing/invoice-payments'
@@ -29,6 +33,13 @@ import { createOrRefreshStayInvoice } from '@/lib/billing/build-stay-invoice'
 import { resolveBillToName } from '@/lib/billing/bill-to'
 import { computeDiscountAmount, normalizeDiscountType } from '@/lib/billing/discount'
 import { syncReservationPaymentFromInvoice } from '@/lib/billing/reservation-payment'
+import { applyStayPayment } from '@/lib/billing/apply-stay-payment'
+import {
+  assertCheckInPaymentMet,
+  formatCheckInPaymentPolicyLabel,
+  isChannelPrepaidStay,
+  requiredPaymentAtCheckIn,
+} from '@/lib/billing/check-in-payment-policy'
 import { calculateStayTotal, type RateType } from '@/lib/pricing/stay-totals'
 import { getRoomRates } from '@/lib/pricing/room-rates'
 import { refundOnlineInvoicePayments } from '@/lib/payments/refund-online'
@@ -53,6 +64,34 @@ export type IssueStayInvoiceResult =
 
 export type StaffInvoiceExportResult =
   | { success: true; data: { hotel: ExportHotelInfo; invoice: InvoiceExportRow } }
+  | { success: false; error: string }
+
+export type CollectStayPaymentResult =
+  | (Extract<IssueStayInvoiceResult, { success: true }> & {
+      amountApplied: number
+      balanceDue: number
+      requiredMinimum: number
+    })
+  | { success: false; error: string }
+
+export type StayCollectContextResult =
+  | {
+      success: true
+      data: {
+        requiredMinimum: number
+        balanceDue: number
+        amountPaid: number
+        invoiceTotal: number
+        canWaiveMinimum: boolean
+        policyLabel: string
+        channelPrepaid: boolean
+        minimumAlreadyMet: boolean
+      }
+    }
+  | { success: false; error: string }
+
+export type StayPaymentHistoryResult =
+  | { success: true; data: StayPaymentHistoryRow[] }
   | { success: false; error: string }
 
 const VALID_PAYMENT_METHODS: PaymentMethod[] = [
@@ -135,6 +174,24 @@ const issueStayInvoiceSchema = z
       })
     }
   })
+
+const collectStayPaymentSchema = z.object({
+  reservationId: z.string().uuid(),
+  paymentMethod: z.enum([
+    'mtn_momo',
+    'telecel_cash',
+    'airteltigo',
+    'visa',
+    'mastercard',
+    'cash',
+    'bank_transfer',
+  ]),
+  includeTax: z.boolean().default(false),
+  paymentAmount: z.coerce.number().min(0).optional(),
+  payFullBalance: z.boolean().default(false),
+  skipPayment: z.boolean().default(false),
+  waiveMinimum: z.boolean().default(false),
+})
 
 async function requireOwnerBilling() {
   const result = await requireVerifiedStaff({ roles: ['owner'] })
@@ -641,6 +698,353 @@ export async function issueStayInvoice(input: unknown): Promise<IssueStayInvoice
       success: false,
       error: err instanceof Error ? err.message : 'Could not issue invoice.',
     }
+  }
+}
+
+function reservationNightlyRate(reservation: {
+  nightly_rate: number | null
+  total_amount: number | null
+  check_in: string
+  check_out: string
+}): number {
+  if (reservation.nightly_rate != null && Number(reservation.nightly_rate) > 0) {
+    return Number(reservation.nightly_rate)
+  }
+  const nights = stayNights(reservation.check_in, reservation.check_out)
+  const total = Number(reservation.total_amount ?? 0)
+  return nights > 0 ? total / nights : total
+}
+
+export async function getStayCollectContext(
+  reservationId: string,
+): Promise<StayCollectContextResult> {
+  const profile = await requirePaymentStaff()
+  if (!profile?.hotel_id) return { success: false, error: 'Not authorized.' }
+
+  const admin = createAdminClient()
+  const { data: reservation } = await admin
+    .from('reservations')
+    .select(
+      'id, hotel_id, check_in, check_out, nightly_rate, total_amount, amount_paid, payment_status, channel',
+    )
+    .eq('id', reservationId)
+    .eq('hotel_id', profile.hotel_id)
+    .maybeSingle()
+
+  if (!reservation) return { success: false, error: 'Reservation not found.' }
+
+  const { data: invoice } = await admin
+    .from('invoices')
+    .select('total_amount, amount_paid')
+    .eq('reservation_id', reservationId)
+    .eq('hotel_id', profile.hotel_id)
+    .maybeSingle()
+
+  const policy = await getHotelCheckInPaymentPolicy(profile.hotel_id)
+  const invoiceTotal = Number(invoice?.total_amount ?? reservation.total_amount ?? 0)
+  const amountPaid = Number(invoice?.amount_paid ?? reservation.amount_paid ?? 0)
+  const nights = stayNights(reservation.check_in, reservation.check_out)
+  const nightlyRate = reservationNightlyRate(reservation)
+  const requiredMinimum = requiredPaymentAtCheckIn({
+    invoiceTotal,
+    nights,
+    nightlyRate,
+    mode: policy.mode,
+    value: policy.value,
+  })
+  const channelPrepaid = isChannelPrepaidStay({
+    channel: reservation.channel,
+    paymentStatus: reservation.payment_status,
+    amountPaid,
+    requiredMinimum,
+  })
+  const minimumAlreadyMet = assertCheckInPaymentMet({
+    invoiceTotal,
+    nights,
+    nightlyRate,
+    mode: policy.mode,
+    value: policy.value,
+    amountPaid,
+    complimentary: invoiceTotal <= 0,
+    channelPrepaid,
+  }).ok
+
+  return {
+    success: true,
+    data: {
+      requiredMinimum,
+      balanceDue: invoiceBalanceDue(invoiceTotal, amountPaid),
+      amountPaid,
+      invoiceTotal,
+      canWaiveMinimum: canIssueUnpaidStayInvoice(profile.role),
+      policyLabel: formatCheckInPaymentPolicyLabel(policy),
+      channelPrepaid,
+      minimumAlreadyMet,
+    },
+  }
+}
+
+export async function getStayPaymentHistoryForStay(
+  reservationId: string,
+  invoiceId?: string,
+): Promise<StayPaymentHistoryResult> {
+  const profile = await requirePaymentStaff()
+  if (!profile?.hotel_id) return { success: false, error: 'Not authorized.' }
+
+  const admin = createAdminClient()
+  const { data: reservation } = await admin
+    .from('reservations')
+    .select('id')
+    .eq('id', reservationId)
+    .eq('hotel_id', profile.hotel_id)
+    .maybeSingle()
+
+  if (!reservation) return { success: false, error: 'Reservation not found.' }
+
+  const rows = await getStayPaymentHistory(admin, profile.hotel_id, {
+    reservationId,
+    invoiceId,
+  })
+  return { success: true, data: rows }
+}
+
+export async function collectStayPayment(input: unknown): Promise<CollectStayPaymentResult> {
+  const parsed = collectStayPaymentSchema.safeParse(input)
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid payment.' }
+  }
+
+  const profile = await requirePaymentStaff()
+  if (!profile?.hotel_id || !canRecordInvoicePayment(profile.role)) {
+    return { success: false, error: 'Not authorized.' }
+  }
+
+  const admin = createAdminClient()
+  const { data: reservation } = await admin
+    .from('reservations')
+    .select(
+      'id, hotel_id, guest_id, guest_name, room_id, check_in, check_out, rate_type, nightly_rate, weekly_rate, monthly_rate, total_amount, amount_paid, payment_method, payment_status, status, channel, discount_type, discount_value, discount_amount, discount_reason',
+    )
+    .eq('id', parsed.data.reservationId)
+    .eq('hotel_id', profile.hotel_id)
+    .maybeSingle()
+
+  if (!reservation) return { success: false, error: 'Reservation not found.' }
+
+  let guestPhone: string | null = null
+  let roomNumber: string | null = null
+  if (reservation.guest_id) {
+    const { data: guestRow } = await admin
+      .from('guests')
+      .select('phone')
+      .eq('id', reservation.guest_id)
+      .maybeSingle()
+    guestPhone = guestRow?.phone?.trim() ?? null
+  }
+  if (reservation.room_id) {
+    const { data: roomRow } = await admin
+      .from('rooms')
+      .select('number')
+      .eq('id', reservation.room_id)
+      .maybeSingle()
+    roomNumber = roomRow?.number ?? null
+  }
+
+  const policy = await getHotelCheckInPaymentPolicy(profile.hotel_id)
+  const canWaive = canIssueUnpaidStayInvoice(profile.role)
+
+  if (parsed.data.waiveMinimum && !canWaive) {
+    return { success: false, error: 'Only managers and owners can waive the check-in minimum.' }
+  }
+
+  if (parsed.data.skipPayment && !canWaive && !parsed.data.waiveMinimum) {
+    return {
+      success: false,
+      error: 'Reception must collect at least the check-in minimum before the guest enters.',
+    }
+  }
+
+  let issued: Awaited<ReturnType<typeof createOrRefreshStayInvoice>>
+  try {
+    issued = await createOrRefreshStayInvoice(admin, {
+      reservation,
+      paymentMethod: parsed.data.paymentMethod,
+      markAsPaid: false,
+      includeTax: parsed.data.includeTax,
+      guestPhone,
+      roomNumber,
+    })
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'Could not refresh stay invoice.',
+    }
+  }
+
+  const invoiceTotal = issued.taxes.total
+  let amountPaid = issued.amountPaid
+  const nights = stayNights(reservation.check_in, reservation.check_out)
+  const nightlyRate = reservationNightlyRate(reservation)
+  const requiredMinimum = requiredPaymentAtCheckIn({
+    invoiceTotal,
+    nights,
+    nightlyRate,
+    mode: policy.mode,
+    value: policy.value,
+  })
+
+  const evaluatePayment = () => {
+    const channelPrepaid = isChannelPrepaidStay({
+      channel: reservation.channel,
+      paymentStatus: reservation.payment_status,
+      amountPaid,
+      requiredMinimum,
+    })
+    return assertCheckInPaymentMet({
+      invoiceTotal,
+      nights,
+      nightlyRate,
+      mode: policy.mode,
+      value: policy.value,
+      amountPaid,
+      complimentary: invoiceTotal <= 0,
+      channelPrepaid,
+      managerOverride: parsed.data.waiveMinimum && canWaive,
+    })
+  }
+
+  if (parsed.data.skipPayment) {
+    const check = evaluatePayment()
+    if (!check.ok) {
+      return { success: false, error: check.error }
+    }
+
+    void writeAuditLog({
+      hotelId: profile.hotel_id,
+      actorId: profile.id,
+      actorName: profile.name,
+      entityType: 'invoice',
+      entityId: issued.invoiceId,
+      action: 'updated',
+      summary: `Stay invoice ${issued.invoiceNumber} — continued without payment${
+        parsed.data.waiveMinimum ? ' (minimum waived)' : ''
+      }`,
+    })
+
+    revalidateBilling()
+    return {
+      success: true,
+      invoiceId: issued.invoiceId,
+      invoicePreview: issued.invoicePreview,
+      created: issued.created,
+      paymentStatus: issued.paymentStatus,
+      amountApplied: 0,
+      balanceDue: invoiceBalanceDue(invoiceTotal, amountPaid),
+      requiredMinimum,
+    }
+  }
+
+  const balanceDue = invoiceBalanceDue(invoiceTotal, amountPaid)
+  const payAmount = parsed.data.payFullBalance
+    ? balanceDue
+    : Math.min(parsed.data.paymentAmount ?? 0, balanceDue)
+
+  if (payAmount <= 0.009) {
+    const check = evaluatePayment()
+    if (!check.ok) {
+      return {
+        success: false,
+        error:
+          check.error ??
+          'Enter a payment amount or collect the check-in minimum before the guest enters.',
+      }
+    }
+
+    revalidateBilling()
+    return {
+      success: true,
+      invoiceId: issued.invoiceId,
+      invoicePreview: issued.invoicePreview,
+      created: issued.created,
+      paymentStatus: issued.paymentStatus,
+      amountApplied: 0,
+      balanceDue,
+      requiredMinimum,
+    }
+  }
+
+  const paymentResult = await applyStayPayment(admin, {
+    hotelId: profile.hotel_id,
+    reservationId: reservation.id,
+    invoiceId: issued.invoiceId,
+    amount: payAmount,
+    paymentMethod: parsed.data.paymentMethod,
+    provider: 'manual',
+    idempotencyKey: `collect-stay:${issued.invoiceId}:${randomUUID()}`,
+    phase: 'check_in',
+    metadata: { source: 'check_in_collect' },
+  })
+
+  if (!paymentResult.ok) {
+    return { success: false, error: paymentResult.error }
+  }
+
+  const { data: updatedInvoice } = await admin
+    .from('invoices')
+    .select('amount_paid, payment_status')
+    .eq('id', issued.invoiceId)
+    .maybeSingle()
+  amountPaid = Number(updatedInvoice?.amount_paid ?? amountPaid)
+
+  const { data: updatedReservation } = await admin
+    .from('reservations')
+    .select('payment_status')
+    .eq('id', reservation.id)
+    .maybeSingle()
+
+  const check = assertCheckInPaymentMet({
+    invoiceTotal,
+    nights,
+    nightlyRate,
+    mode: policy.mode,
+    value: policy.value,
+    amountPaid,
+    complimentary: invoiceTotal <= 0,
+    channelPrepaid: isChannelPrepaidStay({
+      channel: reservation.channel,
+      paymentStatus: updatedReservation?.payment_status ?? reservation.payment_status,
+      amountPaid,
+      requiredMinimum,
+    }),
+    managerOverride: parsed.data.waiveMinimum && canWaive,
+  })
+  if (!check.ok) {
+    return { success: false, error: check.error }
+  }
+
+  const refreshed = await getStaffInvoiceExport(issued.invoiceId)
+  const invoicePreview = refreshed.success ? refreshed.data.invoice : issued.invoicePreview
+
+  void writeAuditLog({
+    hotelId: profile.hotel_id,
+    actorId: profile.id,
+    actorName: profile.name,
+    entityType: 'invoice',
+    entityId: issued.invoiceId,
+    action: 'updated',
+    summary: `Collected ₵${paymentResult.amountApplied.toFixed(2)} on stay invoice ${issued.invoiceNumber} at check-in`,
+  })
+
+  revalidateBilling()
+  return {
+    success: true,
+    invoiceId: issued.invoiceId,
+    invoicePreview,
+    created: issued.created,
+    paymentStatus: paymentResult.paymentStatus as PaymentStatus,
+    amountApplied: paymentResult.amountApplied,
+    balanceDue: paymentResult.balanceDue,
+    requiredMinimum,
   }
 }
 

@@ -157,6 +157,8 @@ export async function updateReservationLifecycleSettings(input: {
   noShowHoldRoom: boolean
   useLifecycleV2: boolean
   timezone: string
+  checkInPaymentMode: 'none' | 'percent' | 'fixed' | 'first_night'
+  checkInPaymentValue: number
 }): Promise<SettingsActionResult> {
   const parsed = updateReservationLifecycleSettingsSchema.safeParse(input)
   if (!parsed.success) {
@@ -179,6 +181,8 @@ export async function updateReservationLifecycleSettings(input: {
       no_show_hold_room: parsed.data.noShowHoldRoom,
       use_lifecycle_v2: parsed.data.useLifecycleV2,
       timezone: normalizeHotelTimezone(parsed.data.timezone),
+      check_in_payment_mode: parsed.data.checkInPaymentMode,
+      check_in_payment_value: parsed.data.checkInPaymentValue,
     })
     .eq('id', parsed.data.hotelId)
 
@@ -191,7 +195,7 @@ export async function updateReservationLifecycleSettings(input: {
     entityType: 'hotel',
     entityId: parsed.data.hotelId,
     action: 'reservation_lifecycle_settings',
-    summary: `Reservation lifecycle settings updated (v2 ${parsed.data.useLifecycleV2 ? 'on' : 'off'})`,
+    summary: `Reservation lifecycle settings updated (v2 ${parsed.data.useLifecycleV2 ? 'on' : 'off'}, check-in min ${parsed.data.checkInPaymentMode})`,
   })
 
   revalidateSettingsViews()

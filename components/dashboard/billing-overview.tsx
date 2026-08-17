@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Copy, Download, MessageCircle, Plus, TrendingUp } from 'lucide-react'
 import { toast } from 'sonner'
 import { createManualInvoice, recordInvoicePayment, recordPartialInvoicePayment, refundInvoicePayment } from '@/app/actions/invoices'
+import { InvoicePaymentForm } from '@/components/dashboard/invoice-payment-form'
 import { initiateStaffPayment } from '@/app/actions/payments'
 import { invoiceBalanceDue } from '@/lib/billing/invoice-payments'
 import { BulkActionBar } from '@/components/dashboard/bulk-action-bar'
@@ -792,38 +793,25 @@ export function BillingOverview({
                 invoiceOpenBalance(detail) > 0 && (
                 <>
                   <div className="rounded-xl surface-inset p-4 space-y-3">
-                    <p className="text-xs font-medium text-muted-foreground">
-                      Record partial payment
-                    </p>
-                    <div className="flex gap-2">
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={partialAmount}
-                        onChange={(e) => setPartialAmount(e.target.value)}
-                        placeholder={`Max ${invoiceOpenBalance(detail)}`}
-                        className="flex-1 rounded-lg border border-[#E9ECEF] px-3 py-2 text-sm"
-                      />
-                      <select
-                        value={partialMethod}
-                        onChange={(e) => setPartialMethod(e.target.value as PaymentMethod)}
-                        className="rounded-lg border border-[#E9ECEF] px-2 py-2 text-sm"
-                      >
-                        {PAYMENT_METHODS.map((m) => (
-                          <option key={m} value={m}>
-                            {PAYMENT_METHOD_LABELS[m]}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                    <p className="text-xs font-medium text-muted-foreground">Record payment</p>
+                    <InvoicePaymentForm
+                      balanceDue={invoiceOpenBalance(detail)}
+                      paymentAmount={partialAmount}
+                      onPaymentAmountChange={setPartialAmount}
+                      paymentMethod={partialMethod}
+                      onPaymentMethodChange={setPartialMethod}
+                      disabled={pending}
+                      amountLabel="Payment amount"
+                      showSettlementSummary
+                      paidSoFar={detail.amount_paid ?? 0}
+                    />
                     <button
                       type="button"
                       disabled={pending}
                       onClick={() => submitPartialPayment(detail)}
                       className="w-full rounded-lg border border-primary px-4 py-2 text-sm font-semibold text-primary disabled:opacity-50"
                     >
-                      Record partial payment
+                      Record payment
                     </button>
                   </div>
                   <button

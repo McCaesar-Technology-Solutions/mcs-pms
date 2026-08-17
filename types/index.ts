@@ -110,6 +110,8 @@ export type HoldSource = 'online' | 'phone' | 'agent'
 
 export type NoShowChargePolicy = 'none' | 'one_night' | 'full_stay'
 
+export type CheckInPaymentMode = 'none' | 'percent' | 'fixed' | 'first_night'
+
 export interface ReservationEvent {
   id: string
   reservationId: string

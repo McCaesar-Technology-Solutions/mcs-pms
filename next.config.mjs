@@ -42,6 +42,7 @@ const nextConfig = {
       },
       {
         source: '/(.*)',
+        // CSP is set per-request in middleware.ts (nonce-based). Static headers only here.
         headers: getSecurityHeaders(),
       },
     ]

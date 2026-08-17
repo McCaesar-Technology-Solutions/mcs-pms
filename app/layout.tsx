@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { headers } from 'next/headers'
 import { Analytics } from '@vercel/analytics/next'
 import { Cormorant_Garamond, DM_Sans, JetBrains_Mono } from 'next/font/google'
 import { Toaster } from 'sonner'
@@ -43,11 +44,16 @@ export const viewport = {
   themeColor: '#22124c',
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  // Force dynamic rendering so Next.js can stamp the per-request nonce (from the
+  // request CSP header set in middleware) onto its own bootstrap scripts.
+  // @vercel/analytics/next 1.6.1 does not accept a nonce prop.
+  await headers()
+
   return (
     <html
       lang="en"

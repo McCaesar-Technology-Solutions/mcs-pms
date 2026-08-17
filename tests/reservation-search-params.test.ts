@@ -74,9 +74,13 @@ describe('isSecuredPaymentStatus', () => {
     expect(isSecuredPaymentStatus('complimentary', 0)).toBe(true)
   })
 
-  it('treats partial as secured only with a deposit', () => {
+  it('treats partial as secured only with money collected', () => {
     expect(isSecuredPaymentStatus('partial', 50)).toBe(true)
     expect(isSecuredPaymentStatus('partial', 0)).toBe(false)
     expect(isSecuredPaymentStatus('unpaid', 0)).toBe(false)
+  })
+
+  it('uses amount collected not booking deposit expectation', () => {
+    expect(isSecuredPaymentStatus('partial', 120)).toBe(true)
   })
 })

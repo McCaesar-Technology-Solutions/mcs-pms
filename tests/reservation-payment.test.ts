@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
-  buildCheckoutInvoicePaymentState,
+  mapInvoicePaymentStatusToReservation,
   derivePreCheckoutPaymentStatus,
   reservationBalanceDue,
+  buildCheckoutInvoicePaymentState,
 } from '@/lib/billing/reservation-payment'
 
 describe('reservation payment', () => {
@@ -11,6 +12,16 @@ describe('reservation payment', () => {
     expect(derivePreCheckoutPaymentStatus(500, 100)).toBe('deposit_paid')
     expect(derivePreCheckoutPaymentStatus(500, 500)).toBe('paid')
     expect(derivePreCheckoutPaymentStatus(0, 0)).toBe('complimentary')
+  })
+
+  it('maps invoice partial to reservation partial', () => {
+    expect(mapInvoicePaymentStatusToReservation('partial', 500, 200)).toBe('partial')
+    expect(mapInvoicePaymentStatusToReservation('paid', 500, 500)).toBe('paid')
+    expect(mapInvoicePaymentStatusToReservation('pending', 500, 0)).toBe('unpaid')
+    expect(mapInvoicePaymentStatusToReservation('pending', 500, 100)).toBe('partial')
+    expect(mapInvoicePaymentStatusToReservation('overdue', 500, 50)).toBe('overdue')
+    expect(mapInvoicePaymentStatusToReservation('refunded', 500, 0)).toBe('refunded')
+    expect(mapInvoicePaymentStatusToReservation('pending', 0, 0)).toBe('complimentary')
   })
 
   it('computes balance due', () => {

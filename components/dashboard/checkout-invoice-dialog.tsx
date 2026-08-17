@@ -1,13 +1,18 @@
 'use client'
 
-import { useEffect, useState, useTransition } from 'react'
+import { useEffect, useMemo, useState, useTransition } from 'react'
 import { Download, Loader2, Printer } from 'lucide-react'
 import { toast } from 'sonner'
 import {
+  collectStayPayment,
   getStaffInvoiceExport,
-  issueStayInvoice,
+  getStayCollectContext,
+  getStayPaymentHistoryForStay,
   recordInvoicePayment,
 } from '@/app/actions/invoices'
+import { InvoicePaymentForm } from '@/components/dashboard/invoice-payment-form'
+import { StayPaymentHistoryList } from '@/components/dashboard/stay-payment-history-list'
+import type { StayPaymentHistoryRow } from '@/lib/data/stay-payment-history'
 import { InvoiceWhatsAppShare } from '@/components/dashboard/invoice-whatsapp-share'
 import { CenteredModal, ModalBody, ModalFooter, ModalHeader } from '@/components/ui/centered-modal'
 import { downloadInvoicePdf, printInvoicePdf } from '@/lib/export/invoice-pdf'
@@ -17,16 +22,6 @@ import { invoiceProductLabel } from '@/lib/invoices/product-label'
 import type { ExportHotelInfo, InvoiceExportRow } from '@/lib/export/types'
 import type { PaymentMethod } from '@/types'
 
-const PAYMENT_METHODS: PaymentMethod[] = [
-  'cash',
-  'mtn_momo',
-  'telecel_cash',
-  'airteltigo',
-  'visa',
-  'mastercard',
-  'bank_transfer',
-]
-
 interface CheckoutInvoiceDialogProps {
   invoiceId: string
   guestName?: string
@@ -34,11 +29,11 @@ interface CheckoutInvoiceDialogProps {
   /** Override the default helper line. */
   description?: string
   /**
-   * collect = pay-at-check-in settlement UI (method + paid-in-full).
+   * collect = pay-at-check-in settlement UI (method + amount).
    * view = print / share only (post-checkout or already paid).
    */
   mode?: 'view' | 'collect'
-  /** When set, settlement uses issueStayInvoice (keeps stay + invoice in sync). */
+  /** When set, settlement uses collectStayPayment (keeps stay + invoice in sync). */
   reservationId?: string
   onClose: () => void
   onSettled?: () => void
@@ -73,17 +68,42 @@ export function CheckoutInvoiceDialog({
   const [invoice, setInvoice] = useState<InvoiceExportRow | null>(initialInvoice ?? null)
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(() => {
     const method = initialInvoice?.paymentMethod as PaymentMethod | undefined
-    return method && PAYMENT_METHODS.includes(method) ? method : 'cash'
+    return method ? method : 'cash'
   })
-  const [markAsPaid, setMarkAsPaid] = useState(true)
   const [includeTax, setIncludeTax] = useState(() =>
     initialInvoice ? invoiceHasTaxBreakdown(initialInvoice) : false,
   )
+  const [paymentAmount, setPaymentAmount] = useState('')
+  const [waiveMinimum, setWaiveMinimum] = useState(false)
+  const [collectContext, setCollectContext] = useState<Awaited<
+    ReturnType<typeof getStayCollectContext>
+  > | null>(null)
+  const [paymentHistory, setPaymentHistory] = useState<StayPaymentHistoryRow[]>([])
+  const [loadingHistory, setLoadingHistory] = useState(false)
   const [pending, startTransition] = useTransition()
 
   const alreadyPaid = isPaidStatus(invoice?.paymentStatus)
   const showCollect = mode === 'collect' && !alreadyPaid
   const taxLockedOn = invoice ? invoiceHasTaxBreakdown(invoice) : false
+
+  const balanceDue = useMemo(() => {
+    if (!invoice) return 0
+    return Math.max(0, Math.round((invoice.total - (invoice.amountPaid ?? 0)) * 100) / 100)
+  }, [invoice])
+
+  const requiredMinimum = collectContext?.success ? collectContext.data.requiredMinimum : 0
+  const minimumShortfall = Math.max(
+    0,
+    Math.round(
+      (requiredMinimum -
+        (collectContext?.success
+          ? collectContext.data.amountPaid
+          : (invoice?.amountPaid ?? 0))) *
+        100,
+    ) / 100,
+  )
+  const canWaiveMinimum = collectContext?.success ? collectContext.data.canWaiveMinimum : false
+  const minimumAlreadyMet = collectContext?.success ? collectContext.data.minimumAlreadyMet : false
 
   useEffect(() => {
     let cancelled = false
@@ -100,13 +120,19 @@ export function CheckoutInvoiceDialog({
       setHotel(result.data.hotel)
       setInvoice(result.data.invoice)
       const method = result.data.invoice.paymentMethod as PaymentMethod | null
-      if (method && PAYMENT_METHODS.includes(method)) {
-        setPaymentMethod(method)
+      if (method) {
+        setPaymentMethod(method as PaymentMethod)
       }
-      // Preserve tax-on for already-taxed invoices when collecting payment.
       if (invoiceHasTaxBreakdown(result.data.invoice)) {
         setIncludeTax(true)
       }
+      const due = Math.max(
+        0,
+        Math.round(
+          (result.data.invoice.total - (result.data.invoice.amountPaid ?? 0)) * 100,
+        ) / 100,
+      )
+      setPaymentAmount(due > 0 ? due.toFixed(2) : '')
       setLoadingExport(false)
     })
 
@@ -114,6 +140,38 @@ export function CheckoutInvoiceDialog({
       cancelled = true
     }
   }, [invoiceId, initialInvoice])
+
+  useEffect(() => {
+    if (!showCollect || !reservationId) {
+      setCollectContext(null)
+      return
+    }
+    let cancelled = false
+    void getStayCollectContext(reservationId).then((result) => {
+      if (cancelled) return
+      setCollectContext(result)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [showCollect, reservationId])
+
+  useEffect(() => {
+    if (!showCollect || !reservationId) {
+      setPaymentHistory([])
+      return
+    }
+    let cancelled = false
+    setLoadingHistory(true)
+    void getStayPaymentHistoryForStay(reservationId, invoiceId).then((result) => {
+      if (cancelled) return
+      setPaymentHistory(result.success ? result.data : [])
+      setLoadingHistory(false)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [showCollect, reservationId, invoiceId, invoice?.amountPaid])
 
   async function handleDownload() {
     if (!hotel || !invoice) {
@@ -133,29 +191,49 @@ export function CheckoutInvoiceDialog({
     toast.success('Opening print dialog…')
   }
 
-  function handleCollect() {
+  function handleCollect(skipPayment = false) {
     setError(null)
     startTransition(async () => {
-      if (!markAsPaid) {
-        toast.message('Left unpaid — collect before the guest uses the room when possible.')
-        onClose()
-        return
-      }
-
       if (reservationId) {
-        const result = await issueStayInvoice({
+        const parsedAmount = parseFloat(paymentAmount)
+        const payFullBalance =
+          !skipPayment &&
+          Number.isFinite(parsedAmount) &&
+          parsedAmount + 0.009 >= balanceDue
+
+        const result = await collectStayPayment({
           reservationId,
           paymentMethod,
-          markAsPaid: true,
           includeTax: includeTax || taxLockedOn,
+          skipPayment,
+          waiveMinimum: skipPayment && waiveMinimum,
+          payFullBalance: payFullBalance && !skipPayment,
+          paymentAmount: skipPayment ? 0 : parsedAmount,
         })
+
         if (!result.success) {
           setError(result.error)
           return
         }
+
         if (result.invoicePreview) setInvoice(result.invoicePreview)
-        toast.success('Payment recorded — stay invoice settled')
+        if (reservationId) {
+          const history = await getStayPaymentHistoryForStay(reservationId, result.invoiceId)
+          if (history.success) setPaymentHistory(history.data)
+        }
+        if (skipPayment) {
+          toast.message('Continued without payment — collect the balance when you can.')
+        } else if (result.amountApplied > 0) {
+          toast.success(
+            result.balanceDue <= 0.009
+              ? 'Payment recorded — stay invoice settled'
+              : `Payment recorded — ${money(result.balanceDue)} still due`,
+          )
+        } else {
+          toast.success('Minimum already met — no new payment recorded')
+        }
         onSettled?.()
+        if (result.balanceDue <= 0.009 || skipPayment) onClose()
         return
       }
 
@@ -316,6 +394,18 @@ export function CheckoutInvoiceDialog({
                 <span className="font-semibold text-foreground">Total</span>
                 <span className="text-lg font-bold text-foreground">{money(invoice.total)}</span>
               </div>
+              {(invoice.amountPaid ?? 0) > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Already paid</span>
+                  <span className="font-medium">{money(invoice.amountPaid)}</span>
+                </div>
+              )}
+              {showCollect && balanceDue > 0 && (
+                <div className="flex justify-between font-semibold text-foreground">
+                  <span>Balance due</span>
+                  <span>{money(balanceDue)}</span>
+                </div>
+              )}
               {!showCollect && (
                 <div className="flex justify-between pt-1">
                   <span className="text-muted-foreground">Payment method</span>
@@ -327,21 +417,24 @@ export function CheckoutInvoiceDialog({
             {showCollect && (
               <div className="space-y-3 rounded-xl border border-amber-200 bg-amber-50/80 p-4">
                 <p className="text-sm font-semibold text-amber-950">Pay before enter</p>
-                <label className="block text-sm">
-                  <span className="text-muted-foreground">Payment method</span>
-                  <select
-                    value={paymentMethod}
-                    onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
-                    disabled={pending}
-                    className="mt-1 w-full rounded-xl border border-border bg-white px-3 py-2.5 text-sm"
-                  >
-                    {PAYMENT_METHODS.map((m) => (
-                      <option key={m} value={m}>
-                        {PAYMENT_METHOD_LABELS[m] ?? m}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                {reservationId && (
+                  <StayPaymentHistoryList rows={paymentHistory} loading={loadingHistory} />
+                )}
+                <InvoicePaymentForm
+                  balanceDue={balanceDue}
+                  paymentAmount={paymentAmount}
+                  onPaymentAmountChange={setPaymentAmount}
+                  paymentMethod={paymentMethod}
+                  onPaymentMethodChange={setPaymentMethod}
+                  disabled={pending}
+                  showMinimumHints={Boolean(reservationId && collectContext?.success)}
+                  showSettlementSummary
+                  paidSoFar={invoice?.amountPaid ?? (collectContext?.success ? collectContext.data.amountPaid : 0)}
+                  requiredMinimum={requiredMinimum}
+                  minimumShortfall={minimumShortfall}
+                  policyLabel={collectContext?.success ? collectContext.data.policyLabel : undefined}
+                  channelPrepaid={collectContext?.success ? collectContext.data.channelPrepaid : false}
+                />
                 <label className="flex items-start gap-2 text-sm text-amber-950">
                   <input
                     type="checkbox"
@@ -359,33 +452,41 @@ export function CheckoutInvoiceDialog({
                     </span>
                   </span>
                 </label>
-                <label className="flex items-start gap-2 text-sm text-amber-950">
-                  <input
-                    type="checkbox"
-                    checked={markAsPaid}
-                    onChange={(e) => setMarkAsPaid(e.target.checked)}
-                    disabled={pending}
-                    className="mt-0.5"
-                  />
-                  <span>
-                    Paid in full now
-                    <span className="mt-0.5 block text-xs text-amber-900/80">
-                      Uncheck only for prepaid channels or manager-approved exceptions.
+                {canWaiveMinimum && (
+                  <label className="flex items-start gap-2 text-sm text-amber-950">
+                    <input
+                      type="checkbox"
+                      checked={waiveMinimum}
+                      onChange={(e) => setWaiveMinimum(e.target.checked)}
+                      disabled={pending}
+                      className="mt-0.5"
+                    />
+                    <span>
+                      Waive check-in minimum
+                      <span className="mt-0.5 block text-xs text-amber-900/80">
+                        For prepaid channels or manager-approved exceptions only.
+                      </span>
                     </span>
-                  </span>
-                </label>
+                  </label>
+                )}
                 <button
                   type="button"
-                  disabled={pending}
-                  onClick={handleCollect}
+                  disabled={pending || (balanceDue > 0 && !paymentAmount && !minimumAlreadyMet)}
+                  onClick={() => handleCollect(false)}
                   className="flex w-full items-center justify-center rounded-xl bg-[#D4A62E] py-3 text-sm font-semibold text-gray-900 disabled:opacity-50"
                 >
-                  {pending
-                    ? 'Saving…'
-                    : markAsPaid
-                      ? 'Record payment'
-                      : 'Continue without payment'}
+                  {pending ? 'Saving…' : balanceDue <= 0 ? 'Confirm' : 'Record payment'}
                 </button>
+                {canWaiveMinimum && (
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() => handleCollect(true)}
+                    className="flex w-full items-center justify-center rounded-xl bg-white/80 py-2.5 text-sm font-semibold text-amber-950 disabled:opacity-50"
+                  >
+                    Continue without payment
+                  </button>
+                )}
               </div>
             )}
 

@@ -17,6 +17,11 @@ import {
   mergeEmailPrefs,
 } from '@/lib/notifications/email-preferences'
 import { normalizeHotelTimezone, DEFAULT_HOTEL_TIMEZONE } from '@/lib/hotel-time'
+import {
+  normalizeCheckInPaymentPolicy,
+  type CheckInPaymentPolicy,
+} from '@/lib/billing/check-in-payment-policy'
+import type { CheckInPaymentMode } from '@/types'
 
 export interface HotelSettings {
   id: string
@@ -52,6 +57,20 @@ export interface HotelSettings {
     covid: number | null
     tourism: number | null
   }
+  checkInPaymentMode: CheckInPaymentMode
+  checkInPaymentValue: number
+}
+
+export async function getHotelCheckInPaymentPolicy(hotelId: string): Promise<CheckInPaymentPolicy> {
+  const admin = createAdminClient()
+  const { data } = await admin
+    .from('hotels')
+    .select('check_in_payment_mode, check_in_payment_value')
+    .eq('id', hotelId)
+    .maybeSingle()
+  return normalizeCheckInPaymentPolicy(
+    data as { check_in_payment_mode?: string | null; check_in_payment_value?: number | null } | null,
+  )
 }
 
 export async function getActiveHotelSettings(): Promise<HotelSettings | null> {
@@ -134,6 +153,16 @@ export async function getActiveHotelSettings(): Promise<HotelSettings | null> {
       tourism:
         rateRow.tax_tourism_levy_rate != null ? Number(rateRow.tax_tourism_levy_rate) : null,
     },
+    ...(() => {
+      const policy = normalizeCheckInPaymentPolicy(h as {
+        check_in_payment_mode?: string | null
+        check_in_payment_value?: number | null
+      })
+      return {
+        checkInPaymentMode: policy.mode,
+        checkInPaymentValue: policy.value,
+      }
+    })(),
   }
 }
 

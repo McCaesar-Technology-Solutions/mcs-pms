@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { PaymentMethod, PaymentStatus, ReservationPaymentStatus } from '@/types'
+import { applyInvoicePaymentRecord } from '@/lib/billing/apply-payment'
 import { deriveInvoicePaymentStatus, invoiceBalanceDue } from '@/lib/billing/invoice-payments'
 
 export function derivePreCheckoutPaymentStatus(
@@ -35,6 +36,21 @@ export function buildCheckoutInvoicePaymentState(input: {
   }
 }
 
+export function mapInvoicePaymentStatusToReservation(
+  invoiceStatus: string | null | undefined,
+  totalAmount: number,
+  amountPaid: number,
+): ReservationPaymentStatus {
+  if (totalAmount <= 0) return 'complimentary'
+  const status = invoiceStatus ?? 'pending'
+  if (status === 'paid') return 'paid'
+  if (status === 'partial') return 'partial'
+  if (status === 'overdue') return 'overdue'
+  if (status === 'refunded') return 'refunded'
+  if (amountPaid > 0.009) return 'partial'
+  return 'unpaid'
+}
+
 export async function syncReservationPaymentFromInvoice(
   admin: SupabaseClient,
   reservationId: string,
@@ -47,12 +63,19 @@ export async function syncReservationPaymentFromInvoice(
 
   if (!invoice) return
 
+  const total = Number(invoice.total_amount ?? 0)
+  const paid = Number(invoice.amount_paid ?? 0)
+
   await admin
     .from('reservations')
     .update({
-      total_amount: Number(invoice.total_amount ?? 0),
-      amount_paid: Number(invoice.amount_paid ?? 0),
-      payment_status: (invoice.payment_status ?? 'pending') as ReservationPaymentStatus,
+      total_amount: total,
+      amount_paid: paid,
+      payment_status: mapInvoicePaymentStatusToReservation(
+        invoice.payment_status,
+        total,
+        paid,
+      ),
       payment_method: invoice.payment_method as PaymentMethod | null,
     })
     .eq('id', reservationId)
@@ -113,40 +136,37 @@ export async function createCheckoutPaymentRecords(
 ): Promise<void> {
   await linkDepositRecordsToInvoice(admin, input.reservationId, input.invoiceId)
 
+  if (!input.paidNow) return
+
   const remainder = Math.max(
     0,
     Math.round((input.invoiceTotal - Math.min(input.priorDeposit, input.invoiceTotal)) * 100) / 100,
   )
 
-  if (input.paidNow && remainder > 0.009) {
-    await admin.from('payment_records').insert({
-      hotel_id: input.hotelId,
-      invoice_id: input.invoiceId,
-      reservation_id: input.reservationId,
-      guest_id: input.guestId,
-      provider: 'manual',
-      amount: remainder,
-      currency: 'GHS',
-      status: 'success',
-      idempotency_key: `checkout:${input.invoiceId}:${input.now}`,
-      completed_at: input.now,
-      metadata: { source: 'checkout_balance' },
-    })
-  } else if (input.paidNow && input.priorDeposit <= 0.009 && input.invoiceTotal > 0) {
-    await admin.from('payment_records').insert({
-      hotel_id: input.hotelId,
-      invoice_id: input.invoiceId,
-      reservation_id: input.reservationId,
-      guest_id: input.guestId,
-      provider: 'manual',
-      amount: input.invoiceTotal,
-      currency: 'GHS',
-      status: 'success',
-      idempotency_key: `checkout:${input.invoiceId}:full`,
-      completed_at: input.now,
-      metadata: { source: 'checkout_full' },
-    })
+  if (remainder <= 0.009) {
+    if (input.priorDeposit <= 0.009 && input.invoiceTotal > 0.009) {
+      await applyInvoicePaymentRecord(admin, {
+        hotelId: input.hotelId,
+        invoiceId: input.invoiceId,
+        amount: input.invoiceTotal,
+        paymentMethod: input.paymentMethod,
+        provider: 'manual',
+        idempotencyKey: `checkout:${input.invoiceId}:full`,
+        metadata: { source: 'checkout_full' },
+      })
+    }
+    return
   }
+
+  await applyInvoicePaymentRecord(admin, {
+    hotelId: input.hotelId,
+    invoiceId: input.invoiceId,
+    amount: remainder,
+    paymentMethod: input.paymentMethod,
+    provider: 'manual',
+    idempotencyKey: `checkout:${input.invoiceId}:${input.now}`,
+    metadata: { source: 'checkout_balance' },
+  })
 }
 
 export async function finalizeReservationCheckoutPayment(

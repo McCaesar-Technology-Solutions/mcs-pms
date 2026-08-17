@@ -48,6 +48,8 @@ export type Database = {
           default_refundable: boolean
           default_penalty_nights: number
           use_lifecycle_v2: boolean
+          check_in_payment_mode: 'none' | 'percent' | 'fixed' | 'first_night'
+          check_in_payment_value: number
           access_control_enabled: boolean
           timezone: string
           tax_nhil_rate: number | null
@@ -96,6 +98,8 @@ export type Database = {
           default_refundable?: boolean
           default_penalty_nights?: number
           use_lifecycle_v2?: boolean
+          check_in_payment_mode?: 'none' | 'percent' | 'fixed' | 'first_night'
+          check_in_payment_value?: number
           access_control_enabled?: boolean
           timezone?: string
           tax_nhil_rate?: number | null
@@ -144,6 +148,8 @@ export type Database = {
           default_refundable?: boolean
           default_penalty_nights?: number
           use_lifecycle_v2?: boolean
+          check_in_payment_mode?: 'none' | 'percent' | 'fixed' | 'first_night'
+          check_in_payment_value?: number
           access_control_enabled?: boolean
           timezone?: string
           tax_nhil_rate?: number | null

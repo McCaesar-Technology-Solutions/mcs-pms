@@ -186,7 +186,7 @@ interface ReservationsManagerProps {
 }
 
 function isSecuredReservationPayment(res: Reservation): boolean {
-  return isSecuredPaymentStatus(res.paymentStatus, res.depositAmount)
+  return isSecuredPaymentStatus(res.paymentStatus, res.paidAmount)
 }
 
 export function ReservationsManager({
@@ -1280,7 +1280,7 @@ function ReservationDrawer({
                   reservation.status === 'provisional'
                     ? reservation.invoiceId
                       ? 'Refresh the stay invoice and collect payment before check-in (pay before enter). Prior GRA tax stays on if already applied.'
-                      : 'Create the full stay invoice and collect payment before check-in. Check-in reuses this invoice. Use Record deposit only for a partial hold.'
+                      : 'Create the full stay invoice and collect payment before check-in. Check-in reuses this invoice. Use Record payment for a partial hold before the invoice exists.'
                     : reservation.invoiceId
                       ? 'Refresh stay invoice with current folio, then optionally record payment. Prior GRA tax stays on if already applied.'
                       : 'Create a stay invoice now. Checkout will reuse this invoice (no duplicate).'}
@@ -1416,7 +1416,7 @@ function ReservationDrawer({
                   onClick={() => setRecordingDeposit(true)}
                   className="flex-1 rounded-xl bg-white py-2.5 text-sm font-semibold text-foreground shadow-elevation-1 transition-all hover:shadow-elevation-2 disabled:opacity-50"
                 >
-                  Record deposit (partial)
+                  Record payment
                 </button>
                 {canMarkChannelPrepaid && (
                   <button
@@ -1496,7 +1496,7 @@ function ReservationDrawer({
                     }
                     className="flex-1 rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50"
                   >
-                    Save deposit
+                    Save payment
                   </button>
                 </div>
                 {onlinePaymentsEnabled && (
@@ -2340,7 +2340,7 @@ function ReservationDrawer({
                   {voidDialog && (
                     <div className="space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
                       <p className="text-sm font-semibold text-amber-950">
-                        ₵{reservation.paidAmount} deposit collected
+                        ₵{reservation.paidAmount} collected
                       </p>
                       <p className="text-xs text-amber-900">
                         Choose how to handle the deposit before{' '}

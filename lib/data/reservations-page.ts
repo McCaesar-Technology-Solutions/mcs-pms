@@ -84,8 +84,12 @@ function nightsBetween(checkIn: string, checkOut: string): number {
 function mapReservation(
   row: ReservationRow,
   folioMap: Map<string, number>,
-  invoiceId: string | null = null,
-  invoiceBillToName: string | null = null,
+  invoiceSnapshot: {
+    id: string
+    billToName: string | null
+    totalAmount: number
+    amountPaid: number
+  } | null = null,
 ): Reservation {
   const nights = nightsBetween(row.check_in, row.check_out)
   const rateType = (row.rate_type ?? 'nightly') as Reservation['rateType']
@@ -96,8 +100,6 @@ function mapReservation(
     row.total_amount ??
     calculateStayTotal(rateType, row.check_in, row.check_out, nightlyRate, monthlyRate, weeklyRate)
   const status = (row.status ?? 'confirmed') as Reservation['status']
-  const paidAmount = Number(row.amount_paid ?? 0)
-  const paymentStatus = (row.payment_status ?? 'unpaid') as ReservationPaymentStatus
   const depositAmount = Number(row.deposit_amount ?? 0)
   const discountType = normalizeDiscountType(row.discount_type)
   const discountValue = Number(row.discount_value ?? 0)
@@ -105,8 +107,22 @@ function mapReservation(
   const folioSubtotal = isOccupyingReservationStatus(status)
     ? folioSubtotalForStay(folioMap, row.guest_id, row.id)
     : 0
-  const estimatedTotal = Math.max(0, total - discountAmount) + folioSubtotal
-  const balanceDue = reservationBalanceDue(estimatedTotal, paidAmount)
+
+  let paidAmount: number
+  let estimatedTotal: number
+  let balanceDue: number
+
+  if (invoiceSnapshot) {
+    estimatedTotal = Number(invoiceSnapshot.totalAmount)
+    paidAmount = Number(invoiceSnapshot.amountPaid)
+    balanceDue = reservationBalanceDue(estimatedTotal, paidAmount)
+  } else {
+    paidAmount = Number(row.amount_paid ?? 0)
+    estimatedTotal = Math.max(0, total - discountAmount) + folioSubtotal
+    balanceDue = reservationBalanceDue(estimatedTotal, paidAmount)
+  }
+
+  const paymentStatus = (row.payment_status ?? 'unpaid') as ReservationPaymentStatus
   const channel = (row.channel ?? 'direct') as Reservation['channel']
   const idDocument = guestIdDocumentFromRow(row.guests ?? {})
 
@@ -134,8 +150,8 @@ function mapReservation(
     balanceDue,
     paymentStatus,
     depositAmount,
-    invoiceId,
-    invoiceBillToName,
+    invoiceId: invoiceSnapshot?.id ?? null,
+    invoiceBillToName: invoiceSnapshot?.billToName ?? null,
     discountType,
     discountValue,
     discountAmount,
@@ -386,7 +402,7 @@ export async function getReservationsPage(
       if (search) rows = rows.filter((row) => matchesSearch(row, search))
       if (filters.paymentSecured) {
         rows = rows.filter((row) =>
-          isSecuredPaymentStatus(row.payment_status, Number(row.deposit_amount ?? 0)),
+          isSecuredPaymentStatus(row.payment_status, Number(row.amount_paid ?? 0)),
         )
       }
       if (shouldPinOccupyingStays(filters)) {
@@ -493,11 +509,14 @@ async function finalizePage(
     ? await loadFolioSubtotalMap(admin, hotelId, inHouseGuestIds)
     : new Map<string, number>()
 
-  const invoiceByReservation = new Map<string, { id: string; billToName: string | null }>()
+  const invoiceByReservation = new Map<
+    string,
+    { id: string; billToName: string | null; totalAmount: number; amountPaid: number }
+  >()
   if (admin && pageRows.length > 0) {
     const { data: invoiceRows } = await admin
       .from('invoices')
-      .select('id, reservation_id, bill_to_name')
+      .select('id, reservation_id, bill_to_name, total_amount, amount_paid')
       .eq('hotel_id', hotelId)
       .in(
         'reservation_id',
@@ -508,6 +527,8 @@ async function finalizePage(
         invoiceByReservation.set(inv.reservation_id, {
           id: inv.id,
           billToName: inv.bill_to_name?.trim() || null,
+          totalAmount: Number(inv.total_amount ?? 0),
+          amountPaid: Number(inv.amount_paid ?? 0),
         })
       }
     }
@@ -516,7 +537,7 @@ async function finalizePage(
   return {
     reservations: pageRows.map((row) => {
       const inv = invoiceByReservation.get(row.id)
-      return mapReservation(row, folioMap, inv?.id ?? null, inv?.billToName ?? null)
+      return mapReservation(row, folioMap, inv ?? null)
     }),
     totalCount,
     page,

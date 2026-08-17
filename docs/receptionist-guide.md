@@ -240,7 +240,9 @@ You cannot see staff badges or attendance.
 **Path:** `/receptionist/billing`
 
 - View stay invoices, record **full or partial payments**, print PDF, send via **WhatsApp**. Billing has **no revenue / collection KPI tiles** — use the invoice list.
-- Issue / refresh a stay invoice from the reservation or Billing — you **must mark it paid** when issuing.
+- At **check-in**, the collect dialog shows the hotel **minimum payment** (e.g. 50%) with quick actions **Pay balance** and **Pay minimum**. You cannot skip below the minimum — ask a manager to waive if needed.
+- **Payment history** on the collect dialog lists every amount recorded against the stay.
+- Issue / refresh a stay invoice from the reservation or Billing — record the amount collected (full or partial).
 - **Bill to** can differ from the guest name (set at check-in or when issuing).
 - Ask a manager or owner if the guest needs a **discount**, an **unpaid** invoice document, or an **ad-hoc** (non-stay) bill.
 - Tax is optional — check **Include Ghana tax** when you need a GRA tax invoice.

@@ -28,10 +28,10 @@ import {
   validateDepositDispositionInput,
 } from '@/lib/billing/deposit-disposition'
 import {
-  derivePreCheckoutPaymentStatus,
   refreshPreCheckoutPaymentStatus,
   reservationBalanceDue,
 } from '@/lib/billing/reservation-payment'
+import { applyStayPayment } from '@/lib/billing/apply-stay-payment'
 import { computeDiscountAmount, normalizeDiscountType } from '@/lib/billing/discount'
 import { canApplyGuestDiscount } from '@/lib/auth/tenant-access'
 import { todayISO } from '@/lib/stays/helpers'
@@ -887,44 +887,24 @@ export async function recordReservationDeposit(input: unknown): Promise<Reservat
     return { success: false, error: `Deposit exceeds balance due (₵${balance}).` }
   }
 
-  const newPaid = Math.round((currentPaid + parsed.data.amount) * 100) / 100
   const now = new Date().toISOString()
   const idempotencyKey = parsed.data.reference
     ? `deposit:${parsed.data.reservationId}:${parsed.data.reference}`
     : `deposit:${parsed.data.reservationId}:${now}`
 
-  const { data: existingPayment } = await admin
-    .from('payment_records')
-    .select('id')
-    .eq('idempotency_key', idempotencyKey)
-    .maybeSingle()
-
-  if (existingPayment) {
-    return { success: true }
-  }
-
-  await admin.from('payment_records').insert({
-    hotel_id: profile.hotel_id,
-    reservation_id: reservation.id,
-    guest_id: reservation.guest_id,
-    provider: 'manual',
-    provider_reference: parsed.data.reference ?? null,
+  const payment = await applyStayPayment(admin, {
+    hotelId: profile.hotel_id,
+    reservationId: parsed.data.reservationId,
     amount: parsed.data.amount,
-    currency: 'GHS',
-    status: 'success',
-    idempotency_key: idempotencyKey,
-    completed_at: now,
+    paymentMethod: parsed.data.paymentMethod,
+    provider: 'manual',
+    providerReference: parsed.data.reference,
+    idempotencyKey,
     metadata: { type: 'deposit' },
+    phase: 'pre_arrival',
   })
 
-  await admin
-    .from('reservations')
-    .update({
-      amount_paid: newPaid,
-      payment_method: parsed.data.paymentMethod,
-      payment_status: derivePreCheckoutPaymentStatus(total, newPaid),
-    })
-    .eq('id', reservation.id)
+  if (!payment.ok) return { success: false, error: payment.error }
 
   if (reservation.status === 'provisional') {
     const { transitionReservation } = await import('@/lib/reservations/state-machine')
@@ -952,8 +932,8 @@ export async function recordReservationDeposit(input: unknown): Promise<Reservat
     summary: `Deposit ₵${parsed.data.amount} on ${reservation.guest_name} booking`,
   })
 
-  // Keep open stay invoice in sync when guest is already in house (pay-at-check-in).
-  if (reservation.status === 'checked_in') {
+  // Legacy: in-house without a stay invoice yet — seed invoice from reservation payments.
+  if (reservation.status === 'checked_in' && !payment.invoiceId) {
     const { data: stayRow } = await admin
       .from('reservations')
       .select(

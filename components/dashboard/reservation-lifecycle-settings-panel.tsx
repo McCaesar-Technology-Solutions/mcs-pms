@@ -4,8 +4,9 @@ import { useEffect, useState, useTransition } from 'react'
 import { CalendarClock } from 'lucide-react'
 import { updateReservationLifecycleSettings } from '@/app/actions/settings'
 import type { HotelSettings } from '@/lib/data/settings'
-import type { NoShowChargePolicy } from '@/types'
+import type { CheckInPaymentMode, NoShowChargePolicy } from '@/types'
 import { FormField } from '@/components/ui/form-field'
+import { formatCheckInPaymentPolicyLabel } from '@/lib/billing/check-in-payment-policy'
 
 interface ReservationLifecycleSettingsPanelProps {
   hotelSettings: HotelSettings
@@ -15,6 +16,48 @@ const NO_SHOW_POLICIES: { value: NoShowChargePolicy; label: string; hint: string
   { value: 'none', label: 'No charge', hint: 'Mark no-show without posting a fee' },
   { value: 'one_night', label: 'One night', hint: 'Charge the first night of the stay' },
   { value: 'full_stay', label: 'Full stay', hint: 'Charge the entire booked stay' },
+]
+
+const CHECK_IN_PAYMENT_MODES: {
+  value: CheckInPaymentMode
+  label: string
+  hint: string
+  showValue: boolean
+  valueLabel: string
+  valueHint: string
+}[] = [
+  {
+    value: 'none',
+    label: 'Optional',
+    hint: 'Staff may check in without collecting payment',
+    showValue: false,
+    valueLabel: '',
+    valueHint: '',
+  },
+  {
+    value: 'percent',
+    label: 'Percent of total',
+    hint: 'Common default — e.g. 50% before the guest enters',
+    showValue: true,
+    valueLabel: 'Minimum percent',
+    valueHint: '0–100',
+  },
+  {
+    value: 'fixed',
+    label: 'Fixed amount',
+    hint: 'Same GHS minimum for every stay',
+    showValue: true,
+    valueLabel: 'Minimum amount (GHS)',
+    valueHint: 'e.g. 200',
+  },
+  {
+    value: 'first_night',
+    label: 'First night',
+    hint: 'Uses the booked nightly rate (after discounts on the invoice)',
+    showValue: false,
+    valueLabel: '',
+    valueHint: '',
+  },
 ]
 
 export function ReservationLifecycleSettingsPanel({
@@ -33,6 +76,8 @@ export function ReservationLifecycleSettingsPanel({
   const [holdRoomAfterNoShow, setHoldRoomAfterNoShow] = useState(false)
   const [lifecycleV2, setLifecycleV2] = useState(false)
   const [timezone, setTimezone] = useState('Africa/Accra')
+  const [checkInPaymentMode, setCheckInPaymentMode] = useState<CheckInPaymentMode>('percent')
+  const [checkInPaymentValue, setCheckInPaymentValue] = useState('50')
 
   useEffect(() => {
     setHoldOnline(String(hotelSettings.holdDurationOnlineMinutes))
@@ -44,6 +89,8 @@ export function ReservationLifecycleSettingsPanel({
     setHoldRoomAfterNoShow(hotelSettings.noShowHoldRoom)
     setLifecycleV2(hotelSettings.useLifecycleV2)
     setTimezone(hotelSettings.timezone)
+    setCheckInPaymentMode(hotelSettings.checkInPaymentMode)
+    setCheckInPaymentValue(String(hotelSettings.checkInPaymentValue))
     setError(null)
     setSaved(false)
   }, [hotelSettings])
@@ -64,6 +111,8 @@ export function ReservationLifecycleSettingsPanel({
         noShowHoldRoom: holdRoomAfterNoShow,
         useLifecycleV2: lifecycleV2,
         timezone: timezone.trim(),
+        checkInPaymentMode,
+        checkInPaymentValue: Number(checkInPaymentValue),
       })
       if (!result.success) {
         setError(result.error)
@@ -226,6 +275,61 @@ export function ReservationLifecycleSettingsPanel({
               <span className="text-muted-foreground">(do not release for resale same night)</span>
             </span>
           </label>
+        </section>
+
+        <section className="space-y-4">
+          <div>
+            <p className="text-sm font-semibold text-foreground">Check-in payment minimum</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              How much must be collected before a guest enters. Managers and owners can waive the
+              minimum for prepaid channels or approved exceptions.
+            </p>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {CHECK_IN_PAYMENT_MODES.map((mode) => (
+              <button
+                key={mode.value}
+                type="button"
+                onClick={() => setCheckInPaymentMode(mode.value)}
+                className={`rounded-xl border px-3 py-2.5 text-left text-sm transition-colors ${
+                  checkInPaymentMode === mode.value
+                    ? 'border-primary bg-primary/5 font-semibold text-foreground'
+                    : 'border-[#E9ECEF] text-muted-foreground hover:bg-[#FAFDFF]'
+                }`}
+              >
+                {mode.label}
+                <span className="mt-0.5 block text-xs font-normal">{mode.hint}</span>
+              </button>
+            ))}
+          </div>
+          {CHECK_IN_PAYMENT_MODES.find((m) => m.value === checkInPaymentMode)?.showValue && (
+            <FormField
+              label={
+                CHECK_IN_PAYMENT_MODES.find((m) => m.value === checkInPaymentMode)?.valueLabel ??
+                'Value'
+              }
+              hint={
+                CHECK_IN_PAYMENT_MODES.find((m) => m.value === checkInPaymentMode)?.valueHint
+              }
+            >
+              <input
+                type="number"
+                min={0}
+                max={checkInPaymentMode === 'percent' ? 100 : undefined}
+                step={checkInPaymentMode === 'percent' ? 1 : 0.01}
+                value={checkInPaymentValue}
+                onChange={(e) => setCheckInPaymentValue(e.target.value)}
+                className="input-soft"
+              />
+            </FormField>
+          )}
+          <p className="text-xs text-muted-foreground">
+            Preview:{' '}
+            {formatCheckInPaymentPolicyLabel({
+              mode: checkInPaymentMode,
+              value: Number(checkInPaymentValue) || 0,
+            })}
+          </p>
         </section>
 
         {error && (

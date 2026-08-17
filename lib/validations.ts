@@ -256,18 +256,30 @@ export const updateHotelSettingsSchema = z.object({
   taxTourismPercent: taxPercentOverride.optional(),
 })
 
-export const updateReservationLifecycleSettingsSchema = z.object({
-  hotelId: z.string().uuid(),
-  holdDurationOnlineMinutes: z.coerce.number().int().min(5).max(1440),
-  holdDurationPhoneMinutes: z.coerce.number().int().min(15).max(10080),
-  holdDurationAgentMinutes: z.coerce.number().int().min(60).max(20160),
-  noShowTime: z.string().min(4).max(12),
-  postStayArchiveDelayDays: z.coerce.number().int().min(1).max(365),
-  noShowChargePolicy: z.enum(['none', 'one_night', 'full_stay']),
-  noShowHoldRoom: z.boolean(),
-  useLifecycleV2: z.boolean(),
-  timezone: z.string().min(3).max(64),
-})
+export const updateReservationLifecycleSettingsSchema = z
+  .object({
+    hotelId: z.string().uuid(),
+    holdDurationOnlineMinutes: z.coerce.number().int().min(5).max(1440),
+    holdDurationPhoneMinutes: z.coerce.number().int().min(15).max(10080),
+    holdDurationAgentMinutes: z.coerce.number().int().min(60).max(20160),
+    noShowTime: z.string().min(4).max(12),
+    postStayArchiveDelayDays: z.coerce.number().int().min(1).max(365),
+    noShowChargePolicy: z.enum(['none', 'one_night', 'full_stay']),
+    noShowHoldRoom: z.boolean(),
+    useLifecycleV2: z.boolean(),
+    timezone: z.string().min(3).max(64),
+    checkInPaymentMode: z.enum(['none', 'percent', 'fixed', 'first_night']),
+    checkInPaymentValue: z.coerce.number().min(0),
+  })
+  .superRefine((data, ctx) => {
+    if (data.checkInPaymentMode === 'percent' && data.checkInPaymentValue > 100) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Percent minimum cannot exceed 100%.',
+        path: ['checkInPaymentValue'],
+      })
+    }
+  })
 
 export const updateNotificationPrefsSchema = z.object({
   hotelId: z.string().uuid(),
