@@ -7,7 +7,7 @@ export const receptionistHelpTopics: HelpTopic[] = [
     summary: 'Main screens and what each one is for.',
     steps: [
       'Dashboard — today’s arrivals, departures, and the Requests tab for guest portal requests.',
-      'Reservations — bookings, check-in, checkout, deposits, stay invoices.',
+      'Reservations — bookings, check-in, checkout, stay payments, stay invoices.',
       'Billing — view invoices, record payments, print or WhatsApp bills.',
       'Guests — register in-house guests, walk-ins, portal links (in-house only), folio.',
       'Rooms — view nightly/weekly/monthly rates (read-only) and update status.',
@@ -75,6 +75,7 @@ export const receptionistHelpTopics: HelpTopic[] = [
     summary: 'Two-step departure: begin (lock folio) then complete — payment was at check-in.',
     steps: [
       'Payment for the stay is taken at check-in. Checkout only handles departure and any unpaid extras.',
+      'Collect the full remaining balance shown in Outstanding — partial checkout is not allowed for guests still at the desk.',
       'Open the Checked in reservation and review Outstanding in the Payment box.',
       'Tap Begin checkout — folio locks so no new charges can be posted.',
       'If Outstanding is ₵0, confirm checkout to release the room.',

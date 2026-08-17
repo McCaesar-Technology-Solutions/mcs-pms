@@ -148,8 +148,20 @@ describe('front desk ops', () => {
     expect(signals.get('r3')?.prepaidArrival).toBe(true)
   })
 
-  it('counts prepaid arrivals', () => {
+  it('counts prepaid arrivals from amount collected', () => {
     expect(countPrepaidArrivals(reservations, '2026-06-15')).toBe(1)
+  })
+
+  it('treats partial payment as secured when amount collected > 0', () => {
+    const partialPaid: Reservation = {
+      ...reservations[1],
+      paymentStatus: 'partial',
+      paidAmount: 40,
+      depositAmount: 0,
+    }
+    const signals = buildRoomBoardSignals(rooms, [partialPaid], '2026-06-15')
+    expect(signals.get('r3')?.prepaidArrival).toBe(true)
+    expect(countPrepaidArrivals([partialPaid], '2026-06-15')).toBe(1)
   })
 
   it('counts dispute hold as occupying the house', () => {

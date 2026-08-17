@@ -18,7 +18,7 @@ Production features shipped beyond the original UI prototype. The screen-by-scre
 
 ### Operations
 
-- **Reservations** — create, check-in, check-out, extend, move room, cancel, no-show; **pay-at-check-in** stay invoice created and collected at check-in; checkout reuses that invoice for extras. **Rate types:** nightly, weekly (÷7), monthly (÷30). **Guest discounts** (percent or fixed, pre-tax) — owner/manager only. **Dispute hold** — manager/owner pause (reason required) from in-house or checkout in progress; folio stays open; release, checkout, or walkout from the hold. **Lifecycle v2** (migration `051`): event-sourced status machine, holds, cancellation rules, scheduled jobs. Enable crons per property via **Settings → Reservation lifecycle**.
+- **Reservations** — create, check-in, check-out, extend, move room, cancel, no-show; **pay-at-check-in** stay invoice with configurable **check-in payment minimum** (percent, fixed, or first night; manager waiver for prepaid channels); partial payments via unified payment ledger; checkout collects remaining balance on the same invoice. **Rate types:** nightly, weekly (÷7), monthly (÷30). **Guest discounts** (percent or fixed, pre-tax) — owner/manager only. **Dispute hold** — manager/owner pause (reason required) from in-house or checkout in progress; folio stays open; release, checkout, or walkout from the hold. **Lifecycle v2** (migration `051`): event-sourced status machine, holds, cancellation rules, scheduled jobs. Enable crons per property via **Settings → Reservation lifecycle**.
 - **Guests** — directory, walk-in, **register in-house** (go-live with past arrival), portal link + QR + PIN, optional ID (Ghana Card, passport, or driver’s licence; not invoice Tax ID), folio (discount credits owner/manager), PII export; erase is manager+.
 - **Rooms** — inventory, categories, nightly/weekly/monthly rates, status grid; owner can delete rooms.
 - **Access control (Hikvision)** — optional on-site agent + ISAPI; check-in provisions unit + shared + gym; checkout revokes; Today / Guests / Staff / Attendance / Setup. See [docs/access-control.md](docs/access-control.md).
@@ -71,7 +71,7 @@ The app is **production-ready as a custom PMS** for a hotel or portfolio operato
 | 2FA | SMS OTP — **mandatory** owner, manager, and receptionist in production |
 | Guest sessions | HMAC-signed tokens; `SameSite=Strict`; room + surname entry |
 | Privacy / Terms | `/privacy`, `/terms` published |
-| Migrations | Through `075` — apply all migrations; see `docs/GO-LIVE.md` |
+| Migrations | Through `079` — apply all migrations; run payment ledger backfill once; see `docs/GO-LIVE.md` |
 
 Realtime updates require an **open browser tab** — not push when the app is closed.
 

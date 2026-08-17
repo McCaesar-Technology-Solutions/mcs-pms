@@ -44,7 +44,9 @@ import {
 } from '@/lib/folio/rollup'
 import { writeAuditLog, logRoomStatusChange } from '@/lib/audit/log'
 import { canCheckIn, canCheckOut, canStartDisputeHold, parseRequiredStayNote, OCCUPYING_STATUSES, statusAfterDisputeHoldRelease } from '@/lib/reservations/lifecycle'
-import { validateCheckoutBalance } from '@/lib/reservations/checkout-validation'
+import { validateCheckoutBalance, validateCheckoutPaymentAmount } from '@/lib/reservations/checkout-validation'
+import { applyStayPayment } from '@/lib/billing/apply-stay-payment'
+import { invoiceBalanceDue } from '@/lib/billing/invoice-payments'
 import { runNotifyTask } from '@/lib/notifications/notify-task'
 import {
   buildCheckoutInvoicePaymentState,
@@ -744,18 +746,19 @@ async function executeStayCheckout(
     userId: string
     paymentMethod: PaymentMethod
     earlyCheckout?: boolean
-    markAsPaid?: boolean
     includeTax: boolean
     billToSameAsGuest?: boolean
     billToName?: string | null
     departureStatus: StayDepartureStatus
+    paymentAmount?: number
+    payFullBalance?: boolean
   },
 ): Promise<StayActionResult<{ invoiceId: string | null; invoicePreview?: InvoiceExportRow }>> {
   const { reservation, profile, userId } = input
   const today = todayISO()
   const actorRole = normalizeActorRole(profile.role)
   const isWalkout = input.departureStatus === 'walkout'
-  const paidNow = !isWalkout && input.markAsPaid !== false
+  const settleBalance = !isWalkout
 
   let guestPhone: string | null = null
   let roomNumber: string | null = null
@@ -790,7 +793,7 @@ async function executeStayCheckout(
     const issued = await createOrRefreshStayInvoice(admin, {
       reservation,
       paymentMethod: input.paymentMethod,
-      markAsPaid: paidNow,
+      markAsPaid: false,
       includeTax: input.includeTax,
       effectiveCheckOut,
       guestPhone,
@@ -803,15 +806,66 @@ async function executeStayCheckout(
     taxesTotal = issued.taxes.total
     folioSubtotal = issued.folioSubtotal
 
-    // Walkout may leave balance due; normal checkout must settle remaining.
-    if (!isWalkout) {
+    if (!isWalkout && settleBalance) {
+      let amountPaid = issued.amountPaid
+      const balanceDue = invoiceBalanceDue(taxesTotal, amountPaid)
+
+      if (balanceDue > 0.009) {
+        const payAmount = input.payFullBalance
+          ? balanceDue
+          : (input.paymentAmount ?? balanceDue)
+        const amountCheck = validateCheckoutPaymentAmount({
+          balanceDue,
+          paymentAmount: payAmount,
+        })
+        if (!amountCheck.ok) {
+          return { success: false, error: amountCheck.error }
+        }
+
+        if (payAmount > 0.009) {
+          const payment = await applyStayPayment(admin, {
+            hotelId: profile.hotel_id,
+            reservationId: reservation.id,
+            invoiceId: issued.invoiceId,
+            amount: payAmount,
+            paymentMethod: input.paymentMethod,
+            provider: 'manual',
+            idempotencyKey: `checkout-collect:${issued.invoiceId}:${Date.now()}`,
+            phase: 'checkout',
+            metadata: { source: 'checkout_collect' },
+          })
+          if (!payment.ok) {
+            return { success: false, error: payment.error }
+          }
+        }
+
+        const { data: refreshedInvoice } = await admin
+          .from('invoices')
+          .select('amount_paid')
+          .eq('id', issued.invoiceId)
+          .maybeSingle()
+        amountPaid = Number(refreshedInvoice?.amount_paid ?? amountPaid)
+      }
+
       const balanceCheck = validateCheckoutBalance({
         invoiceTotal: taxesTotal,
-        priorDeposit: paidNow ? taxesTotal : issued.amountPaid,
-        markAsPaid: paidNow,
+        amountPaid,
       })
       if (!balanceCheck.ok) {
         return { success: false, error: balanceCheck.error }
+      }
+
+      const refreshed = await admin
+        .from('invoices')
+        .select('amount_paid, payment_status')
+        .eq('id', issued.invoiceId)
+        .maybeSingle()
+      if (refreshed.data && invoicePreview) {
+        invoicePreview = {
+          ...invoicePreview,
+          amountPaid: Number(refreshed.data.amount_paid ?? amountPaid),
+          paymentStatus: refreshed.data.payment_status ?? invoicePreview.paymentStatus,
+        }
       }
     }
   } catch (err) {
@@ -911,7 +965,7 @@ async function executeStayCheckout(
         phone: guestPhone,
         guestName: reservation.guest_name,
         totalGhs: taxesTotal,
-        paid: paidNow,
+        paid: !isWalkout && settleBalance,
       }),
         {
           templateKey: 'guest_checked_out',
@@ -990,10 +1044,11 @@ export async function completeCheckoutStay(input: {
   reservationId: string
   paymentMethod: PaymentMethod
   earlyCheckout?: boolean
-  markAsPaid?: boolean
   includeTax?: boolean
   billToSameAsGuest?: boolean
   billToName?: string | null
+  paymentAmount?: number
+  payFullBalance?: boolean
 }): Promise<StayActionResult<{ invoiceId: string | null; invoicePreview?: InvoiceExportRow }>> {
   const { profile, userId } = await requireManager()
   if (!profile?.hotel_id || !userId || !['owner', 'manager', 'receptionist'].includes(profile.role)) {
@@ -1026,10 +1081,11 @@ export async function completeCheckoutStay(input: {
     userId,
     paymentMethod: input.paymentMethod,
     earlyCheckout: input.earlyCheckout,
-    markAsPaid: input.markAsPaid,
     includeTax,
     billToSameAsGuest: input.billToSameAsGuest,
     billToName: input.billToName,
+    paymentAmount: input.paymentAmount,
+    payFullBalance: input.payFullBalance,
     departureStatus: 'checked_out',
   })
 }
@@ -1311,10 +1367,10 @@ export async function checkOutStay(input: {
     reservationId: reservation.id,
     paymentMethod: input.paymentMethod,
     earlyCheckout: input.earlyCheckout,
-    markAsPaid: input.markAsPaid,
     includeTax,
     billToSameAsGuest: input.billToSameAsGuest,
     billToName: input.billToName,
+    payFullBalance: input.markAsPaid !== false,
   })
 }
 
@@ -1359,7 +1415,6 @@ export async function recordWalkoutStay(
     userId,
     paymentMethod,
     earlyCheckout: input?.earlyCheckout,
-    markAsPaid: false,
     includeTax: input?.includeTax === true,
     billToSameAsGuest: input?.billToSameAsGuest,
     billToName: input?.billToName,

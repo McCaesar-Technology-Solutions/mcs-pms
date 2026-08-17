@@ -167,10 +167,10 @@ Open a confirmed booking → **Collect payment before check-in**. This creates o
 
 Stay payment is taken **at check-in**. Checkout refreshes the same invoice for extras, then releases the room.
 
-1. Review Payment box (room total, discount, folio, paid, **Outstanding**).
+1. Review Payment box (stay invoice total when issued, paid, **Outstanding**).
 2. **Begin checkout** — locks folio.
 3. Post any final charges → **Complete checkout**.
-4. Collect remaining only if Outstanding; unpaid complete-checkout is blocked (use **Walkout** if they left).
+4. Collect the **full remaining balance** if Outstanding is above zero (checkout cannot leave a partial balance — use **Walkout** if they left unpaid).
 5. **Early checkout** if leaving before booked date.
 6. Confirm → same GRA stay invoice refreshed, room → **Cleaning**, clean task created, door access revoked (if enabled).
 
@@ -299,7 +299,14 @@ Tabs: **Invoices** · **Payment ledger** · **Online payments**.
 
 **Outstanding on reservations** uses the stay invoice balance when one exists — same number as Billing.
 
-After upgrading partial-payments, run once: `npx tsx scripts/backfill-payment-records.ts --dry-run` (then without `--dry-run` if gaps are found).
+After upgrading partial payments, run once:
+
+```bash
+npm run backfill:payments:dry-run
+npm run backfill:payments
+```
+
+Verify with `npm run test:payments-rollout`. See [GO-LIVE.md](GO-LIVE.md#partial-payments-rollout-verification) for the manual desk checklist.
 
 ### Other tools
 

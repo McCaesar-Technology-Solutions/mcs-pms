@@ -26,7 +26,7 @@ One property only. In production you may need **SMS two-factor authentication**.
 |------|------|----------|
 | Dashboard | `/receptionist/dashboard` | Today, requests, issues |
 | Messages | `/receptionist/messages` | Guest stay chat + team chat |
-| Reservations | `/receptionist/reservations` | Bookings, deposits, check-in/out |
+| Reservations | `/receptionist/reservations` | Bookings, stay payments, check-in/out |
 | Guests | `/receptionist/guests` | Walk-ins, register in-house, portal, folio |
 | Rooms | `/receptionist/rooms` | View rates (read-only) and update room status |
 | Access | `/receptionist/access` | Guest unlock, cards, retry sync |
@@ -90,16 +90,16 @@ Use Unpaid / Deposit paid / Paid / etc. to find balances before departure.
 
 | Status | What to do |
 |--------|------------|
-| **Provisional** | Hold — collect deposit or cancel hold |
+| **Provisional** | Hold — collect payment or cancel hold |
 | **Confirmed** / **Pre-arrival** | **Check in** |
 | **Checked in** | Extend, move room, or **Begin checkout** |
 | **Checkout in progress** | **Complete checkout** |
 | **Overstay** | Begin checkout urgently; approve late checkout if allowed |
 | **Checked out** / **Post stay** | History only |
 
-### Record a deposit
+### Record a payment
 
-1. Open reservation → **Payment** → **Record deposit**.
+1. Open reservation → **Payment** → **Record payment**.
 2. Amount (≤ balance due) + method (cash, MoMo, card).
 3. Airbnb/Booking already paid? Use **Channel prepaid** when trained.
 
@@ -135,7 +135,7 @@ Payment for the stay is taken **at check-in**. Checkout is departure + any unpai
    | Discount | Manager/owner stay discount (if any) |
    | Folio (unbilled) | Extras not yet on invoice |
    | Estimated total | Stay invoice base (refreshed at checkout) |
-   | Paid | Check-in payment / deposits already collected |
+   | Paid | Check-in payment / pre-arrival payments already collected |
    | **Outstanding** | What guest still owes today (usually folio extras) |
 
 2. **Begin checkout** — folio locks.
@@ -151,8 +151,8 @@ Payment for the stay is taken **at check-in**. Checkout is departure + any unpai
 ### Cancel / no-show
 
 - Only **Confirmed** / pre-arrival (never checked-in).
-- No deposit → confirm cancel.
-- With deposit → **Forfeit** (you can) or **Refund** (call owner).
+- No payment collected → confirm cancel.
+- With payment collected → **Forfeit deposit** (you can) or **Refund deposit** (call owner).
 - Blocked if unpaid folio / invoice remains.
 
 ### Never do this
@@ -160,7 +160,7 @@ Payment for the stay is taken **at check-in**. Checkout is departure + any unpai
 | Wrong | Right |
 |-------|--------|
 | Cancel a checked-in guest | **Check out** |
-| Skip deposit question | Forfeit or ask owner for refund |
+| Skip forfeit/refund when money was collected | Forfeit deposit or ask owner for refund |
 | Ignore Outstanding | Collect remaining or record **Walkout** |
 | Promise a discount at the desk | Ask a manager to enter it on the booking |
 

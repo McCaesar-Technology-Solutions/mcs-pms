@@ -585,9 +585,13 @@ export async function completeCheckoutReservation(
   id: string,
   paymentMethod: PaymentMethod = 'cash',
   earlyCheckout = false,
-  markAsPaid = true,
   includeTax = false,
-  billTo?: { billToSameAsGuest?: boolean; billToName?: string },
+  billTo?: {
+    billToSameAsGuest?: boolean
+    billToName?: string
+    paymentAmount?: number
+    payFullBalance?: boolean
+  },
 ): Promise<ReservationActionResult> {
   if (!VALID_PAYMENT_METHODS.includes(paymentMethod)) {
     return { success: false, error: 'Invalid payment method.' }
@@ -597,10 +601,11 @@ export async function completeCheckoutReservation(
     reservationId: id,
     paymentMethod,
     earlyCheckout,
-    markAsPaid,
     includeTax,
     billToSameAsGuest: billTo?.billToSameAsGuest,
     billToName: billTo?.billToName,
+    paymentAmount: billTo?.paymentAmount,
+    payFullBalance: billTo?.payFullBalance,
   })
   if (!result.success) return { success: false, error: result.error }
   revalidateReservationViews()
@@ -837,7 +842,7 @@ export async function cancelReservation(
   return { success: true }
 }
 
-const depositSchema = z.object({
+const stayPaymentSchema = z.object({
   reservationId: z.string().uuid(),
   amount: z.coerce.number().positive('Amount must be greater than zero'),
   paymentMethod: z.enum([
@@ -852,10 +857,15 @@ const depositSchema = z.object({
   reference: z.string().max(120).optional(),
 })
 
+/** @deprecated Use recordReservationPayment — kept for existing imports. */
 export async function recordReservationDeposit(input: unknown): Promise<ReservationActionResult> {
-  const parsed = depositSchema.safeParse(input)
+  return recordReservationPayment(input)
+}
+
+export async function recordReservationPayment(input: unknown): Promise<ReservationActionResult> {
+  const parsed = stayPaymentSchema.safeParse(input)
   if (!parsed.success) {
-    return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid deposit.' }
+    return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid payment.' }
   }
 
   const { profile } = await requireManager()
@@ -877,14 +887,14 @@ export async function recordReservationDeposit(input: unknown): Promise<Reservat
     reservation.status !== 'checked_in' &&
     reservation.status !== 'provisional'
   ) {
-    return { success: false, error: 'Deposits can only be recorded before check-out.' }
+    return { success: false, error: 'Payments can only be recorded before check-out.' }
   }
 
   const total = Number(reservation.total_amount ?? 0)
   const currentPaid = Number(reservation.amount_paid ?? 0)
   const balance = reservationBalanceDue(total, currentPaid)
   if (parsed.data.amount > balance + 0.009) {
-    return { success: false, error: `Deposit exceeds balance due (₵${balance}).` }
+    return { success: false, error: `Payment exceeds balance due (₵${balance}).` }
   }
 
   const now = new Date().toISOString()
@@ -918,7 +928,7 @@ export async function recordReservationDeposit(input: unknown): Promise<Reservat
       payload: { depositAmount: parsed.data.amount },
     })
     if (!confirmed.success) {
-      return { success: false, error: confirmed.error ?? 'Could not confirm reservation after deposit.' }
+      return { success: false, error: confirmed.error ?? 'Could not confirm reservation after payment.' }
     }
   }
 
@@ -928,8 +938,8 @@ export async function recordReservationDeposit(input: unknown): Promise<Reservat
     actorName: profile.name,
     entityType: 'reservation',
     entityId: reservation.id,
-    action: 'deposit',
-    summary: `Deposit ₵${parsed.data.amount} on ${reservation.guest_name} booking`,
+    action: 'payment',
+    summary: `Payment ₵${parsed.data.amount} on ${reservation.guest_name} booking`,
   })
 
   // Legacy: in-house without a stay invoice yet — seed invoice from reservation payments.
@@ -1000,14 +1010,14 @@ export async function markChannelPrepaid(input: unknown): Promise<ReservationAct
     return { success: false, error: 'Channel prepayment applies before check-out.' }
   }
   if (reservation.channel !== 'airbnb' && reservation.channel !== 'booking_com') {
-    return { success: false, error: 'Use deposits for direct and walk-in bookings.' }
+    return { success: false, error: 'Use Record payment for direct and walk-in bookings.' }
   }
 
   const total = Number(reservation.total_amount ?? 0)
   const balance = reservationBalanceDue(total, Number(reservation.amount_paid ?? 0))
   if (balance <= 0) return { success: true }
 
-  return recordReservationDeposit({
+  return recordReservationPayment({
     reservationId: parsed.data.reservationId,
     amount: balance,
     paymentMethod: parsed.data.paymentMethod,

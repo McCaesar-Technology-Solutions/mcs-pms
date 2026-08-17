@@ -57,6 +57,7 @@ export const managerHelpTopics: HelpTopic[] = [
     summary: 'Departure after pay-at-check-in — collect only unpaid extras.',
     steps: [
       'Stay payment is taken at check-in. Begin checkout locks the folio; complete releases the room.',
+      'Collect the full remaining balance at checkout (folio extras only). Walkout if the guest departed without paying.',
       'Collect remaining balance only if folio extras left Outstanding.',
       'Watch for Overstay badges — guest past departure time.',
       'Approve late checkout on overstay if the guest needs more time.',
@@ -138,7 +139,7 @@ export const managerHelpTopics: HelpTopic[] = [
       'You can issue stay invoices unpaid (balance due) or create ad-hoc bills from Billing. Reception records payment when issuing.',
       'Tax is optional on issue/refresh — check Include Ghana tax when you need VAT & GRA levies (Tax ID GHA-728071939-8).',
       'Guest ID (Ghana Card, passport, or driver’s licence) remains optional on the guest record and is not the invoice Tax ID.',
-      'Record full or partial payments at the desk; the check-in minimum is configured under Settings → Reservation lifecycle. Refunds stay owner-only. WhatsApp or print the PDF.',
+      'Record full or partial payments at the desk; the check-in minimum is configured under Settings → Reservation lifecycle (ask the owner to change it). Waive the minimum for channel prepaid or approved exceptions. Refunds stay owner-only. WhatsApp or print the PDF.',
       'Checkout reuses that same stay invoice — it will not create a duplicate.',
     ],
     href: '/manager/invoices',

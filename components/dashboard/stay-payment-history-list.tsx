@@ -48,7 +48,7 @@ export function StayPaymentHistoryList({ rows, loading }: StayPaymentHistoryList
               <p className="text-muted-foreground">
                 {row.paymentMethod ?? row.provider}
                 {row.metadata?.backfill ? ' · backfill' : ''}
-                {row.metadata?.type === 'deposit' ? ' · deposit' : ''}
+                {row.metadata?.type === 'deposit' ? ' · pre-arrival' : ''}
               </p>
             </div>
             <span className="shrink-0 text-muted-foreground">{formatWhen(row.completedAt)}</span>

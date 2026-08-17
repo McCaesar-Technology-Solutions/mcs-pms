@@ -25,11 +25,11 @@ Tap **Help** (bottom-right in the app) for the same topics on the screen you are
 | Access control (Hikvision) | `/owner/access` — [setup guide](access-control.md) |
 | Airbnb calendar sync | `/owner/settings#channels` — [setup guide](airbnb-sync.md) |
 
-## Deposit policy (summary)
+## Pre-arrival payment & cancel policy (summary)
 
-1. **Deposits are optional** unless property policy requires them.
-2. **Forfeit** — hotel keeps the deposit (cancel, no-show). Any front-desk staff can confirm forfeit.
-3. **Refund** — money returned to guest. **Owner only**.
+1. **Pre-arrival payments are optional** unless property policy requires them (check-in minimum is configured separately under Lifecycle).
+2. **Forfeit deposit** — hotel keeps money collected before cancel/no-show. Any front-desk staff can confirm forfeit.
+3. **Refund deposit** — money returned to guest on cancel/no-show. **Owner only**.
 4. **Never cancel an in-house guest** — use **Check out** to settle the bill and free the room.
 
 ## Who can see money
@@ -38,8 +38,8 @@ Tap **Help** (bottom-right in the app) for the same topics on the screen you are
 |--|:-----:|:-------:|:------------:|
 | Revenue on dashboard | ✓ | ✗ | ✗ |
 | Outstanding balance (dashboard) | ✓ | ✓ | ✗ |
-| Record deposit | ✓ | ✓ | ✓ |
-| Refund deposit | ✓ | ✗ | ✗ |
+| Record stay payment | ✓ | ✓ | ✓ |
+| Refund deposit (cancel/no-show) | ✓ | ✗ | ✗ |
 | Guest stay discount | ✓ | ✓ | ✗ |
 | Record stay payments | ✓ | ✓ | ✓ |
 | Issue unpaid stay invoice / ad-hoc bill | ✓ | ✓ | ✗ |

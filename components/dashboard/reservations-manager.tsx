@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { ChevronRight, LogIn, LogOut, Plus, Receipt, Search, X, XCircle, CalendarPlus, ArrowRightLeft, UserX, Pencil, Unlock } from 'lucide-react'
 import { issueStayInvoice } from '@/app/actions/invoices'
 import { CheckoutInvoiceDialog } from '@/components/dashboard/checkout-invoice-dialog'
+import { InvoicePaymentForm } from '@/components/dashboard/invoice-payment-form'
 import {
   bookAndCheckIn,
   cancelReservation,
@@ -15,7 +16,7 @@ import {
   approveLateCheckoutReservation,
   createReservation,
   markChannelPrepaid,
-  recordReservationDeposit,
+  recordReservationPayment,
   updateReservation,
 } from '@/app/actions/reservations'
 import { initiateStaffDepositPayment } from '@/app/actions/payments'
@@ -910,10 +911,11 @@ function ReservationDrawer({
   const [holdNote, setHoldNote] = useState('')
   const [voidDialog, setVoidDialog] = useState<'cancel' | 'no_show' | null>(null)
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
-  const [depositAmount, setDepositAmount] = useState('')
-  const [recordingDeposit, setRecordingDeposit] = useState(false)
+  const [paymentAmountInput, setPaymentAmountInput] = useState('')
+  const [recordingPayment, setRecordingPayment] = useState(false)
   const [issuingInvoice, setIssuingInvoice] = useState(false)
   const [earlyCheckout, setEarlyCheckout] = useState(false)
+  const [checkoutPaymentAmount, setCheckoutPaymentAmount] = useState('')
   const [markAsPaid, setMarkAsPaid] = useState(() => !canIssueUnpaidStayInvoice(staffRole))
   const [includeTax, setIncludeTax] = useState(false)
   const [phone, setPhone] = useState(reservation.guestPhone)
@@ -1061,11 +1063,12 @@ function ReservationDrawer({
   }
 
   const balance = reservation.balanceDue
+  const hasStayInvoice = Boolean(reservation.invoiceId)
   const hasCollectedDeposit = reservation.paidAmount > 0.009
   const canRefundDeposit = staffRole === 'owner'
   const canDiscount = canApplyGuestDiscount(staffRole)
   const canLeaveUnpaid = canIssueUnpaidStayInvoice(staffRole)
-  const canRecordDeposit =
+  const canRecordPayment =
     (reservation.status === 'confirmed' ||
       reservation.status === 'pre_arrival' ||
       reservation.status === 'checked_in' ||
@@ -1073,7 +1076,7 @@ function ReservationDrawer({
     balance > 0 &&
     !reservation.invoiceId
   const canMarkChannelPrepaid =
-    canRecordDeposit &&
+    canRecordPayment &&
     (reservation.channel === 'airbnb' || reservation.channel === 'booking_com')
   const today = new Date().toISOString().slice(0, 10)
   const canNoShow =
@@ -1106,6 +1109,12 @@ function ReservationDrawer({
     Number(editMonthlyRate || 0),
     Number(editWeeklyRate || 0),
   )
+
+  useEffect(() => {
+    if (checkingOut && balance > 0) {
+      setCheckoutPaymentAmount(balance.toFixed(2))
+    }
+  }, [checkingOut, balance])
 
   return (
     <CenteredModal
@@ -1190,6 +1199,25 @@ function ReservationDrawer({
                 </span>
                 <span className="font-bold text-foreground">₵{reservation.totalPrice}</span>
               </div>
+              {reservation.folioSubtotal > 0 && !hasStayInvoice && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Folio (unbilled)</span>
+                  <span className="font-semibold text-foreground">₵{reservation.folioSubtotal}</span>
+                </div>
+              )}
+              {hasStayInvoice && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Stay invoice total</span>
+                  <span className="font-bold text-foreground">₵{reservation.estimatedTotal}</span>
+                </div>
+              )}
+              {!hasStayInvoice &&
+                (reservation.folioSubtotal > 0 || (reservation.discountAmount ?? 0) > 0) && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Estimated total</span>
+                  <span className="font-bold text-foreground">₵{reservation.estimatedTotal}</span>
+                </div>
+              )}
               {(reservation.discountAmount ?? 0) > 0 && (
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">
@@ -1200,18 +1228,6 @@ function ReservationDrawer({
                   <span className="font-semibold text-foreground">
                     -₵{reservation.discountAmount}
                   </span>
-                </div>
-              )}
-              {reservation.folioSubtotal > 0 && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Folio (unbilled)</span>
-                  <span className="font-semibold text-foreground">₵{reservation.folioSubtotal}</span>
-                </div>
-              )}
-              {(reservation.folioSubtotal > 0 || (reservation.discountAmount ?? 0) > 0) && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Estimated total</span>
-                  <span className="font-bold text-foreground">₵{reservation.estimatedTotal}</span>
                 </div>
               )}
               <div className="flex justify-between">
@@ -1408,12 +1424,12 @@ function ReservationDrawer({
               </div>
             )}
 
-            {canRecordDeposit && !recordingDeposit && (
+            {canRecordPayment && !recordingPayment && (
               <div className="mt-4 flex flex-col gap-2 sm:flex-row">
                 <button
                   type="button"
                   disabled={pending}
-                  onClick={() => setRecordingDeposit(true)}
+                  onClick={() => setRecordingPayment(true)}
                   className="flex-1 rounded-xl bg-white py-2.5 text-sm font-semibold text-foreground shadow-elevation-1 transition-all hover:shadow-elevation-2 disabled:opacity-50"
                 >
                   Record payment
@@ -1438,7 +1454,7 @@ function ReservationDrawer({
               </div>
             )}
 
-            {canRecordDeposit && recordingDeposit && (
+            {canRecordPayment && recordingPayment && (
               <div className="mt-4 space-y-3 border-t border-[#E9ECEF] pt-4">
                 <FormField label={`Amount (max ₵${balance})`}>
                   <input
@@ -1446,8 +1462,8 @@ function ReservationDrawer({
                     min={0.01}
                     max={balance}
                     step={0.01}
-                    value={depositAmount}
-                    onChange={(e) => setDepositAmount(e.target.value)}
+                    value={paymentAmountInput}
+                    onChange={(e) => setPaymentAmountInput(e.target.value)}
                     className={APP_FIELD_CLASS}
                     placeholder="0.00"
                   />
@@ -1470,8 +1486,8 @@ function ReservationDrawer({
                     type="button"
                     disabled={pending}
                     onClick={() => {
-                      setRecordingDeposit(false)
-                      setDepositAmount('')
+                      setRecordingPayment(false)
+                      setPaymentAmountInput('')
                     }}
                     className="flex-1 rounded-xl bg-secondary py-2.5 text-sm font-semibold text-foreground"
                   >
@@ -1479,18 +1495,18 @@ function ReservationDrawer({
                   </button>
                   <button
                     type="button"
-                    disabled={pending || !depositAmount || Number(depositAmount) <= 0}
+                    disabled={pending || !paymentAmountInput || Number(paymentAmountInput) <= 0}
                     onClick={() =>
                       run(
                         () =>
-                          recordReservationDeposit({
+                          recordReservationPayment({
                             reservationId: reservation.id,
-                            amount: Number(depositAmount),
+                            amount: Number(paymentAmountInput),
                             paymentMethod,
                           }),
                         () => {
-                          setRecordingDeposit(false)
-                          setDepositAmount('')
+                          setRecordingPayment(false)
+                          setPaymentAmountInput('')
                         },
                       )
                     }
@@ -1502,13 +1518,13 @@ function ReservationDrawer({
                 {onlinePaymentsEnabled && (
                   <button
                     type="button"
-                    disabled={pending || !depositAmount || Number(depositAmount) <= 0}
+                    disabled={pending || !paymentAmountInput || Number(paymentAmountInput) <= 0}
                     onClick={() => {
                       setError(null)
                       startTransition(async () => {
                         const result = await initiateStaffDepositPayment({
                           reservationId: reservation.id,
-                          amount: Number(depositAmount),
+                          amount: Number(paymentAmountInput),
                         })
                         if (!result.success) {
                           setError(result.error)
@@ -1522,16 +1538,16 @@ function ReservationDrawer({
                         )
                         toast.success(
                           result.data.reused
-                            ? 'Reopened existing deposit checkout'
-                            : 'Deposit checkout link ready — complete on the guest device',
+                            ? 'Reopened existing payment checkout'
+                            : 'Payment checkout link ready — complete on the guest device',
                         )
-                        setRecordingDeposit(false)
-                        setDepositAmount('')
+                        setRecordingPayment(false)
+                        setPaymentAmountInput('')
                       })
                     }}
                     className="w-full rounded-xl border border-primary bg-primary/5 py-2.5 text-sm font-semibold text-primary disabled:opacity-50"
                   >
-                    Pay deposit online
+                    Pay online
                   </button>
                 )}
               </div>
@@ -2277,27 +2293,17 @@ function ReservationDrawer({
                     Early checkout (bill through today)
                   </label>
                   {balance > 0 && (
-                    <>
-                      <select
-                        value={paymentMethod}
-                        onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
-                        className={APP_FIELD_CLASS}
-                      >
-                        {PAYMENT_METHODS.map((m) => (
-                          <option key={m} value={m}>
-                            {PAYMENT_METHOD_LABELS[m]}
-                          </option>
-                        ))}
-                      </select>
-                      <label className="flex items-center gap-2 text-sm">
-                        <input
-                          type="checkbox"
-                          checked={markAsPaid}
-                          onChange={(e) => setMarkAsPaid(e.target.checked)}
-                        />
-                        Remaining balance received now (required unless walkout)
-                      </label>
-                    </>
+                    <InvoicePaymentForm
+                      balanceDue={balance}
+                      paymentAmount={checkoutPaymentAmount}
+                      onPaymentAmountChange={setCheckoutPaymentAmount}
+                      paymentMethod={paymentMethod}
+                      onPaymentMethodChange={setPaymentMethod}
+                      disabled={pending}
+                      amountLabel="Remaining balance to collect"
+                      showSettlementSummary
+                      paidSoFar={reservation.paidAmount}
+                    />
                   )}
                   <div className="flex items-center gap-2">
                     <button
@@ -2310,18 +2316,24 @@ function ReservationDrawer({
                     </button>
                     <button
                       type="button"
-                      disabled={pending || (balance > 0 && !markAsPaid) || (!billToSameAsGuest && billToName.trim().length < 2)}
+                      disabled={
+                        pending ||
+                        (balance > 0 && !checkoutPaymentAmount) ||
+                        (!billToSameAsGuest && billToName.trim().length < 2)
+                      }
                       onClick={() =>
                         run(() =>
                           completeCheckoutReservation(
                             reservation.id,
                             paymentMethod,
                             earlyCheckout,
-                            balance > 0 ? markAsPaid : true,
                             includeTax,
                             {
                               billToSameAsGuest,
                               billToName: billToSameAsGuest ? undefined : billToName,
+                              paymentAmount:
+                                balance > 0 ? Number(checkoutPaymentAmount) : undefined,
+                              payFullBalance: balance > 0,
                             },
                           ),
                         )

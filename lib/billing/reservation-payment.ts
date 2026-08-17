@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { PaymentMethod, PaymentStatus, ReservationPaymentStatus } from '@/types'
-import { applyInvoicePaymentRecord } from '@/lib/billing/apply-payment'
+import { applyStayPayment } from '@/lib/billing/apply-stay-payment'
 import { deriveInvoicePaymentStatus, invoiceBalanceDue } from '@/lib/billing/invoice-payments'
 
 export function derivePreCheckoutPaymentStatus(
@@ -145,26 +145,30 @@ export async function createCheckoutPaymentRecords(
 
   if (remainder <= 0.009) {
     if (input.priorDeposit <= 0.009 && input.invoiceTotal > 0.009) {
-      await applyInvoicePaymentRecord(admin, {
+      await applyStayPayment(admin, {
         hotelId: input.hotelId,
+        reservationId: input.reservationId,
         invoiceId: input.invoiceId,
         amount: input.invoiceTotal,
         paymentMethod: input.paymentMethod,
         provider: 'manual',
         idempotencyKey: `checkout:${input.invoiceId}:full`,
+        phase: 'checkout',
         metadata: { source: 'checkout_full' },
       })
     }
     return
   }
 
-  await applyInvoicePaymentRecord(admin, {
+  await applyStayPayment(admin, {
     hotelId: input.hotelId,
+    reservationId: input.reservationId,
     invoiceId: input.invoiceId,
     amount: remainder,
     paymentMethod: input.paymentMethod,
     provider: 'manual',
     idempotencyKey: `checkout:${input.invoiceId}:${input.now}`,
+    phase: 'checkout',
     metadata: { source: 'checkout_balance' },
   })
 }

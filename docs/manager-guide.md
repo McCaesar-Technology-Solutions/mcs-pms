@@ -33,7 +33,7 @@ You are locked to **one property** (no property switcher).
 |------|------|-------------|
 | Dashboard | `/manager/dashboard` | Ops overview, portal settings, audits |
 | Messages | `/manager/messages` | Guest chat + team chat |
-| Reservations | `/manager/reservations` | Bookings, check-in/out, deposits, discounts |
+| Reservations | `/manager/reservations` | Bookings, check-in/out, stay payments, discounts |
 | Guests | `/manager/guests` | Walk-ins, register in-house, portal, folio |
 | Rooms | `/manager/rooms` | Add/edit rooms & rates (no delete) |
 | Access | `/manager/access` | Unlock, cards, staff access, attendance |
@@ -94,14 +94,14 @@ Same front-desk tools as the owner **except deposit refunds and invoice refunds*
 ### Typical flow
 
 ```
-New reservation → (optional) Record deposit → Check in + collect payment → Folio charges → Begin checkout → Complete checkout (collect remaining only if Outstanding)
+New reservation → (optional) Record payment → Check in + collect payment → Folio charges → Begin checkout → Complete checkout (collect remaining only if Outstanding)
 ```
 
-### Create / deposit / prepaid
+### Create / payment / prepaid
 
 1. **New reservation** — guest, room, dates, channel, **rate type** (nightly / weekly / monthly).
 2. **Guest discount** — percent or fixed ₵ **before tax**, with a reason. Reception cannot do this.
-3. **Record deposit** — amount + method.
+3. **Record payment** — amount + method (pre-arrival or against balance due).
 4. **Channel prepaid** — when Airbnb/Booking.com already paid you.
 
 ### Stay statuses you will see

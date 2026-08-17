@@ -25,9 +25,9 @@ Run in order with a test owner account:
 
 1. Sign in → MFA enroll/verify → owner dashboard
 2. `/get-started` onboarding (new owner) or skip if already complete
-3. Create reservation → check-in → post folio charge → **begin checkout**
-4. On the invoice, **record a manual payment** (cash / MoMo / card) — do **not** use “Pay online”
-5. Complete checkout
+3. Create reservation → **record 50% payment** at desk → **check in** (collect dialog shows minimum met) → post folio charge → **begin checkout**
+4. Collect **remaining balance** on the invoice (cash / MoMo / card) — do **not** use “Pay online”
+5. **Complete checkout**
 6. Log complaint (manager) → assign technician → technician starts (invoice optional) → guest sign-off if linked
 7. Guest portal link → submit request → staff acknowledges
 8. Night audit (owner/manager) if using billing close
@@ -44,7 +44,7 @@ Do **not** set `PAYMENTS_ENABLED=true` until Phase 1 payment fixes are deployed.
 
 ## 1. Supabase migrations
 
-Apply all **77** migrations in `supabase/migrations/` (`001` → `077`) in order.
+Apply all **79** migrations in `supabase/migrations/` (`001` → `079`) in order.
 
 **Fresh project:**
 
@@ -83,12 +83,48 @@ WHERE table_name = 'hotels' AND column_name = 'access_control_enabled';
 SELECT column_name FROM information_schema.columns
 WHERE table_name = 'hotels' AND column_name = 'timezone';
 
+-- Check-in payment minimum (079)
+SELECT column_name FROM information_schema.columns
+WHERE table_name = 'hotels' AND column_name IN ('check_in_payment_mode', 'check_in_payment_value');
+
 -- Realtime (015)
 SELECT tablename FROM pg_publication_tables
 WHERE pubname = 'supabase_realtime' ORDER BY tablename;
 ```
 
-Enable **Reservation lifecycle v2** per property after migrations are applied: Owner → Settings → Lifecycle → turn on v2 and set **Property timezone** (default `Africa/Accra`).
+Enable **Reservation lifecycle v2** per property after migrations are applied: Owner → Settings → Lifecycle → turn on v2, set **Property timezone** (default `Africa/Accra`), and configure **Check-in payment minimum** (percent, fixed amount, or first night).
+
+### Payment ledger backfill (one-time)
+
+After migration `079`, reconcile legacy reservation `amount_paid` / invoice caches into the unified payment ledger:
+
+```bash
+npm run backfill:payments:dry-run
+npm run backfill:payments
+# Optional: limit to one hotel
+npm run backfill:payments -- --hotel=YOUR_HOTEL_UUID
+```
+
+Run dry-run first on production; the script is idempotent.
+
+### Partial payments rollout verification
+
+After deploy, confirm each scenario (automated in `npm run test:payments-rollout`):
+
+| # | Scenario | Expected |
+|---|----------|----------|
+| 1 | Record 30% online (when enabled) + 20% at desk on ₵1000 stay | Reservation + invoice **partial**; Outstanding **₵500** |
+| 2 | Walk-in collects exactly check-in minimum (default 50%) | Check-in succeeds; guest enters |
+| 3 | Partial pay at check-in, then folio charge increases total | Prior payments preserved; balance increases |
+| 4 | Checkout with Outstanding **₵0** | Complete checkout succeeds; room → Cleaning |
+| 5 | Cancel confirmed booking with money collected | Forfeit/refund deposit prompt; refund owner-only |
+
+**Manual desk walkthrough (5 min):**
+
+1. Owner → **Settings → Reservation lifecycle** — confirm check-in minimum (default 50%).
+2. New booking ₵1000 → **Record payment** ₵500 → **Check in** → confirm guest enters.
+3. Post ₵50 folio charge → **Begin checkout** → collect ₵550 → **Complete checkout**.
+4. New booking → record ₵200 → try cancel → confirm disposition prompt appears.
 
 ---
 
@@ -194,7 +230,7 @@ Run in order with a test owner account:
 
 1. Sign in → MFA enroll/verify → owner dashboard
 2. `/get-started` onboarding (new owner) or skip if already complete
-3. Create reservation → check-in → post folio charge → begin checkout → **record manual payment** → complete checkout
+3. Create reservation → **record partial payment** → check-in (meet minimum) → post folio charge → begin checkout → collect remainder → complete checkout
 4. Log complaint (manager) → assign technician → verify SMS/email if configured
 5. Guest portal link → submit request → staff acknowledges
 6. Night audit (owner/manager) if using billing close
@@ -215,6 +251,8 @@ Run in order with a test owner account:
 | Check | Command / URL |
 |-------|----------------|
 | Migrations on disk | `npm run check:migrations` |
+| Payment ledger backfill | `npm run backfill:payments:dry-run` then `npm run backfill:payments` |
+| Partial payments tests | `npm run test:payments-rollout` |
 | Production ready | `GET /api/ready` |
 | Liveness | `GET /api/health` |
 | Payments off | `PAYMENTS_ENABLED` unset or `false` on Vercel |

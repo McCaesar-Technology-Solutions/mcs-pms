@@ -46,9 +46,9 @@ const SECURED_PAYMENT: ReservationPaymentStatus[] = [
   'partial',
 ]
 
-function isSecuredPayment(status: ReservationPaymentStatus, depositAmount: number): boolean {
+function isSecuredPayment(status: ReservationPaymentStatus, amountCollected: number): boolean {
   if (SECURED_PAYMENT.includes(status)) {
-    if (status === 'partial') return depositAmount > 0
+    if (status === 'partial') return amountCollected > 0.009
     return true
   }
   return false
@@ -97,7 +97,7 @@ export function countDirtyRooms(rooms: DbRoom[]): number {
 
 export function countPrepaidArrivals(reservations: Reservation[], date: string): number {
   return getArrivalsForDate(reservations, date).filter((r) =>
-    isSecuredPayment(r.paymentStatus, r.depositAmount),
+    isSecuredPayment(r.paymentStatus, r.paidAmount),
   ).length
 }
 
@@ -163,7 +163,7 @@ export function buildRoomBoardSignals(
     if (!existing) continue
     existing.arrivalToday = true
     existing.arrivalReservationId = r.id
-    existing.prepaidArrival = isSecuredPayment(r.paymentStatus, r.depositAmount)
+    existing.prepaidArrival = isSecuredPayment(r.paymentStatus, r.paidAmount)
   }
 
   for (const r of getDeparturesForDate(reservations, date)) {

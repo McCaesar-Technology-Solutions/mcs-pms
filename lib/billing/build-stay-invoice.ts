@@ -30,6 +30,7 @@ import {
   linkDepositRecordsToInvoice,
   syncReservationPaymentFromInvoice,
 } from '@/lib/billing/reservation-payment'
+import { resolveCollectedAmount } from '@/lib/billing/invoice-ledger'
 import { deriveInvoicePaymentStatus, invoiceBalanceDue } from '@/lib/billing/invoice-payments'
 import { resolveBillToName } from '@/lib/billing/bill-to'
 import type { InvoiceExportRow } from '@/lib/export/types'
@@ -312,7 +313,12 @@ export async function createOrRefreshStayInvoice(
   }
 
   if (existing) {
-    const priorPaid = Math.max(0, Number(existing.amount_paid ?? 0))
+    const priorPaid = await resolveCollectedAmount(admin, {
+      invoiceId: existing.id,
+      reservationId: reservation.id,
+      invoiceAmountPaid: existing.amount_paid,
+      reservationAmountPaid: reservation.amount_paid,
+    })
     let amountPaid = priorPaid
     let paymentStatus = deriveInvoicePaymentStatus(
       taxes.total,
@@ -371,7 +377,7 @@ export async function createOrRefreshStayInvoice(
 
       await syncReservationPaymentFromInvoice(admin, reservation.id)
     } else {
-      const depositFloor = Math.max(priorPaid, Number(reservation.amount_paid ?? 0))
+      const depositFloor = priorPaid
       const seeded = buildCheckoutInvoicePaymentState({
         invoiceTotal: taxes.total,
         priorDeposit: depositFloor,

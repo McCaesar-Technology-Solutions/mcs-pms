@@ -116,12 +116,13 @@ export const ownerHelpTopics: HelpTopic[] = [
     steps: [
       'Settings → Property → Reservation lifecycle.',
       'Enable lifecycle v2 to run cron jobs (hold expiry, no-show, overstay, etc.).',
+      'Set check-in payment minimum — percent (default 50%), fixed ₵, first night, or none. Reception must collect at least this before the guest enters; you and managers can waive.',
       'Set no-show charge policy, hold durations, and archive delay.',
       'Staff checkout always uses the state machine; crons are optional automation.',
     ],
     href: '/owner/settings',
     hrefLabel: 'Open settings',
-    keywords: ['lifecycle', 'cron', 'no-show', 'overstay', 'hold', 'v2'],
+    keywords: ['lifecycle', 'cron', 'no-show', 'overstay', 'hold', 'v2', 'check-in', 'minimum', 'partial'],
     pathPrefixes: ['/owner/settings'],
   },
   {
