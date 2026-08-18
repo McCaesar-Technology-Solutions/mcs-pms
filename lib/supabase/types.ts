@@ -741,6 +741,7 @@ export type Database = {
             | null
           ical_uid: string | null
           ical_feed_id: string | null
+          website_enquiry_id: string | null
           checked_in_at: string | null
           checked_out_at: string | null
           folio_locked: boolean
@@ -806,6 +807,7 @@ export type Database = {
             | null
           ical_uid?: string | null
           ical_feed_id?: string | null
+          website_enquiry_id?: string | null
           checked_in_at?: string | null
           checked_out_at?: string | null
           folio_locked?: boolean
@@ -871,6 +873,7 @@ export type Database = {
             | null
           ical_uid?: string | null
           ical_feed_id?: string | null
+          website_enquiry_id?: string | null
           checked_in_at?: string | null
           checked_out_at?: string | null
           folio_locked?: boolean
@@ -1758,6 +1761,54 @@ export type Database = {
             columns: ['hotel_id']
             isOneToOne: false
             referencedRelation: 'hotels'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      website_listing_maps: {
+        Row: {
+          id: string
+          hotel_id: string
+          room_id: string | null
+          website_property_id: string
+          website_slug: string | null
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          hotel_id: string
+          room_id?: string | null
+          website_property_id: string
+          website_slug?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          hotel_id?: string
+          room_id?: string | null
+          website_property_id?: string
+          website_slug?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'website_listing_maps_hotel_id_fkey'
+            columns: ['hotel_id']
+            isOneToOne: false
+            referencedRelation: 'hotels'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'website_listing_maps_room_id_fkey'
+            columns: ['room_id']
+            isOneToOne: false
+            referencedRelation: 'rooms'
             referencedColumns: ['id']
           },
         ]

@@ -132,3 +132,9 @@ export function getCronSecret(): string {
   if (isProduction) return requireEnv('CRON_SECRET')
   return process.env.CRON_SECRET?.trim() ?? 'dev-cron-secret'
 }
+
+/** Shared secret for the public website → PMS booking ingest. Empty = ingest disabled. */
+export function getWebsiteSyncSecret(): string | null {
+  const value = process.env.WEBSITE_SYNC_SECRET?.trim()
+  return value && value.length >= 16 ? value : null
+}

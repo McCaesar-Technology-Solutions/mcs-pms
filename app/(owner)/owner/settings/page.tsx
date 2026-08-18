@@ -11,6 +11,8 @@ import { PageHeader } from '@/components/dashboard/page-header'
 import { PageTabShell } from '@/components/dashboard/page-tab-shell'
 import { getActiveHotelSettings } from '@/lib/data/settings'
 import { getChannelIcalFeeds } from '@/lib/data/channel-ical'
+import { getWebsiteListingMaps } from '@/lib/data/website-listing-maps'
+import { WebsiteListingMapsPanel } from '@/components/dashboard/website-listing-maps-panel'
 import { getNotificationLog } from '@/lib/data/notification-log'
 import { getAuditLog } from '@/lib/data/audit-log'
 import { getProfile } from '@/lib/auth/get-profile'
@@ -23,16 +25,18 @@ const SETTINGS_HASH_TO_TAB: Record<string, string> = {
   'audit-log': 'activity',
   'sms-log': 'activity',
   airbnb: 'channels',
+  website: 'channels',
   channels: 'channels',
 }
 
 export default async function SettingsPage() {
   const hotelSettings = await getActiveHotelSettings()
-  const [profile, notificationLog, auditLog, channelFeeds, rooms] = await Promise.all([
+  const [profile, notificationLog, auditLog, channelFeeds, listingMaps, rooms] = await Promise.all([
     getProfile(),
     getNotificationLog(50),
     getAuditLog(50),
     hotelSettings ? getChannelIcalFeeds(hotelSettings.id) : Promise.resolve([]),
+    hotelSettings ? getWebsiteListingMaps(hotelSettings.id) : Promise.resolve([]),
     (async () => {
       if (!hotelSettings) return [] as { id: string; number: string }[]
       const admin = createAdminClient()
@@ -74,12 +78,19 @@ export default async function SettingsPage() {
           ),
           channels:
             hotelSettings != null ? (
-              <AirbnbSyncPanel
-                hotelId={hotelSettings.id}
-                propertyName={hotelSettings.name}
-                rooms={rooms}
-                feeds={channelFeeds}
-              />
+              <>
+                <AirbnbSyncPanel
+                  hotelId={hotelSettings.id}
+                  propertyName={hotelSettings.name}
+                  rooms={rooms}
+                  feeds={channelFeeds}
+                />
+                <WebsiteListingMapsPanel
+                  hotelId={hotelSettings.id}
+                  rooms={rooms}
+                  maps={listingMaps}
+                />
+              </>
             ) : (
               <p className="text-sm text-muted-foreground">
                 Add a property first to connect Airbnb calendars.

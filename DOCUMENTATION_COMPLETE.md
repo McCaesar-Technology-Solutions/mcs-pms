@@ -9,7 +9,7 @@ Documentation aligned with the **Supabase-backed** application (August 2026). Us
 | File | Status |
 |------|--------|
 | [USER_GUIDE.md](USER_GUIDE.md) | Index + role matrix + payments |
-| [docs/README.md](docs/README.md) | Money permissions + deposit policy |
+| [docs/README.md](docs/README.md) | Money permissions + pre-arrival payment policy |
 | [docs/owner-guide.md](docs/owner-guide.md) | Current |
 | [docs/manager-guide.md](docs/manager-guide.md) | Current |
 | [docs/receptionist-guide.md](docs/receptionist-guide.md) | Current (billing, payments, no discounts) |

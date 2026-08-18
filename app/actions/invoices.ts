@@ -344,6 +344,7 @@ async function applyInvoicePayment(input: {
   providerReference?: string
   actorId?: string
   actorName?: string
+  phase?: 'in_stay' | 'checkout'
 }): Promise<InvoiceActionResult> {
   const admin = createAdminClient()
   const idempotencyKey =
@@ -353,20 +354,42 @@ async function applyInvoicePayment(input: {
 
   const { data: invoice } = await admin
     .from('invoices')
-    .select('guest_name, payment_status')
+    .select('guest_name, payment_status, reservation_id')
     .eq('id', input.invoiceId)
     .eq('hotel_id', input.hotelId)
     .maybeSingle()
 
-  const result = await applyInvoicePaymentRecord(admin, {
-    invoiceId: input.invoiceId,
-    hotelId: input.hotelId,
-    amount: input.amount,
-    paymentMethod: input.paymentMethod,
-    provider: input.provider,
-    providerReference: input.providerReference,
-    idempotencyKey,
-  })
+  if (!invoice) return { success: false, error: 'Invoice not found.' }
+
+  let result:
+    | Awaited<ReturnType<typeof applyStayPayment>>
+    | Awaited<ReturnType<typeof applyInvoicePaymentRecord>>
+
+  if (invoice.reservation_id) {
+    result = await applyStayPayment(admin, {
+      hotelId: input.hotelId,
+      invoiceId: input.invoiceId,
+      reservationId: invoice.reservation_id,
+      amount: input.amount,
+      paymentMethod: input.paymentMethod,
+      provider: input.provider,
+      providerReference: input.providerReference,
+      idempotencyKey,
+      metadata: { source: 'billing' },
+      phase: input.phase ?? 'in_stay',
+    })
+  } else {
+    result = await applyInvoicePaymentRecord(admin, {
+      invoiceId: input.invoiceId,
+      hotelId: input.hotelId,
+      amount: input.amount,
+      paymentMethod: input.paymentMethod,
+      provider: input.provider,
+      providerReference: input.providerReference,
+      idempotencyKey,
+      metadata: { source: 'billing' },
+    })
+  }
 
   if (!result.ok) return { success: false, error: result.error }
 

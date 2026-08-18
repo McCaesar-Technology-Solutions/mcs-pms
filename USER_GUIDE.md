@@ -31,9 +31,9 @@ Index and money-permissions summary: [docs/README.md](docs/README.md)
 |---------|:-----:|:-------:|:------------:|:----------:|:-----:|
 | Dashboard KPIs | ✓ (+ revenue) | ✓ (no revenue) | Occupancy in toolbar | — | — |
 | Outstanding balance KPI | ✓ | ✓ | — | — | — |
-| Reservations + deposits | ✓ | ✓ | ✓ | — | — |
+| Reservations + stay payments | ✓ | ✓ | ✓ | — | — |
 | Guest stay discount (% / ₵) | ✓ | ✓ | — | — | — |
-| Refund deposit | ✓ | — | — | — | — |
+| Refund deposit (cancel/no-show) | ✓ | — | — | — | — |
 | Walk-in / register in-house | ✓ | ✓ | ✓ | — | — |
 | Guest folio posting | ✓ | ✓ | ✓ | — | — |
 | Folio discount credit | ✓ | ✓ | — | — | — |
@@ -53,15 +53,15 @@ Index and money-permissions summary: [docs/README.md](docs/README.md)
 
 ## Payments (MOJO)
 
-- **Stay payment is taken at check-in** (pay before enter). Checkout reuses the same invoice for extras.
-- **Deposits** can be recorded on a reservation before check-in.
+- **Stay payment is taken at check-in** (pay before enter). Partial payments are supported — the hotel sets a **check-in minimum** under Settings → Lifecycle (default 50%).
+- **Pre-arrival payments** can be recorded on a reservation before the stay invoice exists.
 - **Folio** charges (minibar, laundry, etc.) post on the guest profile and roll into the stay invoice.
 - **Discounts** (percent or fixed, before tax) — owner and manager only. Reception asks a manager.
 - **Include Ghana tax** is optional when issuing. Taxed invoices use Bill-to Tax ID `GHA-728071939-8`. Guest ID (Ghana Card, passport, or driver’s licence) is optional on the guest record and is not the invoice Tax ID.
 - **Cancel / no-show with deposit** → forfeit (staff) or refund (owner only).
 - **Refunds** of invoice payments stay owner-only.
 
-Details: [docs/README.md](docs/README.md#deposit-policy-summary)
+Details: [docs/README.md](docs/README.md#pre-arrival-payment--cancel-policy-summary)
 
 ## Live updates
 
@@ -69,4 +69,4 @@ Staff and guest views refresh when data changes (Supabase Realtime). Keep the br
 
 ## Technical setup
 
-Hubtel / Arkesel SMS, online payments flag, Supabase migrations through **077**, `.env.local` — see [DEPLOYMENT.md](DEPLOYMENT.md).
+Hubtel / Arkesel SMS, online payments flag, Supabase migrations through **079**, `.env.local` — see [DEPLOYMENT.md](DEPLOYMENT.md).

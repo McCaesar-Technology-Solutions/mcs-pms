@@ -49,7 +49,7 @@ import {
 import { formatGuestIdDocument } from '@/lib/guests/id-document'
 import type { InvoiceExportRow } from '@/lib/export/types'
 import type { PaymentMethod } from '@/types'
-import { canEraseGuestData, canIssueUnpaidStayInvoice } from '@/lib/auth/tenant-access'
+import { canEraseGuestData } from '@/lib/auth/tenant-access'
 import {
   DIRECTORY_FILTERS,
   DIRECTORY_FILTER_LABEL,
@@ -640,7 +640,6 @@ export function GuestsTable({
               {!readOnly && selectedGuest.isInHouse && selectedGuest.reservationId && (
                 <GuestStayInvoicePanel
                   guest={selectedGuest}
-                  staffRole={staffRole}
                   onIssued={(invoiceId, preview) => {
                     setStayInvoice({
                       id: invoiceId,
@@ -718,6 +717,7 @@ export function GuestsTable({
           initialInvoice={stayInvoice.preview}
           reservationId={stayInvoice.reservationId}
           mode="collect"
+          requireMinimumBeforeClose={staffRole === 'receptionist'}
           description={`${stayInvoice.guestName} — collect outstanding stay balance.`}
           onClose={() => {
             setStayInvoice(null)
@@ -732,42 +732,26 @@ export function GuestsTable({
 
 function GuestStayInvoicePanel({
   guest,
-  staffRole,
   onIssued,
 }: {
   guest: GuestRow
-  staffRole?: UserRole
   onIssued: (invoiceId: string, preview?: InvoiceExportRow) => void
 }) {
-  const canLeaveUnpaid = canIssueUnpaidStayInvoice(staffRole)
   const [open, setOpen] = useState(false)
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
-  const [markAsPaid, setMarkAsPaid] = useState(!canLeaveUnpaid)
   const [includeTax, setIncludeTax] = useState(false)
   const [billToSameAsGuest, setBillToSameAsGuest] = useState(!guest.invoiceBillToName?.trim())
   const [billToName, setBillToName] = useState(guest.invoiceBillToName ?? '')
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
-  const methods: PaymentMethod[] = [
-    'cash',
-    'mtn_momo',
-    'telecel_cash',
-    'airteltigo',
-    'visa',
-    'mastercard',
-    'bank_transfer',
-  ]
-
   function submit() {
     if (!guest.reservationId) return
     setError(null)
     startTransition(async () => {
-      const paidNow = canLeaveUnpaid ? markAsPaid : true
       const result = await issueStayInvoice({
         reservationId: guest.reservationId,
-        paymentMethod,
-        markAsPaid: paidNow,
+        paymentMethod: 'cash',
+        markAsPaid: false,
         includeTax,
         billToSameAsGuest,
         billToName: billToSameAsGuest ? undefined : billToName,
@@ -776,13 +760,7 @@ function GuestStayInvoicePanel({
         setError(result.error)
         return
       }
-      toast.success(
-        result.created
-          ? 'Stay invoice generated'
-          : paidNow
-            ? 'Payment recorded'
-            : 'Stay invoice refreshed',
-      )
+      toast.success(result.created ? 'Stay invoice ready — collect payment' : 'Invoice refreshed')
       setOpen(false)
       onIssued(result.invoiceId, result.invoicePreview)
     })
@@ -796,7 +774,7 @@ function GuestStayInvoicePanel({
         className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#D4A62E] py-3 text-sm font-semibold text-gray-900 shadow-elevation-1"
       >
         <Receipt className="h-4 w-4" />
-        {canLeaveUnpaid ? 'Generate stay invoice' : 'Generate stay invoice & collect'}
+        Generate stay invoice &amp; collect
       </button>
     )
   }
@@ -807,9 +785,8 @@ function GuestStayInvoicePanel({
       <p className="text-xs text-muted-foreground">
         Uses this guest&apos;s check-in ({formatDate(guest.checkIn)}) → check-out (
         {formatDate(guest.checkOut)})
-        {guest.roomNumber ? ` · Room ${guest.roomNumber}` : ''}. Creates or refreshes the stay
-        invoice for this stay
-        {canLeaveUnpaid ? ' — payment optional.' : '.'}
+        {guest.roomNumber ? ` · Room ${guest.roomNumber}` : ''}. Opens the collect dialog for full
+        or partial payment.
       </p>
       <label className="flex items-center gap-2 text-sm">
         <input
@@ -826,31 +803,6 @@ function GuestStayInvoicePanel({
         billToName={billToName}
         onBillToNameChange={setBillToName}
       />
-      <select
-        value={paymentMethod}
-        onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
-        className="w-full rounded-lg border border-border px-3 py-2 text-sm"
-      >
-        {methods.map((m) => (
-          <option key={m} value={m}>
-            {PAYMENT_METHOD_LABELS[m]}
-          </option>
-        ))}
-      </select>
-      {canLeaveUnpaid ? (
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={markAsPaid}
-            onChange={(e) => setMarkAsPaid(e.target.checked)}
-          />
-          Paid in full now
-        </label>
-      ) : (
-        <p className="text-xs text-muted-foreground">
-          Reception records payment when generating — balance is marked paid.
-        </p>
-      )}
       {error && <p className="text-sm text-destructive">{error}</p>}
       <div className="flex gap-2">
         <button
@@ -866,11 +818,7 @@ function GuestStayInvoicePanel({
           onClick={submit}
           className="flex-[2] rounded-lg bg-[#D4A62E] py-2 text-sm font-semibold text-gray-900 disabled:opacity-50"
         >
-          {pending
-            ? 'Saving…'
-            : canLeaveUnpaid && !markAsPaid
-              ? 'Generate invoice (unpaid)'
-              : 'Generate & mark paid'}
+          {pending ? 'Preparing…' : 'Continue to collect'}
         </button>
       </div>
     </div>

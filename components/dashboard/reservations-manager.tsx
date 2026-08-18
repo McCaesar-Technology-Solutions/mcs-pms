@@ -54,7 +54,7 @@ import type { InvoiceExportRow } from '@/lib/export/types'
 import type { PaymentMethod, Reservation, ReservationChannel, ReservationPaymentStatus, RateType, UserRole } from '@/types'
 import type { DepositDisposition } from '@/lib/billing/deposit-disposition'
 import { computeDiscountAmount, type DiscountType } from '@/lib/billing/discount'
-import { canApplyGuestDiscount, canIssueUnpaidStayInvoice } from '@/lib/auth/tenant-access'
+import { canApplyGuestDiscount } from '@/lib/auth/tenant-access'
 import {
   canCheckIn,
   canCancelReservationStatus,
@@ -145,6 +145,7 @@ function paymentBadge(status: ReservationPaymentStatus) {
 }
 
 function formatPaymentStatus(status: ReservationPaymentStatus) {
+  if (status === 'deposit_paid') return 'Pre-arrival paid'
   return status.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
@@ -240,13 +241,18 @@ export function ReservationsManager({
     preview?: InvoiceExportRow
     reservationId?: string
     mode?: 'view' | 'collect'
+    requireMinimumBeforeClose?: boolean
   } | null>(null)
 
   function openStayInvoice(
     invoiceId: string,
     guestName: string,
     preview?: InvoiceExportRow,
-    options?: { reservationId?: string; mode?: 'view' | 'collect' },
+    options?: {
+      reservationId?: string
+      mode?: 'view' | 'collect'
+      requireMinimumBeforeClose?: boolean
+    },
   ) {
     setCheckoutInvoice({
       id: invoiceId,
@@ -254,6 +260,7 @@ export function ReservationsManager({
       preview,
       reservationId: options?.reservationId,
       mode: options?.mode ?? 'view',
+      requireMinimumBeforeClose: options?.requireMinimumBeforeClose,
     })
     router.refresh()
   }
@@ -759,6 +766,7 @@ export function ReservationsManager({
           initialInvoice={checkoutInvoice.preview}
           reservationId={checkoutInvoice.reservationId}
           mode={checkoutInvoice.mode}
+          requireMinimumBeforeClose={checkoutInvoice.requireMinimumBeforeClose}
           onClose={() => {
             setCheckoutInvoice(null)
             setSelectedId(null)
@@ -872,7 +880,11 @@ interface ReservationDrawerProps {
     invoiceId: string,
     guestName: string,
     preview?: InvoiceExportRow,
-    options?: { reservationId?: string; mode?: 'view' | 'collect' },
+    options?: {
+      reservationId?: string
+      mode?: 'view' | 'collect'
+      requireMinimumBeforeClose?: boolean
+    },
   ) => void
   onGuestRequestHandled?: () => void
 }
@@ -913,10 +925,8 @@ function ReservationDrawer({
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
   const [paymentAmountInput, setPaymentAmountInput] = useState('')
   const [recordingPayment, setRecordingPayment] = useState(false)
-  const [issuingInvoice, setIssuingInvoice] = useState(false)
   const [earlyCheckout, setEarlyCheckout] = useState(false)
   const [checkoutPaymentAmount, setCheckoutPaymentAmount] = useState('')
-  const [markAsPaid, setMarkAsPaid] = useState(() => !canIssueUnpaidStayInvoice(staffRole))
   const [includeTax, setIncludeTax] = useState(false)
   const [phone, setPhone] = useState(reservation.guestPhone)
   const [email, setEmail] = useState(reservation.guestEmail)
@@ -1067,7 +1077,6 @@ function ReservationDrawer({
   const hasCollectedDeposit = reservation.paidAmount > 0.009
   const canRefundDeposit = staffRole === 'owner'
   const canDiscount = canApplyGuestDiscount(staffRole)
-  const canLeaveUnpaid = canIssueUnpaidStayInvoice(staffRole)
   const canRecordPayment =
     (reservation.status === 'confirmed' ||
       reservation.status === 'pre_arrival' ||
@@ -1109,6 +1118,56 @@ function ReservationDrawer({
     Number(editMonthlyRate || 0),
     Number(editWeeklyRate || 0),
   )
+
+  function openStayCollectFlow() {
+    if (!onCheckoutInvoice) return
+    setError(null)
+    startTransition(async () => {
+      const requireMinimum = staffRole === 'receptionist'
+      if (reservation.invoiceId && balance <= 0.009) {
+        onCheckoutInvoice(reservation.invoiceId, reservation.guestName, undefined, {
+          reservationId: reservation.id,
+          mode: 'view',
+        })
+        return
+      }
+
+      let invoiceId = reservation.invoiceId
+      let preview: InvoiceExportRow | undefined
+
+      if (!invoiceId) {
+        const result = await issueStayInvoice({
+          reservationId: reservation.id,
+          paymentMethod,
+          markAsPaid: false,
+          includeTax,
+          billToSameAsGuest,
+          billToName: billToSameAsGuest ? undefined : billToName,
+          ...(canDiscount
+            ? {
+                discountType: issueDiscountType,
+                discountValue: Number(issueDiscountValue || 0),
+                discountReason: issueDiscountReason,
+              }
+            : {}),
+        })
+        if (!result.success) {
+          setError(result.error)
+          toast.error(result.error)
+          return
+        }
+        invoiceId = result.invoiceId
+        preview = result.invoicePreview
+        onMutated()
+      }
+
+      onCheckoutInvoice(invoiceId!, reservation.guestName, preview, {
+        reservationId: reservation.id,
+        mode: 'collect',
+        requireMinimumBeforeClose: requireMinimum,
+      })
+    })
+  }
 
   useEffect(() => {
     if (checkingOut && balance > 0) {
@@ -1252,55 +1311,8 @@ function ReservationDrawer({
               reservation.status === 'provisional' ||
               reservation.status === 'checked_in' ||
               reservation.status === 'overstay' ||
-              reservation.status === 'checkout_in_progress') &&
-              !issuingInvoice && (
+              reservation.status === 'checkout_in_progress') && (
               <div className="mt-4 flex flex-col gap-2">
-                <button
-                  type="button"
-                  disabled={pending}
-                  onClick={() => setIssuingInvoice(true)}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-white py-2.5 text-sm font-semibold text-foreground shadow-elevation-1 transition-all hover:shadow-elevation-2 disabled:opacity-50"
-                >
-                  <Receipt className="h-4 w-4" />
-                  {reservation.invoiceId
-                    ? 'Refresh invoice & collect'
-                    : reservation.status === 'checked_in' ||
-                        reservation.status === 'overstay' ||
-                        reservation.status === 'checkout_in_progress'
-                      ? 'Issue invoice & collect'
-                      : 'Collect payment before check-in'}
-                </button>
-                {reservation.invoiceId && onCheckoutInvoice && (
-                  <button
-                    type="button"
-                    disabled={pending}
-                    onClick={() =>
-                      onCheckoutInvoice(reservation.invoiceId!, reservation.guestName, undefined, {
-                        reservationId: reservation.id,
-                        mode: balance > 0 ? 'collect' : 'view',
-                      })
-                    }
-                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-white py-2.5 text-sm font-semibold text-muted-foreground shadow-elevation-1 disabled:opacity-50"
-                  >
-                    {balance > 0 ? 'Collect / view invoice' : 'View invoice'}
-                  </button>
-                )}
-              </div>
-            )}
-
-            {issuingInvoice && (
-              <div className="mt-4 space-y-3 rounded-xl border border-border bg-background p-3">
-                <p className="text-xs font-medium text-muted-foreground">
-                  {reservation.status === 'confirmed' ||
-                  reservation.status === 'pre_arrival' ||
-                  reservation.status === 'provisional'
-                    ? reservation.invoiceId
-                      ? 'Refresh the stay invoice and collect payment before check-in (pay before enter). Prior GRA tax stays on if already applied.'
-                      : 'Create the full stay invoice and collect payment before check-in. Check-in reuses this invoice. Use Record payment for a partial hold before the invoice exists.'
-                    : reservation.invoiceId
-                      ? 'Refresh stay invoice with current folio, then optionally record payment. Prior GRA tax stays on if already applied.'
-                      : 'Create a stay invoice now. Checkout will reuse this invoice (no duplicate).'}
-                </p>
                 {canDiscount && (
                   <DiscountFields
                     type={issueDiscountType}
@@ -1311,34 +1323,6 @@ function ReservationDrawer({
                     onValueChange={setIssueDiscountValue}
                     onReasonChange={setIssueDiscountReason}
                   />
-                )}
-                <label className="block text-xs font-medium text-muted-foreground">
-                  Payment method
-                  <select
-                    value={paymentMethod}
-                    onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
-                    className="mt-1 w-full rounded-lg border border-[#E9ECEF] px-3 py-2 text-sm"
-                  >
-                    {PAYMENT_METHODS.map((m) => (
-                      <option key={m} value={m}>
-                        {PAYMENT_METHOD_LABELS[m]}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                {canLeaveUnpaid ? (
-                  <label className="flex items-center gap-2 text-sm text-foreground">
-                    <input
-                      type="checkbox"
-                      checked={markAsPaid}
-                      onChange={(e) => setMarkAsPaid(e.target.checked)}
-                    />
-                    Guest paid full balance now
-                  </label>
-                ) : (
-                  <p className="text-xs text-muted-foreground">
-                    Reception records payment when issuing — balance is marked paid.
-                  </p>
                 )}
                 <label className="flex items-center gap-2 text-sm text-foreground">
                   <input
@@ -1355,72 +1339,25 @@ function ReservationDrawer({
                   billToName={billToName}
                   onBillToNameChange={setBillToName}
                 />
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    disabled={pending}
-                    onClick={() => setIssuingInvoice(false)}
-                    className="flex-1 rounded-xl bg-white py-2.5 text-sm font-semibold text-muted-foreground shadow-elevation-1"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    disabled={pending || (!billToSameAsGuest && billToName.trim().length < 2)}
-                    onClick={() => {
-                      setError(null)
-                      startTransition(async () => {
-                        const paidNow = canLeaveUnpaid ? markAsPaid : true
-                        const result = await issueStayInvoice({
-                          reservationId: reservation.id,
-                          paymentMethod,
-                          markAsPaid: paidNow,
-                          includeTax,
-                          billToSameAsGuest,
-                          billToName: billToSameAsGuest ? undefined : billToName,
-                          ...(canDiscount
-                            ? {
-                                discountType: issueDiscountType,
-                                discountValue: Number(issueDiscountValue || 0),
-                                discountReason: issueDiscountReason,
-                              }
-                            : {}),
-                        })
-                        if (!result.success) {
-                          setError(result.error)
-                          return
-                        }
-                        toast.success(
-                          result.created
-                            ? 'Invoice issued'
-                            : paidNow
-                              ? 'Payment recorded'
-                              : 'Invoice refreshed',
-                        )
-                        setIssuingInvoice(false)
-                        onMutated()
-                        if (onCheckoutInvoice) {
-                          onCheckoutInvoice(
-                            result.invoiceId,
-                            reservation.guestName,
-                            result.invoicePreview,
-                            {
-                              reservationId: reservation.id,
-                              mode: paidNow ? 'view' : 'collect',
-                            },
-                          )
-                        }
-                      })
-                    }}
-                    className="flex-[2] rounded-xl bg-[#D4A62E] py-2.5 text-sm font-semibold text-gray-900 disabled:opacity-50"
-                  >
-                    {pending
-                      ? 'Saving…'
-                      : canLeaveUnpaid && !markAsPaid
-                        ? 'Issue invoice (unpaid)'
-                        : 'Issue & mark paid'}
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  disabled={pending || (!billToSameAsGuest && billToName.trim().length < 2)}
+                  onClick={openStayCollectFlow}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-white py-2.5 text-sm font-semibold text-foreground shadow-elevation-1 transition-all hover:shadow-elevation-2 disabled:opacity-50"
+                >
+                  <Receipt className="h-4 w-4" />
+                  {pending
+                    ? 'Opening…'
+                    : reservation.invoiceId
+                      ? balance > 0.009
+                        ? 'Collect payment'
+                        : 'View invoice'
+                      : reservation.status === 'checked_in' ||
+                          reservation.status === 'overstay' ||
+                          reservation.status === 'checkout_in_progress'
+                        ? 'Issue invoice & collect'
+                        : 'Collect payment before check-in'}
+                </button>
               </div>
             )}
 
@@ -1881,7 +1818,11 @@ function ReservationDrawer({
                                 result.data.invoiceId,
                                 guestName,
                                 result.data.invoicePreview,
-                                { reservationId: reservation.id, mode: 'collect' },
+                                {
+                                  reservationId: reservation.id,
+                                  mode: 'collect',
+                                  requireMinimumBeforeClose: staffRole === 'receptionist',
+                                },
                               )
                               onMutated()
                             } else {
@@ -2503,7 +2444,11 @@ interface ReservationFormModalProps {
     invoiceId: string,
     guestName: string,
     preview?: InvoiceExportRow,
-    options?: { reservationId?: string; mode?: 'view' | 'collect' },
+    options?: {
+      reservationId?: string
+      mode?: 'view' | 'collect'
+      requireMinimumBeforeClose?: boolean
+    },
   ) => void
 }
 

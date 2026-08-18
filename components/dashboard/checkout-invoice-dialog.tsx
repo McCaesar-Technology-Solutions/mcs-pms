@@ -35,6 +35,8 @@ interface CheckoutInvoiceDialogProps {
   mode?: 'view' | 'collect'
   /** When set, settlement uses collectStayPayment (keeps stay + invoice in sync). */
   reservationId?: string
+  /** When true, reception cannot dismiss until check-in minimum is met (or manager waives). */
+  requireMinimumBeforeClose?: boolean
   onClose: () => void
   onSettled?: () => void
 }
@@ -59,6 +61,7 @@ export function CheckoutInvoiceDialog({
   description,
   mode = 'view',
   reservationId,
+  requireMinimumBeforeClose = false,
   onClose,
   onSettled,
 }: CheckoutInvoiceDialogProps) {
@@ -154,7 +157,23 @@ export function CheckoutInvoiceDialog({
     return () => {
       cancelled = true
     }
-  }, [showCollect, reservationId])
+  }, [showCollect, reservationId, invoice?.amountPaid])
+
+  const blockDismiss =
+    requireMinimumBeforeClose &&
+    showCollect &&
+    balanceDue > 0.009 &&
+    (collectContext === null ||
+      (collectContext.success && !collectContext.data.minimumAlreadyMet))
+
+  function requestClose() {
+    if (pending) return
+    if (blockDismiss) {
+      toast.error('Collect at least the check-in minimum before closing.')
+      return
+    }
+    onClose()
+  }
 
   useEffect(() => {
     if (!showCollect || !reservationId) {
@@ -218,8 +237,12 @@ export function CheckoutInvoiceDialog({
 
         if (result.invoicePreview) setInvoice(result.invoicePreview)
         if (reservationId) {
-          const history = await getStayPaymentHistoryForStay(reservationId, result.invoiceId)
+          const [history, ctx] = await Promise.all([
+            getStayPaymentHistoryForStay(reservationId, result.invoiceId),
+            getStayCollectContext(reservationId),
+          ])
           if (history.success) setPaymentHistory(history.data)
+          setCollectContext(ctx)
         }
         if (skipPayment) {
           toast.message('Continued without payment — collect the balance when you can.')
@@ -233,7 +256,7 @@ export function CheckoutInvoiceDialog({
           toast.success('Minimum already met — no new payment recorded')
         }
         onSettled?.()
-        if (result.balanceDue <= 0.009 || skipPayment) onClose()
+        if (result.balanceDue <= 0.009 || skipPayment) requestClose()
         return
       }
 
@@ -258,11 +281,11 @@ export function CheckoutInvoiceDialog({
   return (
     <CenteredModal
       open
-      onClose={() => !pending && onClose()}
+      onClose={requestClose}
       className="max-w-md"
       aria-label={showCollect ? 'Collect stay payment' : 'Guest invoice'}
     >
-      <ModalHeader onClose={() => !pending && onClose()}>
+      <ModalHeader onClose={requestClose}>
         <h3 className="text-lg font-semibold">
           {showCollect ? 'Collect payment' : 'Guest invoice'}
         </h3>
@@ -527,10 +550,10 @@ export function CheckoutInvoiceDialog({
         <button
           type="button"
           disabled={pending}
-          onClick={onClose}
+          onClick={requestClose}
           className="w-full rounded-xl bg-white py-2.5 text-sm font-semibold text-muted-foreground shadow-elevation-1 disabled:opacity-50"
         >
-          {showCollect ? 'Close' : 'Done'}
+          {showCollect ? (blockDismiss ? 'Collect minimum to continue' : 'Close') : 'Done'}
         </button>
       </ModalFooter>
     </CenteredModal>
