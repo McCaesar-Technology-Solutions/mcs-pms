@@ -11,6 +11,6 @@ export async function loadNavBadgeMap() {
 
 export async function loadManagerTabBadges() {
   const profile = await loadVerifiedStaffProfile()
-  if (!profile) return { overview: 0, guestPortal: 0 }
+  if (!profile) return { overview: 0, requests: 0, guestPortal: 0 }
   return getManagerTabBadges()
 }

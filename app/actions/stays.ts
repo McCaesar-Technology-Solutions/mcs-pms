@@ -987,7 +987,7 @@ async function executeStayCheckout(
     action: isWalkout ? 'walkout' : 'checked_out',
     summary: isWalkout
       ? `${reservation.guest_name} walkout — ₵${taxesTotal.toLocaleString()} balance due`
-      : `${reservation.guest_name} checked out — ₵${taxesTotal.toLocaleString()} (${input.paymentMethod.replace(/_/g, ' ')}, ${paidNow ? 'paid' : 'pending'})${folioSubtotal > 0 ? ` incl. ₵${folioSubtotal} folio` : ''}`,
+      : `${reservation.guest_name} checked out — ₵${taxesTotal.toLocaleString()} (${input.paymentMethod.replace(/_/g, ' ')}, ${invoicePreview?.paymentStatus === 'paid' ? 'paid' : 'pending'})${folioSubtotal > 0 ? ` incl. ₵${folioSubtotal} folio` : ''}`,
   })
 
   return { success: true, data: { invoiceId, invoicePreview } }

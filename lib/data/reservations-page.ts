@@ -243,14 +243,18 @@ export async function getReservationWorkspaceData(): Promise<ReservationWorkspac
 
 type StatusQueryMode = 'filter' | 'occupying' | 'others'
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function applyColumnFilters(
-  query: any,
+function applyColumnFilters<T>(
+  query: T,
   filters: ReservationListFilters,
   hotelId: string,
   statusMode: StatusQueryMode = 'filter',
-) {
-  let next = query.eq('hotel_id', hotelId)
+): T {
+  const q = query as unknown as {
+    eq: (column: string, value: unknown) => typeof q
+    in: (column: string, values: readonly string[]) => typeof q
+    not: (column: string, operator: string, value: string) => typeof q
+  }
+  let next = q.eq('hotel_id', hotelId)
   if (statusMode === 'occupying') {
     next = next.in('status', [...OCCUPYING_STATUSES])
   } else if (statusMode === 'others') {
@@ -265,7 +269,7 @@ function applyColumnFilters(
   }
   if (filters.checkInDate) next = next.eq('check_in', filters.checkInDate)
   if (filters.checkOutDate) next = next.eq('check_out', filters.checkOutDate)
-  return next
+  return next as T
 }
 
 function orderForStatusFilter(filters: ReservationListFilters) {

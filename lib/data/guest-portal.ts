@@ -1,6 +1,7 @@
 import { tryCreateAdminClient } from '@/lib/supabase/admin'
 import { getHotelGuestRules, type GuestRuleRow } from '@/lib/data/guest-rules'
 import { getHotelLocalGuide, type LocalGuideRow } from '@/lib/data/local-guide'
+import { loadGuestRequestHousekeepingTasks } from '@/lib/housekeeping/guest-task'
 import { OCCUPYING_STATUSES } from '@/lib/reservations/lifecycle'
 import { propertyImagePublicUrl } from '@/lib/properties/image-storage'
 import { roomImagePublicUrl } from '@/lib/rooms/image-storage'
