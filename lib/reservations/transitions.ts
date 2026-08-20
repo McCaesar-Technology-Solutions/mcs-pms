@@ -92,7 +92,7 @@ export const ALLOWED_TRANSITIONS: Partial<
     },
     overstay: {
       eventType: 'overstay_detected',
-      requiredRole: 'system',
+      requiredRole: 'staff',
       sideEffects: ['room-status', 'notifications', 'folio'],
     },
     dispute_hold: {
@@ -122,6 +122,11 @@ export const ALLOWED_TRANSITIONS: Partial<
       requiredRole: 'staff',
       sideEffects: ['inventory', 'room-status', 'folio'],
     },
+    checked_in: {
+      eventType: 'stay_extended',
+      requiredRole: 'staff',
+      sideEffects: ['room-status'],
+    },
   },
   checkout_in_progress: {
     checked_out: {
@@ -137,6 +142,16 @@ export const ALLOWED_TRANSITIONS: Partial<
       eventType: 'walkout_detected',
       requiredRole: 'staff',
       sideEffects: ['inventory', 'room-status', 'folio'],
+    },
+    checked_in: {
+      eventType: 'stay_extended',
+      requiredRole: 'staff',
+      sideEffects: ['room-status'],
+    },
+    overstay: {
+      eventType: 'stay_extended',
+      requiredRole: 'staff',
+      sideEffects: ['room-status'],
     },
   },
   dispute_hold: {

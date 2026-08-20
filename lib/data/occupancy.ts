@@ -1,4 +1,5 @@
 import {
+  canExtendStay,
   INDEFINITE_OCCUPANCY_STATUSES,
   OCCUPANCY_BLOCKING_STATUSES,
   STALE_IN_HOUSE_STATUSES,
@@ -48,6 +49,29 @@ function tomorrowISO(): string {
   const d = new Date()
   d.setUTCDate(d.getUTCDate() + 1)
   return d.toISOString().split('T')[0]
+}
+
+function addDayISO(iso: string): string {
+  const d = new Date(`${iso}T12:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + 1)
+  return d.toISOString().split('T')[0]
+}
+
+/**
+ * Date window used when moving an occupying stay. Overstay / stale in-house
+ * check-out is in the past, so clash checks must still cover today onward.
+ */
+export function occupancyWindowForCurrentStay(
+  checkIn: string,
+  checkOut: string,
+  status: string | null | undefined,
+  today = todayISO(),
+): { checkIn: string; checkOut: string } {
+  if (checkOut > today) return { checkIn, checkOut }
+  if (canExtendStay(status) || status === 'dispute_hold') {
+    return { checkIn, checkOut: addDayISO(today) }
+  }
+  return { checkIn, checkOut }
 }
 
 /**

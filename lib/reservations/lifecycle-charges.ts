@@ -27,7 +27,18 @@ export interface ChargeableReservation {
 }
 
 const NO_SHOW_CHARGE_EVENT = 'no_show_charge_posted'
-const OVERSTAY_CHARGE_EVENT = 'overstay_charge_posted'
+export const OVERSTAY_CHARGE_EVENT = 'overstay_charge_posted'
+export const OVERSTAY_CHARGE_REVERSED_EVENT = 'overstay_charge_reversed'
+export const OVERSTAY_FEE_DESCRIPTION = 'Overstay fee (extra night)'
+
+export function isOverstayFeeCharge(charge: { description: string }): boolean {
+  return charge.description === OVERSTAY_FEE_DESCRIPTION
+}
+
+/** Drop the cron overstay night from a folio list so extended room nights are not billed twice. */
+export function folioChargesWithoutOverstayFee<T extends { description: string }>(charges: T[]): T[] {
+  return charges.filter((charge) => !isOverstayFeeCharge(charge))
+}
 
 export function calculateNoShowChargeAmount(
   reservation: ChargeableReservation,
@@ -81,6 +92,79 @@ export async function hasLifecycleChargeEvent(
     .limit(1)
 
   return (data?.length ?? 0) > 0
+}
+
+/** True when the latest overstay charge event is still an unreverted post. */
+export async function hasActiveOverstayCharge(
+  admin: SupabaseClient,
+  reservationId: string,
+): Promise<boolean> {
+  const { data } = await admin
+    .from('reservation_events')
+    .select('event_type')
+    .eq('reservation_id', reservationId)
+    .in('event_type', [OVERSTAY_CHARGE_EVENT, OVERSTAY_CHARGE_REVERSED_EVENT])
+    .order('created_at', { ascending: false })
+    .limit(1)
+
+  return data?.[0]?.event_type === OVERSTAY_CHARGE_EVENT
+}
+
+/**
+ * Remove the unbilled overstay night when extra nights are folded into the stay total.
+ * Leaves a reversed event so a later overstay can post a fresh fee.
+ */
+export async function reverseOverstayChargeOnExtend(
+  admin: SupabaseClient,
+  input: {
+    hotelId: string
+    reservationId: string
+    guestId?: string | null
+    actorId?: string | null
+  },
+): Promise<{ reversed: boolean; amount: number }> {
+  let amount = 0
+
+  if (input.guestId) {
+    const { data: charges } = await admin
+      .from('guest_charges')
+      .select('id, amount, description')
+      .eq('hotel_id', input.hotelId)
+      .eq('guest_id', input.guestId)
+      .eq('reservation_id', input.reservationId)
+      .eq('description', OVERSTAY_FEE_DESCRIPTION)
+      .is('invoice_id', null)
+
+    const toRemove = (charges ?? []).filter(isOverstayFeeCharge)
+    amount = round2(toRemove.reduce((sum, row) => sum + Number(row.amount), 0))
+    if (toRemove.length) {
+      await admin
+        .from('guest_charges')
+        .delete()
+        .in(
+          'id',
+          toRemove.map((row) => row.id),
+        )
+    }
+  }
+
+  const hadActive = await hasActiveOverstayCharge(admin, input.reservationId)
+  if (!hadActive && amount <= 0) {
+    return { reversed: false, amount: 0 }
+  }
+
+  await admin.from('reservation_events').insert({
+    reservation_id: input.reservationId,
+    hotel_id: input.hotelId,
+    event_type: OVERSTAY_CHARGE_REVERSED_EVENT,
+    from_status: 'overstay',
+    to_status: 'overstay',
+    actor_id: input.actorId ?? null,
+    actor_role: input.actorId ? 'staff' : 'system',
+    payload: { amount, source: 'stay_extended' },
+  })
+
+  return { reversed: true, amount }
 }
 
 async function resolveRoomRates(
@@ -178,7 +262,7 @@ export async function applyOverstayCharge(
   reservation: ChargeableReservation,
   actorId?: string,
 ): Promise<{ posted: boolean; amount: number }> {
-  if (await hasLifecycleChargeEvent(admin, reservation.id, OVERSTAY_CHARGE_EVENT)) {
+  if (await hasActiveOverstayCharge(admin, reservation.id)) {
     return { posted: false, amount: 0 }
   }
 
@@ -197,7 +281,7 @@ export async function applyOverstayCharge(
     hotel_id: reservation.hotel_id,
     guest_id: reservation.guest_id,
     reservation_id: reservation.id,
-    description: 'Overstay fee (extra night)',
+    description: OVERSTAY_FEE_DESCRIPTION,
     amount,
     charge_type: 'room',
     posted_by: actorId ?? null,

@@ -1,3 +1,4 @@
+import { occupancyWindowForCurrentStay } from '@/lib/data/occupancy'
 import { describe, expect, it } from 'vitest'
 import {
   INDEFINITE_OCCUPANCY_STATUSES,
@@ -27,5 +28,14 @@ describe('occupancy', () => {
   it('includes dispute hold in occupying statuses used for folio and requests', () => {
     expect(OCCUPYING_STATUSES).toContain('dispute_hold')
     expect(isOccupyingReservationStatus('dispute_hold')).toBe(true)
+  })
+
+  it('extends an overstay move window through tomorrow so the new room is checked', () => {
+    expect(
+      occupancyWindowForCurrentStay('2026-08-01', '2026-08-10', 'overstay', '2026-08-20'),
+    ).toEqual({ checkIn: '2026-08-01', checkOut: '2026-08-21' })
+    expect(
+      occupancyWindowForCurrentStay('2026-08-01', '2026-08-25', 'checked_in', '2026-08-20'),
+    ).toEqual({ checkIn: '2026-08-01', checkOut: '2026-08-25' })
   })
 })

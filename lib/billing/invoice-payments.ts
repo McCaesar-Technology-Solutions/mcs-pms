@@ -19,3 +19,14 @@ export function deriveInvoicePaymentStatus(
 export function invoiceBalanceDue(totalAmount: number, amountPaid: number): number {
   return Math.max(0, Math.round((totalAmount - amountPaid) * 100) / 100)
 }
+
+/** Open the desk collect dialog after extra nights are added. */
+export function shouldCollectAfterStayExtension(input: {
+  invoiceId: string | null | undefined
+  balanceDue: number
+  invoiceError?: string | null
+}): boolean {
+  if (input.invoiceError) return false
+  if (!input.invoiceId) return false
+  return input.balanceDue > 0.009
+}

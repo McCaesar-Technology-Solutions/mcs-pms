@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   canCancelReservationStatus,
   canExtendStay,
+  canMoveStayRoom,
   canStartDisputeHold,
   filterMetricsEligible,
   filterOpenBookings,
@@ -15,6 +16,7 @@ import {
   parseRequiredStayNote,
   statusAfterDisputeHoldRelease,
   statusAfterStayExtension,
+  stayExtensionChangesStatus,
 } from '@/lib/reservations/lifecycle'
 import {
   actorMeetsRequiredRole,
@@ -120,8 +122,16 @@ describe('dispute hold', () => {
     expect(canExtendStay('overstay')).toBe(true)
     expect(canExtendStay('checkout_in_progress')).toBe(true)
     expect(canExtendStay('dispute_hold')).toBe(false)
+    expect(canMoveStayRoom('overstay')).toBe(true)
+    expect(canMoveStayRoom('checkout_in_progress')).toBe(true)
+    expect(canMoveStayRoom('dispute_hold')).toBe(false)
+    expect(getAvailableActions('overstay', 'receptionist')).toContain('change_room')
+    expect(getAvailableActions('checkout_in_progress', 'receptionist')).toContain('change_room')
     expect(statusAfterStayExtension('2026-08-21', '2026-08-20')).toBe('checked_in')
     expect(statusAfterStayExtension('2026-08-20', '2026-08-20')).toBe('overstay')
+    expect(stayExtensionChangesStatus('overstay', 'checked_in')).toBe(true)
+    expect(stayExtensionChangesStatus('checked_in', 'checked_in')).toBe(false)
+    expect(stayExtensionChangesStatus('checkout_in_progress', 'checked_in')).toBe(true)
   })
 
   it('lets managers start a hold from in-house or checkout in progress', () => {
@@ -177,6 +187,11 @@ describe('reservation transition table', () => {
     expect(getTransitionDef('dispute_hold', 'overstay')?.eventType).toBe('dispute_hold_released')
     expect(getTransitionDef('dispute_hold', 'checked_in')?.requiredRole).toBe('manager')
     expect(getTransitionDef('overstay', 'walkout')?.requiredRole).toBe('staff')
+    expect(getTransitionDef('overstay', 'checked_in')?.eventType).toBe('stay_extended')
+    expect(getTransitionDef('overstay', 'checked_in')?.requiredRole).toBe('staff')
+    expect(getTransitionDef('checkout_in_progress', 'checked_in')?.eventType).toBe('stay_extended')
+    expect(getTransitionDef('checkout_in_progress', 'overstay')?.eventType).toBe('stay_extended')
+    expect(getTransitionDef('overstay', 'checked_in')?.sideEffects).toEqual(['room-status'])
   })
 
   it('rejects undefined transitions', () => {

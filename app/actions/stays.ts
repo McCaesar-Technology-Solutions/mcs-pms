@@ -27,7 +27,7 @@ import {
   updateGuestAccessValidity,
   rematerializeGuestAccessForRoomMove,
 } from '@/lib/access/lifecycle'
-import { findAvailableRooms, roomHasClash } from '@/lib/data/occupancy'
+import { findAvailableRooms, occupancyWindowForCurrentStay, roomHasClash } from '@/lib/data/occupancy'
 import { calculateStayTotal, type RateType } from '@/lib/pricing/stay-totals'
 import { getRoomRates } from '@/lib/pricing/room-rates'
 import {
@@ -36,16 +36,17 @@ import {
   todayISO,
   tokenExpiryISO,
 } from '@/lib/stays/helpers'
-import { addDaysISO, hotelTodayISO, normalizeHotelTimezone } from '@/lib/hotel-time'
+import { addDaysISO, hotelTodayISO, isIsoDateString, normalizeHotelTimezone } from '@/lib/hotel-time'
 import { revalidateStayViews } from '@/lib/stays/revalidate'
 import {
   linkFolioChargesToInvoice,
   prepareCheckoutTaxesWithFolio,
 } from '@/lib/folio/rollup'
 import { writeAuditLog, logRoomStatusChange } from '@/lib/audit/log'
-import { canCheckIn, canCheckOut, canExtendStay, canStartDisputeHold, parseRequiredStayNote, OCCUPYING_STATUSES, statusAfterDisputeHoldRelease, statusAfterStayExtension } from '@/lib/reservations/lifecycle'
+import { canCheckIn, canCheckOut, canExtendStay, canMoveStayRoom, canStartDisputeHold, parseRequiredStayNote, OCCUPYING_STATUSES, asReservationStatus, stayExtensionChangesStatus, statusAfterDisputeHoldRelease, statusAfterStayExtension } from '@/lib/reservations/lifecycle'
 import { validateCheckoutBalance, validateCheckoutPaymentAmount } from '@/lib/reservations/checkout-validation'
 import { applyStayPayment } from '@/lib/billing/apply-stay-payment'
+import { reverseOverstayChargeOnExtend } from '@/lib/reservations/lifecycle-charges'
 import { invoiceBalanceDue } from '@/lib/billing/invoice-payments'
 import { runNotifyTask } from '@/lib/notifications/notify-task'
 import {
@@ -1477,7 +1478,14 @@ export async function approveLateCheckout(
 export async function extendStay(
   reservationId: string,
   newCheckOut: string,
-): Promise<StayActionResult> {
+): Promise<
+  StayActionResult<{
+    invoiceId: string | null
+    invoicePreview?: InvoiceExportRow
+    balanceDue: number
+    invoiceError?: string
+  }>
+> {
   const { profile } = await requireManager()
   if (!profile?.hotel_id || !['owner', 'manager', 'receptionist'].includes(profile.role)) {
     return { success: false, error: 'Not authorized.' }
@@ -1494,6 +1502,9 @@ export async function extendStay(
   if (!reservation) return { success: false, error: 'Reservation not found.' }
   if (!canExtendStay(reservation.status)) {
     return { success: false, error: 'Only in-house stays can be extended.' }
+  }
+  if (!isIsoDateString(newCheckOut)) {
+    return { success: false, error: 'Enter a valid check-out date.' }
   }
   if (newCheckOut <= reservation.check_out) {
     return { success: false, error: 'New check-out must be after the current check-out date.' }
@@ -1550,20 +1561,46 @@ export async function extendStay(
   const today = hotelTodayISO(normalizeHotelTimezone(hotel?.timezone))
   const nextStatus = statusAfterStayExtension(newCheckOut, today)
   const previousStatus = reservation.status
+  const extensionPayload = {
+    old_check_out: reservation.check_out,
+    new_check_out: newCheckOut,
+    from_status: previousStatus,
+    to_status: nextStatus,
+  }
+
+  if (stayExtensionChangesStatus(previousStatus, nextStatus)) {
+    const toStatus = asReservationStatus(nextStatus)
+    if (!toStatus) {
+      return { success: false, error: 'Could not restore stay status.' }
+    }
+    const transitioned = await transitionReservation({
+      reservationId,
+      hotelId: profile.hotel_id,
+      toStatus,
+      actorId: profile.id,
+      actorRole: normalizeActorRole(profile.role),
+      eventType: 'stay_extended',
+      payload: extensionPayload,
+    })
+    if (!transitioned.success) {
+      return { success: false, error: transitioned.error ?? 'Could not restore in-house status.' }
+    }
+  }
 
   await admin
     .from('reservations')
     .update({
       check_out: newCheckOut,
       total_amount: total,
-      status: nextStatus,
-      folio_locked: false,
     })
     .eq('id', reservationId)
 
-  if (reservation.room_id) {
-    await admin.from('rooms').update({ status: 'occupied' }).eq('id', reservation.room_id)
-  }
+  await reverseOverstayChargeOnExtend(admin, {
+    hotelId: profile.hotel_id,
+    reservationId,
+    guestId: reservation.guest_id,
+    actorId: profile.id,
+  })
 
   await refreshPreCheckoutPaymentStatus(admin, reservationId)
 
@@ -1572,6 +1609,10 @@ export async function extendStay(
       ? reservation.payment_method
       : 'cash'
   ) as PaymentMethod
+  let invoiceId: string | null = null
+  let invoicePreview: InvoiceExportRow | undefined
+  let invoiceError: string | undefined
+  let balanceDue = invoiceBalanceDue(total, Number(reservation.amount_paid ?? 0))
   try {
     let guestPhone: string | null = null
     let roomNumber: string | null = null
@@ -1590,7 +1631,7 @@ export async function extendStay(
       .maybeSingle()
     roomNumber = roomRow?.number ?? null
 
-    await createOrRefreshStayInvoice(admin, {
+    const issued = await createOrRefreshStayInvoice(admin, {
       reservation: {
         ...reservation,
         check_out: newCheckOut,
@@ -1602,7 +1643,11 @@ export async function extendStay(
       guestPhone,
       roomNumber,
     })
+    invoiceId = issued.invoiceId
+    invoicePreview = issued.invoicePreview
+    balanceDue = invoiceBalanceDue(issued.taxes.total, issued.amountPaid)
   } catch (err) {
+    invoiceError = err instanceof Error ? err.message : 'Could not refresh stay invoice.'
     void writeAuditLog({
       hotelId: profile.hotel_id,
       actorId: profile.id,
@@ -1610,9 +1655,7 @@ export async function extendStay(
       entityType: 'reservation',
       entityId: reservationId,
       action: 'invoice_failed',
-      summary: `Stay extension invoice refresh failed for ${reservation.guest_name}: ${
-        err instanceof Error ? err.message : 'unknown error'
-      }`,
+      summary: `Stay extension invoice refresh failed for ${reservation.guest_name}: ${invoiceError}`,
     })
   }
 
@@ -1631,19 +1674,16 @@ export async function extendStay(
     })
   }
 
-  await appendReservationEvent({
-    reservationId,
-    hotelId: profile.hotel_id,
-    eventType: 'stay_extended',
-    actorId: profile.id,
-    actorRole: normalizeActorRole(profile.role),
-    payload: {
-      old_check_out: reservation.check_out,
-      new_check_out: newCheckOut,
-      from_status: previousStatus,
-      to_status: nextStatus,
-    },
-  })
+  if (!stayExtensionChangesStatus(previousStatus, nextStatus)) {
+    await appendReservationEvent({
+      reservationId,
+      hotelId: profile.hotel_id,
+      eventType: 'stay_extended',
+      actorId: profile.id,
+      actorRole: normalizeActorRole(profile.role),
+      payload: extensionPayload,
+    })
+  }
 
   revalidateStayViews()
 
@@ -1657,7 +1697,10 @@ export async function extendStay(
     summary: `${reservation.guest_name}: stay extended ${reservation.check_out} → ${newCheckOut}`,
   })
 
-  return { success: true }
+  return {
+    success: true,
+    data: { invoiceId, invoicePreview, balanceDue, invoiceError },
+  }
 }
 
 export async function moveStayRoom(
@@ -1678,29 +1721,35 @@ export async function moveStayRoom(
     .maybeSingle()
 
   if (!reservation) return { success: false, error: 'Reservation not found.' }
-  if (reservation.status !== 'checked_in') {
+  if (!canMoveStayRoom(reservation.status)) {
     return { success: false, error: 'Only in-house stays can be moved.' }
   }
   if (reservation.room_id === newRoomId) {
     return { success: false, error: 'Guest is already in that room.' }
   }
 
+  const window = occupancyWindowForCurrentStay(
+    reservation.check_in,
+    reservation.check_out,
+    reservation.status,
+  )
+
   if (
     await roomHasClash(
       admin,
       profile.hotel_id,
       newRoomId,
-      reservation.check_in,
-      reservation.check_out,
+      window.checkIn,
+      window.checkOut,
       { excludeReservationId: reservationId, excludeGuestId: reservation.guest_id ?? undefined },
     )
   ) {
     const suggestions = await findAvailableRooms(
       admin,
       profile.hotel_id,
-      reservation.check_in,
-      reservation.check_out,
-      { excludeReservationId: reservationId },
+      window.checkIn,
+      window.checkOut,
+      { excludeReservationId: reservationId, excludeGuestId: reservation.guest_id ?? undefined },
     )
     return {
       success: false,

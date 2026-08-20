@@ -592,8 +592,9 @@ export async function issueStayInvoice(input: unknown): Promise<IssueStayInvoice
 
   if (!reservation) return { success: false, error: 'Reservation not found.' }
 
-  const markAsPaid =
-    canIssueUnpaidStayInvoice(profile.role) ? parsed.data.markAsPaid : true
+  // Reception always leaves the invoice unpaid and collects in the desk dialog.
+  // Forcing paid here skipped collection after stay extensions and partials.
+  const markAsPaid = canIssueUnpaidStayInvoice(profile.role) ? parsed.data.markAsPaid : false
 
   // Pay-before-enter: allow invoice + collect on confirmed bookings before check-in.
   const issuable = [

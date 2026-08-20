@@ -39,6 +39,10 @@ import { TablePagination } from '@/components/dashboard/table-pagination'
 import { hasPhoneNumber } from '@/lib/phone'
 import { usePagination } from '@/lib/hooks/use-pagination'
 import { toast } from 'sonner'
+import { addDaysISO } from '@/lib/hotel-time'
+import { todayISO } from '@/lib/stays/helpers'
+import { statusAfterStayExtension } from '@/lib/reservations/lifecycle'
+import { shouldCollectAfterStayExtension } from '@/lib/billing/invoice-payments'
 import { PAYMENT_METHOD_LABELS } from '@/lib/tax'
 import { BillToFields } from '@/components/dashboard/bill-to-fields'
 import { APP_FIELD_CLASS, FormField } from '@/components/ui/form-field'
@@ -663,8 +667,32 @@ export function GuestsTable({
               {!readOnly && selectedGuest.canCheckOut && selectedGuest.reservationId && (
                   <GuestExtendStayPanel
                     guest={selectedGuest}
-                    onExtended={(checkOut) => {
-                      setSelectedGuest({ ...selectedGuest, checkOut, lastStay: checkOut })
+                    onExtended={(payload) => {
+                      const nextStatus = statusAfterStayExtension(
+                        payload.checkOut,
+                        todayISO(),
+                      )
+                      setSelectedGuest({
+                        ...selectedGuest,
+                        checkOut: payload.checkOut,
+                        lastStay: payload.checkOut,
+                        occupancy: nextStatus === 'overstay' ? 'overstay' : 'in_house',
+                      })
+                      if (
+                        shouldCollectAfterStayExtension({
+                          invoiceId: payload.invoiceId,
+                          balanceDue: payload.balanceDue,
+                          invoiceError: payload.invoiceError,
+                        }) &&
+                        payload.invoiceId
+                      ) {
+                        setStayInvoice({
+                          id: payload.invoiceId,
+                          guestName: selectedGuest.name,
+                          reservationId: selectedGuest.reservationId!,
+                          preview: payload.invoicePreview,
+                        })
+                      }
                       router.refresh()
                     }}
                   />
@@ -993,18 +1021,18 @@ function GuestDeletePanel({
   )
 }
 
-function addDaysISO(iso: string, days: number) {
-  const d = new Date(`${iso}T12:00:00`)
-  d.setDate(d.getDate() + days)
-  return d.toISOString().slice(0, 10)
-}
-
 function GuestExtendStayPanel({
   guest,
   onExtended,
 }: {
   guest: GuestRow
-  onExtended: (checkOut: string) => void
+  onExtended: (payload: {
+    checkOut: string
+    invoiceId: string | null
+    invoicePreview?: InvoiceExportRow
+    balanceDue: number
+    invoiceError?: string
+  }) => void
 }) {
   const currentOut = guest.checkOut ?? ''
   const [open, setOpen] = useState(false)
@@ -1033,9 +1061,27 @@ function GuestExtendStayPanel({
         toast.error(result.error ?? 'Could not extend stay.')
         return
       }
-      toast.success('Stay extended')
+      if (result.data?.invoiceError) {
+        toast.error(`Stay extended, but invoice failed: ${result.data.invoiceError}`)
+      } else if (
+        shouldCollectAfterStayExtension({
+          invoiceId: result.data?.invoiceId,
+          balanceDue: result.data?.balanceDue ?? 0,
+          invoiceError: result.data?.invoiceError,
+        })
+      ) {
+        toast.success('Stay extended — collect extra nights at the desk.')
+      } else {
+        toast.success('Stay extended')
+      }
       setOpen(false)
-      onExtended(newCheckOut)
+      onExtended({
+        checkOut: newCheckOut,
+        invoiceId: result.data?.invoiceId ?? null,
+        invoicePreview: result.data?.invoicePreview,
+        balanceDue: result.data?.balanceDue ?? 0,
+        invoiceError: result.data?.invoiceError,
+      })
     })
   }
 

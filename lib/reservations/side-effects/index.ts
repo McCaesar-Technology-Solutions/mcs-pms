@@ -153,6 +153,7 @@ export async function runFolioSideEffect(ctx: SideEffectContext): Promise<void> 
     return
   }
   if (ctx.toStatus === 'overstay') {
+    if (ctx.eventType === 'stay_extended') return
     const { applyOverstayCharge } = await import('@/lib/reservations/lifecycle-charges')
     await applyOverstayCharge(ctx.admin, ctx.reservation, ctx.actorId)
   }

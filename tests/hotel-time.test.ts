@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   hotelLocalMinutes,
   hotelTodayISO,
+  isIsoDateString,
   isPastHotelLocalTime,
   normalizeHotelTimezone,
 } from '@/lib/hotel-time'
@@ -29,5 +30,12 @@ describe('hotel-time', () => {
     const mins = hotelLocalMinutes('Africa/Accra', d)
     expect(mins).toBeGreaterThanOrEqual(0)
     expect(mins).toBeLessThan(24 * 60)
+  })
+
+  it('accepts real calendar dates only', () => {
+    expect(isIsoDateString('2026-08-20')).toBe(true)
+    expect(isIsoDateString('2026-02-29')).toBe(false)
+    expect(isIsoDateString('20-08-2026')).toBe(false)
+    expect(isIsoDateString('2026-08-20T12:00:00')).toBe(false)
   })
 })

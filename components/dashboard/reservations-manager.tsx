@@ -55,10 +55,12 @@ import type { PaymentMethod, Reservation, ReservationChannel, ReservationPayment
 import type { DepositDisposition } from '@/lib/billing/deposit-disposition'
 import { computeDiscountAmount, type DiscountType } from '@/lib/billing/discount'
 import { canApplyGuestDiscount } from '@/lib/auth/tenant-access'
+import { shouldCollectAfterStayExtension } from '@/lib/billing/invoice-payments'
 import {
   canCheckIn,
   canCancelReservationStatus,
   canExtendStay,
+  canMoveStayRoom,
   canUpdateReservationFields,
   getAvailableActions,
   isOccupyingReservationStatus,
@@ -66,6 +68,7 @@ import {
   STAY_NOTE_MIN_LENGTH,
 } from '@/lib/reservations/lifecycle'
 import type { RoomOption } from '@/lib/data/dashboard'
+import { addDaysISO } from '@/lib/hotel-time'
 import type { OccupancySpan } from '@/lib/data/occupancy'
 import { PAYMENT_METHOD_LABELS } from '@/lib/tax'
 import { calculateStayTotal, rateTypeLabel } from '@/lib/pricing/stay-totals'
@@ -969,7 +972,11 @@ function ReservationDrawer({
   )
   const [portalUrl, setPortalUrl] = useState<string | null>(null)
   const [portalPin, setPortalPin] = useState<string | null>(null)
-  const [newCheckOut, setNewCheckOut] = useState(initialExtendDate ?? reservation.checkOutDate)
+  const [newCheckOut, setNewCheckOut] = useState(() => {
+    if (initialExtendDate && initialExtendDate > reservation.checkOutDate) return initialExtendDate
+    return addDaysISO(reservation.checkOutDate, 1)
+  })
+  const minExtendDate = addDaysISO(reservation.checkOutDate, 1)
   const [newRoomId, setNewRoomId] = useState(reservation.roomId)
   const [billToSameAsGuest, setBillToSameAsGuest] = useState(
     !reservation.invoiceBillToName?.trim(),
@@ -984,9 +991,17 @@ function ReservationDrawer({
 
   useEffect(() => {
     if (initialExtendStay) {
+      setNewCheckOut((current) =>
+        current > reservation.checkOutDate ? current : minExtendDate,
+      )
       setExtending(true)
     }
-  }, [initialExtendStay])
+  }, [initialExtendStay, minExtendDate, reservation.checkOutDate])
+
+  function openExtendPanel() {
+    setNewCheckOut((current) => (current > reservation.checkOutDate ? current : minExtendDate))
+    setExtending(true)
+  }
 
   function run(
     action: () => Promise<{
@@ -1030,12 +1045,42 @@ function ReservationDrawer({
         return
       }
 
+      const collect = shouldCollectAfterStayExtension({
+        invoiceId: result.data?.invoiceId,
+        balanceDue: result.data?.balanceDue ?? 0,
+        invoiceError: result.data?.invoiceError,
+      })
+
+      setExtending(false)
+
+      if (result.data?.invoiceError) {
+        toast.error(`Stay extended, but invoice failed: ${result.data.invoiceError}`)
+        onMutated()
+        if (guestRequestId) onGuestRequestHandled?.()
+        return
+      }
+
+      if (collect && result.data?.invoiceId && onCheckoutInvoice) {
+        toast.success(
+          guestRequestId
+            ? 'Stay extended. Collect the extra nights, then mark the guest request completed.'
+            : 'Stay extended — collect extra nights at the desk.',
+        )
+        onCheckoutInvoice(result.data.invoiceId, reservation.guestName, result.data.invoicePreview, {
+          reservationId: reservation.id,
+          mode: 'collect',
+          requireMinimumBeforeClose: staffRole === 'receptionist',
+        })
+        onMutated()
+        if (guestRequestId) onGuestRequestHandled?.()
+        return
+      }
+
       toast.success(
         guestRequestId
           ? 'Stay extended. Mark the guest request as completed.'
           : 'Stay extended.',
       )
-      setExtending(false)
       onMutated()
       if (guestRequestId) onGuestRequestHandled?.()
     })
@@ -1097,6 +1142,7 @@ function ReservationDrawer({
   const canCheckInNow = canCheckIn(reservation.status)
   const canExtendNow = canExtendStay(reservation.status)
   const lifecycleActions = getAvailableActions(reservation.status, staffRole)
+  const canMoveNow = canMoveStayRoom(reservation.status)
   const canDisputeHold = lifecycleActions.includes('dispute_hold')
   const canReleaseHold = lifecycleActions.includes('release_dispute_hold')
   const canCheckoutFromHold = lifecycleActions.includes('begin_checkout')
@@ -1883,12 +1929,13 @@ function ReservationDrawer({
                   <button
                     type="button"
                     disabled={pending}
-                    onClick={() => setExtending(true)}
+                    onClick={() => openExtendPanel()}
                     className="flex w-full items-center justify-center gap-2 rounded-xl bg-white py-3 text-sm font-semibold text-foreground shadow-elevation-1"
                   >
                     <CalendarPlus className="h-4 w-4" />
                     Extend stay
                   </button>
+                  {canMoveNow && (
                   <button
                     type="button"
                     disabled={pending}
@@ -1898,6 +1945,7 @@ function ReservationDrawer({
                     <ArrowRightLeft className="h-4 w-4" />
                     Move room
                   </button>
+                  )}
                   <button
                     type="button"
                     disabled={pending}
@@ -2107,11 +2155,22 @@ function ReservationDrawer({
                     <button
                       type="button"
                       disabled={pending}
-                      onClick={() => setExtending(true)}
+                      onClick={() => openExtendPanel()}
                       className="flex w-full items-center justify-center gap-2 rounded-xl bg-white py-3 text-sm font-semibold text-foreground shadow-elevation-1"
                     >
                       <CalendarPlus className="h-4 w-4" />
                       Extend stay
+                    </button>
+                  )}
+                  {canMoveNow && (
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() => setMoving(true)}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-white py-3 text-sm font-semibold text-foreground shadow-elevation-1"
+                    >
+                      <ArrowRightLeft className="h-4 w-4" />
+                      Move room
                     </button>
                   )}
                   {canDisputeHold && (
@@ -2169,7 +2228,7 @@ function ReservationDrawer({
                     <input
                       type="date"
                       value={newCheckOut}
-                      min={reservation.checkOutDate}
+                      min={minExtendDate}
                       onChange={(e) => setNewCheckOut(e.target.value)}
                       className={APP_FIELD_CLASS}
                     />

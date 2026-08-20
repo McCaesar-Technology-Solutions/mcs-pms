@@ -151,12 +151,23 @@ export function canExtendStay(status: string | null | undefined): boolean {
   return (EXTENDABLE_STATUSES as readonly string[]).includes(status ?? '')
 }
 
+export function canMoveStayRoom(status: string | null | undefined): boolean {
+  return canExtendStay(status)
+}
+
 /** After extra nights are booked, restore a live in-house status from the new date. */
 export function statusAfterStayExtension(
   newCheckOut: string,
   today: string,
 ): 'checked_in' | 'overstay' {
   return newCheckOut > today ? 'checked_in' : 'overstay'
+}
+
+export function stayExtensionChangesStatus(
+  fromStatus: string | null | undefined,
+  nextStatus: 'checked_in' | 'overstay',
+): boolean {
+  return fromStatus !== nextStatus
 }
 
 /** After a billing dispute is released, resume as in-house or overstay from the stay dates. */
@@ -246,7 +257,7 @@ export function getAvailableActions(
       if (role !== 'guest') actions.push('release_no_show_room')
       break
     case 'checkout_in_progress':
-      actions.push('complete_checkout', 'extend_stay', 'record_walkout')
+      actions.push('complete_checkout', 'extend_stay', 'change_room', 'record_walkout')
       if (role === 'manager') actions.push('dispute_hold')
       break
     default:
