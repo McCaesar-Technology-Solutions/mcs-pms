@@ -116,7 +116,7 @@ Phone required → optional ID (Ghana Card, passport, or driver’s licence) →
 
 ### While in-house
 
-- **Extend stay**, **Move room**, **Edit** (confirmed only).
+- **Extend stay**, **Shorten stay** (unused nights from tomorrow onward; extra paid stays as credit), **Move room**, **Edit** (confirmed only).
 - Post **folio** from Guests (including **Discount (credit)**).
 - **Approve late checkout** on overstay.
 - **Dispute hold** pauses checkout while a billing dispute is open (reason required). You can start it from in-house or **checkout in progress**; the folio unlocks so charges can still be posted. The guest still occupies the room; guest requests stay on this stay. **Release hold** (note required) resumes the stay, or check out / walkout from the hold.
@@ -162,6 +162,7 @@ For people already staying: real arrival (can be past) + planned departure. A st
 - **Generate stay invoice & collect** if they have no invoice yet.
 - **Export PII** or **Erase / delete** (reception cannot erase). Erasing an in-house guest ends the stay and frees the room.
 - **Extend stay** — pick a later check-out (same as Reservations). Room total and portal access update automatically.
+- **Shorten stay** — return unused nights from tomorrow onward. Extra already collected stays as credit (refunds are owner-only).
 - **Check out** from guest card when useful. **Dispute hold** stays stay in house — use Reservations to release the hold, begin checkout, or record a walkout.
 
 ---

@@ -36,6 +36,24 @@ export function buildCheckoutInvoicePaymentState(input: {
   }
 }
 
+/** Keep overpayment on the invoice when unused nights come off (credit, not a refund). */
+export function stayInvoiceCollectedAmount(input: {
+  invoiceTotal: number
+  priorDeposit: number
+  paidNow: boolean
+  preserveOverpayment?: boolean
+}): { amountPaid: number; paymentStatus: PaymentStatus } {
+  if (input.preserveOverpayment && !input.paidNow) {
+    const invoiceTotal = Math.max(0, input.invoiceTotal)
+    const amountPaid = Math.max(0, input.priorDeposit)
+    return {
+      amountPaid,
+      paymentStatus: deriveInvoicePaymentStatus(invoiceTotal, amountPaid, null),
+    }
+  }
+  return buildCheckoutInvoicePaymentState(input)
+}
+
 export function mapInvoicePaymentStatusToReservation(
   invoiceStatus: string | null | undefined,
   totalAmount: number,

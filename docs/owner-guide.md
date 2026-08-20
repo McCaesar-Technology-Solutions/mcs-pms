@@ -157,6 +157,7 @@ Open a confirmed booking → **Collect payment before check-in**. This creates o
 ### While in-house
 
 - **Extend stay** — updates nights and balance.
+- **Shorten stay** — return unused nights from tomorrow onward. Extra already collected stays as credit until you refund.
 - **Move room** — reassign if free.
 - **Guest folio** — post extras from **Guests** (minibar, laundry). Shows as **Folio (unbilled)** on the reservation. You can also post a **Discount (credit)**.
 - **Approve late checkout** — when overstay needs more time.
@@ -204,6 +205,7 @@ Rules:
 - **Guest folio** (in-house) — post charges; discount credits allowed for you and managers.
 - **Generate stay invoice & collect** if they are in house without an invoice.
 - **Extend stay** — pick a later check-out from the guest card (same as Reservations).
+- **Shorten stay** — return unused nights from tomorrow onward from the guest card. Extra collected stays as credit.
 - **Check out** from the guest card (same two-step flow). **Dispute hold** stays stay in house — use Reservations to release the hold, begin checkout, or record a walkout.
 - **Export PII** — download guest personal data.
 - **Erase PII** — permanently remove guest personal data (you and managers). Hard-delete only orphan rows with no history.

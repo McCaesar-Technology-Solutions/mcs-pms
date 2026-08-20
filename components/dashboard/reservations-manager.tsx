@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useTransition } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
-import { ChevronRight, LogIn, LogOut, Plus, Receipt, Search, X, XCircle, CalendarPlus, ArrowRightLeft, UserX, Pencil, Unlock } from 'lucide-react'
+import { ChevronRight, LogIn, LogOut, Plus, Receipt, Search, X, XCircle, CalendarPlus, CalendarMinus, ArrowRightLeft, UserX, Pencil, Unlock } from 'lucide-react'
 import { issueStayInvoice } from '@/app/actions/invoices'
 import { CheckoutInvoiceDialog } from '@/components/dashboard/checkout-invoice-dialog'
 import { InvoicePaymentForm } from '@/components/dashboard/invoice-payment-form'
@@ -24,6 +24,7 @@ import {
   beginDisputeHold,
   checkInStay,
   extendStay,
+  reduceStay,
   markNoShow,
   moveStayRoom,
   releaseDisputeHold,
@@ -61,9 +62,12 @@ import {
   canCancelReservationStatus,
   canExtendStay,
   canMoveStayRoom,
+  canReduceStay,
   canUpdateReservationFields,
   getAvailableActions,
   isOccupyingReservationStatus,
+  maxReduceCheckOut,
+  minReduceCheckOut,
   reservationStatusLabel,
   STAY_NOTE_MIN_LENGTH,
 } from '@/lib/reservations/lifecycle'
@@ -922,6 +926,7 @@ function ReservationDrawer({
   const [checkingIn, setCheckingIn] = useState(false)
   const [editing, setEditing] = useState(false)
   const [extending, setExtending] = useState(false)
+  const [reducing, setReducing] = useState(false)
   const [moving, setMoving] = useState(false)
   const [holdMode, setHoldMode] = useState<'start' | 'release' | null>(null)
   const [holdNote, setHoldNote] = useState('')
@@ -977,6 +982,9 @@ function ReservationDrawer({
     return addDaysISO(reservation.checkOutDate, 1)
   })
   const minExtendDate = addDaysISO(reservation.checkOutDate, 1)
+  const [reduceCheckOut, setReduceCheckOut] = useState(() =>
+    maxReduceCheckOut(reservation.checkOutDate),
+  )
   const [newRoomId, setNewRoomId] = useState(reservation.roomId)
   const [billToSameAsGuest, setBillToSameAsGuest] = useState(
     !reservation.invoiceBillToName?.trim(),
@@ -999,8 +1007,15 @@ function ReservationDrawer({
   }, [initialExtendStay, minExtendDate, reservation.checkOutDate])
 
   function openExtendPanel() {
+    setReducing(false)
     setNewCheckOut((current) => (current > reservation.checkOutDate ? current : minExtendDate))
     setExtending(true)
+  }
+
+  function openReducePanel() {
+    setExtending(false)
+    setReduceCheckOut(maxReduceCheckOut(reservation.checkOutDate))
+    setReducing(true)
   }
 
   function run(
@@ -1086,6 +1101,36 @@ function ReservationDrawer({
     })
   }
 
+  function submitReduction() {
+    setError(null)
+    startTransition(async () => {
+      const result = await reduceStay(reservation.id, reduceCheckOut)
+      if (!result.success) {
+        setError(result.error ?? 'Something went wrong.')
+        toast.error(result.error ?? 'Something went wrong.')
+        return
+      }
+
+      setReducing(false)
+
+      if (result.data?.invoiceError) {
+        toast.error(`Stay shortened, but invoice failed: ${result.data.invoiceError}`)
+        onMutated()
+        return
+      }
+
+      const credit = result.data?.creditAmount ?? 0
+      if (credit > 0.009) {
+        toast.success(
+          `Stay shortened. ₵${credit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} credit remains — refunds are owner-only.`,
+        )
+      } else {
+        toast.success('Stay shortened.')
+      }
+      onMutated()
+    })
+  }
+
   function submitReleaseHold() {
     setError(null)
     startTransition(async () => {
@@ -1141,6 +1186,9 @@ function ReservationDrawer({
   const canEdit = canUpdateReservationFields(reservation.status)
   const canCheckInNow = canCheckIn(reservation.status)
   const canExtendNow = canExtendStay(reservation.status)
+  const canReduceNow = canReduceStay(reservation.status, reservation.checkOutDate, today)
+  const minReduceDate = minReduceCheckOut(today)
+  const maxReduceDate = maxReduceCheckOut(reservation.checkOutDate)
   const lifecycleActions = getAvailableActions(reservation.status, staffRole)
   const canMoveNow = canMoveStayRoom(reservation.status)
   const canDisputeHold = lifecycleActions.includes('dispute_hold')
@@ -1894,6 +1942,7 @@ function ReservationDrawer({
                 reservation.status !== 'checkout_in_progress' &&
                 !checkingOut &&
                 !extending &&
+                !reducing &&
                 !moving &&
                 holdMode === null && (
                 <>
@@ -1935,6 +1984,17 @@ function ReservationDrawer({
                     <CalendarPlus className="h-4 w-4" />
                     Extend stay
                   </button>
+                  {canReduceNow && (
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() => openReducePanel()}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-white py-3 text-sm font-semibold text-foreground shadow-elevation-1"
+                    >
+                      <CalendarMinus className="h-4 w-4" />
+                      Shorten stay
+                    </button>
+                  )}
                   {canMoveNow && (
                   <button
                     type="button"
@@ -1986,6 +2046,7 @@ function ReservationDrawer({
               {reservation.status === 'dispute_hold' &&
                 !checkingOut &&
                 !extending &&
+                !reducing &&
                 !moving &&
                 holdMode === null && (
                 <>
@@ -2136,6 +2197,7 @@ function ReservationDrawer({
               {reservation.status === 'checkout_in_progress' &&
                 !checkingOut &&
                 !extending &&
+                !reducing &&
                 !moving &&
                 holdMode === null && (
                 <>
@@ -2160,6 +2222,17 @@ function ReservationDrawer({
                     >
                       <CalendarPlus className="h-4 w-4" />
                       Extend stay
+                    </button>
+                  )}
+                  {canReduceNow && (
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() => openReducePanel()}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-white py-3 text-sm font-semibold text-foreground shadow-elevation-1"
+                    >
+                      <CalendarMinus className="h-4 w-4" />
+                      Shorten stay
                     </button>
                   )}
                   {canMoveNow && (
@@ -2244,6 +2317,47 @@ function ReservationDrawer({
                       className="flex-[2] rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground"
                     >
                       {pending ? 'Saving…' : 'Extend'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {reducing && (
+                <div className="space-y-3 rounded-xl surface-inset p-4">
+                  <p className="text-sm font-semibold">Shorten stay</p>
+                  <p className="text-xs text-muted-foreground">
+                    Returns unused nights from tomorrow onward. Nights already started stay billed.
+                    Extra already collected stays as credit — refunds are owner-only.
+                    {reservation.status === 'checkout_in_progress'
+                      ? ' Checkout is cancelled and the folio unlocks.'
+                      : ''}
+                  </p>
+                  <FormField label="New check-out date">
+                    <input
+                      type="date"
+                      value={reduceCheckOut}
+                      min={minReduceDate}
+                      max={maxReduceDate}
+                      onChange={(e) => setReduceCheckOut(e.target.value)}
+                      className={APP_FIELD_CLASS}
+                    />
+                  </FormField>
+                  <div className="flex gap-2">
+                    <button type="button" onClick={() => setReducing(false)} className="flex-1 rounded-xl bg-white py-2.5 text-sm font-semibold shadow-elevation-1">
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      disabled={
+                        pending ||
+                        reduceCheckOut < minReduceDate ||
+                        reduceCheckOut > maxReduceDate ||
+                        reduceCheckOut >= reservation.checkOutDate
+                      }
+                      onClick={submitReduction}
+                      className="flex-[2] rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+                    >
+                      {pending ? 'Saving…' : 'Shorten'}
                     </button>
                   </div>
                 </div>
@@ -2367,7 +2481,7 @@ function ReservationDrawer({
                 </div>
               )}
 
-              {!checkingOut && !checkingIn && !extending && !moving && !editing && (
+              {!checkingOut && !checkingIn && !extending && !reducing && !moving && !editing && (
                 <>
                   {voidDialog && (
                     <div className="space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-4">

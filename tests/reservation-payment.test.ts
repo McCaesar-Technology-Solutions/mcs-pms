@@ -4,6 +4,7 @@ import {
   derivePreCheckoutPaymentStatus,
   reservationBalanceDue,
   buildCheckoutInvoicePaymentState,
+  stayInvoiceCollectedAmount,
 } from '@/lib/billing/reservation-payment'
 
 describe('reservation payment', () => {
@@ -46,6 +47,27 @@ describe('reservation payment', () => {
       paidNow: true,
     })
     expect(state.amountPaid).toBe(600)
+    expect(state.paymentStatus).toBe('paid')
+  })
+
+  it('preserves overpayment when unused nights come off', () => {
+    const state = stayInvoiceCollectedAmount({
+      invoiceTotal: 400,
+      priorDeposit: 500,
+      paidNow: false,
+      preserveOverpayment: true,
+    })
+    expect(state.amountPaid).toBe(500)
+    expect(state.paymentStatus).toBe('paid')
+  })
+
+  it('still caps collected at checkout when overpayment is not preserved', () => {
+    const state = stayInvoiceCollectedAmount({
+      invoiceTotal: 400,
+      priorDeposit: 500,
+      paidNow: false,
+    })
+    expect(state.amountPaid).toBe(400)
     expect(state.paymentStatus).toBe('paid')
   })
 })

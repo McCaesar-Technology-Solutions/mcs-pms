@@ -20,6 +20,11 @@ export function invoiceBalanceDue(totalAmount: number, amountPaid: number): numb
   return Math.max(0, Math.round((totalAmount - amountPaid) * 100) / 100)
 }
 
+/** Extra already collected after unused nights are removed. Not an auto-refund. */
+export function stayCreditAfterShorten(invoiceTotal: number, amountPaid: number): number {
+  return Math.max(0, Math.round((amountPaid - invoiceTotal) * 100) / 100)
+}
+
 /** Open the desk collect dialog after extra nights are added. */
 export function shouldCollectAfterStayExtension(input: {
   invoiceId: string | null | undefined

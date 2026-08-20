@@ -21,11 +21,12 @@ import {
   FileText,
   Receipt,
   CalendarPlus,
+  CalendarMinus,
 } from 'lucide-react'
 import { CenteredModal, ModalBody, ModalFooter, ModalHeader } from '@/components/ui/centered-modal'
 import { GuestDndBadge } from '@/components/ui/guest-dnd-badge'
 import { regenerateGuestAccess, revokeGuestAccess, checkOutGuest, updateGuest } from '@/app/actions/guest'
-import { extendStay } from '@/app/actions/stays'
+import { extendStay, reduceStay } from '@/app/actions/stays'
 import {
   eraseGuestPersonalData,
   getGuestDeleteEligibility,
@@ -41,7 +42,7 @@ import { usePagination } from '@/lib/hooks/use-pagination'
 import { toast } from 'sonner'
 import { addDaysISO } from '@/lib/hotel-time'
 import { todayISO } from '@/lib/stays/helpers'
-import { statusAfterStayExtension } from '@/lib/reservations/lifecycle'
+import { canReduceStay, maxReduceCheckOut, minReduceCheckOut, statusAfterStayExtension } from '@/lib/reservations/lifecycle'
 import { shouldCollectAfterStayExtension } from '@/lib/billing/invoice-payments'
 import { PAYMENT_METHOD_LABELS } from '@/lib/tax'
 import { BillToFields } from '@/components/dashboard/bill-to-fields'
@@ -698,6 +699,29 @@ export function GuestsTable({
                   />
                 )}
 
+              {!readOnly &&
+                selectedGuest.reservationId &&
+                canReduceStay(
+                  selectedGuest.occupancy === 'checking_out' ? 'checkout_in_progress' : 'checked_in',
+                  selectedGuest.checkOut,
+                  todayISO(),
+                ) &&
+                (selectedGuest.occupancy === 'in_house' ||
+                  selectedGuest.occupancy === 'checking_out') && (
+                  <GuestReduceStayPanel
+                    guest={selectedGuest}
+                    onReduced={(payload) => {
+                      setSelectedGuest({
+                        ...selectedGuest,
+                        checkOut: payload.checkOut,
+                        lastStay: payload.checkOut,
+                        occupancy: 'in_house',
+                      })
+                      router.refresh()
+                    }}
+                  />
+                )}
+
               {!readOnly && selectedGuest.canCheckOut && (
                 <GuestCheckoutPanel
                   guest={selectedGuest}
@@ -1131,6 +1155,111 @@ function GuestExtendStayPanel({
           className="flex-[2] rounded-xl bg-primary py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
         >
           {pending ? 'Saving…' : 'Extend'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function GuestReduceStayPanel({
+  guest,
+  onReduced,
+}: {
+  guest: GuestRow
+  onReduced: (payload: { checkOut: string }) => void
+}) {
+  const currentOut = guest.checkOut ?? ''
+  const today = todayISO()
+  const minOut = minReduceCheckOut(today)
+  const maxOut = currentOut ? maxReduceCheckOut(currentOut) : ''
+  const [open, setOpen] = useState(false)
+  const [newCheckOut, setNewCheckOut] = useState(() => maxOut)
+  const [error, setError] = useState<string | null>(null)
+  const [pending, startTransition] = useTransition()
+
+  useEffect(() => {
+    if (currentOut) setNewCheckOut(maxReduceCheckOut(currentOut))
+  }, [currentOut])
+
+  if (!guest.reservationId || !currentOut || !maxOut) return null
+
+  function submit() {
+    if (!guest.reservationId) return
+    setError(null)
+    startTransition(async () => {
+      const result = await reduceStay(guest.reservationId!, newCheckOut)
+      if (!result.success) {
+        setError(result.error ?? 'Could not shorten stay.')
+        toast.error(result.error ?? 'Could not shorten stay.')
+        return
+      }
+      if (result.data?.invoiceError) {
+        toast.error(`Stay shortened, but invoice failed: ${result.data.invoiceError}`)
+      } else if ((result.data?.creditAmount ?? 0) > 0.009) {
+        const credit = result.data!.creditAmount
+        toast.success(
+          `Stay shortened. ₵${credit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} credit remains — refunds are owner-only.`,
+        )
+      } else {
+        toast.success('Stay shortened')
+      }
+      setOpen(false)
+      onReduced({ checkOut: newCheckOut })
+    })
+  }
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex w-full items-center justify-center gap-2 rounded-xl bg-white py-3 text-sm font-semibold text-foreground shadow-elevation-1"
+      >
+        <CalendarMinus className="h-4 w-4" />
+        Shorten stay
+      </button>
+    )
+  }
+
+  return (
+    <div className="space-y-3 rounded-xl surface-inset p-4">
+      <p className="text-sm font-semibold">Shorten stay</p>
+      <p className="text-xs text-muted-foreground">
+        Current check-out {currentOut}. New date must be tomorrow or later, and before the current
+        check-out. Unused nights come off the stay invoice; extra already collected stays as credit.
+      </p>
+      <FormField label="New check-out date">
+        <input
+          type="date"
+          value={newCheckOut}
+          min={minOut}
+          max={maxOut}
+          onChange={(e) => setNewCheckOut(e.target.value)}
+          className={APP_FIELD_CLASS}
+        />
+      </FormField>
+      {error && <p className="text-sm text-destructive">{error}</p>}
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          className="flex-1 rounded-xl bg-white py-2 text-sm font-semibold shadow-elevation-1"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          disabled={
+            pending ||
+            !newCheckOut ||
+            newCheckOut < minOut ||
+            newCheckOut > maxOut ||
+            newCheckOut >= currentOut
+          }
+          onClick={submit}
+          className="flex-[2] rounded-xl bg-primary py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+        >
+          {pending ? 'Saving…' : 'Shorten'}
         </button>
       </div>
     </div>

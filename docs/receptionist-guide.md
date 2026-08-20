@@ -118,7 +118,7 @@ You can also **Collect payment before check-in** on a confirmed booking.
 
 ### While in house
 
-- **Extend stay** / **Move room**.
+- **Extend stay** / **Shorten stay** (unused nights from tomorrow onward) / **Move room**.
 - Post **folio** charges from **Guests** (no discount credits — ask a manager). Charges and guest requests stay on the stay during **dispute hold**; a manager must start or release the hold, or check out, from Reservations.
 - **Approve late checkout** when policy allows.
 - **Generate stay invoice & collect** from the guest card if they somehow have no invoice.
@@ -193,6 +193,7 @@ For people **already staying**:
 - Copy / regenerate / revoke portal link; WhatsApp share.
 - **Export PII** if asked (erase is manager/owner only).
 - **Extend stay** — pick a later check-out (same as Reservations). Room total and portal access update automatically.
+- **Shorten stay** — return unused nights from tomorrow onward. Extra already collected stays as credit (refunds are owner-only).
 - Check out from guest page if easier. If the card shows **Dispute hold**, checkout is paused — ask a manager to release the hold, check out, or record a walkout on Reservations.
 
 ---

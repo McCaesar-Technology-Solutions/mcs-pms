@@ -3,6 +3,7 @@ import {
   canCancelReservationStatus,
   canExtendStay,
   canMoveStayRoom,
+  canReduceStay,
   canStartDisputeHold,
   filterMetricsEligible,
   filterOpenBookings,
@@ -13,6 +14,8 @@ import {
   isVoidedReservationStatus,
   isInHouseReservationStatus,
   isOccupyingReservationStatus,
+  maxReduceCheckOut,
+  minReduceCheckOut,
   parseRequiredStayNote,
   statusAfterDisputeHoldRelease,
   statusAfterStayExtension,
@@ -132,6 +135,19 @@ describe('dispute hold', () => {
     expect(stayExtensionChangesStatus('overstay', 'checked_in')).toBe(true)
     expect(stayExtensionChangesStatus('checked_in', 'checked_in')).toBe(false)
     expect(stayExtensionChangesStatus('checkout_in_progress', 'checked_in')).toBe(true)
+  })
+
+  it('lets staff shorten unused nights from tomorrow onward', () => {
+    expect(getAvailableActions('checked_in', 'staff')).toContain('reduce_stay')
+    expect(getAvailableActions('checkout_in_progress', 'receptionist')).toContain('reduce_stay')
+    expect(getAvailableActions('overstay', 'staff')).not.toContain('reduce_stay')
+    expect(minReduceCheckOut('2026-08-20')).toBe('2026-08-21')
+    expect(maxReduceCheckOut('2026-08-24')).toBe('2026-08-23')
+    expect(canReduceStay('checked_in', '2026-08-24', '2026-08-20')).toBe(true)
+    expect(canReduceStay('checkout_in_progress', '2026-08-22', '2026-08-20')).toBe(true)
+    expect(canReduceStay('checked_in', '2026-08-21', '2026-08-20')).toBe(false)
+    expect(canReduceStay('overstay', '2026-08-24', '2026-08-20')).toBe(false)
+    expect(canReduceStay('dispute_hold', '2026-08-24', '2026-08-20')).toBe(false)
   })
 
   it('lets managers start a hold from in-house or checkout in progress', () => {

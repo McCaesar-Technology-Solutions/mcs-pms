@@ -43,11 +43,11 @@ import {
   prepareCheckoutTaxesWithFolio,
 } from '@/lib/folio/rollup'
 import { writeAuditLog, logRoomStatusChange } from '@/lib/audit/log'
-import { canCheckIn, canCheckOut, canExtendStay, canMoveStayRoom, canStartDisputeHold, parseRequiredStayNote, OCCUPYING_STATUSES, asReservationStatus, stayExtensionChangesStatus, statusAfterDisputeHoldRelease, statusAfterStayExtension } from '@/lib/reservations/lifecycle'
+import { canCheckIn, canCheckOut, canExtendStay, canMoveStayRoom, canReduceStay, canStartDisputeHold, minReduceCheckOut, parseRequiredStayNote, OCCUPYING_STATUSES, asReservationStatus, stayExtensionChangesStatus, statusAfterDisputeHoldRelease, statusAfterStayExtension } from '@/lib/reservations/lifecycle'
 import { validateCheckoutBalance, validateCheckoutPaymentAmount } from '@/lib/reservations/checkout-validation'
 import { applyStayPayment } from '@/lib/billing/apply-stay-payment'
 import { reverseOverstayChargeOnExtend } from '@/lib/reservations/lifecycle-charges'
-import { invoiceBalanceDue } from '@/lib/billing/invoice-payments'
+import { invoiceBalanceDue, stayCreditAfterShorten } from '@/lib/billing/invoice-payments'
 import { runNotifyTask } from '@/lib/notifications/notify-task'
 import {
   buildCheckoutInvoicePaymentState,
@@ -1700,6 +1700,213 @@ export async function extendStay(
   return {
     success: true,
     data: { invoiceId, invoicePreview, balanceDue, invoiceError },
+  }
+}
+
+export async function reduceStay(
+  reservationId: string,
+  newCheckOut: string,
+): Promise<
+  StayActionResult<{
+    invoiceId: string | null
+    invoicePreview?: InvoiceExportRow
+    balanceDue: number
+    creditAmount: number
+    invoiceError?: string
+  }>
+> {
+  const { profile } = await requireManager()
+  if (!profile?.hotel_id || !['owner', 'manager', 'receptionist'].includes(profile.role)) {
+    return { success: false, error: 'Not authorized.' }
+  }
+
+  const admin = createAdminClient()
+  const { data: reservation } = await admin
+    .from('reservations')
+    .select('*')
+    .eq('id', reservationId)
+    .eq('hotel_id', profile.hotel_id)
+    .maybeSingle()
+
+  if (!reservation) return { success: false, error: 'Reservation not found.' }
+
+  const { data: hotel } = await admin
+    .from('hotels')
+    .select('timezone')
+    .eq('id', profile.hotel_id)
+    .maybeSingle()
+  const today = hotelTodayISO(normalizeHotelTimezone(hotel?.timezone))
+
+  if (!canReduceStay(reservation.status, reservation.check_out, today)) {
+    return { success: false, error: 'This stay has no unused nights to return.' }
+  }
+  if (!isIsoDateString(newCheckOut)) {
+    return { success: false, error: 'Enter a valid check-out date.' }
+  }
+  const minOut = minReduceCheckOut(today)
+  if (newCheckOut < minOut) {
+    return { success: false, error: 'Same-day departure is checkout, not a shorter stay.' }
+  }
+  if (newCheckOut >= reservation.check_out) {
+    return { success: false, error: 'New check-out must be before the current check-out date.' }
+  }
+  if (newCheckOut <= reservation.check_in) {
+    return { success: false, error: 'Check-out must be after check-in.' }
+  }
+
+  const rateType = (reservation.rate_type ?? 'nightly') as RateType
+  const roomRates = reservation.room_id
+    ? await getRoomRates(admin, reservation.room_id)
+    : { nightlyRate: 0, weeklyRate: 0, monthlyRate: 0 }
+  const nightlyRate =
+    reservation.nightly_rate != null ? Number(reservation.nightly_rate) : roomRates.nightlyRate
+  const weeklyRate =
+    reservation.weekly_rate != null ? Number(reservation.weekly_rate) : roomRates.weeklyRate
+  const monthlyRate =
+    reservation.monthly_rate != null ? Number(reservation.monthly_rate) : roomRates.monthlyRate
+  const total = calculateStayTotal(
+    rateType,
+    reservation.check_in,
+    newCheckOut,
+    nightlyRate,
+    monthlyRate,
+    weeklyRate,
+  )
+  const tokenExpiresAt = tokenExpiryISO(newCheckOut)
+  const previousStatus = reservation.status
+  const shortenPayload = {
+    old_check_out: reservation.check_out,
+    new_check_out: newCheckOut,
+    from_status: previousStatus,
+    to_status: 'checked_in',
+  }
+
+  if (previousStatus === 'checkout_in_progress') {
+    const transitioned = await transitionReservation({
+      reservationId,
+      hotelId: profile.hotel_id,
+      toStatus: 'checked_in',
+      actorId: profile.id,
+      actorRole: normalizeActorRole(profile.role),
+      eventType: 'stay_shortened',
+      payload: shortenPayload,
+    })
+    if (!transitioned.success) {
+      return { success: false, error: transitioned.error ?? 'Could not restore in-house status.' }
+    }
+  }
+
+  await admin
+    .from('reservations')
+    .update({
+      check_out: newCheckOut,
+      total_amount: total,
+    })
+    .eq('id', reservationId)
+
+  await refreshPreCheckoutPaymentStatus(admin, reservationId)
+
+  const paymentMethod = (
+    reservation.payment_method && VALID_PAYMENT_METHODS.includes(reservation.payment_method as PaymentMethod)
+      ? reservation.payment_method
+      : 'cash'
+  ) as PaymentMethod
+  let invoiceId: string | null = null
+  let invoicePreview: InvoiceExportRow | undefined
+  let invoiceError: string | undefined
+  let balanceDue = invoiceBalanceDue(total, Number(reservation.amount_paid ?? 0))
+  let creditAmount = stayCreditAfterShorten(total, Number(reservation.amount_paid ?? 0))
+  try {
+    let guestPhone: string | null = null
+    let roomNumber: string | null = null
+    if (reservation.guest_id) {
+      const { data: guestRow } = await admin
+        .from('guests')
+        .select('phone')
+        .eq('id', reservation.guest_id)
+        .maybeSingle()
+      guestPhone = guestRow?.phone?.trim() ?? null
+    }
+    if (reservation.room_id) {
+      const { data: roomRow } = await admin
+        .from('rooms')
+        .select('number')
+        .eq('id', reservation.room_id)
+        .maybeSingle()
+      roomNumber = roomRow?.number ?? null
+    }
+
+    const issued = await createOrRefreshStayInvoice(admin, {
+      reservation: {
+        ...reservation,
+        check_out: newCheckOut,
+        total_amount: total,
+      },
+      paymentMethod,
+      markAsPaid: false,
+      preserveOverpayment: true,
+      effectiveCheckOut: newCheckOut,
+      guestPhone,
+      roomNumber,
+    })
+    invoiceId = issued.invoiceId
+    invoicePreview = issued.invoicePreview
+    balanceDue = invoiceBalanceDue(issued.taxes.total, issued.amountPaid)
+    creditAmount = stayCreditAfterShorten(issued.taxes.total, issued.amountPaid)
+  } catch (err) {
+    invoiceError = err instanceof Error ? err.message : 'Could not refresh stay invoice.'
+    void writeAuditLog({
+      hotelId: profile.hotel_id,
+      actorId: profile.id,
+      actorName: profile.name,
+      entityType: 'reservation',
+      entityId: reservationId,
+      action: 'invoice_failed',
+      summary: `Stay shorten invoice refresh failed for ${reservation.guest_name}: ${invoiceError}`,
+    })
+  }
+
+  if (reservation.guest_id) {
+    await admin
+      .from('guests')
+      .update({ check_out: newCheckOut, token_expires_at: tokenExpiresAt })
+      .eq('id', reservation.guest_id)
+
+    void updateGuestAccessValidity({
+      hotelId: profile.hotel_id,
+      guestId: reservation.guest_id,
+      reservationId,
+      checkIn: reservation.check_in,
+      checkOut: newCheckOut,
+    })
+  }
+
+  if (previousStatus !== 'checkout_in_progress') {
+    await appendReservationEvent({
+      reservationId,
+      hotelId: profile.hotel_id,
+      eventType: 'stay_shortened',
+      actorId: profile.id,
+      actorRole: normalizeActorRole(profile.role),
+      payload: shortenPayload,
+    })
+  }
+
+  revalidateStayViews()
+
+  void writeAuditLog({
+    hotelId: profile.hotel_id,
+    actorId: profile.id,
+    actorName: profile.name,
+    entityType: 'reservation',
+    entityId: reservationId,
+    action: 'shortened',
+    summary: `${reservation.guest_name}: stay shortened ${reservation.check_out} → ${newCheckOut}`,
+  })
+
+  return {
+    success: true,
+    data: { invoiceId, invoicePreview, balanceDue, creditAmount, invoiceError },
   }
 }
 

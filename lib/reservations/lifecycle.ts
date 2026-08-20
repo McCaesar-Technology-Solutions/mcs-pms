@@ -1,3 +1,4 @@
+import { addDaysISO } from '@/lib/hotel-time'
 import type { ReservationActorRole, ReservationStatus } from '@/types'
 
 /** Statuses that block room inventory on the calendar (real, dated windows). */
@@ -83,6 +84,7 @@ export type ReservationAction =
   | 'mark_no_show'
   | 'begin_checkout'
   | 'extend_stay'
+  | 'reduce_stay'
   | 'change_room'
   | 'approve_late_checkout'
   | 'complete_checkout'
@@ -153,6 +155,30 @@ export function canExtendStay(status: string | null | undefined): boolean {
 
 export function canMoveStayRoom(status: string | null | undefined): boolean {
   return canExtendStay(status)
+}
+
+/** Front desk may return unused future nights for these occupying stays. */
+export const REDUCEABLE_STATUSES = [
+  'checked_in',
+  'checkout_in_progress',
+] as const satisfies readonly ReservationStatus[]
+
+export function minReduceCheckOut(today: string): string {
+  return addDaysISO(today, 1)
+}
+
+export function maxReduceCheckOut(currentCheckOut: string): string {
+  return addDaysISO(currentCheckOut, -1)
+}
+
+export function canReduceStay(
+  status: string | null | undefined,
+  checkOut: string | null | undefined,
+  today: string,
+): boolean {
+  if (!(REDUCEABLE_STATUSES as readonly string[]).includes(status ?? '')) return false
+  if (!checkOut) return false
+  return checkOut > minReduceCheckOut(today)
 }
 
 /** After extra nights are booked, restore a live in-house status from the new date. */
@@ -235,7 +261,7 @@ export function getAvailableActions(
       if (role !== 'guest') actions.push('check_in', 'mark_no_show', 'cancel')
       break
     case 'checked_in':
-      actions.push('begin_checkout', 'extend_stay', 'change_room', 'record_walkout')
+      actions.push('begin_checkout', 'extend_stay', 'reduce_stay', 'change_room', 'record_walkout')
       if (role === 'manager') actions.push('dispute_hold')
       break
     case 'overstay':
@@ -257,7 +283,7 @@ export function getAvailableActions(
       if (role !== 'guest') actions.push('release_no_show_room')
       break
     case 'checkout_in_progress':
-      actions.push('complete_checkout', 'extend_stay', 'change_room', 'record_walkout')
+      actions.push('complete_checkout', 'extend_stay', 'reduce_stay', 'change_room', 'record_walkout')
       if (role === 'manager') actions.push('dispute_hold')
       break
     default:

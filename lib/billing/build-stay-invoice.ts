@@ -25,9 +25,9 @@ import {
 } from '@/lib/billing/discount'
 import { resolveInvoiceTaxId } from '@/lib/billing/ghana-card'
 import {
-  buildCheckoutInvoicePaymentState,
   finalizeReservationCheckoutPayment,
   linkDepositRecordsToInvoice,
+  stayInvoiceCollectedAmount,
   syncReservationPaymentFromInvoice,
 } from '@/lib/billing/reservation-payment'
 import { resolveCollectedAmount } from '@/lib/billing/invoice-ledger'
@@ -184,6 +184,7 @@ export async function createOrRefreshStayInvoice(
     roomNumber?: string | null
     billToSameAsGuest?: boolean
     billToName?: string | null
+    preserveOverpayment?: boolean
   },
 ): Promise<{
   invoiceId: string
@@ -378,10 +379,11 @@ export async function createOrRefreshStayInvoice(
       await syncReservationPaymentFromInvoice(admin, reservation.id)
     } else {
       const depositFloor = priorPaid
-      const seeded = buildCheckoutInvoicePaymentState({
+      const seeded = stayInvoiceCollectedAmount({
         invoiceTotal: taxes.total,
         priorDeposit: depositFloor,
         paidNow: false,
+        preserveOverpayment: input.preserveOverpayment,
       })
       amountPaid = seeded.amountPaid
       paymentStatus = seeded.paymentStatus
@@ -437,10 +439,11 @@ export async function createOrRefreshStayInvoice(
   }
 
   const priorDeposit = Number(reservation.amount_paid ?? 0)
-  const checkoutPayment = buildCheckoutInvoicePaymentState({
+  const checkoutPayment = stayInvoiceCollectedAmount({
     invoiceTotal: taxes.total,
     priorDeposit,
     paidNow,
+    preserveOverpayment: input.preserveOverpayment,
   })
   const invoiceNumber = await allocateInvoiceNumber(reservation.hotel_id)
   const dueAt = paidNow

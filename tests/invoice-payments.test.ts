@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   invoiceBalanceDue,
   shouldCollectAfterStayExtension,
+  stayCreditAfterShorten,
 } from '@/lib/billing/invoice-payments'
 
 describe('shouldCollectAfterStayExtension', () => {
@@ -46,5 +47,20 @@ describe('shouldCollectAfterStayExtension', () => {
 describe('invoiceBalanceDue', () => {
   it('rounds remaining extra nights', () => {
     expect(invoiceBalanceDue(1210.55, 200)).toBe(1010.55)
+  })
+
+  it('treats overpayment as zero due', () => {
+    expect(invoiceBalanceDue(400, 500)).toBe(0)
+  })
+})
+
+describe('stayCreditAfterShorten', () => {
+  it('keeps extra collected as credit when nights come off', () => {
+    expect(stayCreditAfterShorten(400, 500)).toBe(100)
+  })
+
+  it('is zero when the new total is still unpaid or even', () => {
+    expect(stayCreditAfterShorten(400, 400)).toBe(0)
+    expect(stayCreditAfterShorten(400, 200)).toBe(0)
   })
 })
