@@ -1595,7 +1595,6 @@ export async function extendStay(
         ...reservation,
         check_out: newCheckOut,
         total_amount: total,
-        status: nextStatus,
       },
       paymentMethod,
       markAsPaid: false,
