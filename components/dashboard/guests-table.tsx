@@ -660,10 +660,7 @@ export function GuestsTable({
 
               {!readOnly && <GuestAccessLink guest={selectedGuest} />}
 
-              {!readOnly &&
-                selectedGuest.canCheckOut &&
-                selectedGuest.reservationId &&
-                selectedGuest.occupancy === 'in_house' && (
+              {!readOnly && selectedGuest.canCheckOut && selectedGuest.reservationId && (
                   <GuestExtendStayPanel
                     guest={selectedGuest}
                     onExtended={(checkOut) => {
@@ -1059,8 +1056,9 @@ function GuestExtendStayPanel({
     <div className="space-y-3 rounded-xl surface-inset p-4">
       <p className="text-sm font-semibold">Extend stay</p>
       <p className="text-xs text-muted-foreground">
-        Current check-out {currentOut}. New date must be later. Room total and portal access update
-        automatically.
+        Current check-out {currentOut}. New date must be later. Room total, stay invoice, and portal
+        access update automatically. Overstay and checkout-in-progress stays return to in house when
+        the new date is after today.
       </p>
       <FormField label="New check-out date">
         <input

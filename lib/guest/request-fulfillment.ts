@@ -80,7 +80,9 @@ export async function fulfillGuestRequest(
       .select('check_out')
       .eq('guest_id', request.guest_id)
       .eq('hotel_id', request.hotel_id)
-      .eq('status', 'checked_in')
+      .in('status', ['checked_in', 'overstay', 'checkout_in_progress'])
+      .order('created_at', { ascending: false })
+      .limit(1)
       .maybeSingle()
 
     const validation = validateExtensionCompletion(

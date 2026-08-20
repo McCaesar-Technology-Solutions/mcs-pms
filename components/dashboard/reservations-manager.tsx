@@ -58,6 +58,7 @@ import { canApplyGuestDiscount } from '@/lib/auth/tenant-access'
 import {
   canCheckIn,
   canCancelReservationStatus,
+  canExtendStay,
   canUpdateReservationFields,
   getAvailableActions,
   isOccupyingReservationStatus,
@@ -1094,6 +1095,7 @@ function ReservationDrawer({
   const canCancel = canCancelReservationStatus(reservation.status)
   const canEdit = canUpdateReservationFields(reservation.status)
   const canCheckInNow = canCheckIn(reservation.status)
+  const canExtendNow = canExtendStay(reservation.status)
   const lifecycleActions = getAvailableActions(reservation.status, staffRole)
   const canDisputeHold = lifecycleActions.includes('dispute_hold')
   const canReleaseHold = lifecycleActions.includes('release_dispute_hold')
@@ -1842,7 +1844,8 @@ function ReservationDrawer({
                 </div>
               )}
 
-              {(reservation.status === 'checked_in' || reservation.status === 'overstay') &&
+              {canExtendNow &&
+                reservation.status !== 'checkout_in_progress' &&
                 !checkingOut &&
                 !extending &&
                 !moving &&
@@ -2100,6 +2103,17 @@ function ReservationDrawer({
                     <LogOut className="h-4 w-4" />
                     Complete checkout
                   </button>
+                  {canExtendNow && (
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() => setExtending(true)}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-white py-3 text-sm font-semibold text-foreground shadow-elevation-1"
+                    >
+                      <CalendarPlus className="h-4 w-4" />
+                      Extend stay
+                    </button>
+                  )}
                   {canDisputeHold && (
                     <button
                       type="button"
@@ -2140,6 +2154,12 @@ function ReservationDrawer({
               {extending && (
                 <div className="space-y-3 rounded-xl surface-inset p-4">
                   <p className="text-sm font-semibold">Extend stay</p>
+                  <p className="text-xs text-muted-foreground">
+                    Adds nights, updates the room total and stay invoice, and restores in-house status when the new check-out is after today.
+                    {reservation.status === 'checkout_in_progress'
+                      ? ' Checkout is cancelled and the folio unlocks.'
+                      : ''}
+                  </p>
                   {guestRequestId && (
                     <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-950">
                       This extension came from a guest request. After saving the new date, go back and mark the request as completed.

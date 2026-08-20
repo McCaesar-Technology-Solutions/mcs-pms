@@ -71,12 +71,14 @@ async function roomsWithIndefiniteOccupant(
   if (opts.roomId) indefiniteQuery = indefiniteQuery.eq('room_id', opts.roomId)
   if (opts.excludeReservationId) indefiniteQuery = indefiniteQuery.neq('id', opts.excludeReservationId)
 
-  const staleQuery = client
+  let staleQuery = client
     .from('reservations')
     .select('id, room_id')
     .eq('hotel_id', hotelId)
     .in('status', STALE_IN_HOUSE_STATUSES)
     .lt('check_out', today)
+  if (opts.roomId) staleQuery = staleQuery.eq('room_id', opts.roomId)
+  if (opts.excludeReservationId) staleQuery = staleQuery.neq('id', opts.excludeReservationId)
 
   let noShowHoldQuery = client
     .from('reservations')
@@ -94,7 +96,10 @@ async function roomsWithIndefiniteOccupant(
     noShowHoldQuery,
   ])
   for (const r of [...(indefinite ?? []), ...(stale ?? []), ...(noShowHeld ?? [])]) {
-    if (r.room_id) taken.add(r.room_id)
+    if (!r.room_id) continue
+    if (opts.excludeReservationId && r.id === opts.excludeReservationId) continue
+    if (opts.roomId && r.room_id !== opts.roomId) continue
+    taken.add(r.room_id)
   }
   return taken
 }

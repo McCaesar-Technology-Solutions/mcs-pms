@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   canCancelReservationStatus,
+  canExtendStay,
   canStartDisputeHold,
   filterMetricsEligible,
   filterOpenBookings,
@@ -13,6 +14,7 @@ import {
   isOccupyingReservationStatus,
   parseRequiredStayNote,
   statusAfterDisputeHoldRelease,
+  statusAfterStayExtension,
 } from '@/lib/reservations/lifecycle'
 import {
   actorMeetsRequiredRole,
@@ -106,6 +108,20 @@ describe('dispute hold', () => {
     ])
     expect(getAvailableActions('dispute_hold', 'staff')).toEqual([])
     expect(getAvailableActions('dispute_hold', 'receptionist')).toEqual([])
+  })
+
+  it('lets manager, owner, and reception extend overstay and checkout-in-progress stays', () => {
+    for (const role of ['manager', 'owner', 'receptionist', 'staff'] as const) {
+      expect(getAvailableActions('overstay', role)).toContain('extend_stay')
+      expect(getAvailableActions('checkout_in_progress', role)).toContain('extend_stay')
+      expect(getAvailableActions('checked_in', role)).toContain('extend_stay')
+    }
+    expect(canExtendStay('checked_in')).toBe(true)
+    expect(canExtendStay('overstay')).toBe(true)
+    expect(canExtendStay('checkout_in_progress')).toBe(true)
+    expect(canExtendStay('dispute_hold')).toBe(false)
+    expect(statusAfterStayExtension('2026-08-21', '2026-08-20')).toBe('checked_in')
+    expect(statusAfterStayExtension('2026-08-20', '2026-08-20')).toBe('overstay')
   })
 
   it('lets managers start a hold from in-house or checkout in progress', () => {

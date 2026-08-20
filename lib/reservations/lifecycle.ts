@@ -140,6 +140,25 @@ export function canCheckOut(status: string | null | undefined): boolean {
   return status === 'checked_in' || status === 'overstay'
 }
 
+/** Front desk may add nights for these occupying stays. */
+export const EXTENDABLE_STATUSES = [
+  'checked_in',
+  'overstay',
+  'checkout_in_progress',
+] as const satisfies readonly ReservationStatus[]
+
+export function canExtendStay(status: string | null | undefined): boolean {
+  return (EXTENDABLE_STATUSES as readonly string[]).includes(status ?? '')
+}
+
+/** After extra nights are booked, restore a live in-house status from the new date. */
+export function statusAfterStayExtension(
+  newCheckOut: string,
+  today: string,
+): 'checked_in' | 'overstay' {
+  return newCheckOut > today ? 'checked_in' : 'overstay'
+}
+
 /** After a billing dispute is released, resume as in-house or overstay from the stay dates. */
 export function statusAfterDisputeHoldRelease(
   checkOut: string,
@@ -209,7 +228,13 @@ export function getAvailableActions(
       if (role === 'manager') actions.push('dispute_hold')
       break
     case 'overstay':
-      actions.push('begin_checkout', 'approve_late_checkout', 'record_walkout')
+      actions.push(
+        'begin_checkout',
+        'extend_stay',
+        'change_room',
+        'approve_late_checkout',
+        'record_walkout',
+      )
       if (role === 'manager') actions.push('dispute_hold')
       break
     case 'dispute_hold':
@@ -221,7 +246,7 @@ export function getAvailableActions(
       if (role !== 'guest') actions.push('release_no_show_room')
       break
     case 'checkout_in_progress':
-      actions.push('complete_checkout', 'record_walkout')
+      actions.push('complete_checkout', 'extend_stay', 'record_walkout')
       if (role === 'manager') actions.push('dispute_hold')
       break
     default:

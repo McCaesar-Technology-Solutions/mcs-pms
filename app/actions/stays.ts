@@ -43,7 +43,7 @@ import {
   prepareCheckoutTaxesWithFolio,
 } from '@/lib/folio/rollup'
 import { writeAuditLog, logRoomStatusChange } from '@/lib/audit/log'
-import { canCheckIn, canCheckOut, canStartDisputeHold, parseRequiredStayNote, OCCUPYING_STATUSES, statusAfterDisputeHoldRelease } from '@/lib/reservations/lifecycle'
+import { canCheckIn, canCheckOut, canExtendStay, canStartDisputeHold, parseRequiredStayNote, OCCUPYING_STATUSES, statusAfterDisputeHoldRelease, statusAfterStayExtension } from '@/lib/reservations/lifecycle'
 import { validateCheckoutBalance, validateCheckoutPaymentAmount } from '@/lib/reservations/checkout-validation'
 import { applyStayPayment } from '@/lib/billing/apply-stay-payment'
 import { invoiceBalanceDue } from '@/lib/billing/invoice-payments'
@@ -1492,7 +1492,7 @@ export async function extendStay(
     .maybeSingle()
 
   if (!reservation) return { success: false, error: 'Reservation not found.' }
-  if (reservation.status !== 'checked_in') {
+  if (!canExtendStay(reservation.status)) {
     return { success: false, error: 'Only in-house stays can be extended.' }
   }
   if (newCheckOut <= reservation.check_out) {
@@ -1515,7 +1515,7 @@ export async function extendStay(
       profile.hotel_id,
       reservation.check_in,
       newCheckOut,
-      { excludeReservationId: reservationId },
+      { excludeReservationId: reservationId, excludeGuestId: reservation.guest_id ?? undefined },
     )
     return {
       success: false,
@@ -1542,12 +1542,80 @@ export async function extendStay(
   )
   const tokenExpiresAt = tokenExpiryISO(newCheckOut)
 
+  const { data: hotel } = await admin
+    .from('hotels')
+    .select('timezone')
+    .eq('id', profile.hotel_id)
+    .maybeSingle()
+  const today = hotelTodayISO(normalizeHotelTimezone(hotel?.timezone))
+  const nextStatus = statusAfterStayExtension(newCheckOut, today)
+  const previousStatus = reservation.status
+
   await admin
     .from('reservations')
-    .update({ check_out: newCheckOut, total_amount: total })
+    .update({
+      check_out: newCheckOut,
+      total_amount: total,
+      status: nextStatus,
+      folio_locked: false,
+    })
     .eq('id', reservationId)
 
+  if (reservation.room_id) {
+    await admin.from('rooms').update({ status: 'occupied' }).eq('id', reservation.room_id)
+  }
+
   await refreshPreCheckoutPaymentStatus(admin, reservationId)
+
+  const paymentMethod = (
+    reservation.payment_method && VALID_PAYMENT_METHODS.includes(reservation.payment_method as PaymentMethod)
+      ? reservation.payment_method
+      : 'cash'
+  ) as PaymentMethod
+  try {
+    let guestPhone: string | null = null
+    let roomNumber: string | null = null
+    if (reservation.guest_id) {
+      const { data: guestRow } = await admin
+        .from('guests')
+        .select('phone')
+        .eq('id', reservation.guest_id)
+        .maybeSingle()
+      guestPhone = guestRow?.phone?.trim() ?? null
+    }
+    const { data: roomRow } = await admin
+      .from('rooms')
+      .select('number')
+      .eq('id', reservation.room_id)
+      .maybeSingle()
+    roomNumber = roomRow?.number ?? null
+
+    await createOrRefreshStayInvoice(admin, {
+      reservation: {
+        ...reservation,
+        check_out: newCheckOut,
+        total_amount: total,
+        status: nextStatus,
+      },
+      paymentMethod,
+      markAsPaid: false,
+      effectiveCheckOut: newCheckOut,
+      guestPhone,
+      roomNumber,
+    })
+  } catch (err) {
+    void writeAuditLog({
+      hotelId: profile.hotel_id,
+      actorId: profile.id,
+      actorName: profile.name,
+      entityType: 'reservation',
+      entityId: reservationId,
+      action: 'invoice_failed',
+      summary: `Stay extension invoice refresh failed for ${reservation.guest_name}: ${
+        err instanceof Error ? err.message : 'unknown error'
+      }`,
+    })
+  }
 
   if (reservation.guest_id) {
     await admin
@@ -1573,6 +1641,8 @@ export async function extendStay(
     payload: {
       old_check_out: reservation.check_out,
       new_check_out: newCheckOut,
+      from_status: previousStatus,
+      to_status: nextStatus,
     },
   })
 
