@@ -314,7 +314,13 @@ A: Production paths use **Supabase PostgreSQL**. Configure `.env.local` with you
 A: The system is production-ready. Customize colors, add your property info in Settings, and deploy to Vercel.
 
 **Q: How many properties does it support?**
-A: Owners can manage **multiple properties** via the sidebar property switcher. Managers are assigned to one property.
+A: Owners can manage **multiple properties** via the sidebar property switcher. Managers can switch among properties the owner assigned them (same login). Receptionists and technicians stay on one property.
+
+**Q: Invite says to assign the manager instead of sending a new invite?**
+A: That email already belongs to a manager on another of your properties. On **Staff**, use **Assign** or **Add existing manager**. Don’t send a second invite.
+
+**Q: Manager cannot drop their last property?**
+A: Assign them to another of your hotels first, or **Disable** the account. Disable turns off every assignment.
 
 ### Technical
 

@@ -43,7 +43,7 @@ System design for the property management application.
 | UI | Next.js 16, React 19 | App Router; mostly Server Components for pages |
 | Styling | Tailwind CSS 4 | Design tokens in `app/globals.css` |
 | Database | Supabase PostgreSQL | Migrations in `supabase/migrations/` |
-| Tenancy | `hotel_id` on rows | RLS policies scope by hotel / role |
+| Tenancy | `hotel_id` on rows | RLS scopes by the **active** hotel. Owners own a portfolio; managers may be assigned to several hotels (`hotel_staff_assignments`) and switch `profiles.hotel_id` like owners. Receptionists/technicians stay on one hotel. |
 | Auth | Supabase Auth | Staff users; guests use portal tokens |
 | Mutations | Server Actions | Not REST `/api/*` for core CRUD |
 | Live UI | Supabase Realtime | `postgres_changes` → refresh or client refetch |

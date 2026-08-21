@@ -59,8 +59,9 @@ export function PropertySwitcher({ collapsed = false, compact = false }: Propert
     )
   }
 
-  // Managers / technicians are locked to their assigned property: show a static,
-  // non-interactive badge with no switcher dropdown and no "Add property".
+  // Receptionists / technicians (and managers on a single property) stay on
+  // a static badge. Owners, and managers assigned to more than one property,
+  // get the switcher. Only owners see "Add property".
   if (!canSwitchProperty) {
     return (
       <div

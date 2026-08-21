@@ -73,28 +73,29 @@ export async function syncReservationPaymentFromInvoice(
   admin: SupabaseClient,
   reservationId: string,
 ): Promise<void> {
-  const { data: invoice } = await admin
+  const { data: invoices } = await admin
     .from('invoices')
     .select('total_amount, amount_paid, payment_status, payment_method')
     .eq('reservation_id', reservationId)
-    .maybeSingle()
 
-  if (!invoice) return
+  if (!invoices?.length) return
 
-  const total = Number(invoice.total_amount ?? 0)
-  const paid = Number(invoice.amount_paid ?? 0)
+  const total = invoices.reduce((sum, row) => sum + Number(row.total_amount ?? 0), 0)
+  const paid = invoices.reduce((sum, row) => sum + Number(row.amount_paid ?? 0), 0)
+  const method =
+    invoices.find((row) => row.payment_method)?.payment_method ?? invoices[invoices.length - 1]?.payment_method
+  const combinedStatus =
+    invoices.length === 1
+      ? invoices[0]!.payment_status
+      : deriveInvoicePaymentStatus(total, paid, null)
 
   await admin
     .from('reservations')
     .update({
       total_amount: total,
       amount_paid: paid,
-      payment_status: mapInvoicePaymentStatusToReservation(
-        invoice.payment_status,
-        total,
-        paid,
-      ),
-      payment_method: invoice.payment_method as PaymentMethod | null,
+      payment_status: mapInvoicePaymentStatusToReservation(combinedStatus, total, paid),
+      payment_method: method as PaymentMethod | null,
     })
     .eq('id', reservationId)
 }

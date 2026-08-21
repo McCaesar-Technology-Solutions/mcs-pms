@@ -21,6 +21,7 @@ import {
   signUpOwnerSchema,
 } from '@/lib/validations'
 import { resolveSignInEmail } from '@/lib/auth/resolve-sign-in'
+import { recordManagerAssignment } from '@/lib/data/staff-assignments'
 import type { UserRole } from '@/types'
 
 export type AuthActionResult =
@@ -344,6 +345,19 @@ export async function acceptInvite(
   if (profileError) {
     await admin.auth.admin.deleteUser(authUser.user.id)
     return { success: false, error: 'Could not complete registration.' }
+  }
+
+  if (invite.role === 'manager') {
+    const assignment = await recordManagerAssignment({
+      profileId: authUser.user.id,
+      hotelId: invite.hotel_id,
+      assignedBy: invite.invited_by,
+    })
+    if (!assignment.ok) {
+      await admin.from('profiles').delete().eq('id', authUser.user.id)
+      await admin.auth.admin.deleteUser(authUser.user.id)
+      return { success: false, error: 'Could not complete registration.' }
+    }
   }
 
   await admin.from('staff_invites').update({ accepted: true }).eq('id', invite.id)

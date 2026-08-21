@@ -10,8 +10,8 @@ Production features shipped beyond the original UI prototype. The screen-by-scre
 
 | Role | Sign-in | Scope |
 |------|---------|-------|
-| **Owner** | `/signup` or login | Guided first-run setup; all properties; billing, refunds, GRA, analytics, payroll, settings |
-| **Manager** | Staff invite | One property; daily ops, discounts, stay/ad-hoc billing (no refunds), complaints close, payroll drafts |
+| **Owner** | `/signup` or login | Guided first-run setup; all properties; billing, refunds, GRA, analytics, payroll, settings; assign managers across owned hotels |
+| **Manager** | Staff invite | Properties the owner assigned (same login, sidebar switcher); daily ops, discounts, stay/ad-hoc billing (no refunds), complaints close, payroll drafts |
 | **Receptionist** | Staff invite (email) | One property; front desk, stay payments (must collect when issuing), guest access. No discounts, unpaid invoices, refunds, or complaint close |
 | **Technician** | Staff invite (phone) | Assigned maintenance jobs + housekeeping claim pool |
 | **Guest** | Portal token (no password) | Stay chat, requests, invoices, issues + completion sign-off |
@@ -24,7 +24,7 @@ Production features shipped beyond the original UI prototype. The screen-by-scre
 - **Access control (Hikvision)** — optional on-site agent + ISAPI; check-in provisions unit + shared + gym; checkout revokes; Today / Guests / Staff / Attendance / Setup. See [docs/access-control.md](docs/access-control.md).
 - **Housekeeping** — kanban (desktop + `/mobile/housekeeping`); auto Clean then Inspect after checkout. Technicians claim from `/technician/tasks`.
 - **Complaints** — log → manager assign → technician **starts immediately** → mark complete → **guest sign-off** (if linked) → manager closes. Technician invoices are optional cost records. Owners log + read-only lifecycle at `/owner/complaints`.
-- **Staff** — invite managers and receptionists by **email**, technicians by **phone**; WhatsApp invite share; pay profiles for payroll.
+- **Staff** — invite managers and receptionists by **email**, technicians by **phone**; WhatsApp invite share; pay profiles for payroll. Owners assign an existing manager to another owned property without a new invite.
 - **Billing / GRA / Analytics** — owner Billing (refunds, payment ledger), GRA reports, analytics, night/period audit. Managers issue unpaid/ad-hoc invoices and record payments. Receptionists record stay payments and WhatsApp bills. Optional **Include Ghana tax**; tourism levy default 1%; per-hotel tax rate overrides; taxed invoices stamp Bill-to Tax ID `GHA-728071939-8`. Managers' dashboard hides revenue.
 - **Payroll** — owner (full) / manager (draft): pay profiles, pay runs (draft → approve → paid), housekeeping commission, payslip PDF + MoMo/bank CSV.
 - **Inventory / expenses** — owner and manager stock movements; owner expenses. Reception has no inventory screen.

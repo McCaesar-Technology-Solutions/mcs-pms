@@ -2,8 +2,8 @@
 
 import { Suspense, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Banknote, Check, Copy, Download, Loader2, Mail, MessageCircle, Phone, Plus, Search, ShieldCheck, UserX, X } from 'lucide-react'
-import { inviteStaff, revokeInvite, setStaffActive, updateStaffPhone } from '@/app/actions/staff'
+import { Banknote, Building2, Check, Copy, Download, Loader2, Mail, MessageCircle, Phone, Plus, Search, ShieldCheck, UserPlus, UserX, X } from 'lucide-react'
+import { assignManagerToProperty, inviteStaff, revokeInvite, setStaffActive, unassignManagerFromProperty, updateStaffPhone } from '@/app/actions/staff'
 import { startStaffDm } from '@/app/actions/staff-conversation'
 import { ProfilePhoneEditor } from '@/components/dashboard/profile-phone-editor'
 import { MfaSettingsCard } from '@/components/dashboard/mfa-settings-card'
@@ -25,6 +25,7 @@ import {
   ModalHeader,
 } from '@/components/ui/centered-modal'
 import type { EmployeeCompensationRow } from '@/lib/payroll/types'
+import type { OwnerStaffAssignmentUi } from '@/lib/data/staff'
 import type { Profile, StaffInvite, UserRole } from '@/types'
 
 interface StaffManagerProps {
@@ -33,6 +34,8 @@ interface StaffManagerProps {
   invites: StaffInvite[]
   /** Owner-only: existing pay profiles keyed by profile id */
   compensationByProfileId?: Record<string, EmployeeCompensationRow>
+  /** Owner-only: assign managers across owned properties */
+  assignmentUi?: OwnerStaffAssignmentUi | null
 }
 
 const ROLE_BADGE: Record<UserRole, { label: string; chip: string }> = {
@@ -96,6 +99,7 @@ export function StaffManager({
   staff,
   invites,
   compensationByProfileId = {},
+  assignmentUi = null,
 }: StaffManagerProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -103,6 +107,11 @@ export function StaffManager({
   const inviteRoles = allowedInviteRoles(currentProfile.role)
   const canInvite = inviteRoles.length > 0
   const canEditPay = currentProfile.role === 'owner'
+  const canAssignManagers =
+    currentProfile.role === 'owner' && (assignmentUi?.properties.length ?? 0) > 1
+  const thisHotelHasManager = staff.some((s) => s.role === 'manager' && s.is_active !== false)
+  const showAddExisting =
+    canAssignManagers && !thisHotelHasManager && (assignmentUi?.addableManagers.length ?? 0) > 0
 
   const [payMember, setPayMember] = useState<Profile | null>(null)
   const [open, setOpen] = useState(false)
@@ -121,6 +130,9 @@ export function StaffManager({
   const [phoneError, setPhoneError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [chattingId, setChattingId] = useState<string | null>(null)
+  const [assignMember, setAssignMember] = useState<Profile | null>(null)
+  const [addExistingOpen, setAddExistingOpen] = useState(false)
+  const [assignError, setAssignError] = useState<string | null>(null)
 
   const messagesPath =
     currentProfile.role === 'owner' ? '/owner/messages' : '/manager/messages'
@@ -282,6 +294,34 @@ export function StaffManager({
     }
   }
 
+  function handleAssign(managerId: string, hotelId: string) {
+    setAssignError(null)
+    startTransition(async () => {
+      const result = await assignManagerToProperty(managerId, hotelId)
+      if (!result.success) {
+        setAssignError(result.error ?? 'Could not assign this manager.')
+        toast.error(result.error ?? 'Could not assign this manager.')
+        return
+      }
+      toast.success('Manager assigned to that property.')
+      setAssignMember(null)
+      setAddExistingOpen(false)
+      router.refresh()
+    })
+  }
+
+  function handleUnassign(managerId: string, hotelId: string) {
+    startTransition(async () => {
+      const result = await unassignManagerFromProperty(managerId, hotelId)
+      if (!result.success) {
+        toast.error(result.error ?? 'Could not unassign this manager.')
+        return
+      }
+      toast.success('Manager unassigned from that property.')
+      router.refresh()
+    })
+  }
+
   function renderStaffRow(member: Profile) {
     const badge = ROLE_BADGE[member.role]
     const manageable = canManageMember(currentProfile, member)
@@ -318,7 +358,7 @@ export function StaffManager({
                   value={phoneDraft}
                   onChange={(e) => setPhoneDraft(e.target.value)}
                   placeholder="+233 XX XXX XXXX"
-                  className="w-full rounded-lg border border-border px-2.5 py-1.5 text-xs sm:max-w-[180px]"
+                  className="w-full rounded-lg surface-inset px-2.5 py-1.5 text-xs sm:max-w-[180px]"
                 />
                 <div className="flex gap-1.5">
                   <button
@@ -357,10 +397,39 @@ export function StaffManager({
                 )}
               </div>
             )}
+            {canAssignManagers && member.role === 'manager' && (
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                {(assignmentUi?.assignmentsByProfileId[member.id] ?? []).map((chip) => {
+                  const chips = assignmentUi?.assignmentsByProfileId[member.id] ?? []
+                  const isCurrent = chip.hotelId === currentProfile.hotel_id
+                  return (
+                    <span
+                      key={chip.hotelId}
+                      className={`inline-flex items-center gap-1 rounded-full bg-[#3C216C]/10 px-2 py-0.5 text-[11px] font-medium text-[#3C216C] ${
+                        isCurrent ? 'ring-2 ring-primary/25' : ''
+                      }`}
+                    >
+                      {chip.hotelName}
+                      {chips.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => handleUnassign(member.id, chip.hotelId)}
+                          disabled={isPending}
+                          className="rounded-full p-0.5 text-[#3C216C]/70 hover:bg-[#3C216C]/15 hover:text-[#3C216C] disabled:opacity-50"
+                          aria-label={`Unassign from ${chip.hotelName}`}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      )}
+                    </span>
+                  )
+                })}
+              </div>
+            )}
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
           {!isSelf && (
             <button
               type="button"
@@ -391,6 +460,19 @@ export function StaffManager({
           <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${badge.chip}`}>
             {badge.label}
           </span>
+          {canAssignManagers && member.role === 'manager' && member.is_active !== false && (
+            <button
+              type="button"
+              onClick={() => {
+                setAssignError(null)
+                setAssignMember(member)
+              }}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[#3C216C]/10 px-2.5 py-1.5 text-xs font-semibold text-[#3C216C] transition-colors hover:bg-[#3C216C]/20"
+            >
+              <Building2 className="h-3.5 w-3.5" />
+              Assign
+            </button>
+          )}
           {inactive && (
             <span className="rounded-full bg-red-100 px-2.5 py-1 text-[11px] font-semibold text-red-700">
               Disabled
@@ -483,6 +565,18 @@ export function StaffManager({
               <Plus className="mr-1.5 h-4 w-4" />
               Invite staff
             </Button>
+            )}
+            {showAddExisting && (
+              <Button
+                onClick={() => {
+                  setAssignError(null)
+                  setAddExistingOpen(true)
+                }}
+                className="bg-[#3C216C]/10 text-[#3C216C] hover:bg-[#3C216C]/20"
+              >
+                <UserPlus className="mr-1.5 h-4 w-4" />
+                Add existing manager
+              </Button>
             )}
           </div>
         </div>
@@ -717,6 +811,82 @@ export function StaffManager({
             </ModalFooter>
           </>
         )}
+      </CenteredModal>
+
+      <CenteredModal
+        open={Boolean(assignMember)}
+        onClose={() => setAssignMember(null)}
+        className="max-w-md"
+        aria-label="Assign manager to a property"
+      >
+        <ModalHeader onClose={() => setAssignMember(null)}>
+          <h3 className="text-lg font-semibold">Assign to a property</h3>
+          <p className="modal-panel-subtle text-sm">
+            {assignMember
+              ? `${assignMember.name} keeps the same login. Pick another property they should manage.`
+              : ''}
+          </p>
+        </ModalHeader>
+        <ModalBody className="space-y-2">
+          {(assignmentUi?.properties ?? [])
+            .filter((property) => {
+              const assigned = assignmentUi?.assignmentsByProfileId[assignMember?.id ?? ''] ?? []
+              return !assigned.some((chip) => chip.hotelId === property.id)
+            })
+            .map((property) => (
+              <button
+                key={property.id}
+                type="button"
+                disabled={isPending || !assignMember}
+                onClick={() => assignMember && handleAssign(assignMember.id, property.id)}
+                className="flex w-full items-center gap-3 rounded-xl bg-[#3C216C]/8 px-3.5 py-3 text-left transition-colors hover:bg-[#3C216C]/14 disabled:opacity-50"
+              >
+                <Building2 className="h-4 w-4 shrink-0 text-[#3C216C]" />
+                <span className="text-sm font-semibold text-[#111827]">{property.name}</span>
+              </button>
+            ))}
+          {(assignmentUi?.properties ?? []).filter((property) => {
+            const assigned = assignmentUi?.assignmentsByProfileId[assignMember?.id ?? ''] ?? []
+            return !assigned.some((chip) => chip.hotelId === property.id)
+          }).length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              This manager is already assigned to every property you own.
+            </p>
+          )}
+          {assignError && <p className="text-sm text-destructive">{assignError}</p>}
+        </ModalBody>
+      </CenteredModal>
+
+      <CenteredModal
+        open={addExistingOpen}
+        onClose={() => setAddExistingOpen(false)}
+        className="max-w-md"
+        aria-label="Add an existing manager"
+      >
+        <ModalHeader onClose={() => setAddExistingOpen(false)}>
+          <h3 className="text-lg font-semibold">Add existing manager</h3>
+          <p className="modal-panel-subtle text-sm">
+            Assign someone who already manages another of your properties. No new invite.
+          </p>
+        </ModalHeader>
+        <ModalBody className="space-y-2">
+          {(assignmentUi?.addableManagers ?? []).map((manager) => (
+            <button
+              key={manager.id}
+              type="button"
+              disabled={isPending || !currentProfile.hotel_id}
+              onClick={() => currentProfile.hotel_id && handleAssign(manager.id, currentProfile.hotel_id)}
+              className="flex w-full flex-col gap-0.5 rounded-xl bg-[#3C216C]/8 px-3.5 py-3 text-left transition-colors hover:bg-[#3C216C]/14 disabled:opacity-50"
+            >
+              <span className="text-sm font-semibold text-[#111827]">{manager.name}</span>
+              <span className="text-xs text-muted-foreground">
+                {manager.homeHotelName}
+                {manager.email ? ` · ${manager.email}` : ''}
+              </span>
+            </button>
+          ))}
+          {assignError && <p className="text-sm text-destructive">{assignError}</p>}
+        </ModalBody>
       </CenteredModal>
 
       {payMember && (

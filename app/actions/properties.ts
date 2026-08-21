@@ -6,7 +6,9 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { ensureGuestPortalSlug } from '@/lib/guest-portal'
 import { ensureDefaultGuestRules } from '@/lib/data/guest-rules'
 import { seedDefaultRoomCategories } from '@/lib/data/room-categories'
-import { getOwnerProperties, ownerOwnsHotel } from '@/lib/data/properties'
+import { getManagerAssignedProperties, getOwnerProperties, ownerOwnsHotel } from '@/lib/data/properties'
+import { listAssignmentsForProfile } from '@/lib/data/staff-assignments'
+import { decideManagerHotelSwitch } from '@/lib/staff-assignments/rules'
 import { createPropertySchema } from '@/lib/validations'
 import {
   PROPERTY_IMAGE_BUCKET,
@@ -31,6 +33,24 @@ function revalidateOwnerViews() {
     '/owner/gra-reports',
     '/owner/settings',
     '/owner/guests',
+  ]
+  for (const path of paths) revalidatePath(path)
+}
+
+function revalidateManagerViews() {
+  const paths = [
+    '/manager/dashboard',
+    '/manager/rooms',
+    '/manager/reservations',
+    '/manager/staff',
+    '/manager/invoices',
+    '/manager/guests',
+    '/manager/housekeeping',
+    '/manager/complaints',
+    '/manager/inventory',
+    '/manager/payroll',
+    '/manager/access',
+    '/manager/messages',
   ]
   for (const path of paths) revalidatePath(path)
 }
@@ -94,6 +114,24 @@ export async function fetchOwnerProperties(): Promise<PropertyActionResult<Prope
     return { success: true, data: properties }
   } catch (err) {
     console.error('[properties] fetchOwnerProperties failed:', err)
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'Could not load properties.',
+    }
+  }
+}
+
+export async function fetchManagerAssignedProperties(): Promise<PropertyActionResult<Property[]>> {
+  const auth = await requireVerifiedStaff({ roles: ['manager'] })
+  if (!auth.ok) {
+    return { success: false, error: auth.error ?? 'Not authorized.' }
+  }
+
+  try {
+    const properties = await getManagerAssignedProperties()
+    return { success: true, data: properties }
+  } catch (err) {
+    console.error('[properties] fetchManagerAssignedProperties failed:', err)
     return {
       success: false,
       error: err instanceof Error ? err.message : 'Could not load properties.',
@@ -280,11 +318,22 @@ export async function clearPropertyProfileImage(
 }
 
 export async function switchActiveProperty(hotelId: string): Promise<PropertyActionResult> {
-  const { profile, userId } = await requireOwner()
-  if (!profile || !userId) return { success: false, error: 'Not authorized.' }
+  const auth = await requireVerifiedStaff({ roles: ['owner', 'manager'] })
+  if (!auth.ok) return { success: false, error: auth.error ?? 'Not authorized.' }
 
-  if (!(await ownerOwnsHotel(userId, hotelId))) {
-    return { success: false, error: 'You do not have access to that property.' }
+  const { profile, userId } = auth
+
+  if (profile.role === 'owner') {
+    if (!(await ownerOwnsHotel(userId, hotelId))) {
+      return { success: false, error: 'You do not have access to that property.' }
+    }
+  } else {
+    const assignments = await listAssignmentsForProfile(userId)
+    const decision = decideManagerHotelSwitch({
+      targetHotelId: hotelId,
+      assignedHotelIds: assignments.map((row) => row.hotel_id),
+    })
+    if (!decision.ok) return { success: false, error: decision.error }
   }
 
   const admin = createAdminClient()
@@ -292,6 +341,8 @@ export async function switchActiveProperty(hotelId: string): Promise<PropertyAct
 
   if (error) return { success: false, error: 'Could not switch property.' }
 
-  revalidateOwnerViews()
+  revalidatePath('/', 'layout')
+  if (profile.role === 'owner') revalidateOwnerViews()
+  else revalidateManagerViews()
   return { success: true }
 }

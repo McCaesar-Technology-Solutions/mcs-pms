@@ -8,6 +8,11 @@ import { loadStaffConversations } from '@/lib/data/staff-conversations'
 import { formatInvoiceNumber } from '@/lib/invoices/numbering'
 import { createClient } from '@/lib/supabase/server'
 import { ARRIVING_STATUSES, DEPARTING_STATUSES } from '@/lib/reservations/lifecycle'
+import {
+  paymentVoidAlertFromAudit,
+  paymentVoidSinceISO,
+  type PaymentVoidAuditRow,
+} from '@/lib/data/payment-void-alerts'
 import type { Complaint, UserRole } from '@/types'
 
 export type StaffAlertKind =
@@ -24,6 +29,7 @@ export type StaffAlertKind =
   | 'team_message'
   | 'housekeeping_inspect'
   | 'housekeeping_overdue'
+  | 'payment_voided'
 
 const STAFF_ALERT_ROLES = new Set<UserRole>(['owner', 'manager', 'receptionist', 'technician'])
 
@@ -168,6 +174,36 @@ export async function fetchStaffAlerts(limit = 30): Promise<StaffAlert[]> {
 
   const billingBase =
     role === 'manager' ? `${prefix}/invoices` : `${prefix}/billing`
+
+  if (role === 'owner') {
+    const { data: voidRows } = await supabase
+      .from('audit_log')
+      .select('id, actor_id, actor_name, entity_id, summary, details, created_at')
+      .eq('hotel_id', hotelId)
+      .eq('entity_type', 'invoice')
+      .eq('action', 'payment_voided')
+      .gte('created_at', paymentVoidSinceISO())
+      .order('created_at', { ascending: false })
+      .limit(10)
+
+    for (const row of voidRows ?? []) {
+      const alert = paymentVoidAlertFromAudit(
+        {
+          ...row,
+          details: (row.details as Record<string, unknown> | null) ?? null,
+          created_at: row.created_at ?? new Date().toISOString(),
+        } satisfies PaymentVoidAuditRow,
+        { viewerId: profile.id, billingHref: billingBase },
+      )
+      if (!alert) continue
+      items.push({
+        ...alert,
+        kind: 'payment_voided',
+        badgeHref: billingBase,
+        sort: 0,
+      })
+    }
+  }
 
   for (const inv of invoicesRes.data ?? []) {
     const due = inv.due_at?.slice(0, 10) ?? today

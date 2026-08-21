@@ -1,16 +1,20 @@
 import { PageHeader } from '@/components/dashboard/page-header'
 import { StaffManager } from '@/components/dashboard/staff-manager'
-import { getStaffData } from '@/lib/data/staff'
+import { getOwnerStaffAssignmentUi, getStaffData } from '@/lib/data/staff'
 
 export default async function OwnerStaffPage() {
   const { profile, staff, invites, compensationByProfileId } = await getStaffData()
+  const assignmentUi =
+    profile?.role === 'owner' && profile.hotel_id
+      ? await getOwnerStaffAssignmentUi(profile.id, profile.hotel_id)
+      : null
 
   return (
     <div className="page-shell page-content-stack">
       <PageHeader
         badge="Team"
         title="Staff"
-        description="Invite managers and technicians, and manage access across your hotel."
+        description="Invite new people, or assign an existing manager to another of your properties."
       />
       {profile ? (
         <StaffManager
@@ -18,6 +22,7 @@ export default async function OwnerStaffPage() {
           staff={staff}
           invites={invites}
           compensationByProfileId={compensationByProfileId}
+          assignmentUi={assignmentUi}
         />
       ) : (
         <p className="text-sm text-muted-foreground">Unable to load your team right now.</p>

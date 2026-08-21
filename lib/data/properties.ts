@@ -80,6 +80,38 @@ export async function getOwnerProperties(): Promise<Property[]> {
   }
 }
 
+/** Hotels a manager is assigned to, plus their current working hotel if missing. */
+export async function getManagerAssignedProperties(): Promise<Property[]> {
+  try {
+    const profile = await getProfile()
+    if (!profile || profile.role !== 'manager') return []
+
+    const admin = tryCreateAdminClient()
+    if (!admin) return []
+
+    const { data: rows } = await admin
+      .from('hotel_staff_assignments')
+      .select('hotel_id')
+      .eq('profile_id', profile.id)
+      .eq('is_active', true)
+      .eq('role', 'manager')
+
+    const ids = [...new Set((rows ?? []).map((row) => row.hotel_id))]
+    if (ids.length === 0 && profile.hotel_id) {
+      ids.push(profile.hotel_id)
+    }
+    if (ids.length === 0) return []
+
+    const { data: hotels } = await admin.from('hotels').select('*').in('id', ids).order('name')
+    const list = (hotels ?? []) as Hotel[]
+    const counts = await Promise.all(list.map((h) => getRoomCount(h.id)))
+    return list.map((hotel, i) => hotelToProperty(hotel, counts[i]))
+  } catch (err) {
+    console.error('[properties] getManagerAssignedProperties failed:', err)
+    return []
+  }
+}
+
 /** Single assigned hotel for managers/technicians. */
 export async function getAssignedProperty(): Promise<Property | null> {
   const profile = await getProfile()

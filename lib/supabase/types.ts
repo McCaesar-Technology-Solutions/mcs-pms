@@ -1214,6 +1214,8 @@ export type Database = {
           tax_snapshot: Json | null
           guest_tax_id: string | null
           room_category_name: string | null
+          billing_period_start: string | null
+          billing_period_end: string | null
           total_amount: number
           payment_method:
             | 'mtn_momo'
@@ -1250,6 +1252,8 @@ export type Database = {
           tax_snapshot?: Json | null
           guest_tax_id?: string | null
           room_category_name?: string | null
+          billing_period_start?: string | null
+          billing_period_end?: string | null
           total_amount: number
           payment_method?:
             | 'mtn_momo'
@@ -1285,6 +1289,8 @@ export type Database = {
           tax_snapshot?: Json | null
           guest_tax_id?: string | null
           room_category_name?: string | null
+          billing_period_start?: string | null
+          billing_period_end?: string | null
           total_amount?: number
           payment_method?:
             | 'mtn_momo'
@@ -1380,6 +1386,58 @@ export type Database = {
             columns: ['room_id']
             isOneToOne: false
             referencedRelation: 'rooms'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      hotel_staff_assignments: {
+        Row: {
+          id: string
+          profile_id: string
+          hotel_id: string
+          role: 'manager'
+          assigned_by: string | null
+          assigned_at: string
+          is_active: boolean
+        }
+        Insert: {
+          id?: string
+          profile_id: string
+          hotel_id: string
+          role?: 'manager'
+          assigned_by?: string | null
+          assigned_at?: string
+          is_active?: boolean
+        }
+        Update: {
+          id?: string
+          profile_id?: string
+          hotel_id?: string
+          role?: 'manager'
+          assigned_by?: string | null
+          assigned_at?: string
+          is_active?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'hotel_staff_assignments_profile_id_fkey'
+            columns: ['profile_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'hotel_staff_assignments_hotel_id_fkey'
+            columns: ['hotel_id']
+            isOneToOne: false
+            referencedRelation: 'hotels'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'hotel_staff_assignments_assigned_by_fkey'
+            columns: ['assigned_by']
+            isOneToOne: false
+            referencedRelation: 'profiles'
             referencedColumns: ['id']
           },
         ]
@@ -1959,7 +2017,7 @@ export type Database = {
           provider_reference: string | null
           amount: number
           currency: string
-          status: 'pending' | 'success' | 'failed' | 'refunded'
+          status: 'pending' | 'success' | 'failed' | 'refunded' | 'voided'
           metadata: Json | null
           idempotency_key: string | null
           created_at: string | null
@@ -1975,7 +2033,7 @@ export type Database = {
           provider_reference?: string | null
           amount: number
           currency?: string
-          status?: 'pending' | 'success' | 'failed' | 'refunded'
+          status?: 'pending' | 'success' | 'failed' | 'refunded' | 'voided'
           metadata?: Json | null
           idempotency_key?: string | null
           created_at?: string | null
@@ -1991,7 +2049,7 @@ export type Database = {
           provider_reference?: string | null
           amount?: number
           currency?: string
-          status?: 'pending' | 'success' | 'failed' | 'refunded'
+          status?: 'pending' | 'success' | 'failed' | 'refunded' | 'voided'
           metadata?: Json | null
           idempotency_key?: string | null
           created_at?: string | null

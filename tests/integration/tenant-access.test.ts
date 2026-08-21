@@ -10,6 +10,7 @@ import {
   canOwnerEraseGuestData,
   canRecordInvoicePayment,
   canRefundInvoice,
+  canVoidMistakenInvoicePayment,
   canStaffExportGuestData,
 } from '@/lib/auth/tenant-access'
 import { roleRequiredPath } from '@/lib/auth/roles'
@@ -53,10 +54,14 @@ describe('tenant access — billing', () => {
     expect(canIssueStayInvoice('technician')).toBe(false)
   })
 
-  it('keeps refunds owner-only; manual invoices for owner and manager', () => {
+  it('keeps refunds owner-only; desk staff may void mistaken paid flags; manual invoices for owner and manager', () => {
     expect(canRefundInvoice('owner')).toBe(true)
     expect(canRefundInvoice('manager')).toBe(false)
     expect(canRefundInvoice('receptionist')).toBe(false)
+    expect(canVoidMistakenInvoicePayment('owner')).toBe(true)
+    expect(canVoidMistakenInvoicePayment('manager')).toBe(true)
+    expect(canVoidMistakenInvoicePayment('receptionist')).toBe(true)
+    expect(canVoidMistakenInvoicePayment('technician')).toBe(false)
     expect(canCreateManualInvoice('owner')).toBe(true)
     expect(canCreateManualInvoice('manager')).toBe(true)
     expect(canCreateManualInvoice('receptionist')).toBe(false)

@@ -7,7 +7,7 @@ Tap **Help** (bottom-right in the app) for the same topics on the screen you are
 | Role | Guide | Who it’s for |
 |------|--------|----------------|
 | **Owner** | [owner-guide.md](owner-guide.md) | Portfolio owner — money, tax, payroll, settings, oversight |
-| **Manager** | [manager-guide.md](manager-guide.md) | Daily ops — guests, complaints, housekeeping, payroll drafts |
+| **Manager** | [manager-guide.md](manager-guide.md) | Daily ops — guests, complaints, housekeeping, payroll drafts; switch among assigned properties |
 | **Receptionist** | [receptionist-guide.md](receptionist-guide.md) | Front desk — bookings, check-in/out, stay payments, room status |
 | **Technician** | [technician-guide.md](technician-guide.md) | Maintenance + housekeeping on phone |
 | **Guest** | [guest-guide.md](guest-guide.md) | In-house guests using the portal (link/QR) |

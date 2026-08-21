@@ -11,6 +11,7 @@ import {
   canIssueUnpaidStayInvoice,
   canRecordInvoicePayment,
   canRefundInvoice,
+  canVoidMistakenInvoicePayment,
 } from '@/lib/auth/tenant-access'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { allocateInvoiceNumber } from '@/lib/invoices/numbering'
@@ -33,7 +34,7 @@ import { createOrRefreshStayInvoice } from '@/lib/billing/build-stay-invoice'
 import { resolveBillToName } from '@/lib/billing/bill-to'
 import { computeDiscountAmount, normalizeDiscountType } from '@/lib/billing/discount'
 import { syncReservationPaymentFromInvoice } from '@/lib/billing/reservation-payment'
-import { applyStayPayment } from '@/lib/billing/apply-stay-payment'
+import { applyStayPayment, findStayInvoicesForReservation } from '@/lib/billing/apply-stay-payment'
 import {
   assertCheckInPaymentMet,
   formatCheckInPaymentPolicyLabel,
@@ -43,6 +44,7 @@ import {
 import { calculateStayTotal, type RateType } from '@/lib/pricing/stay-totals'
 import { getRoomRates } from '@/lib/pricing/room-rates'
 import { refundOnlineInvoicePayments } from '@/lib/payments/refund-online'
+import { applyVoidMistakenDeskPayment } from '@/lib/billing/void-mistaken-payment'
 import { writeAuditLog } from '@/lib/audit/log'
 import { formatInvoiceNumber } from '@/lib/invoices/numbering'
 import { stayNights } from '@/lib/stays/helpers'
@@ -86,6 +88,11 @@ export type StayCollectContextResult =
         policyLabel: string
         channelPrepaid: boolean
         minimumAlreadyMet: boolean
+        periodCount: number
+        stayTotal: number
+        stayPaid: number
+        stayBalance: number
+        periodLabel: string | null
       }
     }
   | { success: false; error: string }
@@ -142,6 +149,11 @@ const partialPaymentSchema = z.object({
 const refundSchema = z.object({
   invoiceId: z.string().uuid(),
   amount: z.coerce.number().positive().optional(),
+  reason: z.string().max(200).optional(),
+})
+
+const voidMistakenPaymentSchema = z.object({
+  invoiceId: z.string().uuid(),
   reason: z.string().max(200).optional(),
 })
 
@@ -279,8 +291,8 @@ export async function getStaffInvoiceExport(invoiceId: string): Promise<StaffInv
     rooms?: { number: string; room_categories?: { name: string } | null } | null
   } | null
 
-  const checkIn = reservation?.check_in ?? null
-  const checkOut = reservation?.check_out ?? null
+  const checkIn = row.billing_period_start ?? reservation?.check_in ?? null
+  const checkOut = row.billing_period_end ?? reservation?.check_out ?? null
 
   return {
     success: true,
@@ -567,6 +579,56 @@ export async function refundInvoicePayment(input: unknown): Promise<InvoiceActio
   return { success: true }
 }
 
+export async function voidMistakenInvoicePayment(input: unknown): Promise<InvoiceActionResult> {
+  const parsed = voidMistakenPaymentSchema.safeParse(input)
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid void request.' }
+  }
+
+  const profile = await requirePaymentStaff()
+  if (!profile?.hotel_id || !canVoidMistakenInvoicePayment(profile.role)) {
+    return { success: false, error: 'Not authorized.' }
+  }
+
+  const admin = createAdminClient()
+  const { data: invoice } = await admin
+    .from('invoices')
+    .select('guest_name')
+    .eq('id', parsed.data.invoiceId)
+    .eq('hotel_id', profile.hotel_id)
+    .maybeSingle()
+
+  if (!invoice) return { success: false, error: 'Invoice not found.' }
+
+  const result = await applyVoidMistakenDeskPayment(admin, {
+    hotelId: profile.hotel_id,
+    invoiceId: parsed.data.invoiceId,
+    reason: parsed.data.reason,
+  })
+
+  if (!result.ok) return { success: false, error: result.error }
+
+  void writeAuditLog({
+    hotelId: profile.hotel_id,
+    actorId: profile.id,
+    actorName: profile.name,
+    entityType: 'invoice',
+    entityId: parsed.data.invoiceId,
+    action: 'payment_voided',
+    summary: `Voided mistaken desk payment on ${invoice.guest_name} invoice`,
+    details: {
+      reason: parsed.data.reason ?? null,
+      voidedAmount: result.voidedAmount,
+      remainingPaid: result.remainingPaid,
+      paymentStatus: result.paymentStatus,
+      actorRole: profile.role,
+    },
+  })
+
+  revalidateBilling()
+  return { success: true }
+}
+
 export async function issueStayInvoice(input: unknown): Promise<IssueStayInvoiceResult> {
   const parsed = issueStayInvoiceSchema.safeParse(input)
   if (!parsed.success) {
@@ -757,16 +819,26 @@ export async function getStayCollectContext(
 
   if (!reservation) return { success: false, error: 'Reservation not found.' }
 
-  const { data: invoice } = await admin
+  const { data: invoices } = await admin
     .from('invoices')
-    .select('total_amount, amount_paid')
+    .select('total_amount, amount_paid, billing_period_start, billing_period_end')
     .eq('reservation_id', reservationId)
     .eq('hotel_id', profile.hotel_id)
-    .maybeSingle()
+    .order('billing_period_start', { ascending: true })
 
+  const stayTotal = (invoices ?? []).reduce((sum, row) => sum + Number(row.total_amount ?? 0), 0)
+  const stayPaid = (invoices ?? []).reduce((sum, row) => sum + Number(row.amount_paid ?? 0), 0)
+  const invoiceTotal = stayTotal > 0 ? stayTotal : Number(reservation.total_amount ?? 0)
+  const amountPaid = stayTotal > 0 ? stayPaid : Number(reservation.amount_paid ?? 0)
+  const periodCount = invoices?.length ?? 0
+  const open = (invoices ?? []).find(
+    (row) => Number(row.total_amount ?? 0) - Number(row.amount_paid ?? 0) > 0.009,
+  )
+  const periodLabel =
+    periodCount > 1
+      ? `Month ${(invoices?.indexOf(open ?? invoices![invoices!.length - 1]!) ?? 0) + 1} of ${periodCount}`
+      : null
   const policy = await getHotelCheckInPaymentPolicy(profile.hotel_id)
-  const invoiceTotal = Number(invoice?.total_amount ?? reservation.total_amount ?? 0)
-  const amountPaid = Number(invoice?.amount_paid ?? reservation.amount_paid ?? 0)
   const nights = stayNights(reservation.check_in, reservation.check_out)
   const nightlyRate = reservationNightlyRate(reservation)
   const requiredMinimum = requiredPaymentAtCheckIn({
@@ -804,6 +876,11 @@ export async function getStayCollectContext(
       policyLabel: formatCheckInPaymentPolicyLabel(policy),
       channelPrepaid,
       minimumAlreadyMet,
+      periodCount,
+      stayTotal: invoiceTotal,
+      stayPaid: amountPaid,
+      stayBalance: invoiceBalanceDue(invoiceTotal, amountPaid),
+      periodLabel,
     },
   }
 }
@@ -905,8 +982,8 @@ export async function collectStayPayment(input: unknown): Promise<CollectStayPay
     }
   }
 
-  const invoiceTotal = issued.taxes.total
-  let amountPaid = issued.amountPaid
+  const invoiceTotal = issued.stayTotals?.total ?? issued.taxes.total
+  let amountPaid = issued.stayTotals?.paid ?? issued.amountPaid
   const nights = stayNights(reservation.check_in, reservation.check_out)
   const nightlyRate = reservationNightlyRate(reservation)
   const requiredMinimum = requiredPaymentAtCheckIn({
@@ -997,28 +1074,46 @@ export async function collectStayPayment(input: unknown): Promise<CollectStayPay
     }
   }
 
-  const paymentResult = await applyStayPayment(admin, {
-    hotelId: profile.hotel_id,
-    reservationId: reservation.id,
-    invoiceId: issued.invoiceId,
-    amount: payAmount,
-    paymentMethod: parsed.data.paymentMethod,
-    provider: 'manual',
-    idempotencyKey: `collect-stay:${issued.invoiceId}:${randomUUID()}`,
-    phase: 'check_in',
-    metadata: { source: 'check_in_collect' },
-  })
+  let remainingPay = payAmount
+  let currentInvoiceId = issued.invoiceId
+  let amountApplied = 0
+  let lastPaymentStatus = issued.paymentStatus
 
-  if (!paymentResult.ok) {
-    return { success: false, error: paymentResult.error }
+  while (remainingPay > 0.009) {
+    const paymentResult = await applyStayPayment(admin, {
+      hotelId: profile.hotel_id,
+      reservationId: reservation.id,
+      invoiceId: currentInvoiceId,
+      amount: remainingPay,
+      paymentMethod: parsed.data.paymentMethod,
+      provider: 'manual',
+      idempotencyKey: `collect-stay:${currentInvoiceId}:${randomUUID()}`,
+      phase: 'check_in',
+      metadata: { source: 'check_in_collect' },
+    })
+
+    if (!paymentResult.ok) {
+      return { success: false, error: paymentResult.error }
+    }
+
+    amountApplied += paymentResult.amountApplied
+    remainingPay = Math.round((remainingPay - paymentResult.amountApplied) * 100) / 100
+    lastPaymentStatus = paymentResult.paymentStatus as PaymentStatus
+
+    if (remainingPay <= 0.009) break
+
+    const invoices = await findStayInvoicesForReservation(admin, profile.hotel_id, reservation.id)
+    const next = invoices.find(
+      (inv) =>
+        inv.id !== currentInvoiceId &&
+        invoiceBalanceDue(Number(inv.total_amount ?? 0), Number(inv.amount_paid ?? 0)) > 0.009,
+    )
+    if (!next) break
+    currentInvoiceId = next.id
   }
 
-  const { data: updatedInvoice } = await admin
-    .from('invoices')
-    .select('amount_paid, payment_status')
-    .eq('id', issued.invoiceId)
-    .maybeSingle()
-  amountPaid = Number(updatedInvoice?.amount_paid ?? amountPaid)
+  const invoicesAfter = await findStayInvoicesForReservation(admin, profile.hotel_id, reservation.id)
+  amountPaid = invoicesAfter.reduce((sum, row) => sum + Number(row.amount_paid ?? 0), 0)
 
   const { data: updatedReservation } = await admin
     .from('reservations')
@@ -1056,7 +1151,7 @@ export async function collectStayPayment(input: unknown): Promise<CollectStayPay
     entityType: 'invoice',
     entityId: issued.invoiceId,
     action: 'updated',
-    summary: `Collected ₵${paymentResult.amountApplied.toFixed(2)} on stay invoice ${issued.invoiceNumber} at check-in`,
+    summary: `Collected ₵${amountApplied.toFixed(2)} on stay invoice ${issued.invoiceNumber} at check-in`,
   })
 
   revalidateBilling()
@@ -1065,9 +1160,9 @@ export async function collectStayPayment(input: unknown): Promise<CollectStayPay
     invoiceId: issued.invoiceId,
     invoicePreview,
     created: issued.created,
-    paymentStatus: paymentResult.paymentStatus as PaymentStatus,
-    amountApplied: paymentResult.amountApplied,
-    balanceDue: paymentResult.balanceDue,
+    paymentStatus: lastPaymentStatus,
+    amountApplied,
+    balanceDue: invoiceBalanceDue(invoiceTotal, amountPaid),
     requiredMinimum,
   }
 }

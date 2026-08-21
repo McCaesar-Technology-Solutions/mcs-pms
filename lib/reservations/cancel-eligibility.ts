@@ -53,17 +53,21 @@ export async function validateReservationCancellation(
     }
   }
 
-  const { data: invoice } = await admin
+  const { data: invoices } = await admin
     .from('invoices')
     .select('payment_status, total_amount, amount_paid')
     .eq('reservation_id', reservation.id)
-    .maybeSingle()
 
-  if (invoice) {
-    const total = Number(invoice.total_amount ?? 0)
-    const paid = Number(invoice.amount_paid ?? 0)
-    const due = Math.round((total - paid) * 100) / 100
-    if (invoice.payment_status !== 'paid' && due > 0) {
+  if (invoices?.length) {
+    let due = 0
+    for (const invoice of invoices) {
+      const total = Number(invoice.total_amount ?? 0)
+      const paid = Number(invoice.amount_paid ?? 0)
+      const rowDue = Math.round((total - paid) * 100) / 100
+      if (invoice.payment_status !== 'paid' && rowDue > 0) due += rowDue
+    }
+    due = Math.round(due * 100) / 100
+    if (due > 0) {
       return {
         ok: false,
         error: `Unpaid invoice balance of ₵${due.toLocaleString()}. Record payment or adjust billing before cancelling.`,

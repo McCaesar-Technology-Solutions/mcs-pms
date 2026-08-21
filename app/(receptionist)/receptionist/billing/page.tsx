@@ -18,7 +18,7 @@ export default async function ReceptionistBillingPage({
       <PageHeader
         badge="Finance"
         title="Billing"
-        description="Issue stay invoices, record payments, and share guest bills. Refunds stay with the owner; ad-hoc (non-stay) bills need a manager or owner."
+        description="Issue stay invoices, record payments, and share guest bills. You can void a mistaken paid flag; refunds and ad-hoc (non-stay) bills stay with the owner or manager."
       />
 
       <BillingOverview

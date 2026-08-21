@@ -292,7 +292,7 @@ export function CheckoutInvoiceDialog({
         <p className="modal-panel-subtle text-sm">
           {description ??
             (showCollect
-              ? `${displayBillToName(guestName ?? invoice?.guestName ?? 'Guest', invoice?.billToName)} — collect stay payment (pay before enter).`
+              ? `${displayBillToName(guestName ?? invoice?.guestName ?? 'Guest', invoice?.billToName)} — collect this month’s invoice.`
               : `${displayBillToName(guestName ?? invoice?.guestName ?? 'Guest', invoice?.billToName)} — print, download, or send via WhatsApp.`)}
         </p>
       </ModalHeader>
@@ -347,6 +347,31 @@ export function CheckoutInvoiceDialog({
                 </p>
               )}
             </div>
+
+            {showCollect &&
+              collectContext?.success &&
+              collectContext.data.periodCount > 1 && (
+                <div className="space-y-1 rounded-xl surface-inset p-3 text-sm">
+                  <p className="text-xs font-medium text-muted-foreground">
+                    Stay total (informational)
+                    {collectContext.data.periodLabel
+                      ? ` · this invoice is ${collectContext.data.periodLabel.toLowerCase()}`
+                      : ''}
+                  </p>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Stay</span>
+                    <span className="font-medium">{money(collectContext.data.stayTotal)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Paid on stay</span>
+                    <span className="font-medium">{money(collectContext.data.stayPaid)}</span>
+                  </div>
+                  <div className="flex justify-between font-semibold">
+                    <span>Stay remaining</span>
+                    <span>{money(collectContext.data.stayBalance)}</span>
+                  </div>
+                </div>
+              )}
 
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">

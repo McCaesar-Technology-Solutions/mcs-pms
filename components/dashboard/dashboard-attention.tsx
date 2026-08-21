@@ -21,6 +21,7 @@ interface DashboardAttentionProps {
   reservationsHref?: string
   housekeepingHref?: string
   inventoryHref?: string
+  paymentVoidAlerts?: { id: string; message: string; href: string }[]
 }
 
 export function DashboardAttention({
@@ -32,6 +33,7 @@ export function DashboardAttention({
   reservationsHref = '/owner/reservations',
   housekeepingHref = '/owner/housekeeping',
   inventoryHref = '/owner/inventory',
+  paymentVoidAlerts = [],
 }: DashboardAttentionProps) {
   const items: {
     key: string
@@ -40,6 +42,16 @@ export function DashboardAttention({
     message: string
     href: string
   }[] = []
+
+  for (const alert of paymentVoidAlerts) {
+    items.push({
+      key: alert.id,
+      icon: AlertCircle,
+      tone: 'urgent',
+      message: alert.message,
+      href: alert.href,
+    })
+  }
 
   if (metrics && metrics.outstandingCount > 0) {
     items.push({

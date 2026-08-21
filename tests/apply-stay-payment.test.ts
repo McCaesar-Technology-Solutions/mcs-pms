@@ -16,7 +16,10 @@ describe('applyStayPayment', () => {
           return {
             select: () => ({
               eq: () => ({
-                eq: () => ({ maybeSingle: async () => ({ data: null }) }),
+                eq: () => ({
+                  order: async () => ({ data: [] }),
+                  maybeSingle: async () => ({ data: null }),
+                }),
               }),
             }),
           }
@@ -97,12 +100,18 @@ describe('applyStayPayment', () => {
         if (table === 'invoices') {
           return {
             select: () => ({
-              eq: (_col: string) => ({
-                eq: () => ({
+              eq: (col: string) => {
+                if (col === 'reservation_id') {
+                  return Promise.resolve({ data: [{ ...invoiceState }] })
+                }
+                return {
+                  eq: () => ({
+                    maybeSingle: async () => ({ data: { ...invoiceState } }),
+                    order: async () => ({ data: [{ ...invoiceState }] }),
+                  }),
                   maybeSingle: async () => ({ data: { ...invoiceState } }),
-                }),
-                maybeSingle: async () => ({ data: { ...invoiceState } }),
-              }),
+                }
+              },
             }),
             update: (payload: Record<string, unknown>) => {
               Object.assign(invoiceState, payload)
@@ -159,8 +168,16 @@ describe('applyStayPayment', () => {
         select: () => ({
           eq: () => ({
             eq: () => ({
-              maybeSingle: async () => ({
-                data: { id: INV_ID, reservation_id: RES_ID, total_amount: 100, amount_paid: 0, payment_status: 'pending' },
+              order: async () => ({
+                data: [
+                  {
+                    id: INV_ID,
+                    reservation_id: RES_ID,
+                    total_amount: 100,
+                    amount_paid: 0,
+                    payment_status: 'pending',
+                  },
+                ],
               }),
             }),
           }),

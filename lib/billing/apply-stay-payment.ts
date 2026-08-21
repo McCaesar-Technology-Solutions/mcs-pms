@@ -24,6 +24,29 @@ export type ApplyStayPaymentResult = ApplyStayPaymentSuccess | { ok: false; erro
 
 const PRE_INVOICE_STATUSES = ['provisional', 'confirmed', 'pre_arrival', 'checked_in', 'overstay'] as const
 
+export async function findStayInvoicesForReservation(
+  admin: SupabaseClient,
+  hotelId: string,
+  reservationId: string,
+): Promise<
+  Array<{
+    id: string
+    reservation_id: string | null
+    total_amount: number | null
+    amount_paid: number | null
+    payment_status: string | null
+  }>
+> {
+  const { data } = await admin
+    .from('invoices')
+    .select('id, reservation_id, total_amount, amount_paid, payment_status, billing_period_start')
+    .eq('hotel_id', hotelId)
+    .eq('reservation_id', reservationId)
+    .order('billing_period_start', { ascending: true })
+
+  return data ?? []
+}
+
 export async function findStayInvoiceForReservation(
   admin: SupabaseClient,
   hotelId: string,
@@ -35,14 +58,11 @@ export async function findStayInvoiceForReservation(
   amount_paid: number | null
   payment_status: string | null
 } | null> {
-  const { data } = await admin
-    .from('invoices')
-    .select('id, reservation_id, total_amount, amount_paid, payment_status')
-    .eq('hotel_id', hotelId)
-    .eq('reservation_id', reservationId)
-    .maybeSingle()
-
-  return data ?? null
+  const invoices = await findStayInvoicesForReservation(admin, hotelId, reservationId)
+  const open = invoices.find(
+    (inv) => invoiceBalanceDue(Number(inv.total_amount ?? 0), Number(inv.amount_paid ?? 0)) > 0.009,
+  )
+  return open ?? invoices[invoices.length - 1] ?? null
 }
 
 async function applyPreInvoiceReservationPayment(

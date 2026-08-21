@@ -7,7 +7,7 @@ In the app, tap the **Help** bubble (bottom-right) for the same topics on the pa
 | Guide | Audience | File |
 |-------|----------|------|
 | **Owner** | Money, tax, payroll, portfolio, oversight | [docs/owner-guide.md](docs/owner-guide.md) |
-| **Manager** | Daily ops, complaints, housekeeping, payroll drafts | [docs/manager-guide.md](docs/manager-guide.md) |
+| **Manager** | Daily ops, complaints, housekeeping, payroll drafts; switch assigned properties | [docs/manager-guide.md](docs/manager-guide.md) |
 | **Receptionist** | Front desk, bookings, check-in/out, stay payments | [docs/receptionist-guide.md](docs/receptionist-guide.md) |
 | **Technician** | Maintenance jobs + housekeeping tasks | [docs/technician-guide.md](docs/technician-guide.md) |
 | **Guest** | Portal via link/QR | [docs/guest-guide.md](docs/guest-guide.md) |
@@ -49,7 +49,7 @@ Index and money-permissions summary: [docs/README.md](docs/README.md)
 | Payroll | Full | Drafts only | — | — | — |
 | GRA / Analytics / Expenses | ✓ | — | — | — | — |
 | Night / period audit | ✓ | ✓ | — | — | — |
-| Settings / multi-property | ✓ | Portal copy only | — | — | — |
+| Settings / multi-property | ✓ add + switch | Switch assigned hotels | — | — | — |
 
 ## Payments (MOJO)
 
@@ -69,4 +69,4 @@ Staff and guest views refresh when data changes (Supabase Realtime). Keep the br
 
 ## Technical setup
 
-Hubtel / Arkesel SMS, online payments flag, Supabase migrations through **079**, `.env.local` — see [DEPLOYMENT.md](DEPLOYMENT.md).
+Hubtel / Arkesel SMS, online payments flag, Supabase migrations through **083**, `.env.local` — see [DEPLOYMENT.md](DEPLOYMENT.md).

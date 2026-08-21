@@ -9,6 +9,16 @@ export interface User {
   avatar?: string
 }
 
+export interface HotelStaffAssignment {
+  id: string
+  profile_id: string
+  hotel_id: string
+  role: 'manager'
+  assigned_by: string | null
+  assigned_at: string
+  is_active: boolean
+}
+
 export interface Profile {
   id: string
   hotel_id: string | null

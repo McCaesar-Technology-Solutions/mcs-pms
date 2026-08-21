@@ -9,6 +9,7 @@ import { assertRateLimit, ipRateKey, STAFF_RATE_LIMITS } from '@/lib/rate-limit'
 import { toE164 } from '@/lib/notifications/e164'
 import { inviteStaffSchema } from '@/lib/validations'
 import { phoneSchema } from '@/lib/phone'
+import { managerAssignedToHotel, resolveManagerInviteCollision, assignManagerToHotel, unassignManagerFromHotel } from '@/lib/data/staff-assignments'
 import type { Profile, UserRole } from '@/types'
 
 export type StaffActionResult<T = void> =
@@ -68,9 +69,13 @@ function allowedInviteRoles(role: UserRole): ('manager' | 'technician' | 'recept
   return []
 }
 
-function canManageMember(actor: Profile, target: Profile): boolean {
+function canManageMember(
+  actor: Profile,
+  target: Profile,
+  targetOnActorHotel: boolean,
+): boolean {
   if (actor.id === target.id) return false
-  if (actor.hotel_id !== target.hotel_id) return false
+  if (!targetOnActorHotel) return false
   if (target.role === 'owner') return false
   if (actor.role === 'owner') {
     return target.role === 'manager' || target.role === 'technician' || target.role === 'receptionist'
@@ -79,6 +84,12 @@ function canManageMember(actor: Profile, target: Profile): boolean {
     return target.role === 'technician' || target.role === 'receptionist'
   }
   return false
+}
+
+async function targetOnActorHotel(actor: Profile, target: Profile): Promise<boolean> {
+  if (actor.hotel_id && actor.hotel_id === target.hotel_id) return true
+  if (target.role !== 'manager' || !actor.hotel_id) return false
+  return managerAssignedToHotel(target.id, actor.hotel_id)
 }
 
 /** Internal login email for technician invites (Supabase Auth requires an email). */
@@ -121,6 +132,18 @@ export async function inviteStaff(
   if (parsed.data.role === 'manager' || parsed.data.role === 'receptionist') {
     const inviteRole = parsed.data.role
     const normalizedEmail = parsed.data.email!.trim().toLowerCase()
+
+    if (inviteRole === 'manager') {
+      const collision = await resolveManagerInviteCollision({
+        ownerId: profile.id,
+        ownerRole: profile.role,
+        hotelId: profile.hotel_id,
+        email: normalizedEmail,
+      })
+      if (!collision.allowInvite) {
+        return { success: false, error: collision.error }
+      }
+    }
 
     const { data: existingProfile } = await admin
       .from('profiles')
@@ -302,7 +325,7 @@ export async function setStaffActive(
     .maybeSingle()
 
   if (!target) return { success: false, error: 'Team member not found.' }
-  if (!canManageMember(actor, target as Profile)) {
+  if (!canManageMember(actor, target as Profile, await targetOnActorHotel(actor, target as Profile))) {
     return { success: false, error: 'You cannot manage this team member.' }
   }
 
@@ -312,6 +335,13 @@ export async function setStaffActive(
     .eq('id', profileId)
 
   if (error) return { success: false, error: 'Could not update the team member.' }
+
+  if (target.role === 'manager') {
+    await admin
+      .from('hotel_staff_assignments')
+      .update({ is_active: isActive })
+      .eq('profile_id', profileId)
+  }
 
   revalidatePath('/owner/staff')
   revalidatePath('/manager/staff')
@@ -340,7 +370,10 @@ export async function updateStaffPhone(
   if (!target) return { success: false, error: 'Team member not found.' }
 
   const isSelf = actor.id === profileId
-  if (!isSelf && !canManageMember(actor, target as Profile)) {
+  if (
+    !isSelf &&
+    !canManageMember(actor, target as Profile, await targetOnActorHotel(actor, target as Profile))
+  ) {
     return { success: false, error: 'You cannot update this team member.' }
   }
 
@@ -354,5 +387,62 @@ export async function updateStaffPhone(
   revalidatePath('/owner/staff')
   revalidatePath('/manager/staff')
   revalidatePath('/', 'layout')
+  return { success: true }
+}
+
+export async function assignManagerToProperty(
+  managerId: string,
+  hotelId: string,
+): Promise<StaffActionResult> {
+  const actor = await requireStaffProfile()
+  if (!actor || actor.role !== 'owner') {
+    return { success: false, error: 'Only the owner can assign managers to properties.' }
+  }
+
+  const result = await assignManagerToHotel({
+    ownerId: actor.id,
+    managerId,
+    hotelId,
+  })
+  if (!result.ok) return { success: false, error: result.error }
+
+  if (result.action !== 'noop') {
+    const admin = createAdminClient()
+    const [{ data: manager }, { data: hotel }] = await Promise.all([
+      admin.from('profiles').select('phone, email').eq('id', managerId).maybeSingle(),
+      admin.from('hotels').select('name').eq('id', hotelId).maybeSingle(),
+    ])
+    const { notifyManagerAssignedToProperty } = await import('@/lib/notifications/staff')
+    void notifyManagerAssignedToProperty({
+      hotelId,
+      hotelName: hotel?.name ?? 'a property',
+      phone: manager?.phone,
+      email: manager?.email,
+    })
+  }
+
+  revalidatePath('/owner/staff')
+  revalidatePath('/manager/staff')
+  return { success: true }
+}
+
+export async function unassignManagerFromProperty(
+  managerId: string,
+  hotelId: string,
+): Promise<StaffActionResult> {
+  const actor = await requireStaffProfile()
+  if (!actor || actor.role !== 'owner') {
+    return { success: false, error: 'Only the owner can unassign managers.' }
+  }
+
+  const result = await unassignManagerFromHotel({
+    ownerId: actor.id,
+    managerId,
+    hotelId,
+  })
+  if (!result.ok) return { success: false, error: result.error }
+
+  revalidatePath('/owner/staff')
+  revalidatePath('/manager/staff')
   return { success: true }
 }

@@ -53,6 +53,11 @@ export function canRefundInvoice(role: UserRole | string | null | undefined): bo
   return role === 'owner'
 }
 
+/** Void a mistaken desk “paid” flag. Owner is notified on the dashboard. */
+export function canVoidMistakenInvoicePayment(role: UserRole | string | null | undefined): boolean {
+  return canRecordInvoicePayment(role)
+}
+
 /** Apply guest stay discounts (pre-tax) on reservations / invoices — manager+ only. */
 export function canApplyGuestDiscount(role: UserRole | string | null | undefined): boolean {
   return role === 'owner' || role === 'manager'

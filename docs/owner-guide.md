@@ -28,6 +28,7 @@ In production you may need **SMS two-factor authentication** (`/enroll-mfa` or `
 | Property details | **Settings → Property** | Address, VAT TIN, invoice prefix, tax rates |
 | Room rates | **Rooms** → categories | Nightly / weekly / monthly prices |
 | Invite a manager | **Staff** | Day-to-day ops |
+| Assign that manager to another property | **Staff → Assign** | Same login; they switch hotels themselves |
 | Guest portal copy | **Settings → Guest portal** | Wi‑Fi, rules, guide |
 | Test booking | **Reservations** | End-to-end dry run |
 
@@ -57,14 +58,14 @@ Grouped in the sidebar as **Operations** and **Finance & admin**.
 | Inventory | `/owner/inventory` | Stock + delete + link to expense |
 | GRA Reports | `/owner/gra-reports` | Tax exports |
 | Analytics | `/owner/analytics` | Trends and charts |
-| Staff | `/owner/staff` | Invite all roles + pay profiles |
+| Staff | `/owner/staff` | Invite all roles, assign managers across properties, pay profiles |
 | Settings | `/owner/settings` | Property, tax rates, Airbnb, portal, lifecycle, alerts |
 
 ### Top bar
 
 - **Search** — guests, reservations, rooms, invoices.
 - **Notifications** — check-outs, overdue invoices, complaints, messages.
-- **Property switcher** — switch or add hotels; lists use the **active** property only.
+- **Property switcher** — switch or add hotels; lists use the **active** property only. Managers you assign can switch among those hotels; they cannot add a property.
 - **Live updates** — keep a tab open for automatic refresh.
 
 ---
@@ -393,6 +394,17 @@ Charts for revenue, occupancy, bookings, channel mix, and trends. Use with Dashb
 
 Share the invite on **WhatsApp**. Disable / reactivate staff; revoke pending invites; keep phones up to date. Set **pay profiles** here for payroll.
 
+### Assign a manager to another property
+
+Do this when they already work at one of your hotels. Do **not** send a second invite (the app will tell you to assign instead).
+
+1. Open **Staff** on the property where they already appear, or on the property that has no manager yet.
+2. On their row, tap **Assign** and pick the other hotel. Or, if this property has no manager, tap **Add existing manager**.
+3. Chips on the row show every property they manage. Remove a chip to unassign — blocked if it would be their last assignment (assign them elsewhere first, or **Disable** the account).
+4. They keep one login. They switch which hotel they are working from **their** sidebar. You still switch your own working hotel separately.
+
+New properties you add are not assigned to them automatically.
+
 ---
 
 ## 18. Settings
@@ -467,4 +479,4 @@ Cannot run the same night audit date twice. Optional notes (e.g. “Late checkou
 
 **Month-end:** Invoices settled → GRA export → monthly audit → payroll mark paid → accountant.
 
-**New property:** Settings (tax rates) → Rooms → Staff → Access (if used) → test reservation.
+**New property:** Settings (tax rates) → Rooms → Staff (invite or assign a manager) → Access (if used) → test reservation.

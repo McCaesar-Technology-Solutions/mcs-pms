@@ -37,8 +37,10 @@ export function computeHotelOutstandingBalance(
     total += due
 
     if (inv.reservation_id) {
-      invoicedReservationIds.add(inv.reservation_id)
-      reservationCount++
+      if (!invoicedReservationIds.has(inv.reservation_id)) {
+        invoicedReservationIds.add(inv.reservation_id)
+        reservationCount++
+      }
     } else {
       invoiceOnlyCount++
     }

@@ -39,6 +39,7 @@ import { createClient } from '@/lib/supabase/server'
 import { loadOpsCalendarEvents, opsCalendarWeekRange } from '@/lib/data/ops-calendar'
 import { todayISO } from '@/lib/stays/helpers'
 import { getRecentDeadNotifications } from '@/lib/data/notification-outbox'
+import { getOwnerPaymentVoidAttention } from '@/lib/data/payment-void-alerts'
 import { DeliveryIssuesPanel } from '@/components/dashboard/delivery-issues-panel'
 
 const OWNER_HASH_TO_TAB: Record<string, string> = {
@@ -75,12 +76,13 @@ export default async function DashboardPage({
     : []
 
   const supabase = await createClient()
-  const [guestFeedback, occupancyToday, lowStockCount, deadNotifications, guestRequests] = await Promise.all([
+  const [guestFeedback, occupancyToday, lowStockCount, deadNotifications, guestRequests, paymentVoidAlerts] = await Promise.all([
     hotelId ? loadHotelGuestFeedback(hotelId) : null,
     hotelId ? getOccupancyToday(supabase, hotelId) : undefined,
     hotelId ? countLowStockForHotel(hotelId) : 0,
     hotelId ? getRecentDeadNotifications(hotelId) : [],
     hotelId ? loadHotelGuestRequests(hotelId) : [],
+    getOwnerPaymentVoidAttention(),
   ])
 
   const todayOps =
@@ -116,6 +118,7 @@ export default async function DashboardPage({
           metrics={metrics}
           overdueTasks={overdueTasks}
           lowStockCount={lowStockCount}
+          paymentVoidAlerts={paymentVoidAlerts}
         />
       </DashboardHero>
 

@@ -777,7 +777,7 @@ export function GuestsTable({
           reservationId={stayInvoice.reservationId}
           mode="collect"
           requireMinimumBeforeClose={staffRole === 'receptionist'}
-          description={`${stayInvoice.guestName} — collect outstanding stay balance.`}
+          description={`${stayInvoice.guestName} — collect this month’s invoice.`}
           onClose={() => {
             setStayInvoice(null)
             router.refresh()

@@ -1,6 +1,6 @@
 # Manager guide — MOJO Apartments
 
-You run **daily operations** for one property: guests, rooms, reservations, complaints, housekeeping, inventory, stay billing, and payroll drafts. You do **not** change GRA exports, analytics, expenses, invoice refunds, or property portfolio / tax-rate settings.
+You run **daily operations** for the property you are currently working: guests, rooms, reservations, complaints, housekeeping, inventory, stay billing, and payroll drafts. You do **not** change GRA exports, analytics, expenses, invoice refunds, or add properties / tax-rate settings.
 
 Tap **Help** (bottom-right) for the same topics on the page you are on.
 
@@ -21,7 +21,7 @@ In production you may need **SMS two-factor authentication**.
 1. Add **phone** (top bar) — needed for SMS alerts.
 2. Walk through: Dashboard → Reservations → Guests → Billing → Complaints → Housekeeping → Staff.
 
-You are locked to **one property** (no property switcher).
+The owner assigns you to properties. If you manage more than one, use the sidebar **property switcher**. Only the owner can add a property. Receptionists and technicians stay on one hotel.
 
 **Already have guests in rooms at go-live?** Use **Guests → Register in-house guest** with real arrival dates.
 
@@ -47,6 +47,7 @@ You are locked to **one property** (no property switcher).
 
 ### Top bar
 
+- **Property switcher** — if you manage more than one hotel, change which one you are working. Lists follow that hotel.
 - **Search / ⌘K** — pages, reservations, guests, rooms, complaints, housekeeping.
 - **Notifications** — check-outs, complaints, guest requests, messages.
 - **Live updates** — lists refresh; toasts for new complaints and approvals.
@@ -293,7 +294,7 @@ You cannot change compensation or commission rules.
 **Path:** `/manager/staff`
 
 - Invite **technicians** (phone) and **receptionists** (email). Send the link on WhatsApp.
-- Cannot invite managers or owners.
+- Cannot invite managers or owners — the owner invites managers and can assign you to extra properties.
 - Edit phones, disable / reactivate, revoke invites.
 - Pay profiles are owner-only.
 
@@ -331,6 +332,7 @@ On Dashboard:
 | Invoice refunds / deposit refunds | Owner |
 | GRA reports, Analytics, Expenses | Owner |
 | Property portfolio / tax rates / lifecycle settings | Owner |
+| Add a property | Owner |
 | Delete rooms / inventory items | Owner |
 | Approve payroll / mark paid / set pay rates | Owner |
 | Invite managers | Owner |

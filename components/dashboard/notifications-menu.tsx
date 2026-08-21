@@ -42,6 +42,7 @@ const KIND_ICONS: Record<AppNotification['kind'], typeof FileText> = {
   team_message: Users,
   housekeeping_inspect: Sparkles,
   housekeeping_overdue: Briefcase,
+  payment_voided: FileText,
 }
 
 export function NotificationsMenu({ profile }: NotificationsMenuProps) {

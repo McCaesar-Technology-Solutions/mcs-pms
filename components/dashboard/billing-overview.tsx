@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Copy, Download, MessageCircle, Plus, TrendingUp } from 'lucide-react'
 import { toast } from 'sonner'
-import { createManualInvoice, recordInvoicePayment, recordPartialInvoicePayment, refundInvoicePayment } from '@/app/actions/invoices'
+import { createManualInvoice, recordInvoicePayment, recordPartialInvoicePayment, refundInvoicePayment, voidMistakenInvoicePayment } from '@/app/actions/invoices'
 import { InvoicePaymentForm } from '@/components/dashboard/invoice-payment-form'
 import { initiateStaffPayment } from '@/app/actions/payments'
 import { invoiceBalanceDue } from '@/lib/billing/invoice-payments'
@@ -29,6 +29,7 @@ import {
 } from '@/lib/tax'
 import { GuestSearchField } from '@/components/dashboard/guest-search-field'
 import { BillToFields } from '@/components/dashboard/bill-to-fields'
+import { APP_FIELD_CLASS } from '@/components/ui/form-field'
 import { formatInvoiceNumber } from '@/lib/invoices/numbering'
 import { InvoiceWhatsAppDialog, InvoiceWhatsAppShare } from '@/components/dashboard/invoice-whatsapp-share'
 import { downloadInvoicePdf } from '@/lib/export/invoice-pdf'
@@ -137,6 +138,7 @@ interface BillingOverviewProps {
   canRecordPayment?: boolean
   canCreateInvoice?: boolean
   canRefund?: boolean
+  canVoidMistakenPayment?: boolean
   /** When true, staff can open a Paystack checkout link for open balances. */
   onlinePaymentsEnabled?: boolean
   /** Revenue / collection KPI tiles. Owner and manager only. */
@@ -154,12 +156,14 @@ export function BillingOverview({
   canRecordPayment,
   canCreateInvoice,
   canRefund,
+  canVoidMistakenPayment,
   onlinePaymentsEnabled = false,
   showKpis = true,
 }: BillingOverviewProps) {
   const allowRecordPayment = canRecordPayment ?? !readOnly
   const allowCreateInvoice = canCreateInvoice ?? !readOnly
   const allowRefund = canRefund ?? !readOnly
+  const allowVoid = canVoidMistakenPayment ?? canRecordPayment ?? !readOnly
   const previewRates = taxRates ?? defaultHotelTaxRates()
   const router = useRouter()
   const [statusFilter, setStatusFilter] = useState<string | null>(null)
@@ -177,6 +181,8 @@ export function BillingOverview({
   const [newBillToName, setNewBillToName] = useState('')
   const [partialAmount, setPartialAmount] = useState('')
   const [partialMethod, setPartialMethod] = useState<PaymentMethod>('cash')
+  const [voidReason, setVoidReason] = useState('')
+  const [confirmVoid, setConfirmVoid] = useState(false)
   const [whatsAppInvoice, setWhatsAppInvoice] = useState<InvoiceWithRoom | null>(null)
   const [pending, startTransition] = useTransition()
 
@@ -352,12 +358,34 @@ export function BillingOverview({
     })
   }
 
+  function closeDetail() {
+    setConfirmVoid(false)
+    setVoidReason('')
+    setDetail(null)
+  }
+
   function submitRefund(inv: InvoiceWithRoom) {
     startTransition(async () => {
       const result = await refundInvoicePayment({ invoiceId: inv.id })
       if (result.success) {
         toast.success('Refund recorded')
-        setDetail(null)
+        closeDetail()
+        router.refresh()
+      } else {
+        toast.error(result.error)
+      }
+    })
+  }
+
+  function submitVoidMistaken(inv: InvoiceWithRoom) {
+    startTransition(async () => {
+      const result = await voidMistakenInvoicePayment({
+        invoiceId: inv.id,
+        reason: voidReason.trim() || undefined,
+      })
+      if (result.success) {
+        toast.success('Desk payment voided — balance is due again')
+        closeDetail()
         router.refresh()
       } else {
         toast.error(result.error)
@@ -621,10 +649,10 @@ export function BillingOverview({
         )}
       </div>
 
-      <CenteredModal open={!!detail} onClose={() => setDetail(null)} className="max-w-md" aria-label="Invoice details">
+      <CenteredModal open={!!detail} onClose={closeDetail} className="max-w-md" aria-label="Invoice details">
         {detail && (
           <>
-            <ModalHeader onClose={() => setDetail(null)}>
+            <ModalHeader onClose={closeDetail}>
               <h3 className="text-lg font-semibold">Invoice {formatInvoiceNumber(detail)}</h3>
               <p className="modal-panel-subtle text-sm">
                 {detail.bill_to_name?.trim() || detail.guest_name}
@@ -825,12 +853,68 @@ export function BillingOverview({
                 </>
               )}
 
+              {allowVoid && (detail.amount_paid ?? 0) > 0 && detail.payment_status !== 'refunded' && (
+                <>
+                  {confirmVoid ? (
+                    <div className="space-y-3 rounded-xl surface-inset p-4">
+                      <p className="text-sm font-semibold text-foreground">Void mistaken desk payment</p>
+                      <p className="text-xs text-muted-foreground">
+                        Clears cash or keyed MoMo flags on this bill. No money is sent. The same invoice
+                        becomes collectible again. The owner is notified on their dashboard.
+                        {allowRefund
+                          ? ' Use refund below if a real Paystack charge must go back.'
+                          : ' Ask the owner if a real Paystack charge must be refunded.'}
+                      </p>
+                      <label className="block text-xs font-medium text-muted-foreground">
+                        Reason (optional)
+                        <input
+                          value={voidReason}
+                          onChange={(e) => setVoidReason(e.target.value)}
+                          maxLength={200}
+                          placeholder="Staff marked paid without collecting"
+                          className={`mt-1 ${APP_FIELD_CLASS}`}
+                        />
+                      </label>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          disabled={pending}
+                          onClick={() => {
+                            setConfirmVoid(false)
+                            setVoidReason('')
+                          }}
+                          className="flex-1 rounded-lg bg-secondary px-4 py-2.5 text-sm font-semibold text-foreground disabled:opacity-50"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          disabled={pending}
+                          onClick={() => submitVoidMistaken(detail)}
+                          className="flex-[2] rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+                        >
+                          {pending ? 'Voiding…' : 'Confirm void'}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() => setConfirmVoid(true)}
+                      className="flex w-full items-center justify-center gap-2 rounded-lg bg-secondary px-4 py-2.5 text-sm font-semibold text-foreground disabled:opacity-50"
+                    >
+                      Void mistaken desk payment
+                    </button>
+                  )}
+                </>
+              )}
               {allowRefund && (detail.amount_paid ?? 0) > 0 && detail.payment_status !== 'refunded' && (
                 <button
                   type="button"
                   disabled={pending}
                   onClick={() => submitRefund(detail)}
-                  className="flex w-full items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 disabled:opacity-50"
+                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 disabled:opacity-50"
                 >
                   {onlinePaymentsEnabled ? 'Issue refund (Paystack when applicable)' : 'Issue refund'}
                 </button>

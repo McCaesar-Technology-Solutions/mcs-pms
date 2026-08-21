@@ -28,7 +28,7 @@ export default async function ManagerInvoicesPage({
       <PageHeader
         badge="Finance"
         title="Billing"
-        description="Issue stay invoices, create unpaid or paid bills, record payments, and print guest bills. Refunds stay with the owner."
+        description="Issue stay invoices, create unpaid or paid bills, record payments, and print guest bills. You can void a mistaken paid flag; refunds stay with the owner."
       />
 
       <PageTabShell

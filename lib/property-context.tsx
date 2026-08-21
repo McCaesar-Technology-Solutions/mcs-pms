@@ -12,6 +12,7 @@ import {
 import { usePathname } from 'next/navigation'
 import {
   createProperty,
+  fetchManagerAssignedProperties,
   fetchOwnerProperties,
   switchActiveProperty,
   uploadPropertyProfileImage,
@@ -29,11 +30,12 @@ interface PropertyContextValue {
   properties: Property[]
   activeProperty: Property
   activePropertyId: string
-  /** Switch the owner's active property (updates session hotel_id server-side). */
+  /** Switch the active working property (updates session hotel_id server-side). */
   switchProperty: (id: string) => Promise<boolean>
   addProperty: (input: NewPropertyInput) => Promise<Property | null>
   isAdmin: boolean
   canSwitchProperty: boolean
+  canAddProperty: boolean
   userRole: Profile['role'] | null
   assignedHotelId: string | null
   profile: Profile | null
@@ -77,18 +79,26 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
 
-  const canSwitchProperty = profile ? profile.role === 'owner' : false
+  const applyPropertyList = useCallback((list: Property[], hotelId: string | null) => {
+    setPropertiesList(list)
+    const active = hotelId ? (list.find((p) => p.id === hotelId) ?? list[0]) : list[0]
+    if (active) setActivePropertyIdState(active.id)
+  }, [])
 
   const loadProperties = useCallback(async (prof: Profile) => {
     try {
       if (prof.role === 'owner') {
         const result = await fetchOwnerProperties()
         if (result.success && result.data && result.data.length > 0) {
-          setPropertiesList(result.data)
-          const active = prof.hotel_id
-            ? (result.data.find((p) => p.id === prof.hotel_id) ?? result.data[0])
-            : result.data[0]
-          setActivePropertyIdState(active.id)
+          applyPropertyList(result.data, prof.hotel_id)
+          return
+        }
+      }
+
+      if (prof.role === 'manager') {
+        const result = await fetchManagerAssignedProperties()
+        if (result.success && result.data && result.data.length > 0) {
+          applyPropertyList(result.data, prof.hotel_id)
           return
         }
       }
@@ -114,14 +124,13 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
             totalRooms: roomCount ?? 0,
             imageUrl: propertyImagePublicUrl(hotel.profile_image_path),
           }
-          setPropertiesList([mapped])
-          setActivePropertyIdState(mapped.id)
+          applyPropertyList([mapped], mapped.id)
         }
       }
     } catch (err) {
       console.error('[property-context] loadProperties failed:', err)
     }
-  }, [])
+  }, [applyPropertyList])
 
   useEffect(() => {
     if (skipPropertyLoad) {
@@ -163,47 +172,43 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
     return propertiesList.find((p) => p.id === activePropertyId) ?? propertiesList[0] ?? emptyProperty
   }, [propertiesList, activePropertyId])
 
-  const refreshOwnerProperties = useCallback(async (activeHotelId: string) => {
-    try {
-      const result = await fetchOwnerProperties()
-      if (result.success && result.data && result.data.length > 0) {
-        setPropertiesList(result.data)
-        const active =
-          result.data.find((p) => p.id === activeHotelId) ?? result.data[0]
-        setActivePropertyIdState(active.id)
-      }
-    } catch (err) {
-      console.error('[property-context] refreshOwnerProperties failed:', err)
-    }
-  }, [])
+  const refreshSwitchableProperties = useCallback(async (prof: Profile) => {
+    await loadProperties(prof)
+  }, [loadProperties])
+
+  const canAddProperty = profile?.role === 'owner'
+  const canSwitchProperty =
+    profile?.role === 'owner' ||
+    (profile?.role === 'manager' && propertiesList.length > 1)
 
   const switchProperty = useCallback(
     async (id: string): Promise<boolean> => {
-      if (!canSwitchProperty) return false
+      if (!canSwitchProperty || !profile) return false
       if (id === activePropertyId) return true
 
       try {
         const result = await switchActiveProperty(id)
         if (!result.success) return false
 
-        setProfile((prev) => (prev ? { ...prev, hotel_id: id } : prev))
-        await refreshOwnerProperties(id)
+        const next = { ...profile, hotel_id: id }
+        setProfile(next)
+        await refreshSwitchableProperties(next)
         return true
       } catch (err) {
         console.error('[property-context] switchProperty failed:', err)
         return false
       }
     },
-    [canSwitchProperty, activePropertyId, refreshOwnerProperties],
+    [canSwitchProperty, activePropertyId, profile, refreshSwitchableProperties],
   )
 
   const reloadProperties = useCallback(async () => {
-    if (activePropertyId) await refreshOwnerProperties(activePropertyId)
-  }, [activePropertyId, refreshOwnerProperties])
+    if (profile) await refreshSwitchableProperties(profile)
+  }, [profile, refreshSwitchableProperties])
 
   const addProperty = useCallback(
     async (input: NewPropertyInput): Promise<Property | null> => {
-      if (!canSwitchProperty) return null
+      if (!canAddProperty || !profile) return null
 
       const result = await createProperty({
         name: input.name,
@@ -226,11 +231,12 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      setProfile((prev) => (prev ? { ...prev, hotel_id: property.id } : prev))
-      await refreshOwnerProperties(property.id)
+      const next = { ...profile, hotel_id: property.id }
+      setProfile(next)
+      await refreshSwitchableProperties(next)
       return property
     },
-    [canSwitchProperty, refreshOwnerProperties],
+    [canAddProperty, profile, refreshSwitchableProperties],
   )
 
   const value = useMemo(
@@ -242,6 +248,7 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
       addProperty,
       isAdmin: profile?.role === 'owner',
       canSwitchProperty,
+      canAddProperty,
       userRole: profile?.role ?? null,
       assignedHotelId: profile?.hotel_id ?? null,
       profile,
@@ -254,6 +261,7 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
       switchProperty,
       addProperty,
       canSwitchProperty,
+      canAddProperty,
       profile,
       loading,
       reloadProperties,

@@ -117,11 +117,11 @@ export const receptionistHelpTopics: HelpTopic[] = [
       'Ask a manager or owner if the guest needs a discount, an unpaid invoice document, or an ad-hoc (non-stay) bill.',
       'Tax is optional — check “Include Ghana tax” when you need a GRA tax invoice.',
       'Choose payment method; payment is recorded when you issue from reception. Print or WhatsApp the bill.',
-      'Refunds stay owner-only.',
+      'If a stay was marked paid by mistake, open the invoice → Void mistaken desk payment. The same bill goes back to unpaid. The owner is notified. Refunds of real Paystack charges stay owner-only.',
     ],
     href: '/receptionist/billing',
     hrefLabel: 'Open billing',
-    keywords: ['invoice', 'billing', 'payment', 'collect', 'receipt', 'discount', 'whatsapp', 'bill to'],
+    keywords: ['invoice', 'billing', 'payment', 'collect', 'receipt', 'discount', 'whatsapp', 'bill to', 'void'],
     pathPrefixes: ['/receptionist/billing', '/receptionist/reservations'],
   },
   {

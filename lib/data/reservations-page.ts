@@ -526,15 +526,35 @@ async function finalizePage(
         'reservation_id',
         pageRows.map((r) => r.id),
       )
+    const invoicesByReservation = new Map<
+      string,
+      Array<{
+        id: string
+        bill_to_name: string | null
+        total_amount: number
+        amount_paid: number
+      }>
+    >()
     for (const inv of invoiceRows ?? []) {
-      if (inv.reservation_id) {
-        invoiceByReservation.set(inv.reservation_id, {
-          id: inv.id,
-          billToName: inv.bill_to_name?.trim() || null,
-          totalAmount: Number(inv.total_amount ?? 0),
-          amountPaid: Number(inv.amount_paid ?? 0),
-        })
-      }
+      if (!inv.reservation_id) continue
+      const list = invoicesByReservation.get(inv.reservation_id) ?? []
+      list.push({
+        id: inv.id,
+        bill_to_name: inv.bill_to_name,
+        total_amount: Number(inv.total_amount ?? 0),
+        amount_paid: Number(inv.amount_paid ?? 0),
+      })
+      invoicesByReservation.set(inv.reservation_id, list)
+    }
+    for (const [reservationId, rows] of invoicesByReservation) {
+      const open =
+        rows.find((row) => row.total_amount - row.amount_paid > 0.009) ?? rows[rows.length - 1]!
+      invoiceByReservation.set(reservationId, {
+        id: open.id,
+        billToName: open.bill_to_name?.trim() || null,
+        totalAmount: rows.reduce((sum, row) => sum + row.total_amount, 0),
+        amountPaid: rows.reduce((sum, row) => sum + row.amount_paid, 0),
+      })
     }
   }
 

@@ -136,6 +136,30 @@ describe('outstanding balance', () => {
     expect(summary.invoiceOnlyCount).toBe(0)
   })
 
+  it('counts one stay when it has several monthly invoices', () => {
+    const summary = computeHotelOutstandingBalance(
+      [baseReservation({ id: 'r1', status: 'checked_in', balanceDue: 7000 })],
+      [
+        {
+          id: 'i1',
+          reservation_id: 'r1',
+          total_amount: 7000,
+          amount_paid: 7000,
+          payment_status: 'paid',
+        } as DbInvoice,
+        {
+          id: 'i2',
+          reservation_id: 'r1',
+          total_amount: 7000,
+          amount_paid: 0,
+          payment_status: 'pending',
+        } as DbInvoice,
+      ],
+    )
+    expect(summary.total).toBe(7000)
+    expect(summary.reservationCount).toBe(1)
+  })
+
   it('ignores voided reservations', () => {
     const summary = computeHotelOutstandingBalance(
       [baseReservation({ status: 'cancelled', balanceDue: 100 })],

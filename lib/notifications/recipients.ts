@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin'
+import { loadAssignedManagerProfiles } from '@/lib/data/staff-assignments'
 import {
   isTemplateEnabled,
   mergeNotificationPrefs,
@@ -22,20 +23,28 @@ function isRealStaffEmail(email: string | null | undefined): boolean {
   return !email.trim().toLowerCase().endsWith(SYNTHETIC_EMAIL_SUFFIX)
 }
 
+async function assignedManagerContacts(hotelId: string): Promise<{ email: string | null; phone: string | null }[]> {
+  const managers = await loadAssignedManagerProfiles(hotelId, { activeOnly: true })
+  return managers.map((p) => ({ email: p.email, phone: p.phone }))
+}
+
 /** Active manager emails only (excludes owner). */
 export async function managerOnlyEmails(hotelId: string): Promise<string[]> {
   const admin = createAdminClient()
-  const { data } = await admin
-    .from('profiles')
-    .select('email')
-    .eq('hotel_id', hotelId)
-    .eq('is_active', true)
-    .eq('role', 'manager')
-    .not('email', 'is', null)
+  const [{ data }, assigned] = await Promise.all([
+    admin
+      .from('profiles')
+      .select('email')
+      .eq('hotel_id', hotelId)
+      .eq('is_active', true)
+      .eq('role', 'manager')
+      .not('email', 'is', null),
+    assignedManagerContacts(hotelId),
+  ])
 
   return [
     ...new Set(
-      (data ?? [])
+      [...(data ?? []), ...assigned]
         .filter((p) => isRealStaffEmail(p.email))
         .map((p) => p.email!.trim().toLowerCase()),
     ),
@@ -45,15 +54,24 @@ export async function managerOnlyEmails(hotelId: string): Promise<string[]> {
 /** Active manager phones only (excludes owner). */
 export async function managerOnlyPhones(hotelId: string): Promise<string[]> {
   const admin = createAdminClient()
-  const { data } = await admin
-    .from('profiles')
-    .select('phone')
-    .eq('hotel_id', hotelId)
-    .eq('is_active', true)
-    .eq('role', 'manager')
-    .not('phone', 'is', null)
+  const [{ data }, assigned] = await Promise.all([
+    admin
+      .from('profiles')
+      .select('phone')
+      .eq('hotel_id', hotelId)
+      .eq('is_active', true)
+      .eq('role', 'manager')
+      .not('phone', 'is', null),
+    assignedManagerContacts(hotelId),
+  ])
 
-  return [...new Set((data ?? []).map((p) => p.phone!.trim()).filter(Boolean))]
+  return [
+    ...new Set(
+      [...(data ?? []), ...assigned]
+        .map((p) => p.phone?.trim())
+        .filter((phone): phone is string => Boolean(phone)),
+    ),
+  ]
 }
 
 /** Active staff phones at a property (all front-line roles). */
@@ -62,17 +80,21 @@ export async function hotelStaffPhones(
   excludeProfileId?: string,
 ): Promise<string[]> {
   const admin = createAdminClient()
-  const { data } = await admin
-    .from('profiles')
-    .select('id, phone')
-    .eq('hotel_id', hotelId)
-    .eq('is_active', true)
-    .in('role', ['owner', 'manager', 'receptionist', 'technician'])
-    .not('phone', 'is', null)
+  const [{ data }, assigned] = await Promise.all([
+    admin
+      .from('profiles')
+      .select('id, phone')
+      .eq('hotel_id', hotelId)
+      .eq('is_active', true)
+      .in('role', ['owner', 'manager', 'receptionist', 'technician'])
+      .not('phone', 'is', null),
+    loadAssignedManagerProfiles(hotelId, { activeOnly: true }),
+  ])
 
+  const rows = [...(data ?? []), ...assigned.map((p) => ({ id: p.id, phone: p.phone }))]
   return [
     ...new Set(
-      (data ?? [])
+      rows
         .filter((p) => p.id !== excludeProfileId && p.phone?.trim())
         .map((p) => p.phone!.trim()),
     ),
@@ -85,17 +107,21 @@ export async function hotelStaffEmails(
   excludeProfileId?: string,
 ): Promise<string[]> {
   const admin = createAdminClient()
-  const { data } = await admin
-    .from('profiles')
-    .select('id, email')
-    .eq('hotel_id', hotelId)
-    .eq('is_active', true)
-    .in('role', ['owner', 'manager', 'receptionist', 'technician'])
-    .not('email', 'is', null)
+  const [{ data }, assigned] = await Promise.all([
+    admin
+      .from('profiles')
+      .select('id, email')
+      .eq('hotel_id', hotelId)
+      .eq('is_active', true)
+      .in('role', ['owner', 'manager', 'receptionist', 'technician'])
+      .not('email', 'is', null),
+    loadAssignedManagerProfiles(hotelId, { activeOnly: true }),
+  ])
 
+  const rows = [...(data ?? []), ...assigned.map((p) => ({ id: p.id, email: p.email }))]
   return [
     ...new Set(
-      (data ?? [])
+      rows
         .filter((p) => p.id !== excludeProfileId && isRealStaffEmail(p.email))
         .map((p) => p.email!.trim().toLowerCase()),
     ),
@@ -105,16 +131,22 @@ export async function hotelStaffEmails(
 /** Manager phones for a property; falls back to owner if no manager on file. */
 export async function managerPhones(hotelId: string): Promise<string[]> {
   const admin = createAdminClient()
-  const { data } = await admin
-    .from('profiles')
-    .select('phone, role')
-    .eq('hotel_id', hotelId)
-    .eq('is_active', true)
-    .in('role', ['manager', 'owner'])
-    .not('phone', 'is', null)
+  const [{ data }, assigned] = await Promise.all([
+    admin
+      .from('profiles')
+      .select('phone, role')
+      .eq('hotel_id', hotelId)
+      .eq('is_active', true)
+      .in('role', ['manager', 'owner'])
+      .not('phone', 'is', null),
+    assignedManagerContacts(hotelId),
+  ])
 
-  const managers = (data ?? []).filter((p) => p.role === 'manager' && p.phone)
-  const phones = managers.map((p) => p.phone!)
+  const managerPhonesFromHotel = (data ?? [])
+    .filter((p) => p.role === 'manager' && p.phone)
+    .map((p) => p.phone!)
+  const assignedPhones = assigned.map((p) => p.phone).filter((phone): phone is string => Boolean(phone?.trim()))
+  const phones = [...new Set([...managerPhonesFromHotel, ...assignedPhones].map((p) => p.trim()))]
   if (phones.length > 0) return phones
 
   return (data ?? [])
@@ -170,17 +202,25 @@ export async function ownerEmails(hotelId: string): Promise<string[]> {
 /** Manager emails for a property; falls back to owner if no manager on file. */
 export async function managerEmails(hotelId: string): Promise<string[]> {
   const admin = createAdminClient()
-  const { data } = await admin
-    .from('profiles')
-    .select('email, role')
-    .eq('hotel_id', hotelId)
-    .eq('is_active', true)
-    .in('role', ['manager', 'owner'])
-    .not('email', 'is', null)
+  const [{ data }, assigned] = await Promise.all([
+    admin
+      .from('profiles')
+      .select('email, role')
+      .eq('hotel_id', hotelId)
+      .eq('is_active', true)
+      .in('role', ['manager', 'owner'])
+      .not('email', 'is', null),
+    assignedManagerContacts(hotelId),
+  ])
 
-  const managers = (data ?? []).filter((p) => p.role === 'manager' && isRealStaffEmail(p.email))
-  const emails = managers.map((p) => p.email!.trim().toLowerCase())
-  if (emails.length > 0) return [...new Set(emails)]
+  const managerEmailsFromHotel = (data ?? [])
+    .filter((p) => p.role === 'manager' && isRealStaffEmail(p.email))
+    .map((p) => p.email!.trim().toLowerCase())
+  const assignedEmails = assigned
+    .filter((p) => isRealStaffEmail(p.email))
+    .map((p) => p.email!.trim().toLowerCase())
+  const emails = [...new Set([...managerEmailsFromHotel, ...assignedEmails])]
+  if (emails.length > 0) return emails
 
   return [
     ...new Set(
