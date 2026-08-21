@@ -178,6 +178,7 @@ export function GuestsTable({
   const [searchQuery, setSearchQuery] = useState(initialSearch)
   const [selectedStatus, setSelectedStatus] = useState<GuestDirectoryFilter | null>(initialStatus)
   const [selectedGuest, setSelectedGuest] = useState<GuestRow | null>(null)
+  const [stayDatePanel, setStayDatePanel] = useState<'extend' | 'reduce' | null>(null)
   const [stayInvoice, setStayInvoice] = useState<{
     id: string
     guestName: string
@@ -233,6 +234,10 @@ export function GuestsTable({
     const guest = guests.find((g) => g.id === openGuestId)
     if (guest) setSelectedGuest(guest)
   }, [openGuestId, guests])
+
+  useEffect(() => {
+    setStayDatePanel(null)
+  }, [selectedGuest?.id])
   const [editingGuest, setEditingGuest] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
 
@@ -668,6 +673,8 @@ export function GuestsTable({
               {!readOnly && selectedGuest.canCheckOut && selectedGuest.reservationId && (
                   <GuestExtendStayPanel
                     guest={selectedGuest}
+                    open={stayDatePanel === 'extend'}
+                    onOpenChange={(next) => setStayDatePanel(next ? 'extend' : null)}
                     onExtended={(payload) => {
                       const nextStatus = statusAfterStayExtension(
                         payload.checkOut,
@@ -705,11 +712,14 @@ export function GuestsTable({
                   selectedGuest.occupancy === 'checking_out' ? 'checkout_in_progress' : 'checked_in',
                   selectedGuest.checkOut,
                   todayISO(),
+                  selectedGuest.checkIn,
                 ) &&
                 (selectedGuest.occupancy === 'in_house' ||
                   selectedGuest.occupancy === 'checking_out') && (
                   <GuestReduceStayPanel
                     guest={selectedGuest}
+                    open={stayDatePanel === 'reduce'}
+                    onOpenChange={(next) => setStayDatePanel(next ? 'reduce' : null)}
                     onReduced={(payload) => {
                       setSelectedGuest({
                         ...selectedGuest,
@@ -1047,9 +1057,13 @@ function GuestDeletePanel({
 
 function GuestExtendStayPanel({
   guest,
+  open,
+  onOpenChange,
   onExtended,
 }: {
   guest: GuestRow
+  open: boolean
+  onOpenChange: (open: boolean) => void
   onExtended: (payload: {
     checkOut: string
     invoiceId: string | null
@@ -1059,7 +1073,6 @@ function GuestExtendStayPanel({
   }) => void
 }) {
   const currentOut = guest.checkOut ?? ''
-  const [open, setOpen] = useState(false)
   const [newCheckOut, setNewCheckOut] = useState(() =>
     currentOut ? addDaysISO(currentOut, 1) : '',
   )
@@ -1098,7 +1111,7 @@ function GuestExtendStayPanel({
       } else {
         toast.success('Stay extended')
       }
-      setOpen(false)
+      onOpenChange(false)
       onExtended({
         checkOut: newCheckOut,
         invoiceId: result.data?.invoiceId ?? null,
@@ -1113,7 +1126,7 @@ function GuestExtendStayPanel({
     return (
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => onOpenChange(true)}
         className="flex w-full items-center justify-center gap-2 rounded-xl bg-white py-3 text-sm font-semibold text-foreground shadow-elevation-1"
       >
         <CalendarPlus className="h-4 w-4" />
@@ -1143,7 +1156,7 @@ function GuestExtendStayPanel({
       <div className="flex gap-2">
         <button
           type="button"
-          onClick={() => setOpen(false)}
+          onClick={() => onOpenChange(false)}
           className="flex-1 rounded-xl bg-white py-2 text-sm font-semibold shadow-elevation-1"
         >
           Cancel
@@ -1163,16 +1176,19 @@ function GuestExtendStayPanel({
 
 function GuestReduceStayPanel({
   guest,
+  open,
+  onOpenChange,
   onReduced,
 }: {
   guest: GuestRow
+  open: boolean
+  onOpenChange: (open: boolean) => void
   onReduced: (payload: { checkOut: string }) => void
 }) {
   const currentOut = guest.checkOut ?? ''
   const today = todayISO()
-  const minOut = minReduceCheckOut(today)
+  const minOut = minReduceCheckOut(today, guest.checkIn)
   const maxOut = currentOut ? maxReduceCheckOut(currentOut) : ''
-  const [open, setOpen] = useState(false)
   const [newCheckOut, setNewCheckOut] = useState(() => maxOut)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
@@ -1203,7 +1219,7 @@ function GuestReduceStayPanel({
       } else {
         toast.success('Stay shortened')
       }
-      setOpen(false)
+      onOpenChange(false)
       onReduced({ checkOut: newCheckOut })
     })
   }
@@ -1212,7 +1228,7 @@ function GuestReduceStayPanel({
     return (
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => onOpenChange(true)}
         className="flex w-full items-center justify-center gap-2 rounded-xl bg-white py-3 text-sm font-semibold text-foreground shadow-elevation-1"
       >
         <CalendarMinus className="h-4 w-4" />
@@ -1242,7 +1258,7 @@ function GuestReduceStayPanel({
       <div className="flex gap-2">
         <button
           type="button"
-          onClick={() => setOpen(false)}
+          onClick={() => onOpenChange(false)}
           className="flex-1 rounded-xl bg-white py-2 text-sm font-semibold shadow-elevation-1"
         >
           Cancel

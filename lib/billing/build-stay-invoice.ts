@@ -171,6 +171,8 @@ function invoiceDiscountFields(
 /**
  * Create a stay-linked invoice or refresh an existing one (folio + stay total).
  * Idempotent per reservation_id. Safe for check-in issue and checkout reuse.
+ * Unpaid refreshes keep already-collected cash (credit) when the total falls;
+ * collecting (`markAsPaid`) still settles to the new total.
  */
 export async function createOrRefreshStayInvoice(
   admin: AdminClient,
@@ -201,6 +203,7 @@ export async function createOrRefreshStayInvoice(
   const reservation = input.reservation
   const now = new Date().toISOString()
   const paidNow = input.markAsPaid
+  const preserveOverpayment = input.preserveOverpayment ?? !paidNow
 
   const { data: existing } = await admin
     .from('invoices')
@@ -383,7 +386,7 @@ export async function createOrRefreshStayInvoice(
         invoiceTotal: taxes.total,
         priorDeposit: depositFloor,
         paidNow: false,
-        preserveOverpayment: input.preserveOverpayment,
+        preserveOverpayment,
       })
       amountPaid = seeded.amountPaid
       paymentStatus = seeded.paymentStatus
@@ -443,7 +446,7 @@ export async function createOrRefreshStayInvoice(
     invoiceTotal: taxes.total,
     priorDeposit,
     paidNow,
-    preserveOverpayment: input.preserveOverpayment,
+    preserveOverpayment,
   })
   const invoiceNumber = await allocateInvoiceNumber(reservation.hotel_id)
   const dueAt = paidNow

@@ -163,8 +163,11 @@ export const REDUCEABLE_STATUSES = [
   'checkout_in_progress',
 ] as const satisfies readonly ReservationStatus[]
 
-export function minReduceCheckOut(today: string): string {
-  return addDaysISO(today, 1)
+export function minReduceCheckOut(today: string, checkIn?: string | null): string {
+  const tomorrow = addDaysISO(today, 1)
+  if (!checkIn) return tomorrow
+  const afterArrival = addDaysISO(checkIn, 1)
+  return afterArrival > tomorrow ? afterArrival : tomorrow
 }
 
 export function maxReduceCheckOut(currentCheckOut: string): string {
@@ -175,10 +178,12 @@ export function canReduceStay(
   status: string | null | undefined,
   checkOut: string | null | undefined,
   today: string,
+  checkIn?: string | null,
 ): boolean {
   if (!(REDUCEABLE_STATUSES as readonly string[]).includes(status ?? '')) return false
   if (!checkOut) return false
-  return checkOut > minReduceCheckOut(today)
+  const minOut = minReduceCheckOut(today, checkIn)
+  return checkOut > minOut && maxReduceCheckOut(checkOut) >= minOut
 }
 
 /** After extra nights are booked, restore a live in-house status from the new date. */

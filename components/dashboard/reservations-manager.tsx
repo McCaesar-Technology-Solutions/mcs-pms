@@ -1186,8 +1186,13 @@ function ReservationDrawer({
   const canEdit = canUpdateReservationFields(reservation.status)
   const canCheckInNow = canCheckIn(reservation.status)
   const canExtendNow = canExtendStay(reservation.status)
-  const canReduceNow = canReduceStay(reservation.status, reservation.checkOutDate, today)
-  const minReduceDate = minReduceCheckOut(today)
+  const canReduceNow = canReduceStay(
+    reservation.status,
+    reservation.checkOutDate,
+    today,
+    reservation.checkInDate,
+  )
+  const minReduceDate = minReduceCheckOut(today, reservation.checkInDate)
   const maxReduceDate = maxReduceCheckOut(reservation.checkOutDate)
   const lifecycleActions = getAvailableActions(reservation.status, staffRole)
   const canMoveNow = canMoveStayRoom(reservation.status)

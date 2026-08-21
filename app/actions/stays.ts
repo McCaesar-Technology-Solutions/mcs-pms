@@ -1737,13 +1737,14 @@ export async function reduceStay(
     .maybeSingle()
   const today = hotelTodayISO(normalizeHotelTimezone(hotel?.timezone))
 
-  if (!canReduceStay(reservation.status, reservation.check_out, today)) {
+  if (!canReduceStay(reservation.status, reservation.check_out, today, reservation.check_in)) {
     return { success: false, error: 'This stay has no unused nights to return.' }
   }
   if (!isIsoDateString(newCheckOut)) {
     return { success: false, error: 'Enter a valid check-out date.' }
   }
-  const minOut = minReduceCheckOut(today)
+  if (!reservation.room_id) return { success: false, error: 'No room on this stay.' }
+  const minOut = minReduceCheckOut(today, reservation.check_in)
   if (newCheckOut < minOut) {
     return { success: false, error: 'Same-day departure is checkout, not a shorter stay.' }
   }
@@ -1755,9 +1756,7 @@ export async function reduceStay(
   }
 
   const rateType = (reservation.rate_type ?? 'nightly') as RateType
-  const roomRates = reservation.room_id
-    ? await getRoomRates(admin, reservation.room_id)
-    : { nightlyRate: 0, weeklyRate: 0, monthlyRate: 0 }
+  const roomRates = await getRoomRates(admin, reservation.room_id)
   const nightlyRate =
     reservation.nightly_rate != null ? Number(reservation.nightly_rate) : roomRates.nightlyRate
   const weeklyRate =
@@ -1844,7 +1843,6 @@ export async function reduceStay(
       },
       paymentMethod,
       markAsPaid: false,
-      preserveOverpayment: true,
       effectiveCheckOut: newCheckOut,
       guestPhone,
       roomNumber,
