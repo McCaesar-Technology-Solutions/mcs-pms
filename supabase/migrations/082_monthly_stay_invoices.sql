@@ -1,12 +1,12 @@
--- Unique monthly stay invoices: one row per billing period, not one cumulative stay invoice.
--- profiles stay totals remain on the reservation for informational rollup.
+-- Unique stay invoices per original stay + each extension (not one cumulative stay bill).
+-- Reservation stay totals remain an informational rollup.
 
 ALTER TABLE invoices
   ADD COLUMN IF NOT EXISTS billing_period_start date,
   ADD COLUMN IF NOT EXISTS billing_period_end date;
 
 COMMENT ON COLUMN invoices.billing_period_start IS
-  'Inclusive start of this invoice’s stay period (rental month for monthly rates).';
+  'Inclusive start of this invoice’s stay segment (original stay or one extension).';
 COMMENT ON COLUMN invoices.billing_period_end IS
   'Exclusive end (same convention as reservations.check_out).';
 

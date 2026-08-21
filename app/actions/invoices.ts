@@ -31,10 +31,11 @@ import {
 } from '@/lib/billing/invoice-payments'
 import { applyInvoicePaymentRecord } from '@/lib/billing/apply-payment'
 import { createOrRefreshStayInvoice } from '@/lib/billing/build-stay-invoice'
+import { billingPeriodLabel, coverStayInvoicePeriods } from '@/lib/billing/stay-periods'
 import { resolveBillToName } from '@/lib/billing/bill-to'
 import { computeDiscountAmount, normalizeDiscountType } from '@/lib/billing/discount'
 import { syncReservationPaymentFromInvoice } from '@/lib/billing/reservation-payment'
-import { applyStayPayment, findStayInvoicesForReservation } from '@/lib/billing/apply-stay-payment'
+import { applyStayPayment, applyStayPaymentWaterfall, findStayInvoicesForReservation } from '@/lib/billing/apply-stay-payment'
 import {
   assertCheckInPaymentMet,
   formatCheckInPaymentPolicyLabel,
@@ -830,14 +831,26 @@ export async function getStayCollectContext(
   const stayPaid = (invoices ?? []).reduce((sum, row) => sum + Number(row.amount_paid ?? 0), 0)
   const invoiceTotal = stayTotal > 0 ? stayTotal : Number(reservation.total_amount ?? 0)
   const amountPaid = stayTotal > 0 ? stayPaid : Number(reservation.amount_paid ?? 0)
-  const periodCount = invoices?.length ?? 0
+  const periods = coverStayInvoicePeriods(
+    invoices ?? [],
+    reservation.check_in,
+    reservation.check_out,
+  )
+  const activePeriods = periods.filter((period) => period.nights > 0)
+  const periodCount = activePeriods.length
   const open = (invoices ?? []).find(
     (row) => Number(row.total_amount ?? 0) - Number(row.amount_paid ?? 0) > 0.009,
   )
-  const periodLabel =
-    periodCount > 1
-      ? `Month ${(invoices?.indexOf(open ?? invoices![invoices!.length - 1]!) ?? 0) + 1} of ${periodCount}`
-      : null
+  const focusIndex = Math.max(
+    0,
+    invoices?.indexOf(open ?? invoices![invoices!.length - 1]!) ?? 0,
+  )
+  const focusPeriod = periods[focusIndex] ?? activePeriods[activePeriods.length - 1]
+  const periodLabel = periodCount > 1 && focusPeriod ? billingPeriodLabel({
+    ...focusPeriod,
+    index: Math.max(1, activePeriods.findIndex((p) => p.start === focusPeriod.start) + 1),
+    count: periodCount,
+  }) : null
   const policy = await getHotelCheckInPaymentPolicy(profile.hotel_id)
   const nights = stayNights(reservation.check_in, reservation.check_out)
   const nightlyRate = reservationNightlyRate(reservation)
@@ -1074,43 +1087,23 @@ export async function collectStayPayment(input: unknown): Promise<CollectStayPay
     }
   }
 
-  let remainingPay = payAmount
-  let currentInvoiceId = issued.invoiceId
-  let amountApplied = 0
-  let lastPaymentStatus = issued.paymentStatus
+  const paymentResult = await applyStayPaymentWaterfall(admin, {
+    hotelId: profile.hotel_id,
+    reservationId: reservation.id,
+    amount: payAmount,
+    paymentMethod: parsed.data.paymentMethod,
+    provider: 'manual',
+    idempotencyKeyPrefix: `collect-stay:${reservation.id}:${randomUUID()}`,
+    phase: 'check_in',
+    metadata: { source: 'check_in_collect' },
+  })
 
-  while (remainingPay > 0.009) {
-    const paymentResult = await applyStayPayment(admin, {
-      hotelId: profile.hotel_id,
-      reservationId: reservation.id,
-      invoiceId: currentInvoiceId,
-      amount: remainingPay,
-      paymentMethod: parsed.data.paymentMethod,
-      provider: 'manual',
-      idempotencyKey: `collect-stay:${currentInvoiceId}:${randomUUID()}`,
-      phase: 'check_in',
-      metadata: { source: 'check_in_collect' },
-    })
-
-    if (!paymentResult.ok) {
-      return { success: false, error: paymentResult.error }
-    }
-
-    amountApplied += paymentResult.amountApplied
-    remainingPay = Math.round((remainingPay - paymentResult.amountApplied) * 100) / 100
-    lastPaymentStatus = paymentResult.paymentStatus as PaymentStatus
-
-    if (remainingPay <= 0.009) break
-
-    const invoices = await findStayInvoicesForReservation(admin, profile.hotel_id, reservation.id)
-    const next = invoices.find(
-      (inv) =>
-        inv.id !== currentInvoiceId &&
-        invoiceBalanceDue(Number(inv.total_amount ?? 0), Number(inv.amount_paid ?? 0)) > 0.009,
-    )
-    if (!next) break
-    currentInvoiceId = next.id
+  if (!paymentResult.ok) {
+    return { success: false, error: paymentResult.error }
   }
+
+  const amountApplied = paymentResult.amountApplied
+  const lastPaymentStatus = paymentResult.paymentStatus as PaymentStatus
 
   const invoicesAfter = await findStayInvoicesForReservation(admin, profile.hotel_id, reservation.id)
   amountPaid = invoicesAfter.reduce((sum, row) => sum + Number(row.amount_paid ?? 0), 0)

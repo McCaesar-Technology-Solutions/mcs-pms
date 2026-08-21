@@ -157,8 +157,8 @@ Open a confirmed booking → **Collect payment before check-in**. This creates o
 
 ### While in-house
 
-- **Extend stay** — updates nights and balance.
-- **Shorten stay** — return unused nights from tomorrow onward. Extra already collected stays as credit until you refund.
+- **Extend stay** — updates nights and issues a **unique invoice for the extra nights** (the original stay invoice is not rewritten). Stay total on the reservation is informational.
+- **Shorten stay** — return unused nights from tomorrow onward, starting with the latest extension invoice. Extra already collected stays as credit until you refund.
 - **Move room** — reassign if free.
 - **Guest folio** — post extras from **Guests** (minibar, laundry). Shows as **Folio (unbilled)** on the reservation. You can also post a **Discount (credit)**.
 - **Approve late checkout** — when overstay needs more time.
@@ -167,14 +167,14 @@ Open a confirmed booking → **Collect payment before check-in**. This creates o
 
 ### Check out
 
-Stay payment is taken **at check-in**. Checkout refreshes the same invoice for extras, then releases the room.
+Stay payment is taken **at check-in**. Checkout refreshes each stay/extension invoice in place and puts extras on the latest one, then releases the room.
 
-1. Review Payment box (stay invoice total when issued, paid, **Outstanding**).
+1. Review Payment box (informational stay total, paid, **Outstanding**).
 2. **Begin checkout** — locks folio.
 3. Post any final charges → **Complete checkout**.
 4. Collect the **full remaining balance** if Outstanding is above zero (checkout cannot leave a partial balance — use **Walkout** if they left unpaid).
 5. **Early checkout** if leaving before booked date.
-6. Confirm → same GRA stay invoice refreshed, room → **Cleaning**, clean task created, door access revoked (if enabled).
+6. Confirm → stay and extension invoices refreshed (no merged cumulative bill), room → **Cleaning**, clean task created, door access revoked (if enabled).
 
 Print, download PDF, or **WhatsApp** the invoice from the checkout dialog or Billing.
 
@@ -205,8 +205,8 @@ Rules:
 - **Guest portal** — copy link, QR, WhatsApp, regenerate, revoke.
 - **Guest folio** (in-house) — post charges; discount credits allowed for you and managers.
 - **Generate stay invoice & collect** if they are in house without an invoice.
-- **Extend stay** — pick a later check-out from the guest card (same as Reservations).
-- **Shorten stay** — return unused nights from tomorrow onward from the guest card. Extra collected stays as credit.
+- **Extend stay** — pick a later check-out from the guest card (same as Reservations). A unique invoice is created for the extra nights; the original stay invoice stays as issued.
+- **Shorten stay** — return unused nights from tomorrow onward from the guest card (latest extension invoice first). Extra collected stays as credit.
 - **Check out** from the guest card (same two-step flow). **Dispute hold** stays stay in house — use Reservations to release the hold, begin checkout, or record a walkout.
 - **Export PII** — download guest personal data.
 - **Erase PII** — permanently remove guest personal data (you and managers). Hard-delete only orphan rows with no history.
@@ -300,7 +300,7 @@ Tabs: **Invoices** · **Payment ledger** · **Online payments**.
 | **Refund** | Reverse a payment (**you only**) |
 | **Download PDF / WhatsApp** | Share with guest |
 
-**Outstanding on reservations** uses the stay invoice balance when one exists — same number as Billing.
+**Outstanding on reservations** uses the combined stay and extension invoice balances when they exist — same number as Billing.
 
 After upgrading partial payments, run once:
 

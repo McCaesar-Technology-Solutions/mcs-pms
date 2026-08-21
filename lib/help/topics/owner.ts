@@ -213,7 +213,7 @@ export const ownerHelpTopics: HelpTopic[] = [
     steps: [
       'Dashboard → Requests tab (not Settings).',
       'Open a request to acknowledge, complete, or decline.',
-      'Stay extensions jump to Reservations to pick the new check-out date.',
+      'Stay extensions jump to Reservations to pick the new check-out date. Extra nights get a unique invoice; the original stay invoice stays as issued.',
       'Housekeeping requests can schedule a cleaning task.',
     ],
     href: '/owner/dashboard#guest-requests',

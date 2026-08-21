@@ -1345,9 +1345,9 @@ function GuestCheckoutPanel({
     <div className="space-y-3 rounded-xl surface-inset p-4">
       <p className="text-sm font-semibold">Complete checkout</p>
       <p className="text-xs text-muted-foreground">
-        Stay payment is taken at check-in. Checkout refreshes the same invoice for any extras, then
-        releases the room. Collect remaining balance if outstanding — use Walkout on Reservations if
-        they left unpaid.
+        Stay payment is taken at check-in. Checkout refreshes stay and extension invoices in
+        place (extras on the latest), then releases the room. Collect remaining balance if
+        outstanding — use Walkout on Reservations if they left unpaid.
       </p>
       <label className="flex items-center gap-2 text-sm">
         <input

@@ -118,14 +118,14 @@ You can also **Collect payment before check-in** on a confirmed booking.
 
 ### While in house
 
-- **Extend stay** / **Shorten stay** (unused nights from tomorrow onward) / **Move room**.
+- **Extend stay** / **Shorten stay** (unused nights from tomorrow onward; shorten the latest extension invoice first) / **Move room**.
 - Post **folio** charges from **Guests** (no discount credits — ask a manager). Charges and guest requests stay on the stay during **dispute hold**; a manager must start or release the hold, or check out, from Reservations.
 - **Approve late checkout** when policy allows.
 - **Generate stay invoice & collect** from the guest card if they somehow have no invoice.
 
 ### Check out
 
-Payment for the stay is taken **at check-in**. Checkout is departure + any unpaid extras on the same invoice.
+Payment for the stay is taken **at check-in**. Checkout is departure + remaining balance on the stay invoice and any unique extension invoices (folio extras go on the latest).
 
 1. Read the Payment box:
 
@@ -142,7 +142,7 @@ Payment for the stay is taken **at check-in**. Checkout is departure + any unpai
 3. If Outstanding is ₵0 → **Complete checkout**.
 4. If balance remains → collect remaining (required). Unpaid complete-checkout is blocked.
 5. **Early checkout** if leaving early.
-6. Confirm → room **Cleaning**; same stay invoice refreshed (no duplicate). Print, download, or **WhatsApp** the bill.
+6. Confirm → room **Cleaning**; stay and extension invoices refreshed in place. Print, download, or **WhatsApp** the bill.
 
 **Walkout** — only if the guest already left without paying. Not a “pay later” path.
 
@@ -192,8 +192,8 @@ For people **already staying**:
 - **Guest folio** — post description + amount (₵). Cannot post while checkout in progress. You can still post during **dispute hold**. Cannot post discount credits.
 - Copy / regenerate / revoke portal link; WhatsApp share.
 - **Export PII** if asked (erase is manager/owner only).
-- **Extend stay** — pick a later check-out (same as Reservations). Room total and portal access update automatically.
-- **Shorten stay** — return unused nights from tomorrow onward. Extra already collected stays as credit (refunds are owner-only).
+- **Extend stay** — pick a later check-out (same as Reservations). A unique invoice is created for the extra nights; the original stay invoice is not rewritten.
+- **Shorten stay** — return unused nights from tomorrow onward (latest extension invoice first). Extra already collected stays as credit (refunds are owner-only).
 - Check out from guest page if easier. If the card shows **Dispute hold**, checkout is paused — ask a manager to release the hold, check out, or record a walkout on Reservations.
 
 ---

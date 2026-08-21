@@ -55,7 +55,7 @@ Index and money-permissions summary: [docs/README.md](docs/README.md)
 
 - **Stay payment is taken at check-in** (pay before enter). Partial payments are supported — the hotel sets a **check-in minimum** under Settings → Lifecycle (default 50%).
 - **Pre-arrival payments** can be recorded on a reservation before the stay invoice exists.
-- **Folio** charges (minibar, laundry, etc.) post on the guest profile and roll into the stay invoice.
+- **Folio** charges (minibar, laundry, etc.) post on the guest profile and roll into the latest stay or extension invoice.
 - **Discounts** (percent or fixed, before tax) — owner and manager only. Reception asks a manager.
 - **Include Ghana tax** is optional when issuing. Taxed invoices use Bill-to Tax ID `GHA-728071939-8`. Guest ID (Ghana Card, passport, or driver’s licence) is optional on the guest record and is not the invoice Tax ID.
 - **Cancel / no-show with deposit** → forfeit (staff) or refund (owner only).

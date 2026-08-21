@@ -59,10 +59,80 @@ export async function findStayInvoiceForReservation(
   payment_status: string | null
 } | null> {
   const invoices = await findStayInvoicesForReservation(admin, hotelId, reservationId)
-  const open = invoices.find(
+  const billable = invoices.filter((inv) => Number(inv.total_amount ?? 0) > 0.009)
+  const pool = billable.length > 0 ? billable : invoices
+  const open = pool.find(
     (inv) => invoiceBalanceDue(Number(inv.total_amount ?? 0), Number(inv.amount_paid ?? 0)) > 0.009,
   )
-  return open ?? invoices[invoices.length - 1] ?? null
+  return open ?? pool[pool.length - 1] ?? null
+}
+
+/** Apply a payment oldest-open-first across stay invoices (original, then extensions). */
+export async function applyStayPaymentWaterfall(
+  admin: SupabaseClient,
+  input: {
+    hotelId: string
+    reservationId: string
+    amount: number
+    paymentMethod: PaymentMethod
+    provider: 'manual' | 'paystack' | 'hubtel'
+    providerReference?: string
+    idempotencyKeyPrefix: string
+    metadata?: Record<string, unknown>
+    phase?: StayPaymentPhase
+  },
+): Promise<ApplyStayPaymentResult> {
+  let remainingPay = Math.max(0, input.amount)
+  let amountApplied = 0
+  let last: ApplyStayPaymentSuccess | null = null
+  const seen = new Set<string>()
+
+  while (remainingPay > 0.009) {
+    const invoices = await findStayInvoicesForReservation(admin, input.hotelId, input.reservationId)
+    const next = invoices.find(
+      (inv) =>
+        !seen.has(inv.id) &&
+        invoiceBalanceDue(Number(inv.total_amount ?? 0), Number(inv.amount_paid ?? 0)) > 0.009,
+    )
+    if (!next) break
+    seen.add(next.id)
+
+    const paymentResult = await applyStayPayment(admin, {
+      hotelId: input.hotelId,
+      reservationId: input.reservationId,
+      invoiceId: next.id,
+      amount: remainingPay,
+      paymentMethod: input.paymentMethod,
+      provider: input.provider,
+      providerReference: input.providerReference,
+      idempotencyKey: `${input.idempotencyKeyPrefix}:${next.id}`,
+      metadata: input.metadata,
+      phase: input.phase,
+    })
+    if (!paymentResult.ok) return paymentResult
+
+    amountApplied += paymentResult.amountApplied
+    remainingPay = Math.round((remainingPay - paymentResult.amountApplied) * 100) / 100
+    last = paymentResult
+    if (paymentResult.amountApplied <= 0.009) break
+  }
+
+  if (!last) {
+    const invoice = await findStayInvoiceForReservation(admin, input.hotelId, input.reservationId)
+    return {
+      ok: true,
+      amountApplied: 0,
+      balanceDue: 0,
+      invoiceId: invoice?.id ?? null,
+      reservationId: input.reservationId,
+      paymentStatus: 'paid',
+    }
+  }
+
+  return {
+    ...last,
+    amountApplied,
+  }
 }
 
 async function applyPreInvoiceReservationPayment(

@@ -34,8 +34,10 @@ import { resolveCollectedAmount } from '@/lib/billing/invoice-ledger'
 import { invoiceBalanceDue } from '@/lib/billing/invoice-payments'
 import { resolveBillToName } from '@/lib/billing/bill-to'
 import {
-  stayBillingPeriods,
-  splitAmountByWeights,
+  billingPeriodLabel,
+  coverStayInvoicePeriods,
+  lifoShortenStayInvoices,
+  remainingFixedDiscount,
   waterfallAllocate,
 } from '@/lib/billing/stay-periods'
 import type { InvoiceExportRow } from '@/lib/export/types'
@@ -98,6 +100,7 @@ async function computeRoomChargeAmount(
   periodStart: string,
   periodEnd: string,
 ): Promise<number> {
+  if (periodStart >= periodEnd) return 0
   // Prefer rate math so invoice refresh stays correct after sync sets total_amount to gross.
   if (reservation.room_id) {
     const rateType = (reservation.rate_type ?? 'nightly') as RateType
@@ -198,6 +201,7 @@ type ExistingStayInvoice = {
   room_category_name: string | null
   billing_period_start: string | null
   billing_period_end: string | null
+  discount_amount: number | null
 }
 
 export type StayInvoiceIssueResult = {
@@ -211,11 +215,13 @@ export type StayInvoiceIssueResult = {
   paymentStatus: PaymentStatus
   amountPaid: number
   stayTotals: { total: number; paid: number; balance: number; periodCount: number }
+  periodLabel: string
 }
 
 /**
- * Create or refresh stay invoices. Monthly rates longer than 30 nights get one
- * unique invoice per rental month. Stay rollup lives on the reservation, not the document.
+ * Create or refresh stay invoices in place. The first invoice covers the original
+ * stay; uncovered nights after the last billed period become a new unique invoice.
+ * Stay rollup lives on the reservation, not the document.
  */
 export async function createOrRefreshStayInvoice(
   admin: AdminClient,
@@ -230,6 +236,8 @@ export async function createOrRefreshStayInvoice(
     billToSameAsGuest?: boolean
     billToName?: string | null
     preserveOverpayment?: boolean
+    includeFolio?: boolean
+    preferLatest?: boolean
   },
 ): Promise<StayInvoiceIssueResult> {
   const effectiveCheckOut = input.effectiveCheckOut ?? input.reservation.check_out
@@ -237,16 +245,12 @@ export async function createOrRefreshStayInvoice(
   const now = new Date().toISOString()
   const paidNow = input.markAsPaid
   const preserveOverpayment = input.preserveOverpayment ?? !paidNow
-  const periods = stayBillingPeriods(
-    reservation.check_in,
-    effectiveCheckOut,
-    reservation.rate_type,
-  )
+  const includeFolio = input.includeFolio ?? true
 
   const { data: existingRows } = await admin
     .from('invoices')
     .select(
-      'id, invoice_number, amount_paid, payment_status, paid_at, guest_tax_id, tax_snapshot, nhil_amount, getfund_amount, covid_levy_amount, vat_amount, elevy_amount, tourism_levy_amount, bill_to_name, room_category_name, billing_period_start, billing_period_end',
+      'id, invoice_number, amount_paid, payment_status, paid_at, guest_tax_id, tax_snapshot, nhil_amount, getfund_amount, covid_levy_amount, vat_amount, elevy_amount, tourism_levy_amount, bill_to_name, room_category_name, billing_period_start, billing_period_end, discount_amount',
     )
     .eq('reservation_id', reservation.id)
     .eq('hotel_id', reservation.hotel_id)
@@ -281,6 +285,22 @@ export async function createOrRefreshStayInvoice(
     existing?.room_category_name ??
     null
 
+  const periods = coverStayInvoicePeriods(
+    existingList,
+    reservation.check_in,
+    effectiveCheckOut,
+  )
+
+  const lastActiveIndex = (() => {
+    for (let i = periods.length - 1; i >= 0; i--) {
+      if (periods[i]!.nights > 0) return i
+    }
+    return Math.max(0, periods.length - 1)
+  })()
+
+  const discountType = normalizeDiscountType(reservation.discount_type)
+  const stayFixed = discountType === 'fixed' ? Number(reservation.discount_value ?? 0) : 0
+
   const periodRoom = await Promise.all(
     periods.map((period) =>
       computeRoomTaxesForStay(
@@ -296,11 +316,28 @@ export async function createOrRefreshStayInvoice(
     ),
   )
 
-  const stayDiscount = roundMoney(periodRoom.reduce((sum, p) => sum + p.discountAmount, 0))
-  const discountShares = splitAmountByWeights(
-    stayDiscount,
-    periodRoom.map((p) => p.roomListBase),
-  )
+  let usedFixed = 0
+  const discountShares = periods.map((period, i) => {
+    const matched =
+      existingList.find((row) => row.billing_period_start === period.start) ??
+      (periods.length === 1 && existingList.length === 1 && !existingList[0]!.billing_period_start
+        ? existingList[0]!
+        : null)
+    const roomListBase = periodRoom[i]!.roomListBase
+    if (discountType === 'percent') {
+      return periodRoom[i]!.discountAmount
+    }
+    if (discountType === 'fixed') {
+      const amount = matched
+        ? Math.min(roomListBase, Number(matched.discount_amount ?? 0))
+        : Math.min(roomListBase, remainingFixedDiscount(stayFixed, usedFixed))
+      usedFixed = roundMoney(usedFixed + amount)
+      return amount
+    }
+    return 0
+  })
+
+  const stayDiscount = roundMoney(discountShares.reduce((sum, n) => sum + n, 0))
 
   if (Math.abs(Number(reservation.discount_amount ?? 0) - stayDiscount) > 0.009) {
     await admin
@@ -348,7 +385,7 @@ export async function createOrRefreshStayInvoice(
       discountAmount = recomputed.discountAmount
     }
 
-    const isLast = i === periods.length - 1
+    const isLast = includeFolio && i === lastActiveIndex
     const withFolio =
       isLast && reservation.guest_id
         ? await prepareCheckoutTaxesWithFolio(
@@ -371,8 +408,7 @@ export async function createOrRefreshStayInvoice(
 
     const matched =
       existingList.find((row) => row.billing_period_start === period.start) ??
-      (periods.length > 1 &&
-      period.index === 1 &&
+      (period.index === 1 &&
       existingList.length === 1 &&
       (!existingList[0]!.billing_period_start ||
         existingList[0]!.billing_period_start === reservation.check_in)
@@ -390,25 +426,21 @@ export async function createOrRefreshStayInvoice(
   }
 
   const periodTotals = built.map((row) => row.taxes.total)
-  const alreadySplit = built.every((row) => row.existing && row.existing.billing_period_start === row.period.start)
   let paidByPeriod: number[]
   if (paidNow) {
     paidByPeriod = periodTotals
-  } else if (alreadySplit) {
-    paidByPeriod = await Promise.all(
-      built.map(async (row) =>
-        resolveCollectedAmount(admin, {
-          invoiceId: row.existing!.id,
-          invoiceAmountPaid: row.existing!.amount_paid,
-        }),
-      ),
-    )
+  } else if (existingList.length === 0) {
+    paidByPeriod = waterfallAllocate(periodTotals, Number(reservation.amount_paid ?? 0))
   } else {
-    const source =
-      existingList.length > 0
-        ? existingList.reduce((sum, row) => sum + Number(row.amount_paid ?? 0), 0)
-        : Number(reservation.amount_paid ?? 0)
-    paidByPeriod = waterfallAllocate(periodTotals, source)
+    paidByPeriod = await Promise.all(
+      built.map(async (row) => {
+        if (!row.existing) return 0
+        return resolveCollectedAmount(admin, {
+          invoiceId: row.existing.id,
+          invoiceAmountPaid: row.existing.amount_paid,
+        })
+      }),
+    )
   }
 
   const dueAt = paidNow
@@ -479,7 +511,7 @@ export async function createOrRefreshStayInvoice(
         )
       }
 
-      if (periods.length === 1) {
+      if (existingList.length <= 1 && row.period.index === 1) {
         await linkDepositRecordsToInvoice(admin, reservation.id, row.existing.id)
       }
 
@@ -551,7 +583,7 @@ export async function createOrRefreshStayInvoice(
       )
     }
 
-    if (periods.length === 1) {
+    if (existingList.length === 0 && row.period.index === 1) {
       await finalizeReservationCheckoutPayment(admin, {
         reservationId: reservation.id,
         invoiceId: invoiceRow.id,
@@ -584,49 +616,149 @@ export async function createOrRefreshStayInvoice(
   const open =
     issued.find((row) => invoiceBalanceDue(row.taxes.total, row.amountPaid) > 0.009) ??
     issued[issued.length - 1]!
+  const focus = input.preferLatest ? issued[issued.length - 1]! : open
 
   return {
-    invoiceId: open.id,
-    invoiceNumber: open.invoiceNumber,
-    taxes: open.taxes,
+    invoiceId: focus.id,
+    invoiceNumber: focus.invoiceNumber,
+    taxes: focus.taxes,
     folioSubtotal: stayFolioSubtotal,
-    discountAmount: open.discountAmount,
+    discountAmount: focus.discountAmount,
     created: issued.some((row) => row.created),
     invoicePreview: buildCheckoutInvoicePreview({
-      invoiceId: open.id,
-      invoiceNumber: open.invoiceNumber,
+      invoiceId: focus.id,
+      invoiceNumber: focus.invoiceNumber,
       guestName: reservation.guest_name,
       billToName: billTo.value,
       guestPhone: input.guestPhone ?? null,
       guestTaxId,
       roomNumber: input.roomNumber ?? null,
       roomCategoryName,
-      checkIn: open.period.start,
-      checkOut: open.period.end,
+      checkIn: focus.period.start,
+      checkOut: focus.period.end,
       issuedAt: now,
-      subtotal: open.taxes.subtotal,
-      discountAmount: open.discountAmount,
-      discountReason: invoiceDiscountFields(open.discountAmount, reservation.discount_reason)
+      subtotal: focus.taxes.subtotal,
+      discountAmount: focus.discountAmount,
+      discountReason: invoiceDiscountFields(focus.discountAmount, reservation.discount_reason)
         .discount_reason,
-      nhil: open.taxes.nhil,
-      getfund: open.taxes.getfund,
-      covid: open.taxes.covid,
-      vat: open.taxes.vat,
-      elevy: open.taxes.elevy,
-      tourism: open.taxes.tourism,
+      nhil: focus.taxes.nhil,
+      getfund: focus.taxes.getfund,
+      covid: focus.taxes.covid,
+      vat: focus.taxes.vat,
+      elevy: focus.taxes.elevy,
+      tourism: focus.taxes.tourism,
       taxSnapshot,
-      total: open.taxes.total,
+      total: focus.taxes.total,
       paymentMethod: input.paymentMethod,
-      paymentStatus: open.paymentStatus,
-      amountPaid: open.amountPaid,
+      paymentStatus: focus.paymentStatus,
+      amountPaid: focus.amountPaid,
     }),
-    paymentStatus: open.paymentStatus,
-    amountPaid: open.amountPaid,
+    paymentStatus: focus.paymentStatus,
+    amountPaid: focus.amountPaid,
     stayTotals: {
       total: stayTotal,
       paid: stayPaid,
       balance: invoiceBalanceDue(stayTotal, stayPaid),
       periodCount: issued.length,
     },
+    periodLabel: billingPeriodLabel(focus.period),
   }
+}
+
+const STAY_INVOICE_SELECT =
+  'id, invoice_number, amount_paid, payment_status, paid_at, guest_tax_id, tax_snapshot, nhil_amount, getfund_amount, covid_levy_amount, vat_amount, elevy_amount, tourism_levy_amount, bill_to_name, room_category_name, billing_period_start, billing_period_end, discount_amount'
+
+/** Freeze the original stay invoice to the pre-extension check-out, then issue a unique invoice for the extra nights. */
+export async function issueStayExtensionInvoice(
+  admin: AdminClient,
+  input: {
+    reservation: StayInvoiceReservation
+    previousCheckOut: string
+    paymentMethod: PaymentMethod
+    includeTax?: boolean
+    guestPhone?: string | null
+    roomNumber?: string | null
+    billToSameAsGuest?: boolean
+    billToName?: string | null
+  },
+): Promise<StayInvoiceIssueResult> {
+  const newCheckOut = input.reservation.check_out
+  await shortenStayInvoicesLifo(admin, {
+    reservation: { ...input.reservation, check_out: input.previousCheckOut },
+    newCheckOut: input.previousCheckOut,
+    paymentMethod: input.paymentMethod,
+    includeTax: input.includeTax,
+    guestPhone: input.guestPhone,
+    roomNumber: input.roomNumber,
+    includeFolio: false,
+    preferLatest: false,
+  })
+
+  return createOrRefreshStayInvoice(admin, {
+    ...input,
+    reservation: { ...input.reservation, check_out: newCheckOut },
+    markAsPaid: false,
+    effectiveCheckOut: newCheckOut,
+    preferLatest: true,
+  })
+}
+
+/** LIFO unused-night shorten: drop or shrink latest extension invoices, then refresh amounts in place. */
+export async function shortenStayInvoicesLifo(
+  admin: AdminClient,
+  input: {
+    reservation: StayInvoiceReservation
+    newCheckOut: string
+    paymentMethod: PaymentMethod
+    includeTax?: boolean
+    guestPhone?: string | null
+    roomNumber?: string | null
+    includeFolio?: boolean
+    preferLatest?: boolean
+  },
+): Promise<StayInvoiceIssueResult> {
+  const { data: existingRows } = await admin
+    .from('invoices')
+    .select(STAY_INVOICE_SELECT)
+    .eq('reservation_id', input.reservation.id)
+    .eq('hotel_id', input.reservation.hotel_id)
+    .order('billing_period_start', { ascending: true })
+
+  const existingList = (existingRows ?? []) as ExistingStayInvoice[]
+  if (existingList.length > 0) {
+    const actions = lifoShortenStayInvoices(
+      existingList.map((row) => ({
+        start: row.billing_period_start ?? input.reservation.check_in,
+        end: row.billing_period_end ?? input.reservation.check_out,
+      })),
+      input.newCheckOut,
+    )
+    for (let i = 0; i < existingList.length; i++) {
+      const row = existingList[i]!
+      const action = actions[i]
+      if (!action) continue
+      if (action.action === 'keep') continue
+      await admin
+        .from('invoices')
+        .update({
+          billing_period_start: action.start,
+          billing_period_end: action.end,
+        })
+        .eq('id', row.id)
+        .eq('hotel_id', input.reservation.hotel_id)
+    }
+  }
+
+  return createOrRefreshStayInvoice(admin, {
+    reservation: { ...input.reservation, check_out: input.newCheckOut },
+    paymentMethod: input.paymentMethod,
+    markAsPaid: false,
+    includeTax: input.includeTax,
+    effectiveCheckOut: input.newCheckOut,
+    guestPhone: input.guestPhone,
+    roomNumber: input.roomNumber,
+    preserveOverpayment: true,
+    includeFolio: input.includeFolio,
+    preferLatest: input.preferLatest ?? true,
+  })
 }

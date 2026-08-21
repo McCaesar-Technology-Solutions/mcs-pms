@@ -188,4 +188,66 @@ describe('applyStayPayment', () => {
     const invoice = await findStayInvoiceForReservation(admin as never, HOTEL_ID, RES_ID)
     expect(invoice?.id).toBe(INV_ID)
   })
+
+  it('findStayInvoiceForReservation returns the oldest open invoice', async () => {
+    const paid = {
+      id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      reservation_id: RES_ID,
+      total_amount: 300,
+      amount_paid: 300,
+      payment_status: 'paid',
+    }
+    const open = {
+      id: INV_ID,
+      reservation_id: RES_ID,
+      total_amount: 200,
+      amount_paid: 0,
+      payment_status: 'pending',
+    }
+    const admin = {
+      from: () => ({
+        select: () => ({
+          eq: () => ({
+            eq: () => ({
+              order: async () => ({ data: [paid, open] }),
+            }),
+          }),
+        }),
+      }),
+    }
+
+    const invoice = await findStayInvoiceForReservation(admin as never, HOTEL_ID, RES_ID)
+    expect(invoice?.id).toBe(INV_ID)
+  })
+
+  it('findStayInvoiceForReservation skips zeroed dropped extension invoices', async () => {
+    const dropped = {
+      id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+      reservation_id: RES_ID,
+      total_amount: 0,
+      amount_paid: 50,
+      payment_status: 'paid',
+    }
+    const stay = {
+      id: INV_ID,
+      reservation_id: RES_ID,
+      total_amount: 300,
+      amount_paid: 300,
+      payment_status: 'paid',
+    }
+    const admin = {
+      from: () => ({
+        select: () => ({
+          eq: () => ({
+            eq: () => ({
+              order: async () => ({ data: [stay, dropped] }),
+            }),
+          }),
+        }),
+      }),
+    }
+
+    const invoice = await findStayInvoiceForReservation(admin as never, HOTEL_ID, RES_ID)
+    expect(invoice?.id).toBe(INV_ID)
+  })
 })

@@ -117,7 +117,7 @@ Phone required → optional ID (Ghana Card, passport, or driver’s licence) →
 
 ### While in-house
 
-- **Extend stay**, **Shorten stay** (unused nights from tomorrow onward; extra paid stays as credit), **Move room**, **Edit** (confirmed only).
+- **Extend stay**, **Shorten stay** (unused nights from tomorrow onward, latest extension invoice first; extra paid stays as credit), **Move room**, **Edit** (confirmed only).
 - Post **folio** from Guests (including **Discount (credit)**).
 - **Approve late checkout** on overstay.
 - **Dispute hold** pauses checkout while a billing dispute is open (reason required). You can start it from in-house or **checkout in progress**; the folio unlocks so charges can still be posted. The guest still occupies the room; guest requests stay on this stay. **Release hold** (note required) resumes the stay, or check out / walkout from the hold.
@@ -127,7 +127,7 @@ Phone required → optional ID (Ghana Card, passport, or driver’s licence) →
 1. Read Outstanding carefully.
 2. **Begin checkout** (folio locks).
 3. **Complete checkout** — stay was paid at check-in; collect remaining only if Outstanding.
-4. Room → Cleaning; same stay invoice refreshed (no duplicate). Share PDF / WhatsApp.
+4. Room → Cleaning; stay and extension invoices refreshed in place (folio extras on the latest). Share PDF / WhatsApp.
 
 **Walkout** — guest left without paying (not for desk settlement).
 
@@ -162,8 +162,8 @@ For people already staying: real arrival (can be past) + planned departure. A st
 - **Guest folio** — post incidentals; you can post a **Discount (credit)**.
 - **Generate stay invoice & collect** if they have no invoice yet.
 - **Export PII** or **Erase / delete** (reception cannot erase). Erasing an in-house guest ends the stay and frees the room.
-- **Extend stay** — pick a later check-out (same as Reservations). Room total and portal access update automatically.
-- **Shorten stay** — return unused nights from tomorrow onward. Extra already collected stays as credit (refunds are owner-only).
+- **Extend stay** — pick a later check-out (same as Reservations). A unique invoice is issued for the extra nights; stay total on the reservation is informational.
+- **Shorten stay** — return unused nights from tomorrow onward (latest extension invoice first). Extra already collected stays as credit (refunds are owner-only).
 - **Check out** from guest card when useful. **Dispute hold** stays stay in house — use Reservations to release the hold, begin checkout, or record a walkout.
 
 ---
@@ -260,7 +260,7 @@ You **cannot** refund invoice payments — send those to the owner.
 - Tick **Include Ghana tax** when you need VAT & levies (Bill-to Tax ID `GHA-728071939-8`).
 - **Bill to** can differ from the guest name when issuing.
 - Apply % or fixed guest discounts when creating/editing a booking or refreshing the invoice.
-- Checkout reuses the same stay invoice — it will not create a duplicate.
+- Checkout refreshes stay and extension invoices in place (folio extras on the latest) — it will not merge them into one cumulative bill.
 - **Online payments** tab shows guest Pay-now attempts when that feature is enabled.
 
 **Ledger backfill (once per property after upgrade):** run `npx tsx scripts/backfill-payment-records.ts --dry-run` then without `--dry-run` if gaps are reported.

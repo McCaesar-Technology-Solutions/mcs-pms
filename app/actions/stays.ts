@@ -15,7 +15,7 @@ import {
 } from '@/lib/guests/id-document'
 import { getHotelTaxConfig } from '@/lib/data/settings'
 import { allocateInvoiceNumber } from '@/lib/invoices/numbering'
-import { createOrRefreshStayInvoice } from '@/lib/billing/build-stay-invoice'
+import { createOrRefreshStayInvoice, issueStayExtensionInvoice, shortenStayInvoicesLifo } from '@/lib/billing/build-stay-invoice'
 import { resolveBillToName } from '@/lib/billing/bill-to'
 import { createPostCheckoutCleanTask } from '@/lib/housekeeping/checkout-task'
 import { phoneSchema } from '@/lib/phone'
@@ -45,7 +45,7 @@ import {
 import { writeAuditLog, logRoomStatusChange } from '@/lib/audit/log'
 import { canCheckIn, canCheckOut, canExtendStay, canMoveStayRoom, canReduceStay, canStartDisputeHold, minReduceCheckOut, parseRequiredStayNote, OCCUPYING_STATUSES, asReservationStatus, stayExtensionChangesStatus, statusAfterDisputeHoldRelease, statusAfterStayExtension } from '@/lib/reservations/lifecycle'
 import { validateCheckoutBalance, validateCheckoutPaymentAmount } from '@/lib/reservations/checkout-validation'
-import { applyStayPayment } from '@/lib/billing/apply-stay-payment'
+import { applyStayPaymentWaterfall } from '@/lib/billing/apply-stay-payment'
 import { reverseOverstayChargeOnExtend } from '@/lib/reservations/lifecycle-charges'
 import { invoiceBalanceDue, stayCreditAfterShorten } from '@/lib/billing/invoice-payments'
 import { runNotifyTask } from '@/lib/notifications/notify-task'
@@ -520,7 +520,7 @@ export async function checkInStay(
     doorPin: portalPin,
   })
 
-  // Pay-before-enter: create the stay invoice at check-in (pending). Checkout reuses it.
+  // Pay-before-enter: create the stay invoice at check-in (pending). Checkout refreshes stay and extension invoices in place.
   let invoiceId: string | null = null
   let invoicePreview: InvoiceExportRow | undefined
   let invoiceError: string | undefined
@@ -791,24 +791,34 @@ async function executeStayCheckout(
   let folioSubtotal = 0
 
   try {
-    const issued = await createOrRefreshStayInvoice(admin, {
-      reservation,
-      paymentMethod: input.paymentMethod,
-      markAsPaid: false,
-      includeTax: input.includeTax,
-      effectiveCheckOut,
-      guestPhone,
-      roomNumber,
-      billToSameAsGuest: input.billToSameAsGuest,
-      billToName: input.billToName,
-    })
+    const issued =
+      input.earlyCheckout && effectiveCheckOut < reservation.check_out
+        ? await shortenStayInvoicesLifo(admin, {
+            reservation: { ...reservation, check_out: effectiveCheckOut },
+            newCheckOut: effectiveCheckOut,
+            paymentMethod: input.paymentMethod,
+            includeTax: input.includeTax,
+            guestPhone,
+            roomNumber,
+          })
+        : await createOrRefreshStayInvoice(admin, {
+            reservation,
+            paymentMethod: input.paymentMethod,
+            markAsPaid: false,
+            includeTax: input.includeTax,
+            effectiveCheckOut,
+            guestPhone,
+            roomNumber,
+            billToSameAsGuest: input.billToSameAsGuest,
+            billToName: input.billToName,
+          })
     invoiceId = issued.invoiceId
     invoicePreview = issued.invoicePreview
-    taxesTotal = issued.taxes.total
+    taxesTotal = issued.stayTotals.total
     folioSubtotal = issued.folioSubtotal
 
     if (!isWalkout && settleBalance) {
-      let amountPaid = issued.amountPaid
+      let amountPaid = issued.stayTotals.paid
       const balanceDue = invoiceBalanceDue(taxesTotal, amountPaid)
 
       if (balanceDue > 0.009) {
@@ -824,28 +834,21 @@ async function executeStayCheckout(
         }
 
         if (payAmount > 0.009) {
-          const payment = await applyStayPayment(admin, {
+          const payment = await applyStayPaymentWaterfall(admin, {
             hotelId: profile.hotel_id,
             reservationId: reservation.id,
-            invoiceId: issued.invoiceId,
             amount: payAmount,
             paymentMethod: input.paymentMethod,
             provider: 'manual',
-            idempotencyKey: `checkout-collect:${issued.invoiceId}:${Date.now()}`,
+            idempotencyKeyPrefix: `checkout-collect:${reservation.id}:${Date.now()}`,
             phase: 'checkout',
             metadata: { source: 'checkout_collect' },
           })
           if (!payment.ok) {
             return { success: false, error: payment.error }
           }
+          amountPaid = Math.round((amountPaid + payment.amountApplied) * 100) / 100
         }
-
-        const { data: refreshedInvoice } = await admin
-          .from('invoices')
-          .select('amount_paid')
-          .eq('id', issued.invoiceId)
-          .maybeSingle()
-        amountPaid = Number(refreshedInvoice?.amount_paid ?? amountPaid)
       }
 
       const balanceCheck = validateCheckoutBalance({
@@ -854,19 +857,6 @@ async function executeStayCheckout(
       })
       if (!balanceCheck.ok) {
         return { success: false, error: balanceCheck.error }
-      }
-
-      const refreshed = await admin
-        .from('invoices')
-        .select('amount_paid, payment_status')
-        .eq('id', issued.invoiceId)
-        .maybeSingle()
-      if (refreshed.data && invoicePreview) {
-        invoicePreview = {
-          ...invoicePreview,
-          amountPaid: Number(refreshed.data.amount_paid ?? amountPaid),
-          paymentStatus: refreshed.data.payment_status ?? invoicePreview.paymentStatus,
-        }
       }
     }
   } catch (err) {
@@ -1631,21 +1621,20 @@ export async function extendStay(
       .maybeSingle()
     roomNumber = roomRow?.number ?? null
 
-    const issued = await createOrRefreshStayInvoice(admin, {
+    const issued = await issueStayExtensionInvoice(admin, {
       reservation: {
         ...reservation,
         check_out: newCheckOut,
         total_amount: total,
       },
+      previousCheckOut: reservation.check_out,
       paymentMethod,
-      markAsPaid: false,
-      effectiveCheckOut: newCheckOut,
       guestPhone,
       roomNumber,
     })
     invoiceId = issued.invoiceId
     invoicePreview = issued.invoicePreview
-    balanceDue = invoiceBalanceDue(issued.taxes.total, issued.amountPaid)
+    balanceDue = issued.stayTotals.balance
   } catch (err) {
     invoiceError = err instanceof Error ? err.message : 'Could not refresh stay invoice.'
     void writeAuditLog({
@@ -1835,22 +1824,21 @@ export async function reduceStay(
       roomNumber = roomRow?.number ?? null
     }
 
-    const issued = await createOrRefreshStayInvoice(admin, {
+    const issued = await shortenStayInvoicesLifo(admin, {
       reservation: {
         ...reservation,
         check_out: newCheckOut,
         total_amount: total,
       },
+      newCheckOut,
       paymentMethod,
-      markAsPaid: false,
-      effectiveCheckOut: newCheckOut,
       guestPhone,
       roomNumber,
     })
     invoiceId = issued.invoiceId
     invoicePreview = issued.invoicePreview
-    balanceDue = invoiceBalanceDue(issued.taxes.total, issued.amountPaid)
-    creditAmount = stayCreditAfterShorten(issued.taxes.total, issued.amountPaid)
+    balanceDue = issued.stayTotals.balance
+    creditAmount = stayCreditAfterShorten(issued.stayTotals.total, issued.stayTotals.paid)
   } catch (err) {
     invoiceError = err instanceof Error ? err.message : 'Could not refresh stay invoice.'
     void writeAuditLog({
@@ -2025,6 +2013,22 @@ export async function moveStayRoom(
       to: 'occupied',
       reason: 'guest moved in',
     })
+  }
+
+  const paymentMethod = (
+    reservation.payment_method && VALID_PAYMENT_METHODS.includes(reservation.payment_method as PaymentMethod)
+      ? reservation.payment_method
+      : 'cash'
+  ) as PaymentMethod
+  try {
+    await createOrRefreshStayInvoice(admin, {
+      reservation: { ...reservation, room_id: newRoomId },
+      paymentMethod,
+      markAsPaid: false,
+      roomNumber: newRoom?.number ?? null,
+    })
+  } catch {
+    // Room is already moved; desk can refresh invoices from Billing.
   }
 
   revalidateStayViews()

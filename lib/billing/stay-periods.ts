@@ -1,8 +1,5 @@
 import { stayNights } from '@/lib/stays/helpers'
-import { roundMoney, type RateType } from '@/lib/pricing/stay-totals'
-
-/** Rental month used by monthly rate math (`monthlyRate / 30`). */
-export const BILLING_MONTH_NIGHTS = 30
+import { roundMoney } from '@/lib/pricing/stay-totals'
 
 export type StayBillingPeriod = {
   start: string
@@ -12,45 +9,147 @@ export type StayBillingPeriod = {
   count: number
 }
 
-function pad2(n: number): string {
-  return String(n).padStart(2, '0')
+export type StayInvoicePeriodRow = {
+  billing_period_start: string | null
+  billing_period_end: string | null
 }
 
-export function addIsoDays(isoDate: string, days: number): string {
-  const d = new Date(`${isoDate}T00:00:00`)
-  d.setDate(d.getDate() + days)
-  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
+export type LifoShortenAction = {
+  start: string
+  end: string
+  nights: number
+  action: 'keep' | 'shrink' | 'drop'
 }
 
-/**
- * Monthly rate stays longer than one rental month get one invoice period per 30 nights.
- * Nightly/weekly stays stay a single invoice (the stay itself).
- */
-export function stayBillingPeriods(
-  checkIn: string,
-  checkOut: string,
-  rateType: RateType | string | null,
+/** Invoice periods may be empty (dropped extension). Stay bookings still use stayNights (min 1). */
+export function stayInvoiceNights(start: string, end: string): number {
+  if (start >= end) return 0
+  return stayNights(start, end)
+}
+
+export function indexStayPeriods(
+  slices: Array<{ start: string; end: string }>,
 ): StayBillingPeriod[] {
-  const totalNights = stayNights(checkIn, checkOut)
-  if (rateType !== 'monthly' || totalNights <= BILLING_MONTH_NIGHTS) {
-    return [{ start: checkIn, end: checkOut, nights: totalNights, index: 1, count: 1 }]
-  }
-
-  const slices: Array<{ start: string; end: string; nights: number }> = []
-  let cursor = checkIn
-  while (cursor < checkOut) {
-    const proposedEnd = addIsoDays(cursor, BILLING_MONTH_NIGHTS)
-    const end = proposedEnd < checkOut ? proposedEnd : checkOut
-    slices.push({ start: cursor, end, nights: stayNights(cursor, end) })
-    cursor = end
-  }
-
   const count = slices.length
   return slices.map((slice, i) => ({
-    ...slice,
+    start: slice.start,
+    end: slice.end,
+    nights: stayInvoiceNights(slice.start, slice.end),
     index: i + 1,
     count,
   }))
+}
+
+/**
+ * Stay invoices are the original stay plus one unique invoice per extension.
+ * Periods come from existing invoice rows. A stay with no invoices is a single
+ * period covering check-in → check-out (any rate type, any length).
+ */
+export function stayInvoicePeriodsFromRows(
+  rows: StayInvoicePeriodRow[],
+  checkIn: string,
+  checkOut: string,
+): StayBillingPeriod[] {
+  if (rows.length === 0) {
+    return indexStayPeriods([{ start: checkIn, end: checkOut }])
+  }
+
+  return indexStayPeriods(
+    rows.map((row) => {
+      const start = row.billing_period_start ?? checkIn
+      const end = row.billing_period_end ?? (row.billing_period_start ? start : checkOut)
+      return { start, end }
+    }),
+  )
+}
+
+export function lastActivePeriodEnd(periods: StayBillingPeriod[]): string | null {
+  for (let i = periods.length - 1; i >= 0; i--) {
+    const period = periods[i]
+    if (period && period.nights > 0) return period.end
+  }
+  return null
+}
+
+/**
+ * Cover nights after the last billed period. Reactivate a dropped invoice that
+ * already owns `gap.start` instead of inserting a second row (unique index).
+ */
+export function applyExtensionCoverage(
+  periods: StayBillingPeriod[],
+  checkOut: string,
+): StayBillingPeriod[] {
+  const slices = periods.map((period) => ({ start: period.start, end: period.end }))
+  let lastEnd = lastActivePeriodEnd(indexStayPeriods(slices))
+  let gap = missingExtensionSlice(lastEnd, checkOut)
+
+  if (!gap && !lastEnd && slices[0] && slices[0].start < checkOut) {
+    gap = { start: slices[0].start, end: checkOut }
+  }
+  if (!gap) return indexStayPeriods(slices)
+
+  const reuseIdx = slices.findIndex(
+    (slice) => slice.start === gap!.start && stayInvoiceNights(slice.start, slice.end) === 0,
+  )
+  if (reuseIdx >= 0) {
+    slices[reuseIdx] = { start: gap.start, end: gap.end }
+  } else {
+    slices.push(gap)
+  }
+  return indexStayPeriods(slices)
+}
+
+export function coverStayInvoicePeriods(
+  rows: StayInvoicePeriodRow[],
+  checkIn: string,
+  checkOut: string,
+): StayBillingPeriod[] {
+  return applyExtensionCoverage(stayInvoicePeriodsFromRows(rows, checkIn, checkOut), checkOut)
+}
+
+/** Uncovered nights after the last billed period — issue a new extension invoice, do not grow the last one. */
+export function missingExtensionSlice(
+  lastActiveEnd: string | null,
+  checkOut: string,
+): { start: string; end: string } | null {
+  if (!lastActiveEnd || lastActiveEnd >= checkOut) return null
+  return { start: lastActiveEnd, end: checkOut }
+}
+
+/**
+ * Shorten unused nights from the latest extension first.
+ * Periods entirely after the new check-out are dropped (zero nights).
+ * The overlapping latest period is shrunk. Earlier invoices stay as issued.
+ */
+export function lifoShortenStayInvoices(
+  periods: Array<{ start: string; end: string }>,
+  newCheckOut: string,
+): LifoShortenAction[] {
+  const result: LifoShortenAction[] = periods.map((period) => ({
+    start: period.start,
+    end: period.end,
+    nights: stayInvoiceNights(period.start, period.end),
+    action: 'keep',
+  }))
+
+  for (let i = result.length - 1; i >= 0; i--) {
+    const period = result[i]!
+    if (period.start >= newCheckOut) {
+      result[i] = { start: period.start, end: period.start, nights: 0, action: 'drop' }
+      continue
+    }
+    if (period.end > newCheckOut) {
+      result[i] = {
+        start: period.start,
+        end: newCheckOut,
+        nights: stayInvoiceNights(period.start, newCheckOut),
+        action: 'shrink',
+      }
+    }
+    break
+  }
+
+  return result
 }
 
 /** Oldest-first: fill each period total before the next. */
@@ -78,7 +177,13 @@ export function splitAmountByWeights(total: number, weights: number[]): number[]
   return parts
 }
 
+export function remainingFixedDiscount(stayFixed: number, alreadyAllocated: number): number {
+  return Math.max(0, roundMoney(stayFixed) - roundMoney(alreadyAllocated))
+}
+
 export function billingPeriodLabel(period: StayBillingPeriod): string {
-  if (period.count <= 1) return 'Stay'
-  return `Month ${period.index} of ${period.count}`
+  if (period.count <= 1 || period.index === 1) return 'Stay'
+  const extensionCount = period.count - 1
+  const extensionIndex = period.index - 1
+  return `Extension ${extensionIndex} of ${extensionCount}`
 }
